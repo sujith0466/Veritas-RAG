@@ -27,3 +27,11 @@ class ValidationFailed(ReflectionDomainException):
 class ReflectionTimeout(ReflectionDomainException):
     def __init__(self, message: str = "Reflection engine timed out", detail: dict | None = None):
         super().__init__(message=message, error_code=ReflectionErrorCode.REFLECTION_TIMEOUT, detail=detail)
+
+class ReflectionEvaluationFailed(ReflectionDomainException):
+    def __init__(self, message: str = "Reflection evaluation failed", detail: dict | None = None):
+        super().__init__(message=message, error_code="REF_004", detail=detail)
+
+class ContradictionDetectedError(ReflectionDomainException):
+    def __init__(self, message: str = "Logical contradiction detected in claims", detail: dict | None = None):
+        super().__init__(message=message, error_code="REF_005", detail=detail)

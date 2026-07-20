@@ -92,3 +92,11 @@ class ClaimValidator:
             citation_index=citation_index,
             supporting_excerpt=citation.excerpt
         )
+
+    async def validate_claims_async(
+        self, extracted_claims: list[tuple[str, int | None]], citations: list[CitationDTO]
+    ) -> list[ClaimValidationResultDTO]:
+        results = []
+        for claim_text, citation_index in extracted_claims:
+            results.append(self.validate_claim(claim_text, citation_index, citations))
+        return results

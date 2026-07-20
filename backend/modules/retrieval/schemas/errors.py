@@ -28,6 +28,9 @@ class RetrievalErrorCode(StrEnum):
     RET_003 = "RET_003"  # Reranker connection timeout or throttle — RECOVERABLE
     RET_004 = "RET_004"  # Vector store unavailable during dense search — RECOVERABLE
     RET_005 = "RET_005"  # Fusion or deduplication pipeline error — FATAL
+    RET_006 = "RET_006"  # FilterDSL validation error — FATAL
+    RET_007 = "RET_007"  # Compression error — RECOVERABLE
+    RET_008 = "RET_008"  # Tenant violation error — FATAL
 
 
 ERROR_SEVERITY_MAP: dict[RetrievalErrorCode | str, ErrorSeverity] = {
@@ -36,6 +39,9 @@ ERROR_SEVERITY_MAP: dict[RetrievalErrorCode | str, ErrorSeverity] = {
     RetrievalErrorCode.RET_003: ErrorSeverity.RECOVERABLE,
     RetrievalErrorCode.RET_004: ErrorSeverity.RECOVERABLE,
     RetrievalErrorCode.RET_005: ErrorSeverity.FATAL,
+    RetrievalErrorCode.RET_006: ErrorSeverity.FATAL,
+    RetrievalErrorCode.RET_007: ErrorSeverity.RECOVERABLE,
+    RetrievalErrorCode.RET_008: ErrorSeverity.FATAL,
 }
 
 
@@ -75,6 +81,12 @@ class RetrievalDomainException(RAGuardException):
             status_code = HTTPStatus.SERVICE_UNAVAILABLE
         elif str(code_str) == "RET_005":
             status_code = HTTPStatus.UNPROCESSABLE_ENTITY
+        elif str(code_str) == "RET_006":
+            status_code = HTTPStatus.BAD_REQUEST
+        elif str(code_str) == "RET_007":
+            status_code = HTTPStatus.OK # Soft failure
+        elif str(code_str) == "RET_008":
+            status_code = HTTPStatus.FORBIDDEN
 
         self.http_status = int(status_code)
         super().__init__(message=message, detail=detail, error_code=str(code_str))
@@ -140,4 +152,26 @@ class CandidateDeduplicationError(RetrievalDomainException):
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
         super().__init__(code=RetrievalErrorCode.RET_005, message=message, detail=detail)
+
+
+class FilterDSLValidationError(RetrievalDomainException):
+    """Raised when FilterDSL validation fails (`RET_006`)."""
+
+    def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
+        super().__init__(code=RetrievalErrorCode.RET_006, message=message, detail=detail)
+
+
+class CompressionError(RetrievalDomainException):
+    """Raised when context compression fails (`RET_007`)."""
+
+    def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
+        super().__init__(code=RetrievalErrorCode.RET_007, message=message, detail=detail)
+
+
+class TenantViolationError(RetrievalDomainException):
+    """Raised when tenant isolation is violated (`RET_008`)."""
+
+    def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
+        super().__init__(code=RetrievalErrorCode.RET_008, message=message, detail=detail)
+
 

@@ -10,6 +10,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.modules.retrieval.schemas.filter_dsl import CompressionOptionsDTO, FilterDSL
+
 
 class SearchRequestDTO(BaseModel):
     """Request DTO for executing hybrid retrieval and sandbox evaluations."""
@@ -50,9 +52,13 @@ class SearchRequestDTO(BaseModel):
         le=1.0,
         description="Cosine/Jaccard similarity threshold for near-duplicate filtering (`ADR-M4-002`).",
     )
-    filters: dict[str, Any] | None = Field(
+    filter_dsl: FilterDSL | None = Field(
         default=None,
-        description="Optional metadata filters (e.g., document_id, strategy_used).",
+        description="Structured Domain Specific Language for metadata filtering.",
+    )
+    compression_options: CompressionOptionsDTO | None = Field(
+        default=None,
+        description="Options for context compression.",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -84,6 +90,8 @@ class RankedEvidenceDTO(BaseModel):
     document_version_id: UUID = Field(..., description="Document version ID.")
     tenant_id: str = Field(..., description="Strict tenant namespace ID.")
     content: str = Field(..., description="Normalized chunk text content.")
+    compressed_content: str | None = Field(default=None, description="Compressed chunk text content.")
+    compression_ratio: float | None = Field(default=None, description="Length ratio (compressed / original).")
     dense_rank: int | None = Field(default=None, description="Rank in dense candidates (`None` if missing).")
     sparse_rank: int | None = Field(default=None, description="Rank in sparse candidates (`None` if missing).")
     rrf_score: float = Field(..., description="Reciprocal Rank Fusion merged score (`ADR-M4-001`).")
@@ -107,14 +115,16 @@ class RetrievalStageBreakdownDTO(BaseModel):
     dense_ms: float = Field(default=0.0, description="Dense vector search latency.")
     sparse_ms: float = Field(default=0.0, description="Sparse keyword matching latency.")
     rrf_fusion_ms: float = Field(default=0.0, description="RRF rank fusion & deduplication latency.")
+    dedup_ms: float = Field(default=0.0, description="Deduplication latency.")
     rerank_ms: float = Field(default=0.0, description="Cross-encoder reranking latency.")
+    compression_ms: float = Field(default=0.0, description="Context compression latency.")
     total_ms: float = Field(default=0.0, description="Total end-to-end orchestration latency.")
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class RetrievalResultDTO(BaseModel):
-    """Standardized response payload for `/api/v1/retrieval/search`."""
+class RetrievalResultDTOv2(BaseModel):
+    """Standardized response payload for `/api/v1/retrieval/search` v2."""
 
     query_text: str = Field(..., description="Executed query string.")
     tenant_id: str = Field(..., description="Tenant namespace ID.")
@@ -129,6 +139,8 @@ class RetrievalResultDTO(BaseModel):
     stage_latencies: RetrievalStageBreakdownDTO = Field(
         ..., description="Execution latency breakdown across stages."
     )
+    dedup_removed_count: int = Field(default=0, description="Number of items removed during deduplication.")
+    filter_applied: bool = Field(default=False, description="Whether a filter DSL was applied.")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -197,3 +209,11 @@ class RetrievalMetricsDTO(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 backward-compatible aliases
+# ---------------------------------------------------------------------------
+RetrievalResultDTO = RetrievalResultDTOv2
+RetrievalCandidateDTO = CandidatePointDTO
+

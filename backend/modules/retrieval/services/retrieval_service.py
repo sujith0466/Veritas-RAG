@@ -57,7 +57,9 @@ class RetrievalOrchestrator:
         self.collection_prefix = collection_prefix
 
     def _get_collection_name(self, options: SearchRequestDTO) -> str:
-        if options.filters and options.filters.get("collection_name"):
+        if hasattr(options, "filter_dsl") and options.filter_dsl and getattr(options.filter_dsl, "collection_name", None):
+            return str(options.filter_dsl.collection_name)
+        if hasattr(options, "filters") and getattr(options, "filters", None) and isinstance(options.filters, dict) and options.filters.get("collection_name"):
             return str(options.filters["collection_name"])
         dimension = getattr(self.embedding_provider, "dimension", 1536)
         return f"{self.collection_prefix}_{dimension}"
@@ -250,7 +252,7 @@ class RetrievalOrchestrator:
                 tenant_id=tenant_id,
                 collection_name=collection_name,
                 limit=options.limit_dense,
-                filters=options.filters,
+                filters=getattr(options, "filter_dsl", None) or getattr(options, "filters", None),
             )
             sparse_task = self._execute_sparse_stage(
                 query=query_clean,
@@ -343,7 +345,7 @@ class RetrievalOrchestrator:
             tenant_id=tenant_id,
             collection_name=collection_name,
             limit=options.limit_dense,
-            filters=options.filters,
+            filters=getattr(options, "filter_dsl", None) or getattr(options, "filters", None),
         )
         sparse_task = self._execute_sparse_stage(
             query=query_clean,

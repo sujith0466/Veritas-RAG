@@ -1,0 +1,949 @@
+{
+  "version": "1.0",
+  "diagramId": "4126c377-72f6-4676-87d9-a63b884b02d1",
+  "title": "Architecture Diagram",
+  "nodes": [
+    {
+      "id": "api-gateway",
+      "type": "api-gateway",
+      "label": "API Gateway",
+      "generic_name": "API Gateway",
+      "ports": [
+        {
+          "id": "client-in",
+          "label": "Client Request (TLS 1.3)",
+          "side": "left"
+        },
+        {
+          "id": "service-out",
+          "label": "Internal API (mTLS)",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "label": "Right 2",
+          "side": "right"
+        },
+        {
+          "id": "right-3",
+          "label": "Right 3",
+          "side": "right"
+        },
+        {
+          "id": "left-3",
+          "side": "left",
+          "label": "Left 3"
+        }
+      ],
+      "data": {
+        "description": "Enterprise API Gateway with TLS 1.3, OWASP security controls, and OpenTelemetry integration.",
+        "tech": [
+          "FastAPI",
+          "Kong",
+          "Redis",
+          "TLS-1.3",
+          "OWASP-Security-Policies",
+          "OpenTelemetry"
+        ]
+      }
+    },
+    {
+      "id": "query-intelligence-service",
+      "type": "service",
+      "label": "Query Intelligence Service",
+      "generic_name": "Query & Ingestion Intelligence",
+      "ports": [
+        {
+          "id": "in",
+          "label": "Query In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Normalized Query Out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Handles query normalization and ingestion-time OCR cleanup with secure file validation and Pydantic request hardening.",
+        "tech": [
+          "Python",
+          "FastAPI",
+          "SpaCy",
+          "Tesseract",
+          "Pydantic-v2",
+          "Secure-File-Validation",
+          "OpenTelemetry"
+        ]
+      }
+    },
+    {
+      "id": "hybrid-retrieval-service",
+      "type": "service",
+      "label": "Hybrid Retrieval Service",
+      "generic_name": "Hybrid Retrieval Engine",
+      "ports": [
+        {
+          "id": "in-query",
+          "label": "Query In",
+          "side": "left"
+        },
+        {
+          "id": "out-reliability",
+          "label": "Reliability Out",
+          "side": "right"
+        },
+        {
+          "id": "in-retry",
+          "label": "Retry In",
+          "side": "top"
+        },
+        {
+          "id": "out-db-vector",
+          "label": "Vector DB Out",
+          "side": "bottom"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-2",
+          "label": "Right 2",
+          "side": "right"
+        },
+        {
+          "id": "left-3",
+          "side": "left",
+          "label": "Left 3"
+        }
+      ],
+      "data": {
+        "description": "Executes dense and sparse search with RRF and cross-encoder reranking.",
+        "tech": [
+          "Python",
+          "Qdrant",
+          "Elasticsearch",
+          "Sentence-Transformers"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "reliability-control-service",
+      "type": "service",
+      "label": "Reliability Scoring Service",
+      "generic_name": "Reliability & Control Orchestrator",
+      "ports": [
+        {
+          "id": "in",
+          "label": "Context In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Decision Out",
+          "side": "right"
+        },
+        {
+          "id": "right-2",
+          "label": "Right 2",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-3",
+          "label": "Right 3",
+          "side": "right"
+        },
+        {
+          "id": "left-3",
+          "side": "left",
+          "label": "Left 3"
+        }
+      ],
+      "data": {
+        "description": "Central orchestrator for reliability scoring and audit logging. Enforces data minimization and consent metadata checks.",
+        "tech": [
+          "Python",
+          "Scikit-Learn",
+          "Pydantic-Logistics",
+          "OpenTelemetry",
+          "Audit-Logging-Service",
+          "Consent-Metadata-Enforcement"
+        ]
+      }
+    },
+    {
+      "id": "generation-validation-service",
+      "type": "service",
+      "label": "Answer Generation Service",
+      "generic_name": "Generation & Validation Engine",
+      "ports": [
+        {
+          "id": "in",
+          "label": "Context In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Answer Out",
+          "side": "right"
+        },
+        {
+          "id": "right-2",
+          "label": "Right 2",
+          "side": "right"
+        },
+        {
+          "id": "right-3",
+          "side": "right",
+          "label": "Right 3"
+        }
+      ],
+      "data": {
+        "description": "LLM generation service with integrated Prompt Injection Protection and distributed tracing.",
+        "tech": [
+          "Python",
+          "FastAPI",
+          "OpenAI-GPT4o",
+          "Prompt-Injection-Shield",
+          "OpenTelemetry",
+          "Correlation-IDs"
+        ]
+      }
+    },
+    {
+      "id": "knowledge-health-service",
+      "type": "service",
+      "label": "Knowledge Health Service",
+      "generic_name": "Knowledge Health Monitor",
+      "ports": [
+        {
+          "id": "in-trigger",
+          "label": "Trigger In",
+          "side": "left"
+        },
+        {
+          "id": "out-reliability-logic",
+          "label": "Logic Reuse Out",
+          "side": "right"
+        },
+        {
+          "id": "in",
+          "label": "in",
+          "side": "left"
+        }
+      ],
+      "data": {
+        "description": "Proactive corpus scanning for duplicates, staleness, and conflicts. Reuses Reliability logic.",
+        "tech": [
+          "Python",
+          "Celery",
+          "Redis-Queue"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "evaluation-engine-service",
+      "type": "service",
+      "label": "Evaluation Engine Service",
+      "generic_name": "Evaluation & Benchmarking Engine",
+      "ports": [
+        {
+          "id": "in-traces",
+          "label": "Traces In",
+          "side": "left"
+        },
+        {
+          "id": "out-metrics",
+          "label": "Metrics Out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Maintains golden datasets and runs baseline-vs-self-corrected comparisons.",
+        "tech": [
+          "Python",
+          "Pandas",
+          "MLflow"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "vector-db-node",
+      "type": "database",
+      "label": "Vector DB (Qdrant)",
+      "generic_name": "Vector Database",
+      "ports": [
+        {
+          "id": "db-port",
+          "label": "Vector Search (Encrypted)",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Vector storage with AES-256 encryption at rest and automated data retention policies.",
+        "tech": [
+          "Qdrant",
+          "AES-256-Encryption-at-Rest",
+          "Data-Retention-Policy"
+        ]
+      }
+    },
+    {
+      "id": "relational-db-node",
+      "type": "database",
+      "label": "Relational DB (Postgres)",
+      "generic_name": "Relational Database",
+      "ports": [
+        {
+          "id": "db-port",
+          "label": "SQL (Encrypted)",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Relational store for audit logs, golden sets, and compliance metadata. Encrypted at rest.",
+        "tech": [
+          "PostgreSQL",
+          "AES-256-Encryption-at-Rest",
+          "Audit-Trail-Storage",
+          "Data-Deletion-Interface"
+        ]
+      }
+    },
+    {
+      "id": "cache-layer-node",
+      "type": "cache",
+      "label": "Cache (Redis)",
+      "generic_name": "Cache Layer",
+      "ports": [
+        {
+          "id": "in-cache-gw",
+          "label": "GW In",
+          "side": "top"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Distributed cache for session state and model inference results.",
+        "tech": [
+          "Redis"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "web-client-node",
+      "type": "client",
+      "label": "Web Client",
+      "generic_name": "Web Client",
+      "ports": [
+        {
+          "id": "out-to-gw",
+          "label": "Request Out",
+          "side": "right"
+        },
+        {
+          "id": "in",
+          "label": "Input",
+          "side": "left"
+        }
+      ],
+      "data": {
+        "description": "Enterprise users and systems querying the RAG platform.",
+        "tech": [
+          "ReactJS",
+          "TypeScript"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "analytics-dashboard-node",
+      "type": "frontend",
+      "label": "Analytics Dashboard",
+      "generic_name": "Analytics Dashboard",
+      "ports": [
+        {
+          "id": "in-metrics-data",
+          "label": "Metrics In",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Surfaces reliability metrics, hallucination rates, and knowledge health status.",
+        "tech": [
+          "ReactJS",
+          "Grafana",
+          "D3.js"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "retry-controller",
+      "type": "service",
+      "label": "Retry Controller",
+      "generic_name": "Decision Controller",
+      "ports": [
+        {
+          "id": "in-eval",
+          "label": "Eval In",
+          "side": "left"
+        },
+        {
+          "id": "in-val",
+          "label": "Val In",
+          "side": "bottom"
+        },
+        {
+          "id": "out-rewrite",
+          "label": "Rewrite",
+          "side": "top"
+        },
+        {
+          "id": "out-clarify",
+          "label": "Clarify",
+          "side": "right"
+        },
+        {
+          "id": "out-gen",
+          "label": "Generate",
+          "side": "right"
+        },
+        {
+          "id": "out-final",
+          "label": "Finalize",
+          "side": "bottom"
+        },
+        {
+          "id": "right-3",
+          "label": "Right 3",
+          "side": "right"
+        },
+        {
+          "id": "left-2",
+          "label": "Left 2",
+          "side": "left"
+        },
+        {
+          "id": "right-4",
+          "side": "right",
+          "label": "Right 4"
+        }
+      ],
+      "data": {
+        "description": "Deterministic decision authority with structured logging and execution tracing.",
+        "tech": [
+          "Python",
+          "Rule-Engine",
+          "Pydantic",
+          "OpenTelemetry",
+          "Structured-Logging"
+        ]
+      }
+    },
+    {
+      "id": "query-rewrite-service",
+      "type": "service",
+      "label": "Query Rewrite Service",
+      "generic_name": "Query Rewriter",
+      "ports": [
+        {
+          "id": "in-retry",
+          "label": "Retry In",
+          "side": "bottom"
+        },
+        {
+          "id": "out-retrieval",
+          "label": "Retrieval Out",
+          "side": "left"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Executes failure-reason-specific rewrite strategies (Decomposition, HyDE, Disambiguation).",
+        "tech": [
+          "Python",
+          "LangChain",
+          "OpenAI-GPT4o-mini"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "clarification-service",
+      "type": "service",
+      "label": "Clarification Service",
+      "generic_name": "Clarification Engine",
+      "ports": [
+        {
+          "id": "in-clarify",
+          "label": "Clarify In",
+          "side": "left"
+        },
+        {
+          "id": "out-user",
+          "label": "User Out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Generates gap-specific clarifying questions when retrieval ambiguity is detected.",
+        "tech": [
+          "Python",
+          "FastAPI",
+          "OpenAI-GPT4o-mini"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "reflection-engine-service",
+      "type": "service",
+      "label": "Reflection Engine Service",
+      "generic_name": "Reflection Engine",
+      "ports": [
+        {
+          "id": "in-gen",
+          "label": "Gen In",
+          "side": "left"
+        },
+        {
+          "id": "out-val",
+          "label": "Val Out",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Post-generation judgment engine to determine if the generated answer is grounded in the provided context.",
+        "tech": [
+          "Python",
+          "LangGraph",
+          "OpenAI-GPT4o-mini"
+        ],
+        "isolated": false
+      }
+    },
+    {
+      "id": "answer-validation-service",
+      "type": "service",
+      "label": "Answer Validation Service",
+      "generic_name": "Answer Validator",
+      "ports": [
+        {
+          "id": "in-reflect",
+          "label": "Reflect In",
+          "side": "left"
+        },
+        {
+          "id": "out-retry-ctrl",
+          "label": "Decision Out",
+          "side": "top"
+        },
+        {
+          "id": "out",
+          "label": "Output",
+          "side": "right"
+        }
+      ],
+      "data": {
+        "description": "Post-generation validation with NLI models and detailed audit logging of accept/reject decisions.",
+        "tech": [
+          "Python",
+          "HuggingFace-NLI",
+          "SpaCy",
+          "OpenTelemetry",
+          "Audit-Logging"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "client-to-gw",
+      "source": {
+        "nodeId": "web-client-node",
+        "portId": "out-to-gw"
+      },
+      "target": {
+        "nodeId": "api-gateway",
+        "portId": "client-in"
+      },
+      "type": "http",
+      "label": "HTTPS/REST"
+    },
+    {
+      "id": "gw-to-query-intel",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "service-out"
+      },
+      "target": {
+        "nodeId": "query-intelligence-service",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Internal API"
+    },
+    {
+      "id": "query-intel-to-retrieval",
+      "source": {
+        "nodeId": "query-intelligence-service",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "hybrid-retrieval-service",
+        "portId": "in-query"
+      },
+      "type": "internal-api",
+      "label": "Normalized Query"
+    },
+    {
+      "id": "reliability-retry-loop",
+      "source": {
+        "nodeId": "reliability-control-service",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "hybrid-retrieval-service",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": "Retry/Rewrite (Max 2)"
+    },
+    {
+      "id": "gen-to-gw-response",
+      "source": {
+        "nodeId": "generation-validation-service",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "api-gateway",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": "Final Answer + Score"
+    },
+    {
+      "id": "retrieval-to-vector-db",
+      "source": {
+        "nodeId": "hybrid-retrieval-service",
+        "portId": "out-reliability"
+      },
+      "target": {
+        "nodeId": "vector-db-node",
+        "portId": "db-port"
+      },
+      "type": "database",
+      "label": "Vector Search"
+    },
+    {
+      "id": "gen-to-relational-db",
+      "source": {
+        "nodeId": "generation-validation-service",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "relational-db-node",
+        "portId": "db-port"
+      },
+      "type": "database",
+      "label": "Audit/Reliability Logs"
+    },
+    {
+      "id": "knowledge-health-to-reliability",
+      "source": {
+        "nodeId": "knowledge-health-service",
+        "portId": "out-reliability-logic"
+      },
+      "target": {
+        "nodeId": "reliability-control-service",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": "Logic Reuse (Conflict/Freshness)"
+    },
+    {
+      "id": "eval-to-analytics",
+      "source": {
+        "nodeId": "evaluation-engine-service",
+        "portId": "out-metrics"
+      },
+      "target": {
+        "nodeId": "analytics-dashboard-node",
+        "portId": "in-metrics-data"
+      },
+      "type": "event-stream",
+      "label": "Metric Stream"
+    },
+    {
+      "id": "all-to-eval-traces",
+      "source": {
+        "nodeId": "reliability-control-service",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "evaluation-engine-service",
+        "portId": "in-traces"
+      },
+      "type": "async-event",
+      "label": "Traces/Logs"
+    },
+    {
+      "id": "gw-to-cache-layer-edge-id-12345",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "cache-layer-node",
+        "portId": "in"
+      },
+      "type": "cache",
+      "label": "Session Cache"
+    },
+    {
+      "id": "a4994699-bad2-485d-b98a-09a2b8bbe579",
+      "source": {
+        "nodeId": "api-gateway",
+        "portId": "right-3"
+      },
+      "target": {
+        "nodeId": "knowledge-health-service",
+        "portId": "in-trigger"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "retrieval-to-scoring-conf",
+      "source": {
+        "nodeId": "hybrid-retrieval-service",
+        "portId": "right-2"
+      },
+      "target": {
+        "nodeId": "reliability-control-service",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "scoring-to-retry-ctrl",
+      "source": {
+        "nodeId": "reliability-control-service",
+        "portId": "right-3"
+      },
+      "target": {
+        "nodeId": "retry-controller",
+        "portId": "in-eval"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "retry-ctrl-to-rewrite",
+      "source": {
+        "nodeId": "retry-controller",
+        "portId": "out-clarify"
+      },
+      "target": {
+        "nodeId": "query-rewrite-service",
+        "portId": "out-retrieval"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "rewrite-to-retrieval",
+      "source": {
+        "nodeId": "query-rewrite-service",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "hybrid-retrieval-service",
+        "portId": "left-3"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "retry-ctrl-to-clarify",
+      "source": {
+        "nodeId": "retry-controller",
+        "portId": "out-gen"
+      },
+      "target": {
+        "nodeId": "clarification-service",
+        "portId": "in-clarify"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "clarify-to-gateway",
+      "source": {
+        "nodeId": "clarification-service",
+        "portId": "out-user"
+      },
+      "target": {
+        "nodeId": "api-gateway",
+        "portId": "left-3"
+      },
+      "type": "http",
+      "label": null
+    },
+    {
+      "id": "retry-ctrl-to-gen",
+      "source": {
+        "nodeId": "retry-controller",
+        "portId": "right-3"
+      },
+      "target": {
+        "nodeId": "generation-validation-service",
+        "portId": "in"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "gen-to-reflect",
+      "source": {
+        "nodeId": "generation-validation-service",
+        "portId": "right-3"
+      },
+      "target": {
+        "nodeId": "reflection-engine-service",
+        "portId": "in-gen"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "reflect-to-val",
+      "source": {
+        "nodeId": "reflection-engine-service",
+        "portId": "out-val"
+      },
+      "target": {
+        "nodeId": "answer-validation-service",
+        "portId": "in-reflect"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "val-to-retry-ctrl",
+      "source": {
+        "nodeId": "answer-validation-service",
+        "portId": "out"
+      },
+      "target": {
+        "nodeId": "retry-controller",
+        "portId": "left-2"
+      },
+      "type": "internal-api",
+      "label": null
+    },
+    {
+      "id": "retry-ctrl-to-final-score",
+      "source": {
+        "nodeId": "retry-controller",
+        "portId": "right-4"
+      },
+      "target": {
+        "nodeId": "reliability-control-service",
+        "portId": "left-3"
+      },
+      "type": "internal-api",
+      "label": null
+    }
+  ],
+  "groups": [
+    {
+      "children": [
+        "vector-db-node",
+        "relational-db-node",
+        "cache-layer-node"
+      ],
+      "id": "data-persistence-group",
+      "label": "Data Persistence (Encrypted & Compliant)"
+    },
+    {
+      "children": [
+        "api-gateway",
+        "web-client-node",
+        "analytics-dashboard-node"
+      ],
+      "id": "ingress-edge-group",
+      "label": "Ingress & Edge Layer (Hardened)"
+    },
+    {
+      "children": [
+        "query-intelligence-service",
+        "hybrid-retrieval-service",
+        "reliability-control-service",
+        "retry-controller",
+        "query-rewrite-service",
+        "clarification-service",
+        "reflection-engine-service",
+        "answer-validation-service",
+        "generation-validation-service"
+      ],
+      "id": "core-services-group",
+      "label": "Core Reliability Services (Observed & Secure)"
+    },
+    {
+      "children": [
+        "knowledge-health-service",
+        "evaluation-engine-service"
+      ],
+      "id": "governance-eval-group",
+      "label": "Governance & Evaluation Layer"
+    }
+  ],
+  "metadata": {}
+}

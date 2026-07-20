@@ -40,3 +40,25 @@ class GatewayResponseDTO(BaseModel):
     retry_context: RetryContextDTO | None = None
     clarification_question: str | None = None
     abort_reason: str | None = None
+
+class ScoringInputsDTO(BaseModel):
+    retrieval_relevance_score: float = Field(..., ge=0.0, le=1.0)
+    validation_entailment_ratio: float = Field(..., ge=0.0, le=1.0)
+    confidence_evidence_strength: float = Field(..., ge=0.0, le=1.0)
+    reflection_completeness: float = Field(..., ge=0.0, le=1.0)
+    unsupported_claim_count: int = Field(0, ge=0)
+    invalid_citation_count: int = Field(0, ge=0)
+
+class ScoringRequestDTO(BaseModel):
+    correlation_id: str = Field(..., description="Request tracking ID")
+    tenant_id: str = Field(..., description="Tenant namespace")
+    inputs: ScoringInputsDTO = Field(...)
+
+class ReliabilityScoreDTOv2(BaseModel):
+    correlation_id: str = Field(...)
+    tenant_id: str = Field(...)
+    final_score: float = Field(..., ge=0.0, le=100.0, description="Final reliability score 0-100")
+    base_score: float = Field(..., ge=0.0, le=100.0)
+    penalty_deduction: float = Field(..., ge=0.0)
+    is_trusted: bool = Field(..., description="True if final_score >= 80 and no severe penalties")
+    breakdown: dict = Field(default_factory=dict, description="Detailed score breakdown")

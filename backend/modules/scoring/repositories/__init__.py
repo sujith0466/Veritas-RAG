@@ -1,0 +1,1 @@
+"""Scoring repository module."""
