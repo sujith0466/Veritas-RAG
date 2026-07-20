@@ -96,3 +96,34 @@ class ExecutiveDashboardDTO(BaseModel):
     security_alerts: list[ExecutiveDashboardAlertDTO] = Field(
         default_factory=list, description="Recent security interventions and hallucination aborts"
     )
+
+class TrustDistributionDTO(BaseModel):
+    verified_trusted: float = Field(..., ge=0.0, le=100.0)
+    degraded_caution: float = Field(..., ge=0.0, le=100.0)
+    unreliable_reject: float = Field(..., ge=0.0, le=100.0)
+
+class SLAComplianceReportDTO(BaseModel):
+    tenant_id: str
+    window: str
+    sla_compliance_rate: float = Field(..., ge=0.0, le=100.0)
+    trust_distribution: TrustDistributionDTO
+
+class HallucinationTrendDTO(BaseModel):
+    timestamp: str
+    interception_rate: float
+    total_queries: int
+
+class AuditExportRequestDTO(BaseModel):
+    tenant_id: str
+    window: str
+    mask_pii: bool = True
+
+class AuditExportBundleDTO(BaseModel):
+    download_url: str
+    checksum_sha256: str
+    record_count: int
+
+class LiveDashboardEventDTO(BaseModel):
+    tenant_id: str
+    event_type: str
+    payload: dict

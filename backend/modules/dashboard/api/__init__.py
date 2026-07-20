@@ -1,5 +1,2 @@
-"""Dashboard API router export."""
-
+"""Dashboard API routes."""
 from .routes import router
-
-__all__ = ["router"]

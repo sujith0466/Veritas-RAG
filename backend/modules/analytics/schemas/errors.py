@@ -29,3 +29,11 @@ class InvalidDateRange(AnalyticsDomainException):
 class AggregationFailed(AnalyticsDomainException):
     def __init__(self, message: str = "Failed to aggregate query analytics metrics", detail: dict | None = None):
         super().__init__(message=message, error_code=AnalyticsErrorCode.AGGREGATION_FAILED, detail=detail)
+
+class QuotaExceededError(RAGuardException):
+    def __init__(self, message: str):
+        super().__init__(message=message, error_code="ANA_QTA_001")
+
+class InvalidPricingModelError(RAGuardException):
+    def __init__(self, message: str):
+        super().__init__(message=message, error_code="ANA_PRC_001")

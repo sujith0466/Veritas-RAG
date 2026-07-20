@@ -204,3 +204,44 @@ class QuerySandboxResponseDTO(BaseModel):
     outcome: str = Field(..., description="Execution outcome status")
     final_answer: str = Field(..., description="Generated answer text or intervention notice")
     trace_detail: QueryTraceDetailDTO = Field(..., description="Complete forensic diagnostics")
+
+# --- Phase 19 ROI & Quota DTOs ---
+class ROIAttributionDTO(BaseModel):
+    tenant_id: str
+    window_days: int
+    queries_trusted: int
+    hallucinations_blocked: int
+    ticket_savings_usd: float
+    incident_savings_usd: float
+    total_llm_cost_usd: float
+    net_roi_usd: float
+
+class TokenUsageDTO(BaseModel):
+    id: str
+    tenant_id: str
+    correlation_id: str
+    provider: str
+    model_name: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_cost_usd: float
+
+class TenantQuotaDTO(BaseModel):
+    tenant_id: str
+    monthly_token_limit: int
+    monthly_budget_usd: float
+    warning_threshold_pct: float
+    is_hard_enforced: bool
+    remaining_tokens: int
+    remaining_budget_usd: float
+
+class TenantQuotaUpdateDTO(BaseModel):
+    monthly_token_limit: int | None = None
+    monthly_budget_usd: float | None = None
+    warning_threshold_pct: float | None = None
+    is_hard_enforced: bool | None = None
+
+class TrendForecastDTO(BaseModel):
+    tenant_id: str
+    projected_cost_90d_usd: float
+    projected_tokens_90d: int

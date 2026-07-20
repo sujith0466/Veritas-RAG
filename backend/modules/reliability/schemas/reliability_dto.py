@@ -78,3 +78,33 @@ class SLASummaryDTO(BaseModel):
     degraded_queries: int = Field(default=0, ge=0, description="Number of queries served via degraded fallback")
     sla_compliance_rate: float = Field(default=100.0, ge=0.0, le=100.0, description="Percentage of queries meeting SLA")
     p95_latency_ms: float = Field(default=0.0, ge=0.0, description="Estimated 95th percentile query latency in ms")
+
+# --- Phase 18 Governor DTOs ---
+class HealingActionDTO(BaseModel):
+    id: str
+    tenant_id: str
+    action_type: str
+    trigger_reason: str
+    changes_applied: dict
+    is_rolled_back: bool
+    executed_at: str
+
+class SelfHealingPolicyDTO(BaseModel):
+    id: str
+    tenant_id: str
+    auto_parameter_tuning: bool = True
+    auto_model_rotation: bool = True
+    auto_quarantine_sweep: bool = True
+    max_interventions_per_hour: int = 10
+
+class SelfHealingPolicyUpdateDTO(BaseModel):
+    auto_parameter_tuning: bool | None = None
+    auto_model_rotation: bool | None = None
+    auto_quarantine_sweep: bool | None = None
+    max_interventions_per_hour: int | None = None
+
+class ParameterOverrideDTO(BaseModel):
+    retrieval_top_k: int | None = None
+    similarity_threshold: float | None = None
+    max_retry_budget: int | None = None
+    reflection_strictness: float | None = None

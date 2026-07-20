@@ -129,3 +129,11 @@ class ZeroResultRecoveryFailedError(ReliabilityDomainException):
             is_recoverable=False,
             detail={"tenant_id": tenant_id, "query": query, **(detail or {})},
         )
+
+class SelfHealingPolicyError(RAGuardException):
+    def __init__(self, message: str):
+        super().__init__(message=message, error_code="REL_GOV_001")
+
+class RotationFailedError(RAGuardException):
+    def __init__(self, message: str):
+        super().__init__(message=message, error_code="REL_GOV_002")
