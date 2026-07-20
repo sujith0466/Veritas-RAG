@@ -1,0 +1,71 @@
+# ==============================================================================
+# RAGuard AI — Development Docker Compose Profile Overrides
+# ==============================================================================
+# Extends docker-compose.base.yml with local port exposures, hot-reload mounts,
+# and developer debugging GUI tools (pgAdmin + Redis Commander).
+# ==============================================================================
+
+services:
+  postgres:
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+
+  qdrant:
+    ports:
+      - "${QDRANT_HOST_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+
+  backend:
+    ports:
+      - "${SERVER_PORT:-8000}:8000"
+    volumes:
+      - ../../backend:/app/backend
+      - ../../alembic.ini:/app/alembic.ini
+    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  celery-worker:
+    volumes:
+      - ../../backend:/app/backend
+    command: ["celery", "-A", "backend.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+
+  frontend:
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    volumes:
+      - ../../frontend:/app/frontend
+      - /app/frontend/node_modules
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+
+  # ── Optional Developer GUI Tools (Profile: dev-tools) ────────────────────────
+  pgadmin:
+    profiles: ["dev-tools"]
+    image: dpage/pgadmin4:8.12
+    container_name: raguard-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@raguard.ai}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - raguard-network
+
+  redis-commander:
+    profiles: ["dev-tools"]
+    image: rediscommander/redis-commander:latest
+    container_name: raguard-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: "local:redis:6379"
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - raguard-network

@@ -1,0 +1,1 @@
+export { DeveloperInvestigationPage } from './DeveloperInvestigationPage'

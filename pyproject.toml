@@ -1,0 +1,167 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "raguard-ai"
+version = "1.0.0"
+description = "Enterprise Self-Correcting RAG Reliability Platform"
+requires-python = ">=3.12"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+
+# ─── Ruff (Linter + Formatter) ────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["backend", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "C4",   # flake8-comprehensions
+    "PT",   # flake8-pytest-style
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "TID",  # flake8-tidy-imports
+    "TCH",  # flake8-type-checking
+    "ARG",  # flake8-unused-arguments
+    "PL",   # pylint
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",    # line-length (handled by formatter)
+    "PLR0913", # too many arguments (common in FastAPI deps)
+    "PLR2004", # magic value in comparison (acceptable in tests)
+    "B008",    # function call in default arg (FastAPI pattern)
+    "N805",    # first arg not self (Pydantic validators)
+    "RUF012",  # mutable class var (Pydantic models)
+    "N818",    # exception names (RAGuardException, ApplicationException follow frozen architecture)
+    "PLC0415", # top-level import (deferred imports in factory/fixtures/registration)
+    "ARG001",  # unused function arguments (required by framework callback signatures)
+    "TID252",  # relative imports from parent modules
+    "UP046",   # Generic subclass syntax
+    "SIM105",  # try-except-pass vs contextlib.suppress
+    "RUF022",  # __all__ sorting (logical grouping preferred)
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
+force-sort-within-sections = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ARG", "PLR2004", "S101", "TID252", "PT011", "PT006", "B017", "PLC0415", "F841"]
+"**/migrations/**/*.py" = ["ALL"]
+"backend/main.py" = ["F841"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# ─── MyPy (Type Checker) ───────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = false
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false   # FastAPI decorators are untyped
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+namespace_packages = true
+explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "celery.*",
+    "redis.*",
+    "qdrant_client.*",
+    "structlog.*",
+    "jose.*",
+    "supabase.*",
+    "google.*",
+    "langchain.*",
+    "opentelemetry.*",
+    "prometheus_client.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = [
+    "backend.ai.providers.gemini",
+    "backend.tasks.celery_app",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+strict = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
+
+# ─── Pytest ───────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-v",
+    "-p", "no:flask",
+]
+markers = [
+    "unit: Pure unit tests with no external dependencies",
+    "integration: Tests that require live DB / Redis / Qdrant",
+    "e2e: Full end-to-end tests",
+    "slow: Tests that take > 1s",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore::UserWarning",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]
+
+# ─── Coverage ─────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["backend"]
+omit = [
+    "backend/**/__init__.py",
+    "backend/**/migrations/**",
+    "tests/**",
+]
+branch = true
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+skip_covered = false
+precision = 2
+
+[tool.coverage.html]
+directory = "htmlcov"

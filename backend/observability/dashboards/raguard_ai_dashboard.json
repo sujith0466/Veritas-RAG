@@ -1,0 +1,212 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Active In-Flight Requests",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(raguard_active_requests)",
+          "legendFormat": "Active Requests"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 500 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "title": "Request Throughput (QPS)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_requests_total[1m]))",
+          "legendFormat": "Total QPS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "title": "Overall Error Rate (5xx)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_errors_total{status=~\"5.*\"}[5m])) / max(sum(rate(raguard_requests_total[5m])), 1) * 100",
+          "legendFormat": "5xx Error Rate %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1.0 },
+              { "color": "red", "value": 5.0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "title": "Hallucination Detection Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_reflection_total{hallucination_detected=\"True\"}[5m])) / max(sum(rate(raguard_reflection_total[5m])), 1) * 100",
+          "legendFormat": "Hallucination Rate %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5.0 },
+              { "color": "red", "value": 15.0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "title": "API Request Latency (P50, P95, P99)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(raguard_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P99 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(raguard_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P95 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(raguard_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P50 Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "title": "Pipeline Stage Latency Breakdown (P95)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(raguard_pipeline_stage_duration_seconds_bucket[5m])) by (le, stage))",
+          "legendFormat": "{{stage}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "title": "AI Query Outcomes (Success vs Degraded vs Failed)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(raguard_queries_total[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "title": "Self-Correction & Reflection Activity",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (stage, success) (rate(raguard_retries_total[5m]))",
+          "legendFormat": "Retry: {{stage}} (success={{success}})"
+        },
+        {
+          "expr": "sum by (hallucination_detected) (rate(raguard_reflection_total[5m]))",
+          "legendFormat": "Reflection (hallucination={{hallucination_detected}})"
+        }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "id": 9,
+      "title": "Confidence Score Distribution (Heatmap)",
+      "type": "heatmap",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_confidence_score_bucket[5m])) by (le)",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "id": 10,
+      "title": "Reliability Score Distribution (Heatmap)",
+      "type": "heatmap",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_reliability_score_bucket[5m])) by (le)",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["raguard-ai", "observability", "opentelemetry", "prometheus"],
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"] },
+  "timezone": "utc",
+  "title": "RAGuard AI Enterprise Observability Dashboard",
+  "uid": "raguard-enterprise-obs",
+  "version": 1
+}

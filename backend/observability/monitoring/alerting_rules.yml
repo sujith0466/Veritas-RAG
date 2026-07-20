@@ -1,0 +1,60 @@
+groups:
+  - name: RAGuardAIElevatedAlerts
+    rules:
+      - alert: HighAPIErrorRate
+        expr: |
+          sum(rate(raguard_errors_total{status=~"5.*"}[5m]))
+          / max(sum(rate(raguard_requests_total[5m])), 1) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          service: raguard-ai-backend
+        annotations:
+          summary: "High API Error Rate (> 5%) detected"
+          description: "RAGuard AI API is returning 5xx status codes for more than 5% of requests over the past 5 minutes."
+
+      - alert: HighQueryProcessingLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(raguard_pipeline_stage_duration_seconds_bucket{stage="query_processing"}[5m])) by (le)) > 3.0
+        for: 5m
+        labels:
+          severity: warning
+          service: raguard-ai-backend
+        annotations:
+          summary: "Elevated P95 Query Processing Latency (> 3.0s)"
+          description: "The 95th percentile query processing latency has exceeded 3.0 seconds for over 5 minutes."
+
+      - alert: ElevatedHallucinationRate
+        expr: |
+          sum(rate(raguard_reflection_total{hallucination_detected="True"}[15m]))
+          / max(sum(rate(raguard_reflection_total[15m])), 1) * 100 > 10
+        for: 15m
+        labels:
+          severity: warning
+          service: raguard-ai-backend
+        annotations:
+          summary: "Elevated Hallucination Detection Rate (> 10%)"
+          description: "Post-generation reflection is detecting unsupported claims or contradictions in > 10% of answers over the last 15 minutes."
+
+      - alert: CircuitBreakerTripped
+        expr: |
+          sum(rate(raguard_errors_total{error_type="CircuitBreakerOpenError"}[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: raguard-ai-backend
+        annotations:
+          summary: "Circuit Breaker is OPEN and tripping queries"
+          description: "One or more domain circuit breakers are OPEN, causing traffic failover or rejection."
+
+      - alert: HighRetryExhaustionRate
+        expr: |
+          sum(rate(raguard_retries_total{success="False"}[10m]))
+          / max(sum(rate(raguard_queries_total[10m])), 1) * 100 > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: raguard-ai-backend
+        annotations:
+          summary: "Self-Correction Loop Retry Exhaustion Rate (> 5%)"
+          description: "More than 5% of queries are failing self-correction and retry attempts after exhausting retry budgets."

@@ -1,0 +1,10 @@
+# RAGuard AI — Production Dependencies
+# Install with: pip install -r requirements/prod.txt
+-r base.txt
+
+# ── Production Server ──────────────────────────────────────────────────────────
+gunicorn==23.0.0
+
+# ── Production Monitoring ──────────────────────────────────────────────────────
+prometheus-client==0.21.0
+sentry-sdk[fastapi]==2.19.0

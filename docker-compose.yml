@@ -1,0 +1,10 @@
+# ==============================================================================
+# RAGuard AI — Root Docker Compose Entry Point (Development Default)
+# ==============================================================================
+# Includes the shared base profile and development overrides from
+# infrastructure/compose/ so `docker compose up -d` works out of the box.
+# ==============================================================================
+
+include:
+  - infrastructure/compose/docker-compose.base.yml
+  - infrastructure/compose/docker-compose.dev.yml

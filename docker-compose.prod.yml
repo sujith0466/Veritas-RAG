@@ -1,0 +1,9 @@
+# ==============================================================================
+# RAGuard AI — Root Production Profile Entry Point
+# ==============================================================================
+# Run with: docker compose -f docker-compose.prod.yml up -d --build
+# ==============================================================================
+
+include:
+  - infrastructure/compose/docker-compose.base.yml
+  - infrastructure/compose/docker-compose.prod.yml

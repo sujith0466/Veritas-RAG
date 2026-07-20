@@ -1,0 +1,218 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RAGuard AI Design System — CSS Custom Properties
+   Dark mode by default, light mode toggled via .light class on <html>
+───────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* ── Dark Theme (Default) ── */
+    --background: 240 6% 5%;            /* #0A0A0C — deep obsidian */
+    --foreground: 0 0% 92%;             /* #EBEBEB — near-white text */
+    --surface: 240 5% 8%;              /* #141418 — elevated card */
+    --surface-elevated: 240 4% 11%;    /* #1B1B21 — modal/popover */
+    --border: 240 5% 14%;              /* #1F1F24 — subtle border */
+    --border-subtle: 240 4% 18%;       /* #2A2A32 — very subtle divider */
+    --muted: 240 4% 14%;               /* #222228 — muted background */
+    --muted-foreground: 240 4% 52%;    /* #7F7F8F — muted text */
+
+    /* ── Brand Accent: Indigo-Violet ── */
+    --primary: 239 84% 67%;            /* #6366F1 — indigo */
+    --primary-foreground: 0 0% 100%;   /* white text on primary */
+    --primary-hover: 239 72% 60%;      /* #4F52DB — darker hover */
+    --primary-subtle: 239 84% 67% / 0.1; /* transparent accent bg */
+
+    /* ── Semantic Colors ── */
+    --success: 152 67% 41%;            /* #22C55E-ish emerald */
+    --success-foreground: 0 0% 100%;
+    --success-subtle: 152 67% 41% / 0.12;
+    --warning: 38 92% 50%;             /* #F59E0B amber */
+    --warning-foreground: 0 0% 10%;
+    --warning-subtle: 38 92% 50% / 0.12;
+    --danger: 0 72% 51%;               /* #EF4444 red */
+    --danger-foreground: 0 0% 100%;
+    --danger-subtle: 0 72% 51% / 0.12;
+    --info: 199 89% 48%;               /* #0EA5E9 sky blue */
+    --info-foreground: 0 0% 100%;
+    --info-subtle: 199 89% 48% / 0.12;
+
+    /* ── Radius ── */
+    --radius: 0.5rem;
+
+    /* ── Scrollbar ── */
+    --scrollbar-width: 6px;
+    --scrollbar-track: hsl(240 5% 8%);
+    --scrollbar-thumb: hsl(240 4% 22%);
+    --scrollbar-thumb-hover: hsl(240 4% 32%);
+  }
+
+  .light {
+    /* ── Light Theme ── */
+    --background: 0 0% 98%;            /* #FAFAFB — near-white */
+    --foreground: 240 10% 8%;          /* #12121A — near-black text */
+    --surface: 0 0% 100%;             /* #FFFFFF — white card */
+    --surface-elevated: 240 6% 97%;   /* #F7F7FA — elevated bg */
+    --border: 240 6% 90%;             /* #E4E4EA — light border */
+    --border-subtle: 240 5% 95%;      /* #F1F1F5 — very subtle divider */
+    --muted: 240 5% 95%;              /* #F2F2F5 — muted bg */
+    --muted-foreground: 240 4% 46%;   /* #6F6F80 — muted text */
+
+    /* ── Brand Accent (same tone) ── */
+    --primary: 239 84% 60%;           /* #4F52DB — slightly darker for light bg contrast */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 239 72% 52%;
+    --primary-subtle: 239 84% 60% / 0.08;
+
+    /* ── Semantic Colors (Light) ── */
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+    --success-subtle: 142 71% 35% / 0.1;
+    --warning: 32 95% 44%;
+    --warning-foreground: 0 0% 10%;
+    --warning-subtle: 32 95% 44% / 0.1;
+    --danger: 0 72% 47%;
+    --danger-foreground: 0 0% 100%;
+    --danger-subtle: 0 72% 47% / 0.1;
+    --info: 199 89% 40%;
+    --info-foreground: 0 0% 100%;
+    --info-subtle: 199 89% 40% / 0.1;
+
+    --scrollbar-track: hsl(240 5% 95%);
+    --scrollbar-thumb: hsl(240 4% 80%);
+    --scrollbar-thumb-hover: hsl(240 4% 65%);
+  }
+
+  /* ── Base Resets ── */
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply scroll-smooth;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    min-height: 100dvh;
+  }
+
+  /* ── Custom Scrollbar ── */
+  ::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  /* ── Focus Visible ── */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  /* ── Selection ── */
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+
+  /* ── Headings ── */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  h1 { @apply text-4xl; }
+  h2 { @apply text-3xl; }
+  h3 { @apply text-2xl; }
+  h4 { @apply text-xl; }
+  h5 { @apply text-lg; }
+  h6 { @apply text-base; }
+
+  /* ── Code ── */
+  code, pre, kbd {
+    @apply font-mono;
+  }
+}
+
+/* ── Component Layer Utilities ── */
+@layer components {
+  .card {
+    @apply bg-surface border border-border rounded-lg;
+  }
+
+  .card-elevated {
+    @apply bg-surface-elevated border border-border rounded-lg shadow-lg;
+  }
+
+  .input-base {
+    @apply w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground
+           placeholder:text-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-colors duration-150;
+  }
+
+  .label-base {
+    @apply block text-sm font-medium text-foreground mb-1.5;
+  }
+
+  .prose-muted {
+    @apply text-muted-foreground text-sm leading-relaxed;
+  }
+
+  .section-divider {
+    @apply border-t border-border/60 my-6;
+  }
+
+  .skeleton-base {
+    @apply bg-muted rounded animate-pulse;
+  }
+}
+
+/* ── Utility Layer ── */
+@layer utilities {
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] bg-clip-text text-transparent;
+  }
+
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, hsl(239 84% 67%), hsl(262 83% 64%));
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .glass {
+    @apply bg-surface/80 backdrop-blur-md border border-border/60;
+  }
+
+  .glass-strong {
+    @apply bg-surface/60 backdrop-blur-xl border border-border/40;
+  }
+
+  .interactive {
+    @apply transition-all duration-150 ease-smooth cursor-pointer;
+  }
+
+  .interactive:hover {
+    @apply brightness-110;
+  }
+}

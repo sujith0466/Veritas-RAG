@@ -1,0 +1,163 @@
+# ==============================================================================
+# RAGuard AI — Shared Docker Compose Base Profile
+# ==============================================================================
+# Defines networks, volumes, base environments, health checks, and container
+# security standards shared across all development, staging, and prod profiles.
+# ==============================================================================
+
+networks:
+  raguard-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    name: raguard-postgres-data
+  redis-data:
+    name: raguard-redis-data
+  qdrant-data:
+    name: raguard-qdrant-data
+
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+x-logging-opts: &logging-opts
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: raguard-postgres
+    restart: unless-stopped
+    <<: *logging-opts
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-raguard}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - raguard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-raguard}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: raguard-redis
+    restart: unless-stopped
+    <<: *logging-opts
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - raguard-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: raguard-qdrant
+    restart: unless-stopped
+    <<: *logging-opts
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - raguard-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/readyz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.backend
+      target: dev
+    container_name: raguard-backend
+    restart: unless-stopped
+    <<: [*security-opts, *logging-opts]
+    env_file:
+      - ../../.env.local
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-raguard}
+      REDIS_HOST: redis
+      QDRANT_HOST: qdrant
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - raguard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  celery-worker:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.backend
+      target: dev
+    container_name: raguard-celery-worker
+    restart: unless-stopped
+    <<: [*security-opts, *logging-opts]
+    env_file:
+      - ../../.env.local
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-raguard}
+      REDIS_HOST: redis
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    command: ["celery", "-A", "backend.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - raguard-network
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.frontend
+      target: dev
+    container_name: raguard-frontend
+    restart: unless-stopped
+    <<: [*security-opts, *logging-opts]
+    env_file:
+      - ../../.env.local
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - raguard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s

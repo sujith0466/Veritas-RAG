@@ -1,0 +1,36 @@
+"""User Repository Implementation.
+
+Provides concrete SQLAlchemy queries for User entity management.
+"""
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.models.entities.user import User
+from backend.repositories.base import BaseRepository
+from backend.repositories.interfaces.user_repository import IUserRepository
+
+
+class UserRepository(BaseRepository[User], IUserRepository):
+    """SQLAlchemy implementation of the User repository."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session, User)
+
+    async def get_by_email(self, email: str) -> User | None:
+        """Fetch an active user by their email address."""
+        stmt = select(User).where(
+            User.email == email,
+            User.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_supabase_id(self, supabase_user_id: str) -> User | None:
+        """Fetch an active user by their Supabase Auth ID."""
+        stmt = select(User).where(
+            User.supabase_user_id == supabase_user_id,
+            User.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

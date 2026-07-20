@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.env
+.env.local
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+!.env.example
+
+# Node / JS
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+build/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# Logs and Databases
+*.log
+*.sqlite
+*.db
+
+# AI Agent Temporary Planning & Review Documents
+*implementation_plan*.md
+IMPLEMENTATION_BASELINE.md
+*verification_checklist*.md
+*draft*.md
+*review*.md
+*cleanup_report*.md
+*health_report*.md
+*sync_report*.md
+docs/04_architecture/
+docs/ADR/
+docs/developer_setup.md
+docs/
+# NOTE: Official architecture documents and roadmap documents are tracked.

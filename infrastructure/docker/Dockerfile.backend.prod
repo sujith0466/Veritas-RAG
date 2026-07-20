@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1
+# RAGuard AI — Production Backend Dockerfile (Dedicated Prod Build)
+
+FROM python:3.12-slim-bookworm AS builder
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir --upgrade pip wheel setuptools
+
+WORKDIR /build
+COPY requirements/base.txt requirements/prod.txt requirements/
+RUN /opt/venv/bin/pip install --no-cache-dir -r requirements/prod.txt
+
+# ── Final Production Stage ─────────────────────────────────────────────────────
+FROM python:3.12-slim-bookworm AS production
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    APP_ENVIRONMENT="production"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 10001 raguard && \
+    useradd -u 10001 -g raguard -s /bin/bash -m raguard && \
+    mkdir -p /app/backend /app/scratch /tmp && \
+    chown -R 10001:10001 /app /tmp
+
+COPY --from=builder /opt/venv /opt/venv
+WORKDIR /app
+COPY --chown=10001:10001 alembic.ini ./
+COPY --chown=10001:10001 backend/ ./backend/
+
+USER 10001
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health/ready || exit 1
+
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "backend.main:app", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-"]

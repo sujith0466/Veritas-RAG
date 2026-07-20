@@ -1,0 +1,98 @@
+# ==============================================================================
+# RAGuard AI — Production Docker Compose Profile Overrides
+# ==============================================================================
+# Extends docker-compose.base.yml with production target builds, resource limits,
+# read-only root filesystems, and Nginx reverse proxy routing.
+# ==============================================================================
+
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+  qdrant:
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.backend.prod
+      target: production
+    environment:
+      APP_ENVIRONMENT: production
+      APP_DEBUG: "false"
+      SERVER_WORKERS: "4"
+    command: ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "backend.main:app", "--bind", "0.0.0.0:8000"]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1.5G
+        reservations:
+          memory: 512M
+
+  celery-worker:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.backend.prod
+      target: production
+    environment:
+      APP_ENVIRONMENT: production
+      APP_DEBUG: "false"
+    command: ["celery", "-A", "backend.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.frontend.prod
+      target: production
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: raguard-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ../../infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../../infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - raguard-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3

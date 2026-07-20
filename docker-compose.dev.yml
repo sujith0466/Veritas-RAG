@@ -1,0 +1,10 @@
+# ==============================================================================
+# RAGuard AI — Root Development Profile Entry Point
+# ==============================================================================
+# Run with: docker compose -f docker-compose.dev.yml up -d
+# Or with dev tools: docker compose -f docker-compose.dev.yml --profile dev-tools up -d
+# ==============================================================================
+
+include:
+  - infrastructure/compose/docker-compose.base.yml
+  - infrastructure/compose/docker-compose.dev.yml
