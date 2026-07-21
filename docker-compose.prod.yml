@@ -1,9 +1,40 @@
-# ==============================================================================
-# RAGuard AI — Root Production Profile Entry Point
-# ==============================================================================
-# Run with: docker compose -f docker-compose.prod.yml up -d --build
-# ==============================================================================
+version: "3.9"
 
-include:
-  - infrastructure/compose/docker-compose.base.yml
-  - infrastructure/compose/docker-compose.prod.yml
+# Production Docker Compose configuration.
+# Run with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  api:
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: any
+    environment:
+      - ENVIRONMENT=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
