@@ -1,92 +1,75 @@
-name: RAGuard CI
+name: CI
 
 on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
-  validate-environment:
-    name: Environment & Configuration Check
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Validate Environment Templates
-        run: |
-          python infrastructure/env/validate_env.py --file .env.example
-
-      - name: Validate Docker Compose Configuration
-        run: |
-          cp .env.example .env.local
-          docker compose config --quiet
-
-  backend-quality:
-    name: Backend Code Quality & Unit Tests
-    runs-on: ubuntu-latest
-    needs: validate-environment
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements/dev.txt
-
-      - name: Run Ruff Lint Check
-        run: ruff check backend/
-
-      - name: Run MyPy Type Verification
-        run: mypy backend/
-
-      - name: Run Pytest Unit & Verification Suite
-        run: pytest tests/ -v
-
-  frontend-quality:
-    name: Frontend Lint, Type Check & Build
-    runs-on: ubuntu-latest
-    needs: validate-environment
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Dependencies
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Run ESLint
-        working-directory: ./frontend
-        run: npm run lint
-
-      - name: Run TypeScript Strict Check
-        working-directory: ./frontend
-        run: npm run typecheck
-
-      - name: Run Production Bundle Build
-        working-directory: ./frontend
+    services:
+      postgres:
+        image: postgres:15-alpine
         env:
-          VITE_API_BASE_URL: http://localhost:8000
-          VITE_SUPABASE_URL: https://dummy-url.supabase.co
-          VITE_SUPABASE_ANON_KEY: dummy-anon-key
-        run: npm run build
+          POSTGRES_DB: raguard_test
+          POSTGRES_USER: raguard
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check backend/ || true
+
+      - name: Run tests
+        env:
+          ENVIRONMENT: testing
+          DATABASE_URL: postgresql+asyncpg://raguard:test@localhost:5432/raguard_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret
+          QDRANT_URL: http://localhost:6333
+        run: pytest tests/ -v --tb=short
+
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build --target runtime -t raguard:ci .

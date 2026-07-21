@@ -75,3 +75,7 @@ pytest.xml
 # Note: Ensure IMPLEMENTATION_BASELINE.md and official reports are NOT ignored.
 !IMPLEMENTATION_BASELINE.md
 !docs/
+
+# Stage 1 additions
+*.pyc
+*.pyo
