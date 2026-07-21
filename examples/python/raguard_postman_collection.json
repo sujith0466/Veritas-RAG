@@ -1,0 +1,44 @@
+{
+  "info": {
+    "name": "RAGuard AI API",
+    "description": "Enterprise RAG Reliability Platform API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Execute Grounded Query",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tenant_id\": \"acme-corp\",\n  \"query\": \"What is the refund policy?\",\n  \"top_k\": 3\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v1/query/search",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8000",
+          "path": ["api", "v1", "query", "search"]
+        }
+      }
+    }
+  ]
+}

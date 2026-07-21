@@ -1,68 +1,100 @@
 <div align="center">
+  <img src="docs/assets/banner.png.placeholder" alt="RAGuard AI Banner" width="100%">
+</div>
+
+<div align="center">
 
 # RAGuard AI
 
 ### Enterprise Retrieval-Augmented Generation Reliability Platform
 
-[![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green?logo=fastapi)](https://fastapi.tiangolo.com)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://docker.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen)](CHANGELOG.md)
+[![Python 3.13+](https://img.shields.io/badge/Python-3.13%2B-blue?logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com)
+[![Qdrant](https://img.shields.io/badge/Qdrant-1.7-purple?logo=qdrant)](https://qdrant.tech)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://docker.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/v/release/your-org/raguard)](https://github.com/your-org/raguard/releases)
 
 *Production-Grade AI Reliability for Enterprise RAG Deployments*
+
+**[Documentation](https://docs.raguard.ai)** |
+**[Quick Start](#quick-start)** |
+**[Architecture](#architecture)** |
+**[Contributing](CONTRIBUTING.md)** |
+**[Discussions](https://github.com/your-org/raguard/discussions)**
 
 </div>
 
 ---
 
-## Overview
+## 📖 Overview
 
-RAGuard AI is an enterprise-grade Reliability, Validation, and Governance platform for
-Retrieval-Augmented Generation (RAG) systems. It detects insufficient context, identifies
-conflicting evidence, rewrites ambiguous queries, and validates generated answers before
-they reach end-users — ensuring trustworthy AI outputs at scale.
+**RAGuard AI** is an enterprise-grade Reliability, Validation, and Governance platform for Retrieval-Augmented Generation (RAG) systems. It sits between your application and your LLM, ensuring that every AI output is grounded, validated, cited, and trustworthy.
 
-## Key Features
+Modern enterprise RAG systems suffer from hallucinated answers, poor context retrieval, and lack of explainability. RAGuard solves this by providing:
+- **Hybrid Retrieval** — Dense & Sparse search with Reciprocal Rank Fusion.
+- **Confidence Engine** — Automated scoring for context coverage and conflict.
+- **Self-Healing Governor** — Autonomous model rotation and circuit breakers.
+- **Validation Layer** — NLI-based claim verification and citation checking.
 
-- **Hybrid Retrieval** — Dense (Qdrant) + Sparse (BM25) with Reciprocal Rank Fusion
-- **Confidence Engine** — Coverage analysis, conflict detection, evidence strength scoring
-- **Retry Controller** — Dynamic query rewriting and clarification loops
-- **Grounded Generation** — LLM-anchored generation with citation verification
-- **Reflection & Validation** — NLI-based claim validation and answer grounding
-- **Self-Healing** — Autonomous circuit-breaker failover and model rotation
-- **Enterprise Security** — DLP / PII redaction, RBAC, compliance auditing
-- **Observability** — OpenTelemetry tracing, Prometheus metrics, structured JSON logging
-- **Marketplace** — SHA-256 verified tenant configuration bundles
+## 🚀 Quick Start
 
-## Quick Start
+Get RAGuard running locally in under 3 minutes using Docker.
 
 ```bash
-# Clone repository
+# 1. Clone the repository
 git clone https://github.com/your-org/raguard.git
 cd raguard
 
-# Configure environment
+# 2. Configure environment variables
 cp .env.example .env
+# Edit .env to add your OPENAI_API_KEY
 
-# Start with Docker
+# 3. Start the platform
 docker-compose up -d
 
-# Health check
+# 4. Verify health
 curl http://localhost:8000/health
 ```
 
-## Documentation
+> **Next Steps:** Check out the [Interactive API Quick Start](docs/developer/API_QUICKSTART.md) to make your first query!
 
-| Document | Description |
+## 🧩 Architecture
+
+RAGuard implements a clean, event-driven Domain-Driven Design (DDD) architecture. 
+
+<div align="center">
+  <img src="docs/assets/architecture_diagram.png.placeholder" alt="Architecture Diagram" width="80%">
+</div>
+
+| Layer | Responsibility |
+|-------|---------------|
+| **API Gateway** | TLS termination, Rate Limiting, RBAC (FastAPI/Nginx) |
+| **Intelligence** | Query Intent Extraction, DLP Redaction |
+| **Retrieval** | Hybrid Search (Qdrant + BM25) |
+| **Generation** | Grounded Provider Abstraction |
+| **Validation** | Reflection & NLI Claim Extraction |
+| **Observability**| Prometheus, OpenTelemetry, Structured Logs |
+
+## 📚 Documentation Directory
+
+| Resource | Description |
 |----------|-------------|
-| [Installation Guide](docs/INSTALLATION_GUIDE.md) | Setup instructions |
-| [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Production deployment |
-| [API Reference](docs/API_REFERENCE.md) | REST API documentation |
-| [Architecture](docs/SYSTEM_ARCHITECTURE.md) | System design |
-| [Security Guide](docs/SECURITY_GUIDE.md) | Security configuration |
-| [Operator Guide](docs/OPERATOR_GUIDE.md) | Day-2 operations |
+| 🌐 **[Official Docs Site](https://docs.raguard.ai)** | Comprehensive MkDocs website |
+| 🛠️ **[Installation Guide](docs/INSTALLATION_GUIDE.md)** | Setup instructions |
+| 🧑‍💻 **[Developer Guide](docs/DEVELOPER_GUIDE.md)** | Extending RAGuard |
+| 🛡️ **[Security Guide](docs/SECURITY_GUIDE.md)** | DLP & Audit config |
+| ⚙️ **[Operator Guide](docs/OPERATOR_GUIDE.md)** | Day-2 operations |
+| 💼 **[Portfolio & Showcase](docs/showcase/PROJECT_OVERVIEW.md)** | Media kit & One-Pagers |
 
-## License
+## 🤝 Community & Support
 
-MIT License. See [LICENSE](LICENSE).
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+- **Issues**: Use [GitHub Issues](https://github.com/your-org/raguard/issues) for bug reports and feature requests.
+- **Discussions**: Join [GitHub Discussions](https://github.com/your-org/raguard/discussions) for architecture debates and Q&A.
+- **Security**: Report vulnerabilities per our [Security Policy](SECURITY.md).
+
+## 📄 License
+
+RAGuard AI is licensed under the MIT License. See [LICENSE](LICENSE) for details.

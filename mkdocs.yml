@@ -1,0 +1,70 @@
+site_name: RAGuard AI
+site_description: Enterprise Retrieval-Augmented Generation Reliability Platform
+site_author: RAGuard Contributors
+site_url: https://docs.raguard.ai
+repo_url: https://github.com/your-org/raguard
+repo_name: your-org/raguard
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+
+nav:
+  - Home: 
+    - Overview: PROJECT_OVERVIEW.md
+    - Installation: INSTALLATION_GUIDE.md
+    - Configuration: CONFIGURATION_GUIDE.md
+    - Architecture: SYSTEM_ARCHITECTURE.md
+  - Guides:
+    - User Guide: USER_GUIDE.md
+    - Operator Guide: OPERATOR_GUIDE.md
+    - Admin Guide: ADMIN_GUIDE.md
+    - Developer Guide: DEVELOPER_GUIDE.md
+    - API Quickstart: developer/API_QUICKSTART.md
+    - Architecture Walkthrough: developer/ARCHITECTURE_WALKTHROUGH.md
+    - Coding Standards: developer/CODING_STANDARDS.md
+    - Debugging Guide: developer/DEBUGGING_GUIDE.md
+    - Onboarding: developer/ONBOARDING_CHECKLIST.md
+  - Infrastructure & Security:
+    - Deployment: DEPLOYMENT_GUIDE.md
+    - Security: SECURITY_GUIDE.md
+    - Observability: OBSERVABILITY_GUIDE.md
+    - Database: DATABASE_DOCUMENTATION.md
+  - API & References:
+    - API Reference: API_REFERENCE.md
+    - Troubleshooting: TROUBLESHOOTING_GUIDE.md
+    - FAQ: FAQ.md
+  - Community:
+    - Code of Conduct: ../CODE_OF_CONDUCT.md
+    - Contributing: ../CONTRIBUTING.md
+    - Security Policy: ../SECURITY.md
