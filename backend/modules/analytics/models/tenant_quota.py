@@ -1,6 +1,8 @@
+from sqlalchemy import BigInteger, Boolean, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, BigInteger, Float, Boolean
+
 from backend.database.base import Base
+
 
 class TenantQuotaORM(Base):
     __tablename__ = "tenant_quotas"

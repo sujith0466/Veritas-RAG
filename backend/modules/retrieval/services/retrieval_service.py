@@ -13,22 +13,15 @@ from uuid import UUID, uuid4
 from structlog import get_logger
 
 from backend.modules.embedding.providers.base import BaseEmbeddingProvider
-from backend.modules.retrieval.providers.reranker.base import BaseRerankerProvider
-from backend.modules.retrieval.providers.sparse.base import BaseSparseSearchProvider
+from backend.modules.retrieval.providers.reranker.base import \
+    BaseRerankerProvider
+from backend.modules.retrieval.providers.sparse.base import \
+    BaseSparseSearchProvider
 from backend.modules.retrieval.schemas.errors import (
-    InvalidQueryError,
-    SparseIndexNotFoundError,
-    VectorStoreUnavailableError,
-)
+    InvalidQueryError, SparseIndexNotFoundError, VectorStoreUnavailableError)
 from backend.modules.retrieval.schemas.retrieval_dto import (
-    CandidatePointDTO,
-    RankedEvidenceDTO,
-    RetrievalQueryLogDTO,
-    RetrievalResultDTO,
-    RetrievalStageBreakdownDTO,
-    SearchRequestDTO,
-    SearchSandboxResponseDTO,
-)
+    CandidatePointDTO, RetrievalQueryLogDTO, RetrievalResultDTO,
+    RetrievalStageBreakdownDTO, SearchRequestDTO, SearchSandboxResponseDTO)
 from backend.modules.retrieval.services.fusion import FusionEngine
 from backend.modules.vector.providers.base import BaseVectorDBProvider
 
@@ -57,9 +50,18 @@ class RetrievalOrchestrator:
         self.collection_prefix = collection_prefix
 
     def _get_collection_name(self, options: SearchRequestDTO) -> str:
-        if hasattr(options, "filter_dsl") and options.filter_dsl and getattr(options.filter_dsl, "collection_name", None):
+        if (
+            hasattr(options, "filter_dsl")
+            and options.filter_dsl
+            and getattr(options.filter_dsl, "collection_name", None)
+        ):
             return str(options.filter_dsl.collection_name)
-        if hasattr(options, "filters") and getattr(options, "filters", None) and isinstance(options.filters, dict) and options.filters.get("collection_name"):
+        if (
+            hasattr(options, "filters")
+            and getattr(options, "filters", None)
+            and isinstance(options.filters, dict)
+            and options.filters.get("collection_name")
+        ):
             return str(options.filters["collection_name"])
         dimension = getattr(self.embedding_provider, "dimension", 1536)
         return f"{self.collection_prefix}_{dimension}"
@@ -80,7 +82,9 @@ class RetrievalOrchestrator:
                 batch_res = await self.embedding_provider.vectorize_batch([query])
                 query_vector = batch_res.embeddings[0]
             else:
-                raise ValueError("Incompatible embedding provider passed to orchestrator.")
+                raise ValueError(
+                    "Incompatible embedding provider passed to orchestrator."
+                )
 
             filter_conditions = {"tenant_id": tenant_id}
             if filters:
@@ -106,7 +110,11 @@ class RetrievalOrchestrator:
 
                 raw_doc_id = payload.get("document_id")
                 try:
-                    doc_uuid = UUID(str(raw_doc_id)) if raw_doc_id else UUID("00000000-0000-0000-0000-000000000000")
+                    doc_uuid = (
+                        UUID(str(raw_doc_id))
+                        if raw_doc_id
+                        else UUID("00000000-0000-0000-0000-000000000000")
+                    )
                 except ValueError:
                     doc_uuid = UUID("00000000-0000-0000-0000-000000000000")
 
@@ -198,14 +206,16 @@ class RetrievalOrchestrator:
                 )
                 await self.repository.log_query_execution(log_dto)
             except Exception as exc:
-                logger.error("Failed to asynchronously log query execution history", error=str(exc))
+                logger.error(
+                    "Failed to asynchronously log query execution history",
+                    error=str(exc),
+                )
 
         if self.event_dispatcher:
             try:
                 from backend.modules.retrieval.events.payloads import (
-                    QueryRetrievedPayload,
-                    RetrievalDomainEvent,
-                )
+                    QueryRetrievedPayload, RetrievalDomainEvent)
+
                 payload = QueryRetrievedPayload(
                     event_id=str(uuid4()),
                     tenant_id=tenant_id,
@@ -215,16 +225,23 @@ class RetrievalOrchestrator:
                     dense_candidates_found=dense_count,
                     sparse_candidates_found=sparse_count,
                     unique_merged_candidates=merged_count,
-                    reranker_model=getattr(self.reranker_provider, "model_name", "unknown"),
+                    reranker_model=getattr(
+                        self.reranker_provider, "model_name", "unknown"
+                    ),
                     duration_ms=stage_latencies.total_ms,
                     stage_latencies=stage_latencies.model_dump(),
                 )
                 from backend.core.events.types import EventType
+
                 await self.event_dispatcher.publish(
-                    RetrievalDomainEvent(event_type=EventType.QUERY_RETRIEVED, payload=payload)
+                    RetrievalDomainEvent(
+                        event_type=EventType.QUERY_RETRIEVED, payload=payload
+                    )
                 )
             except Exception as exc:
-                logger.error("Failed to emit QueryRetrieved domain event", error=str(exc))
+                logger.error(
+                    "Failed to emit QueryRetrieved domain event", error=str(exc)
+                )
 
     async def execute_hybrid_search(
         self,
@@ -252,7 +269,8 @@ class RetrievalOrchestrator:
                 tenant_id=tenant_id,
                 collection_name=collection_name,
                 limit=options.limit_dense,
-                filters=getattr(options, "filter_dsl", None) or getattr(options, "filters", None),
+                filters=getattr(options, "filter_dsl", None)
+                or getattr(options, "filters", None),
             )
             sparse_task = self._execute_sparse_stage(
                 query=query_clean,
@@ -323,8 +341,8 @@ class RetrievalOrchestrator:
             duration_sec = time.perf_counter() - total_start
             record_stage_duration("retrieval", duration_sec)
             import sys
-            span_ctx.__exit__(*sys.exc_info())
 
+            span_ctx.__exit__(*sys.exc_info())
 
     async def execute_sandbox_search(
         self,
@@ -345,7 +363,8 @@ class RetrievalOrchestrator:
             tenant_id=tenant_id,
             collection_name=collection_name,
             limit=options.limit_dense,
-            filters=getattr(options, "filter_dsl", None) or getattr(options, "filters", None),
+            filters=getattr(options, "filter_dsl", None)
+            or getattr(options, "filters", None),
         )
         sparse_task = self._execute_sparse_stage(
             query=query_clean,
@@ -401,9 +420,9 @@ class RetrievalOrchestrator:
             query_text=query_clean,
             tenant_id=tenant_id,
             correlation_id=correlation_id,
-            dense_results=dense_candidates[:options.top_k],
-            sparse_results=sparse_candidates[:options.top_k],
-            rrf_merged_results=deduped[:options.top_k],
+            dense_results=dense_candidates[: options.top_k],
+            sparse_results=sparse_candidates[: options.top_k],
+            rrf_merged_results=deduped[: options.top_k],
             final_reranked_results=final_reranked,
             stage_latencies=stage_latencies,
         )

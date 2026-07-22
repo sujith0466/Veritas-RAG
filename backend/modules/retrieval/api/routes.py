@@ -5,37 +5,22 @@ inspecting comparative multi-stage results in developer sandbox (`POST /sandbox`
 and monitoring tenant KPIs and query audit history (`GET /metrics`, `GET /history`).
 """
 
-from typing import Any
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, Query, Request, status
 from structlog import get_logger
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.modules.retrieval.api.dependencies import (
-    get_retrieval_orchestrator,
-    get_retrieval_repository,
-    resolve_tenant,
-)
-from backend.modules.retrieval.repositories.retrieval_repository import (
-    RetrievalRepository,
-)
-from backend.modules.retrieval.schemas.errors import (
-    CandidateDeduplicationError,
-    InvalidQueryError,
-    RerankerTimeoutError,
-    RetrievalErrorCode,
-    SparseIndexNotFoundError,
-    VectorStoreUnavailableError,
-)
+    get_retrieval_orchestrator, get_retrieval_repository, resolve_tenant)
+from backend.modules.retrieval.repositories.retrieval_repository import \
+    RetrievalRepository
+from backend.modules.retrieval.schemas.errors import RetrievalErrorCode
 from backend.modules.retrieval.schemas.retrieval_dto import (
-    RetrievalMetricsDTO,
-    RetrievalQueryLogDTO,
-    RetrievalResultDTO,
-    SearchRequestDTO,
-    SearchSandboxResponseDTO,
-)
-from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
+    RetrievalMetricsDTO, RetrievalQueryLogDTO, RetrievalResultDTO,
+    SearchRequestDTO, SearchSandboxResponseDTO)
+from backend.modules.retrieval.services.retrieval_service import \
+    RetrievalOrchestrator
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/retrieval", tags=["Hybrid Retrieval Engine"])
@@ -48,11 +33,12 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 
 def _handle_retrieval_exception(exc: Exception) -> None:
     from backend.core.exceptions.base import RAGuardException
+
     if isinstance(exc, RAGuardException):
         raise exc
     raise RetrievalDomainException(
         code=RetrievalErrorCode.RET_004,
-        message=f"Internal retrieval error: {str(exc)}",
+        message=f"Internal retrieval error: {exc!s}",
     ) from exc
 
 
@@ -70,7 +56,9 @@ async def execute_search(
     orchestrator: RetrievalOrchestrator = Depends(get_retrieval_orchestrator),
 ) -> SuccessResponse[RetrievalResultDTO]:
     """Execute live multi-stage search with RRF fusion and cross-encoder reranking (`ADR-002`)."""
-    corr_id = correlation_id or getattr(request.state, "correlation_id", str(uuid.uuid4()))
+    corr_id = correlation_id or getattr(
+        request.state, "correlation_id", str(uuid.uuid4())
+    )
     try:
         result = await orchestrator.execute_hybrid_search(
             options=request_dto,
@@ -100,7 +88,9 @@ async def execute_sandbox(
     orchestrator: RetrievalOrchestrator = Depends(get_retrieval_orchestrator),
 ) -> SuccessResponse[SearchSandboxResponseDTO]:
     """Execute side-by-side search comparing raw dense, sparse, RRF, and reranked candidates (`ADR-005`)."""
-    corr_id = correlation_id or getattr(request.state, "correlation_id", str(uuid.uuid4()))
+    corr_id = correlation_id or getattr(
+        request.state, "correlation_id", str(uuid.uuid4())
+    )
     try:
         sandbox_res = await orchestrator.execute_sandbox_search(
             options=request_dto,
@@ -154,7 +144,9 @@ async def get_history(
 ) -> SuccessResponse[list[RetrievalQueryLogDTO]]:
     """Fetch paginated search query execution logs for the active tenant namespace."""
     try:
-        logs = await repo.get_query_history(tenant_id=tenant_id, limit=limit, offset=offset)
+        logs = await repo.get_query_history(
+            tenant_id=tenant_id, limit=limit, offset=offset
+        )
         dtos = [
             RetrievalQueryLogDTO(
                 id=log.id,
@@ -166,7 +158,11 @@ async def get_history(
                 merged_unique_count=log.merged_unique_count,
                 final_top_k=log.final_top_k,
                 total_duration_ms=log.total_duration_ms,
-                stage_breakdown_json=log.stage_breakdown_json if isinstance(log.stage_breakdown_json, dict) else {},
+                stage_breakdown_json=(
+                    log.stage_breakdown_json
+                    if isinstance(log.stage_breakdown_json, dict)
+                    else {}
+                ),
             )
             for log in logs
         ]

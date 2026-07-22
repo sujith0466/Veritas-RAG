@@ -4,9 +4,9 @@ Provides common primary key (`id`), audit timestamps (`created_at`, `updated_at`
 and soft-delete flag (`is_deleted`) to ensure schema uniformity.
 """
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any
-import uuid
 
 from sqlalchemy import Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
@@ -45,6 +45,5 @@ class BaseModel(Base):
     def to_dict(self) -> dict[str, Any]:
         """Convert model instance column values to dictionary."""
         return {
-            column.name: getattr(self, column.name)
-            for column in self.__table__.columns
+            column.name: getattr(self, column.name) for column in self.__table__.columns
         }

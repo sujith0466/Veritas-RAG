@@ -8,9 +8,10 @@ Create Date: 2026-07-18 12:00:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0002"
@@ -35,8 +36,18 @@ def upgrade() -> None:
         sa.Column("is_deleted", sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_storage_objects_checksum_sha256"), "storage_objects", ["checksum_sha256"], unique=False)
-    op.create_index(op.f("ix_storage_objects_object_key"), "storage_objects", ["object_key"], unique=True)
+    op.create_index(
+        op.f("ix_storage_objects_checksum_sha256"),
+        "storage_objects",
+        ["checksum_sha256"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_storage_objects_object_key"),
+        "storage_objects",
+        ["object_key"],
+        unique=True,
+    )
 
     # 2. Create documents table
     op.create_table(
@@ -57,9 +68,13 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["owner_user_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_documents_owner_user_id"), "documents", ["owner_user_id"], unique=False)
+    op.create_index(
+        op.f("ix_documents_owner_user_id"), "documents", ["owner_user_id"], unique=False
+    )
     op.create_index(op.f("ix_documents_status"), "documents", ["status"], unique=False)
-    op.create_index(op.f("ix_documents_tenant_id"), "documents", ["tenant_id"], unique=False)
+    op.create_index(
+        op.f("ix_documents_tenant_id"), "documents", ["tenant_id"], unique=False
+    )
 
     # 3. Create document_versions table
     op.create_table(
@@ -69,7 +84,9 @@ def upgrade() -> None:
         sa.Column("storage_object_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("content_hash", sa.String(length=128), nullable=False),
         sa.Column("extracted_text_path", sa.String(length=512), nullable=True),
-        sa.Column("metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            "metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -78,8 +95,18 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["storage_object_id"], ["storage_objects.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_document_versions_content_hash"), "document_versions", ["content_hash"], unique=False)
-    op.create_index(op.f("ix_document_versions_document_id"), "document_versions", ["document_id"], unique=False)
+    op.create_index(
+        op.f("ix_document_versions_content_hash"),
+        "document_versions",
+        ["content_hash"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_document_versions_document_id"),
+        "document_versions",
+        ["document_id"],
+        unique=False,
+    )
 
     # 4. Create processing_jobs table
     op.create_table(
@@ -99,11 +126,20 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("is_deleted", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["version_id"], ["document_versions.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["version_id"], ["document_versions.id"], ondelete="SET NULL"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_processing_jobs_document_id"), "processing_jobs", ["document_id"], unique=False)
-    op.create_index(op.f("ix_processing_jobs_status"), "processing_jobs", ["status"], unique=False)
+    op.create_index(
+        op.f("ix_processing_jobs_document_id"),
+        "processing_jobs",
+        ["document_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_processing_jobs_status"), "processing_jobs", ["status"], unique=False
+    )
 
     # 5. Create document_events table
     op.create_table(
@@ -118,11 +154,23 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("is_deleted", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["job_id"], ["processing_jobs.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["job_id"], ["processing_jobs.id"], ondelete="SET NULL"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_document_events_document_id"), "document_events", ["document_id"], unique=False)
-    op.create_index(op.f("ix_document_events_event_type"), "document_events", ["event_type"], unique=False)
+    op.create_index(
+        op.f("ix_document_events_document_id"),
+        "document_events",
+        ["document_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_document_events_event_type"),
+        "document_events",
+        ["event_type"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
@@ -134,8 +182,12 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_processing_jobs_document_id"), table_name="processing_jobs")
     op.drop_table("processing_jobs")
 
-    op.drop_index(op.f("ix_document_versions_document_id"), table_name="document_versions")
-    op.drop_index(op.f("ix_document_versions_content_hash"), table_name="document_versions")
+    op.drop_index(
+        op.f("ix_document_versions_document_id"), table_name="document_versions"
+    )
+    op.drop_index(
+        op.f("ix_document_versions_content_hash"), table_name="document_versions"
+    )
     op.drop_table("document_versions")
 
     op.drop_index(op.f("ix_documents_tenant_id"), table_name="documents")
@@ -144,5 +196,7 @@ def downgrade() -> None:
     op.drop_table("documents")
 
     op.drop_index(op.f("ix_storage_objects_object_key"), table_name="storage_objects")
-    op.drop_index(op.f("ix_storage_objects_checksum_sha256"), table_name="storage_objects")
+    op.drop_index(
+        op.f("ix_storage_objects_checksum_sha256"), table_name="storage_objects"
+    )
     op.drop_table("storage_objects")

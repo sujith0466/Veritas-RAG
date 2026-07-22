@@ -5,16 +5,13 @@ and sparse keyword matching (`BM25`) candidate lists across heterogeneous score 
 and performs high-speed near-duplicate content filtering (`ADR-M4-002`) before reranking.
 """
 
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 from structlog import get_logger
 
 from backend.modules.retrieval.providers.sparse.bm25_provider import tokenize
-from backend.modules.retrieval.schemas.retrieval_dto import (
-    CandidatePointDTO,
-    RankedEvidenceDTO,
-)
+from backend.modules.retrieval.schemas.retrieval_dto import (CandidatePointDTO,
+                                                             RankedEvidenceDTO)
 
 logger = get_logger(__name__)
 

@@ -1,14 +1,17 @@
 from pydantic import BaseModel, Field
 
+
 class GoldenExampleDTO(BaseModel):
     query: str = Field(...)
     expected_answer: str = Field(...)
     expected_document_ids: list[str] = Field(default_factory=list)
 
+
 class DatasetCreateDTO(BaseModel):
     name: str = Field(...)
     tenant_id: str = Field(...)
     examples: list[GoldenExampleDTO] = Field(...)
+
 
 class EvaluationResultDTO(BaseModel):
     dataset_id: str = Field(...)

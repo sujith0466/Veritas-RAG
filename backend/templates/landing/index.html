@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAGuard AI - Backend Status</title>
+    <style>
+        :root {
+            --background: 224 71.4% 4.1%;
+            --foreground: 210 20% 98%;
+            --card: 222 47% 11%;
+            --card-foreground: 210 20% 98%;
+            --primary: 217.2 91.2% 59.8%;
+            --primary-foreground: 222.2 47.4% 11.2%;
+            --muted: 217.2 32.6% 17.5%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --border: 217.2 32.6% 17.5%;
+            --radius: 0.5rem;
+            --success: 142.1 70.6% 45.3%;
+        }
+
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #fff, hsl(var(--muted-foreground)));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: hsl(var(--muted-foreground));
+            font-size: 1.1rem;
+            margin-top: 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: hsl(var(--foreground));
+            border-bottom: 1px solid hsl(var(--border));
+            padding-bottom: 0.5rem;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            color: hsl(var(--muted-foreground));
+            font-size: 0.95rem;
+        }
+
+        .status-value {
+            color: hsl(var(--foreground));
+            font-weight: 500;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: hsl(var(--success));
+            margin-right: 0.5rem;
+            box-shadow: 0 0 8px hsl(var(--success));
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: hsl(var(--muted));
+            color: hsl(var(--foreground));
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .btn:hover {
+            background: hsl(var(--border));
+            border-color: hsl(var(--primary) / 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn.primary {
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+        }
+
+        .btn.primary:hover {
+            background: hsl(var(--primary) / 0.9);
+        }
+
+        .pipeline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+
+        .pipeline-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: hsl(var(--muted) / 0.5);
+            padding: 1rem;
+            border-radius: var(--radius);
+            border: 1px solid hsl(var(--border));
+        }
+
+        .pipeline-name {
+            font-size: 0.8rem;
+            color: hsl(var(--muted-foreground));
+            margin-top: 0.75rem;
+            text-align: center;
+        }
+
+        .pulse {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: hsl(var(--primary));
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+            }
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
+        
+        .pulse-delay-1 { animation-delay: 0.2s; }
+        .pulse-delay-2 { animation-delay: 0.4s; }
+        .pulse-delay-3 { animation-delay: 0.6s; }
+        .pulse-delay-4 { animation-delay: 0.8s; }
+        .pulse-delay-5 { animation-delay: 1.0s; }
+        .pulse-delay-6 { animation-delay: 1.2s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>RAGuard AI</h1>
+            <p class="subtitle">Enterprise Self-Correcting RAG Platform • Backend Services</p>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h2>System Information</h2>
+                <div class="status-row">
+                    <span>Version</span>
+                    <span class="status-value">{{ version }}</span>
+                </div>
+                <div class="status-row">
+                    <span>Environment</span>
+                    <span class="status-value" style="text-transform: capitalize;">{{ environment }}</span>
+                </div>
+                <div class="status-row">
+                    <span>Uptime</span>
+                    <span class="status-value">{{ uptime }}</span>
+                </div>
+                <div class="status-row">
+                    <span>Commit</span>
+                    <span class="status-value" style="font-family: monospace;">{{ commit_hash }}</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Infrastructure Health</h2>
+                <div class="status-row">
+                    <span>API Server</span>
+                    <span class="status-value"><i class="status-indicator"></i>Healthy</span>
+                </div>
+                <div class="status-row">
+                    <span>Database (PostgreSQL)</span>
+                    <span class="status-value"><i class="status-indicator"></i>Healthy</span>
+                </div>
+                <div class="status-row">
+                    <span>Cache (Redis)</span>
+                    <span class="status-value"><i class="status-indicator"></i>Healthy</span>
+                </div>
+                <div class="status-row">
+                    <span>Vector Store (Qdrant)</span>
+                    <span class="status-value"><i class="status-indicator"></i>Healthy</span>
+                </div>
+                <div class="status-row">
+                    <span>LLM Provider</span>
+                    <span class="status-value"><i class="status-indicator"></i>Healthy</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 2rem;">
+            <h2>RAG Pipeline Stages</h2>
+            <div class="pipeline-grid">
+                <div class="pipeline-item">
+                    <div class="pulse"></div>
+                    <span class="pipeline-name">Ingestion</span>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pulse pulse-delay-1"></div>
+                    <span class="pipeline-name">Chunking</span>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pulse pulse-delay-2"></div>
+                    <span class="pipeline-name">Embedding</span>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pulse pulse-delay-3"></div>
+                    <span class="pipeline-name">Retrieval</span>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pulse pulse-delay-4"></div>
+                    <span class="pipeline-name">Reflection</span>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pulse pulse-delay-5"></div>
+                    <span class="pipeline-name">Validation</span>
+                </div>
+                <div class="pipeline-item">
+                    <div class="pulse pulse-delay-6"></div>
+                    <span class="pipeline-name">Reliability</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Quick Links</h2>
+            <div class="btn-grid">
+                <a href="/docs" class="btn primary">Swagger UI</a>
+                <a href="/redoc" class="btn">ReDoc</a>
+                <a href="/health" class="btn">Health Check</a>
+                <a href="/health/detailed" class="btn">Detailed Health</a>
+                <a href="/metrics" class="btn">Metrics</a>
+                <a href="{{ frontend_url }}" class="btn">Frontend App</a>
+                <a href="https://github.com/sujith0466/RAGuard-AI" target="_blank" class="btn">GitHub</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

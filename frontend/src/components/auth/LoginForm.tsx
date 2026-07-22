@@ -7,13 +7,14 @@ import { loginSchema, type LoginFormData } from '@/utils/validators'
 import { Button } from '../common/Button'
 import { Input } from '../common/Input'
 import { Label } from '../common/Label'
-import { Mail, Lock } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export function LoginForm() {
   const { login } = useAuth()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const {
     register,
@@ -66,9 +67,18 @@ export function LoginForm() {
         </div>
         <Input
           id="password"
-          type="password"
+          type={showPassword ? "text" : "password"}
           autoComplete="current-password"
           leftIcon={<Lock className="h-4 w-4" />}
+          rightIcon={
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          }
           error={errors.password?.message}
           {...register('password')}
         />

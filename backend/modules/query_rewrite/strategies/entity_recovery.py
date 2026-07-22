@@ -10,17 +10,35 @@ from typing import Any
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    EntityResolutionDTO,
-    RewriteRequestDTOv2,
-    RewriteResultDTO,
-    RewriteStrategy,
-)
+    EntityResolutionDTO, RewriteRequestDTOv2, RewriteResultDTO,
+    RewriteStrategy)
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)
 
-_PRONOUNS = {"it", "its", "they", "them", "their", "this", "that", "these", "those", "he", "she", "him", "her"}
-_IMPLICIT_REFS = {"the policy", "the contract", "the document", "the above", "the agreement", "the report"}
+_PRONOUNS = {
+    "it",
+    "its",
+    "they",
+    "them",
+    "their",
+    "this",
+    "that",
+    "these",
+    "those",
+    "he",
+    "she",
+    "him",
+    "her",
+}
+_IMPLICIT_REFS = {
+    "the policy",
+    "the contract",
+    "the document",
+    "the above",
+    "the agreement",
+    "the report",
+}
 
 
 class MissingEntityRecoveryStrategy(BaseRewriteStrategy):
@@ -54,10 +72,25 @@ class MissingEntityRecoveryStrategy(BaseRewriteStrategy):
         for pronoun in detected_pronouns:
             entity = self._resolve_from_context(pronoun, request.conversation_history)
             if entity:
-                resolved_query = re.sub(rf"\b{re.escape(pronoun)}\b", entity, resolved_query, flags=re.IGNORECASE)
-                resolutions.append(EntityResolutionDTO(pronoun=pronoun, resolved_entity=entity, is_resolved=True))
+                resolved_query = re.sub(
+                    rf"\b{re.escape(pronoun)}\b",
+                    entity,
+                    resolved_query,
+                    flags=re.IGNORECASE,
+                )
+                resolutions.append(
+                    EntityResolutionDTO(
+                        pronoun=pronoun, resolved_entity=entity, is_resolved=True
+                    )
+                )
             else:
-                resolutions.append(EntityResolutionDTO(pronoun=pronoun, resolved_entity="[UNRESOLVED]", is_resolved=False))
+                resolutions.append(
+                    EntityResolutionDTO(
+                        pronoun=pronoun,
+                        resolved_entity="[UNRESOLVED]",
+                        is_resolved=False,
+                    )
+                )
 
         return RewriteResultDTO(
             original_query=query,
@@ -65,7 +98,9 @@ class MissingEntityRecoveryStrategy(BaseRewriteStrategy):
             strategy=RewriteStrategy.ENTITY_RECOVERY,
             rationale=f"Resolved {len([r for r in resolutions if r.is_resolved])} of {len(resolutions)} pronouns.",
             resolved_entities=resolutions,
-            confidence_improvement_estimate=0.12 if any(r.is_resolved for r in resolutions) else 0.0,
+            confidence_improvement_estimate=(
+                0.12 if any(r.is_resolved for r in resolutions) else 0.0
+            ),
         )
 
     def _detect_pronouns(self, query: str) -> list[str]:

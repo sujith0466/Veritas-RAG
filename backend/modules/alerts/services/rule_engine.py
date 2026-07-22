@@ -1,7 +1,9 @@
 from backend.modules.alerts.models.alert_rule import AlertRuleORM
 from backend.modules.alerts.schemas.alert_dto import AlertPayloadDTO
-from backend.modules.alerts.services.deduplication import AlertDeduplicationEngine
+from backend.modules.alerts.services.deduplication import \
+    AlertDeduplicationEngine
 from backend.modules.alerts.services.dispatcher import AlertDispatcher
+
 
 class AlertRuleEngine:
     def __init__(self, dedup: AlertDeduplicationEngine, dispatcher: AlertDispatcher):
@@ -22,9 +24,15 @@ class AlertRuleEngine:
             pass
         return False
 
-    async def process_event(self, event_payload: AlertPayloadDTO, rules: list[AlertRuleORM]):
+    async def process_event(
+        self, event_payload: AlertPayloadDTO, rules: list[AlertRuleORM]
+    ):
         for rule in rules:
-            if self.evaluate_condition(event_payload.value, rule.operator, rule.threshold_value):
-                can_trigger = await self.dedup.check_and_set_cooldown(rule.id, rule.cooldown_minutes)
+            if self.evaluate_condition(
+                event_payload.value, rule.operator, rule.threshold_value
+            ):
+                can_trigger = await self.dedup.check_and_set_cooldown(
+                    rule.id, rule.cooldown_minutes
+                )
                 if can_trigger:
                     await self.dispatcher.dispatch_async(rule, event_payload)

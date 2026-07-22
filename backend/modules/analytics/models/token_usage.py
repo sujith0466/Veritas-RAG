@@ -1,8 +1,11 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Integer, Float, DateTime, func
 import uuid
 from datetime import datetime
+
+from sqlalchemy import DateTime, Float, Integer, String, func
+from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.database.base import Base
+
 
 class TokenUsageORM(Base):
     __tablename__ = "token_usages"
@@ -14,4 +17,6 @@ class TokenUsageORM(Base):
     prompt_tokens: Mapped[int] = mapped_column(Integer)
     completion_tokens: Mapped[int] = mapped_column(Integer)
     total_cost_usd: Mapped[float] = mapped_column(Float)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

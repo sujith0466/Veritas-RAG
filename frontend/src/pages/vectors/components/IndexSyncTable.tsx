@@ -55,7 +55,7 @@ export function IndexSyncTable({
       default:
         return (
           <Badge variant="secondary" className="flex items-center gap-1 w-fit text-xs px-2.5 py-0.5">
-            <Clock className="w-3 h-3 text-slate-400" />
+            <Clock className="w-3 h-3 text-muted-foreground" />
             <span>{status}</span>
           </Badge>
         )
@@ -64,19 +64,19 @@ export function IndexSyncTable({
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-12 text-center">
+      <div className="rounded-xl border border-border bg-surface/60 p-12 text-center">
         <RefreshCw className="mx-auto h-8 w-8 animate-spin text-indigo-400" />
-        <p className="mt-3 text-sm font-medium text-slate-300">Loading index records...</p>
+        <p className="mt-3 text-sm font-medium text-foreground">Loading index records...</p>
       </div>
     )
   }
 
   if (records.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-12 text-center">
-        <Database className="mx-auto h-10 w-10 text-slate-600" />
-        <h3 className="mt-4 text-base font-semibold text-slate-200">No Vector Index Records Found</h3>
-        <p className="mt-1 text-sm text-slate-400 max-w-md mx-auto">
+      <div className="rounded-xl border border-border bg-surface/60 p-12 text-center">
+        <Database className="mx-auto h-10 w-10 text-muted-foreground" />
+        <h3 className="mt-4 text-base font-semibold text-foreground">No Vector Index Records Found</h3>
+        <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
           Synchronize document versions after batch embedding to stage points inside Qdrant collections.
         </p>
       </div>
@@ -85,10 +85,10 @@ export function IndexSyncTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 shadow-md">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface/60 shadow-md">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/60 text-slate-400 border-b border-slate-800 uppercase font-semibold">
+          <table className="w-full text-left text-xs text-foreground">
+            <thead className="bg-background/60 text-muted-foreground border-b border-border uppercase font-semibold">
               <tr>
                 <th className="px-4 py-3.5">Document ID</th>
                 <th className="px-4 py-3.5">Version ID</th>
@@ -98,17 +98,17 @@ export function IndexSyncTable({
                 <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
+            <tbody className="divide-y divide-border/60 font-mono">
               {records.map((rec) => (
-                <tr key={rec.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="px-4 py-3 font-medium text-slate-200">
+                <tr key={rec.id} className="hover:bg-border/40 transition-colors">
+                  <td className="px-4 py-3 font-medium text-foreground">
                     {rec.document_id.slice(0, 8)}...
                   </td>
-                  <td className="px-4 py-3 text-slate-400">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {rec.document_version_id.slice(0, 8)}...
                   </td>
                   <td className="px-4 py-3 text-indigo-300">{rec.collection_name}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-100">
+                  <td className="px-4 py-3 font-semibold text-foreground">
                     {rec.points_count.toLocaleString()}
                   </td>
                   <td className="px-4 py-3 font-sans">
@@ -142,7 +142,7 @@ export function IndexSyncTable({
                         size="sm"
                         onClick={() => onResync(rec.document_id, rec.document_version_id)}
                         title="Resynchronize vector points"
-                        className="h-8 px-2.5 text-slate-300 border-slate-700 hover:bg-slate-800"
+                        className="h-8 px-2.5 text-foreground border-border hover:bg-border"
                       >
                         <RefreshCw className="w-3.5 h-3.5 mr-1" />
                         Resync

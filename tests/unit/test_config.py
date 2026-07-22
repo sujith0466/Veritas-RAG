@@ -79,6 +79,7 @@ class TestDatabaseSettings:
 @pytest.mark.unit
 class TestRedisSettings:
     def test_url_properties(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("REDIS_URL", raising=False)
         monkeypatch.setenv("REDIS_HOST", "redis.local")
         monkeypatch.setenv("REDIS_PORT", "6380")
         monkeypatch.setenv("REDIS_PASSWORD", "secretpass")
@@ -117,9 +118,9 @@ class TestSecuritySettings:
 @pytest.mark.unit
 class TestOpenRouterSettings:
     def test_default_values(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet")
+        monkeypatch.setenv("OPENROUTER_MODELS", "anthropic/claude-3.5-sonnet")
         settings = OpenRouterSettings()
-        assert settings.model == "anthropic/claude-3.5-sonnet"
+        assert settings.models == ["anthropic/claude-3.5-sonnet"]
         assert settings.base_url == "https://openrouter.ai/api/v1"
 
 

@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.modules.scoring.models.scoring_log import ScoringLogORM
 from backend.modules.scoring.schemas.scoring_dto import ReliabilityScoreDTOv2
+
 
 class ScoringRepository:
     def __init__(self, session: AsyncSession):
@@ -15,8 +17,8 @@ class ScoringRepository:
             metadata_payload={
                 "base_score": result.base_score,
                 "penalty_deduction": result.penalty_deduction,
-                "breakdown": result.breakdown
-            }
+                "breakdown": result.breakdown,
+            },
         )
         self.session.add(log_entry)
         await self.session.commit()

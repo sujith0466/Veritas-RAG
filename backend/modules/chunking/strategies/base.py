@@ -1,7 +1,7 @@
 """Abstract base class for all document chunking splitters."""
 
-from abc import ABC, abstractmethod
 import math
+from abc import ABC, abstractmethod
 from typing import Any
 
 from backend.modules.chunking.schemas.chunk import ChunkDTO, StrategyInfoDTO
@@ -39,4 +39,7 @@ class BaseChunkSplitter(ABC):
         info = self.strategy_info
         if "*" in info.supported_mime_types:
             return True
-        return any(mime_type.lower().startswith(supported.lower()) for supported in info.supported_mime_types)
+        return any(
+            mime_type.lower().startswith(supported.lower())
+            for supported in info.supported_mime_types
+        )

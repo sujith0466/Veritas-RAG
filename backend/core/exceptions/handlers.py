@@ -5,15 +5,15 @@ JSON error response envelope. All error responses follow the ErrorResponse schem
 so clients have a single parsing contract regardless of error type.
 """
 
+import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any
-import uuid
 
+import structlog
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-import structlog
 
 from .auth import AuthenticationException, AuthorizationException
 from .base import InfrastructureException, RAGuardException
@@ -47,6 +47,7 @@ def _error_response(
 
 # ── Handler: RAGuard domain/infrastructure exceptions ─────────────────────────
 
+
 async def raguard_exception_handler(
     request: Request, exc: RAGuardException
 ) -> JSONResponse:
@@ -73,6 +74,7 @@ async def raguard_exception_handler(
 
 
 # ── Handler: Pydantic request validation errors ────────────────────────────────
+
 
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
@@ -101,6 +103,7 @@ async def validation_exception_handler(
 
 
 # ── Handler: Starlette HTTP exceptions (404, 405, etc.) ───────────────────────
+
 
 async def http_exception_handler(
     request: Request, exc: StarletteHTTPException
@@ -132,9 +135,8 @@ async def http_exception_handler(
 
 # ── Handler: Unhandled exceptions ─────────────────────────────────────────────
 
-async def unhandled_exception_handler(
-    request: Request, exc: Exception
-) -> JSONResponse:
+
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all for unexpected exceptions.
 
     Logs the full traceback for operator visibility but returns a safe,
@@ -156,14 +158,12 @@ async def unhandled_exception_handler(
     )
 
 
-def get_exception_handlers() -> (
-    list[
-        tuple[
-            type[Exception],
-            Callable[[Request, Any], Coroutine[Any, Any, JSONResponse]],
-        ]
+def get_exception_handlers() -> list[
+    tuple[
+        type[Exception],
+        Callable[[Request, Any], Coroutine[Any, Any, JSONResponse]],
     ]
-):
+]:
     """Return the list of (exception_type, handler) pairs to register with FastAPI."""
     return [
         (RAGuardException, raguard_exception_handler),

@@ -4,16 +4,16 @@ Provides asynchronous CRUD access, status transitions, and tenant point summarie
 for `VectorIndexMetadata` entities inside PostgreSQL (`ADR-M3-001`).
 """
 
+import uuid
 from collections.abc import Sequence
 from typing import Any
-import uuid
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.repositories.base import BaseRepository
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
+from backend.repositories.base import BaseRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -54,7 +54,9 @@ class VectorMetadataRepository(BaseRepository[VectorIndexMetadata]):
     ) -> VectorIndexMetadata:
         """Fetch existing index metadata or create a new entry in PENDING status."""
         doc_uuid = (
-            document_id if isinstance(document_id, uuid.UUID) else uuid.UUID(str(document_id))
+            document_id
+            if isinstance(document_id, uuid.UUID)
+            else uuid.UUID(str(document_id))
         )
         ver_uuid = (
             document_version_id
@@ -95,7 +97,11 @@ class VectorMetadataRepository(BaseRepository[VectorIndexMetadata]):
         """Update synchronization status, points count, and error details."""
         if metadata_id is None:
             return None
-        meta_uuid = metadata_id if isinstance(metadata_id, uuid.UUID) else uuid.UUID(str(metadata_id))
+        meta_uuid = (
+            metadata_id
+            if isinstance(metadata_id, uuid.UUID)
+            else uuid.UUID(str(metadata_id))
+        )
         instance = await self.get_by_id(meta_uuid)
         if instance is None:
             return None
@@ -128,7 +134,11 @@ class VectorMetadataRepository(BaseRepository[VectorIndexMetadata]):
         count_stmt = select(func.count()).select_from(query.subquery())
         total = (await self.session.execute(count_stmt)).scalar() or 0
 
-        paginated_stmt = query.order_by(VectorIndexMetadata.created_at.desc()).limit(limit).offset(offset)
+        paginated_stmt = (
+            query.order_by(VectorIndexMetadata.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         items = (await self.session.execute(paginated_stmt)).scalars().all()
         return items, total
 
@@ -154,11 +164,13 @@ class VectorMetadataRepository(BaseRepository[VectorIndexMetadata]):
         for row in results:
             points = int(row.total_points or 0)
             total_points_all += points
-            collections.append({
-                "collection_name": row.collection_name,
-                "total_points": points,
-                "indexed_versions_count": int(row.total_versions or 0),
-            })
+            collections.append(
+                {
+                    "collection_name": row.collection_name,
+                    "total_points": points,
+                    "indexed_versions_count": int(row.total_versions or 0),
+                }
+            )
 
         return {
             "tenant_id": tenant_id,

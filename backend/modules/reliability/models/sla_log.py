@@ -4,9 +4,11 @@ Records execution latency compliance against SLA budgets ($400\text{ms}$)
 and tracks degraded fallback/broadening activations for tenant audit trails (`ADR-005`).
 """
 
-from typing import Any, Optional
+from typing import Any
+
 from sqlalchemy import Boolean, Float, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.models.base import BaseModel
 
 
@@ -23,11 +25,17 @@ class RetrievalSLALog(BaseModel):
     tenant_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     query_text: Mapped[str] = mapped_column(Text, nullable=False)
-    target_module: Mapped[str] = mapped_column(String(100), nullable=False, default="qdrant_hybrid")
+    target_module: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="qdrant_hybrid"
+    )
     duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
-    is_sla_breached: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_degraded_fallback: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    fallback_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_sla_breached: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    is_degraded_fallback: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    fallback_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

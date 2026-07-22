@@ -12,24 +12,21 @@ from typing import Any
 from structlog import get_logger
 
 from backend.database.engine import get_session_factory
-from backend.modules.embedding.providers.cohere_provider import CohereEmbeddingProvider
-from backend.modules.embedding.providers.openai_provider import OpenAIEmbeddingProvider
-from backend.modules.retrieval.providers.reranker.local_reranker import (
-    LocalCrossEncoderProvider,
-)
-from backend.modules.retrieval.providers.sparse.bm25_provider import (
-    BM25SparseSearchProvider,
-)
-from backend.modules.retrieval.repositories.retrieval_repository import (
-    RetrievalRepository,
-)
-from backend.modules.retrieval.schemas.errors import (
-    ErrorSeverity,
-    RetrievalDomainException,
-)
+from backend.modules.embedding.providers.openai_provider import \
+    OpenAIEmbeddingProvider
+from backend.modules.retrieval.providers.reranker.local_reranker import \
+    LocalCrossEncoderProvider
+from backend.modules.retrieval.providers.sparse.bm25_provider import \
+    BM25SparseSearchProvider
+from backend.modules.retrieval.repositories.retrieval_repository import \
+    RetrievalRepository
+from backend.modules.retrieval.schemas.errors import (ErrorSeverity,
+                                                      RetrievalDomainException)
 from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
-from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
-from backend.modules.vector.providers.qdrant_provider import QdrantVectorDBProvider
+from backend.modules.retrieval.services.retrieval_service import \
+    RetrievalOrchestrator
+from backend.modules.vector.providers.qdrant_provider import \
+    QdrantVectorDBProvider
 from backend.tasks.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -64,7 +61,10 @@ def execute_async_batch_search_task(
             _async_execute_batch_search(self, queries, tenant_id, top_k, webhook_url)
         )
     except RetrievalDomainException as exc:
-        if exc.severity == ErrorSeverity.RECOVERABLE and self.request.retries < self.max_retries:
+        if (
+            exc.severity == ErrorSeverity.RECOVERABLE
+            and self.request.retries < self.max_retries
+        ):
             countdown = int(2**self.request.retries * 3)
             logger.warning(
                 "Recoverable retrieval error; scheduling exponential backoff retry",
@@ -108,12 +108,14 @@ async def _async_execute_batch_search(
             res = await orchestrator.execute_hybrid_search(
                 options=req, tenant_id=tenant_id
             )
-            results_summary.append({
-                "query": q,
-                "correlation_id": res.correlation_id,
-                "evidence_count": len(res.final_evidence),
-                "duration_ms": res.stage_latencies.total_ms,
-            })
+            results_summary.append(
+                {
+                    "query": q,
+                    "correlation_id": res.correlation_id,
+                    "evidence_count": len(res.final_evidence),
+                    "duration_ms": res.stage_latencies.total_ms,
+                }
+            )
 
         logger.info(
             "async_batch_search_completed",

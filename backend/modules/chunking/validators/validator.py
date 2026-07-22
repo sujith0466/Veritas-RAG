@@ -1,7 +1,5 @@
 """Chunk validation rules and quota boundaries (`ChunkValidator`)."""
 
-from typing import Any
-
 from backend.modules.chunking.schemas.chunk import ChunkDTO
 from backend.modules.chunking.schemas.errors import ChunkValidationError
 
@@ -31,7 +29,11 @@ class ChunkValidator:
             if len(content_str) > self.max_characters:
                 raise ChunkValidationError(
                     message=f"Chunk at sequence index {idx} exceeds max character limit ({len(content_str)} > {self.max_characters}).",
-                    detail={"chunk_index": idx, "character_count": len(content_str), "max_allowed": self.max_characters},
+                    detail={
+                        "chunk_index": idx,
+                        "character_count": len(content_str),
+                        "max_allowed": self.max_characters,
+                    },
                 )
 
         return chunks

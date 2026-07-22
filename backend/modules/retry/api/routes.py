@@ -2,14 +2,17 @@
 
 from fastapi import APIRouter
 
-from backend.modules.retry.schemas.retry_dto import RetryRequestContextDTO, RetryDecisionDTO
+from backend.modules.retry.schemas.retry_dto import (RetryDecisionDTO,
+                                                     RetryRequestContextDTO)
 from backend.modules.retry.services.retry_controller import RetryController
 
 router = APIRouter()
 _controller = RetryController()
 
 
-@router.post("/decide", response_model=RetryDecisionDTO, summary="Evaluate retry decision")
+@router.post(
+    "/decide", response_model=RetryDecisionDTO, summary="Evaluate retry decision"
+)
 async def decide_retry(context: RetryRequestContextDTO) -> RetryDecisionDTO:
     """Given a RetryRequestContextDTO, return the appropriate RetryDecisionDTO.
 

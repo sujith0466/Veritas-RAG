@@ -8,9 +8,10 @@ Create Date: 2026-07-19 16:30:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0008"
@@ -26,18 +27,32 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("tenant_id", sa.String(length=100), nullable=False),
         sa.Column("scan_type", sa.String(length=50), nullable=False),
-        sa.Column("status", sa.String(length=20), nullable=False, server_default="PENDING"),
+        sa.Column(
+            "status", sa.String(length=20), nullable=False, server_default="PENDING"
+        ),
         sa.Column("orphans_found", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("orphans_purged", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("stale_chunks_found", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("parity_status", sa.String(length=100), nullable=False, server_default="UNKNOWN"),
+        sa.Column(
+            "stale_chunks_found", sa.Integer(), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "parity_status",
+            sa.String(length=100),
+            nullable=False,
+            server_default="UNKNOWN",
+        ),
         sa.Column("duration_ms", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column("error_message", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_health_scan_jobs")),
     )
-    op.create_index(op.f("ix_health_scan_jobs_tenant_id"), "health_scan_jobs", ["tenant_id"], unique=False)
+    op.create_index(
+        op.f("ix_health_scan_jobs_tenant_id"),
+        "health_scan_jobs",
+        ["tenant_id"],
+        unique=False,
+    )
     op.create_index(
         "ix_health_scan_jobs_tenant_status",
         "health_scan_jobs",
@@ -55,7 +70,9 @@ def upgrade() -> None:
         sa.Column("old_model_name", sa.String(length=100), nullable=False),
         sa.Column("target_provider", sa.String(length=50), nullable=False),
         sa.Column("target_model_name", sa.String(length=100), nullable=False),
-        sa.Column("status", sa.String(length=20), nullable=False, server_default="PENDING"),
+        sa.Column(
+            "status", sa.String(length=20), nullable=False, server_default="PENDING"
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["chunk_id"],
@@ -65,7 +82,12 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_stale_embedding_records")),
     )
-    op.create_index(op.f("ix_stale_embedding_records_tenant_id"), "stale_embedding_records", ["tenant_id"], unique=False)
+    op.create_index(
+        op.f("ix_stale_embedding_records_tenant_id"),
+        "stale_embedding_records",
+        ["tenant_id"],
+        unique=False,
+    )
     op.create_index(
         "ix_stale_embedding_records_tenant_chunk",
         "stale_embedding_records",

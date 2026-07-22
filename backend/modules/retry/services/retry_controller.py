@@ -6,11 +6,9 @@ Designed to be consumed by downstream Phase 8 (Query Rewrite) and Phase 9 (Clari
 
 import asyncio
 
-from backend.modules.retry.schemas.retry_dto import (
-    RetryRequestContextDTO,
-    RetryDecisionDTO,
-    RetryAction,
-)
+from backend.modules.retry.schemas.retry_dto import (RetryAction,
+                                                     RetryDecisionDTO,
+                                                     RetryRequestContextDTO)
 from backend.modules.retry.services.decision_engine import DecisionEngine
 
 
@@ -46,7 +44,10 @@ class RetryController:
         decision = await self.decision_engine.decide(context)
 
         # Apply async sleep for backoff (non-blocking via asyncio.sleep)
-        if decision.action == RetryAction.RETRY_WITH_BACKOFF and decision.backoff_ms > 0:
+        if (
+            decision.action == RetryAction.RETRY_WITH_BACKOFF
+            and decision.backoff_ms > 0
+        ):
             await asyncio.sleep(decision.backoff_ms / 1000.0)
 
         # Clear history on terminal outcomes

@@ -30,7 +30,9 @@ async def init_db() -> None:
             async with engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
         except Exception as exc:
-            logger.warning("Could not connect to test database during init_db", error=str(exc))
+            logger.warning(
+                "Could not connect to test database during init_db", error=str(exc)
+            )
     else:
         # Verify connection by executing a quick check
         try:

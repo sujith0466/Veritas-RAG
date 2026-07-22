@@ -158,8 +158,13 @@ def test_provider_factory_catalog_and_lookup() -> None:
     assert instance.model_name == "dummy-2048"
 
 
-def test_embedding_configuration_loading() -> None:
+def test_embedding_configuration_loading(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify settings initialization includes embedding configuration."""
+    monkeypatch.setenv("DEFAULT_EMBEDDING_PROVIDER", "openai")
+    monkeypatch.setenv("EMBEDDING_BATCH_SIZE", "100")
+    monkeypatch.setenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
+    get_settings.cache_clear()
+    
     settings = get_settings()
     assert hasattr(settings, "embeddings")
     assert settings.embeddings.default_provider == "openai"

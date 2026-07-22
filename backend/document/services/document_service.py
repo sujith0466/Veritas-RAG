@@ -5,37 +5,28 @@ database entity persistence, event emitting, and asynchronous Celery worker task
 """
 
 import math
-from typing import BinaryIO
 import uuid
+from typing import BinaryIO
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.document.events import EVENT_DOCUMENT_UPLOADED, create_domain_event
-from backend.document.models import (
-    Document,
-    DocumentEventLog,
-    DocumentVersion,
-    ProcessingJob,
-    StorageObject,
-)
-from backend.document.repositories import (
-    DocumentEventRepository,
-    DocumentRepository,
-    JobRepository,
-    StorageObjectRepository,
-)
-from backend.document.schemas import (
-    DocumentDetailResponse,
-    DocumentListResponse,
-    DocumentManifestDTO,
-    DocumentResponse,
-    DocumentVersionDTO,
-    ProcessingStatusResponse,
-    StageMetricDTO,
-)
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
-from backend.document.storage import LocalStorageProvider, StorageProvider, get_versioned_path
-from backend.document.validators import ValidationPipeline, check_duplicate_content
+from backend.document.events import (EVENT_DOCUMENT_UPLOADED,
+                                     create_domain_event)
+from backend.document.models import (Document, DocumentEventLog,
+                                     DocumentVersion, ProcessingJob,
+                                     StorageObject)
+from backend.document.repositories import (DocumentEventRepository,
+                                           DocumentRepository, JobRepository,
+                                           StorageObjectRepository)
+from backend.document.schemas import (DocumentDetailResponse,
+                                      DocumentListResponse,
+                                      DocumentManifestDTO, DocumentResponse,
+                                      DocumentVersionDTO,
+                                      ProcessingStatusResponse)
+from backend.document.storage import (LocalStorageProvider, StorageProvider,
+                                      get_versioned_path)
+from backend.document.validators import (ValidationPipeline,
+                                         check_duplicate_content)
 
 
 class DocumentService:
@@ -174,7 +165,7 @@ class DocumentService:
             from backend.document.workers.ingestion import process_document_job
 
             process_document_job.apply_async(args=[str(job.id)], queue="ingestion")
-        except Exception as e:
+        except Exception:
             # If broker dispatch fails, log warning/error without failing the upload record
             pass
 
@@ -192,9 +183,7 @@ class DocumentService:
 
         # Map steps/status to progress percentage
         progress = 0
-        if doc.status == "PROCESSED":
-            progress = 100
-        elif doc.status == "FAILED":
+        if doc.status == "PROCESSED" or doc.status == "FAILED":
             progress = 100
         elif job:
             step_progress = {
@@ -221,7 +210,9 @@ class DocumentService:
         self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
     ) -> DocumentDetailResponse | None:
         """Fetch complete document details, version history, and manifest if processed."""
-        doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+        doc = await self.doc_repo.get_by_id_with_versions(
+            document_id, tenant_id, session
+        )
         if not doc:
             return None
 
@@ -270,7 +261,9 @@ class DocumentService:
         status: str | None = None,
     ) -> DocumentListResponse:
         """List documents within a tenant namespace with pagination."""
-        items, total = await self.doc_repo.list_documents(tenant_id, session, page, page_size, status)
+        items, total = await self.doc_repo.list_documents(
+            tenant_id, session, page, page_size, status
+        )
         items_dto = [DocumentResponse.model_validate(item) for item in items]
         pages = math.ceil(total / page_size) if page_size > 0 else 1
 
@@ -286,7 +279,9 @@ class DocumentService:
         self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
     ) -> bool:
         """Soft-delete a document and remove its physical artifacts from storage."""
-        doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+        doc = await self.doc_repo.get_by_id_with_versions(
+            document_id, tenant_id, session
+        )
         if not doc:
             return False
 

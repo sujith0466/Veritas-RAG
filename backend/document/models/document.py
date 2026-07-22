@@ -3,15 +3,15 @@
 Represents the core document aggregate root and its immutable content revisions.
 """
 
-from typing import Any
 import uuid
+from typing import Any
 
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.models.base import BaseModel
 from backend.document.models.storage_object import StorageObject
+from backend.models.base import BaseModel
 
 
 class Document(BaseModel):
@@ -21,11 +21,16 @@ class Document(BaseModel):
 
     tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(50), index=True, default="PENDING", nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(50), index=True, default="PENDING", nullable=False
+    )
     latest_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
@@ -47,7 +52,10 @@ class DocumentVersion(BaseModel):
     __tablename__ = "document_versions"
 
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     version_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     storage_object_id: Mapped[uuid.UUID] = mapped_column(

@@ -4,6 +4,7 @@ import {
   RefreshCw,
   Filter,
 } from 'lucide-react'
+import { PageTransition } from '@/components/layouts'
 import { Button, PageHeader } from '@/components/common'
 import { documentService } from '@/services/documentService'
 import type { DocumentResponse, ProcessingStatusResponse } from '@/types'
@@ -111,18 +112,19 @@ export function DocumentsPage() {
   ]
 
   return (
-    <div className="space-y-8 pb-12">
+    <PageTransition className="space-y-8 pb-12">
       <PageHeader
         title="Document Intelligence Foundation"
-        description="Enterprise-grade document ingestion, capability registry extraction, OCR density fallback, and canonical manifest generation (`ADR-005`). No vector retrieval or AI calls."
+        description="Enterprise-grade document ingestion, capability registry extraction, OCR density fallback, and canonical manifest generation. No vector retrieval or AI calls."
         actions={
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => fetchDocuments()}
             isLoading={isLoading}
+            className="flex items-center gap-1.5"
           >
-            {!isLoading && <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+            {!isLoading && <RefreshCw className="h-3.5 w-3.5" />}
             Refresh Registry
           </Button>
         }
@@ -191,6 +193,6 @@ export function DocumentsPage() {
         documentId={selectedDocId}
         onClose={() => setSelectedDocId(null)}
       />
-    </div>
+    </PageTransition>
   )
 }

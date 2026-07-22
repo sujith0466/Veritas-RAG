@@ -8,10 +8,12 @@ import asyncio
 import hashlib
 import math
 from typing import Any
+
 import structlog
 
 from backend.core.config import get_settings
-from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
+from backend.modules.embedding.providers.base import (BaseEmbeddingProvider,
+                                                      EmbeddingBatchResult)
 from backend.modules.embedding.schemas.errors import InvalidInputError
 
 logger = structlog.get_logger(__name__)
@@ -58,21 +60,27 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         self._st_attempted = True
         try:
             from sentence_transformers import SentenceTransformer
+
             self._st_model = SentenceTransformer(self._model)
             logger.info("local_sentence_transformer_loaded", model=self._model)
             return self._st_model
         except ImportError:
-            logger.debug("sentence_transformers_missing_using_deterministic_simulation", model=self._model)
+            logger.debug(
+                "sentence_transformers_missing_using_deterministic_simulation",
+                model=self._model,
+            )
             return None
         except Exception as exc:
-            logger.warning("local_model_load_failed_using_deterministic_simulation", error=str(exc))
+            logger.warning(
+                "local_model_load_failed_using_deterministic_simulation", error=str(exc)
+            )
             return None
 
     def _generate_deterministic_vector(self, text: str) -> list[float]:
         """Generate a deterministic unit-normalized pseudo-vector from text SHA-256 hash."""
         dim = self.dimension
         hash_bytes = hashlib.sha256(text.encode("utf-8")).digest()
-        
+
         # Expand 32 hash bytes across `dim` dimensions deterministically
         raw_vec = []
         for i in range(dim):
@@ -91,13 +99,18 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         model = self._get_or_load_model()
         if model is not None:
             raw_vecs = model.encode(texts, normalize_embeddings=True)
-            return [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in raw_vecs]
+            return [
+                vec.tolist() if hasattr(vec, "tolist") else list(vec)
+                for vec in raw_vecs
+            ]
         return [self._generate_deterministic_vector(t) for t in texts]
 
     async def embed_documents(self, texts: list[str]) -> EmbeddingBatchResult:
         """Generate dense embedding vectors for input chunk texts."""
         if not texts:
-            raise InvalidInputError("Empty text batch provided to LocalEmbeddingProvider.")
+            raise InvalidInputError(
+                "Empty text batch provided to LocalEmbeddingProvider."
+            )
 
         vectors = await asyncio.to_thread(self._encode_sync, texts)
         # Approximate token count for local model (words * 1.3)
@@ -106,12 +119,17 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         return EmbeddingBatchResult(
             embeddings=vectors,
             tokens_consumed=tokens,
-            provider_metadata={"model": self._model, "local": self._st_model is not None},
+            provider_metadata={
+                "model": self._model,
+                "local": self._st_model is not None,
+            },
         )
 
     async def embed_query(self, text: str) -> list[float]:
         """Generate single vector embedding for a query string."""
         if not text or not text.strip():
-            raise InvalidInputError("Empty query string provided to LocalEmbeddingProvider.")
+            raise InvalidInputError(
+                "Empty query string provided to LocalEmbeddingProvider."
+            )
         res = await self.embed_documents([text])
         return res.embeddings[0]

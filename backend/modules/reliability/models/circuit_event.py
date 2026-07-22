@@ -4,9 +4,11 @@ Records circuit breaker state transitions (e.g., CLOSED -> OPEN)
 and recovery events across tenant namespaces (`ADR-005`).
 """
 
-from typing import Any, Optional
+from typing import Any
+
 from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.models.base import BaseModel
 
 
@@ -15,7 +17,12 @@ class CircuitBreakerEventLog(BaseModel):
 
     __tablename__ = "circuit_breaker_events"
     __table_args__ = (
-        Index("ix_circuit_events_tenant_target", "tenant_id", "target_module", "created_at"),
+        Index(
+            "ix_circuit_events_tenant_target",
+            "tenant_id",
+            "target_module",
+            "created_at",
+        ),
     )
 
     tenant_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
@@ -23,7 +30,7 @@ class CircuitBreakerEventLog(BaseModel):
     previous_state: Mapped[str] = mapped_column(String(50), nullable=False)
     new_state: Mapped[str] = mapped_column(String(50), nullable=False)
     reason: Mapped[str] = mapped_column(String(255), nullable=False)
-    error_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

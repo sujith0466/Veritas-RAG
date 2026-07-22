@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from redis.asyncio import ConnectionPool, Redis
 import structlog
+from redis.asyncio import ConnectionPool, Redis
 
 from backend.core.config import get_settings
 

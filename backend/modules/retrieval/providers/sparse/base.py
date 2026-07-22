@@ -17,9 +17,7 @@ class BaseSparseSearchProvider(ABC):
     """Abstract interface for sparse keyword retrieval providers (`BM25`, `Splade`, etc.)."""
 
     @abstractmethod
-    async def index_chunks(
-        self, tenant_id: str, chunks: list["DocumentChunk"]
-    ) -> int:
+    async def index_chunks(self, tenant_id: str, chunks: list["DocumentChunk"]) -> int:
         """Index or update a batch of document chunks into the sparse keyword index for the tenant.
 
         Args:
@@ -48,9 +46,7 @@ class BaseSparseSearchProvider(ABC):
         ...
 
     @abstractmethod
-    async def remove_document_chunks(
-        self, tenant_id: str, document_id: str
-    ) -> int:
+    async def remove_document_chunks(self, tenant_id: str, document_id: str) -> int:
         """Remove all indexed chunks for a given document from the tenant sparse index.
 
         Args:

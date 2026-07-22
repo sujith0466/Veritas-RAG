@@ -1,5 +1,6 @@
 from backend.modules.scoring.schemas.scoring_dto import ScoringInputsDTO
 
+
 class BaseReliabilityScorer:
     def __init__(self):
         # Weights for the base score calculation (must sum to 1.0)
@@ -13,9 +14,9 @@ class BaseReliabilityScorer:
         Calculates the weighted base reliability score (0-100).
         """
         raw_score = (
-            (inputs.retrieval_relevance_score * self.w_relevance) +
-            (inputs.validation_entailment_ratio * self.w_entailment) +
-            (inputs.confidence_evidence_strength * self.w_evidence) +
-            (inputs.reflection_completeness * self.w_completeness)
+            (inputs.retrieval_relevance_score * self.w_relevance)
+            + (inputs.validation_entailment_ratio * self.w_entailment)
+            + (inputs.confidence_evidence_strength * self.w_evidence)
+            + (inputs.reflection_completeness * self.w_completeness)
         )
         return min(max(raw_score * 100.0, 0.0), 100.0)

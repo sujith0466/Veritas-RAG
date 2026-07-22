@@ -38,29 +38,29 @@ export function ChunkStrategySelector({
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl p-6 mb-6 shadow-xl"
+      className="bg-surface/80 backdrop-blur border border-border rounded-xl p-6 mb-6 shadow-xl"
     >
-      <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-800/80">
+      <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border/80">
         <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
           <Sliders className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-slate-100">Document Chunking Strategy Engine</h3>
-          <p className="text-xs text-slate-400">Configure content-aware splitting parameters without embedding generation (`ADR-005`)</p>
+          <h3 className="text-lg font-bold text-foreground">Document Chunking Strategy Engine</h3>
+          <p className="text-xs text-muted-foreground">Configure content-aware splitting parameters without embedding generation (`ADR-005`)</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Document Selector */}
         <div className="lg:col-span-1">
-          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+          <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-2">
             Target Document
           </label>
           <select
             value={selectedDocId}
             onChange={(e) => onSelectDocId(e.target.value)}
             disabled={isProcessing}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-indigo-500 transition-colors"
           >
             <option value="">-- Select Document --</option>
             {documents.map((doc) => (
@@ -69,12 +69,12 @@ export function ChunkStrategySelector({
               </option>
             ))}
           </select>
-          <p className="text-[11px] text-slate-500 mt-1">Select a PROCESSED document to split into chunks.</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Select a PROCESSED document to split into chunks.</p>
         </div>
 
         {/* Strategy Grid Choice */}
         <div className="lg:col-span-2">
-          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+          <label className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-2">
             Splitting Algorithm
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -92,15 +92,15 @@ export function ChunkStrategySelector({
                   disabled={isProcessing}
                   className={`p-2.5 rounded-lg border text-left transition-all relative ${
                     isSelected
-                      ? 'bg-indigo-500/10 border-indigo-500 text-slate-100 shadow-md'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      ? 'bg-indigo-500/10 border-indigo-500 text-foreground shadow-md'
+                      : 'bg-background/60 border-border text-muted-foreground hover:border-border hover:text-foreground'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold capitalize">{strat.name}</span>
                     {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />}
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{strat.display_name}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{strat.display_name}</p>
                   {strat.is_placeholder && (
                     <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 border border-amber-500/30 text-amber-400">
                       M2 Stub
@@ -111,7 +111,7 @@ export function ChunkStrategySelector({
             })}
           </div>
           {currentStrategy && (
-            <p className="text-xs text-slate-400 mt-2 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60">
+            <p className="text-xs text-muted-foreground mt-2 bg-background/40 p-2.5 rounded-lg border border-border/60">
               <span className="font-semibold text-indigo-400">{currentStrategy.display_name}:</span> {currentStrategy.description}
             </p>
           )}
@@ -121,7 +121,7 @@ export function ChunkStrategySelector({
         <div className="lg:col-span-1 flex flex-col justify-between">
           <div>
             <div className="mb-4">
-              <div className="flex justify-between text-xs font-semibold text-slate-300 mb-1">
+              <div className="flex justify-between text-xs font-semibold text-foreground mb-1">
                 <span>Max Characters</span>
                 <span className="text-indigo-400">{maxChars}</span>
               </div>
@@ -133,12 +133,12 @@ export function ChunkStrategySelector({
                 value={maxChars}
                 onChange={(e) => setMaxChars(Number(e.target.value))}
                 disabled={isProcessing || currentStrategy?.is_placeholder}
-                className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                className="w-full accent-indigo-500 bg-border h-1.5 rounded-lg cursor-pointer"
               />
             </div>
 
             <div className="mb-4">
-              <div className="flex justify-between text-xs font-semibold text-slate-300 mb-1">
+              <div className="flex justify-between text-xs font-semibold text-foreground mb-1">
                 <span>Overlap Characters</span>
                 <span className="text-indigo-400">{overlapChars}</span>
               </div>
@@ -150,7 +150,7 @@ export function ChunkStrategySelector({
                 value={overlapChars}
                 onChange={(e) => setOverlapChars(Number(e.target.value))}
                 disabled={isProcessing || currentStrategy?.is_placeholder}
-                className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                className="w-full accent-indigo-500 bg-border h-1.5 rounded-lg cursor-pointer"
               />
             </div>
           </div>

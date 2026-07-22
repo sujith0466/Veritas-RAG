@@ -9,11 +9,8 @@ import structlog
 from backend.core.auth.context import UserContext
 from backend.core.exceptions.auth import InsufficientRoleException
 from backend.core.permissions.rbac import Role
-from backend.core.permissions.registry import (
-    Permission,
-    PermissionRegistry,
-    get_permission_registry,
-)
+from backend.core.permissions.registry import (Permission, PermissionRegistry,
+                                               get_permission_registry)
 
 logger = structlog.get_logger(__name__)
 

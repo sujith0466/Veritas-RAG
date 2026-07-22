@@ -9,7 +9,8 @@ from typing import Any
 
 from structlog import get_logger
 
-from backend.modules.retrieval.providers.reranker.base import BaseRerankerProvider
+from backend.modules.retrieval.providers.reranker.base import \
+    BaseRerankerProvider
 from backend.modules.retrieval.schemas.errors import RerankerTimeoutError
 from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 
@@ -17,6 +18,7 @@ logger = get_logger(__name__)
 
 try:
     from sentence_transformers import CrossEncoder
+
     ST_AVAILABLE = True
 except ImportError:
     CrossEncoder = None
@@ -70,9 +72,7 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
         texts = [c.content for c in candidates]
         try:
             loop = asyncio.get_running_loop()
-            scores = await loop.run_in_executor(
-                None, self._predict_sync, query, texts
-            )
+            scores = await loop.run_in_executor(None, self._predict_sync, query, texts)
         except Exception as exc:
             logger.error("Local cross-encoder inference failed", error=str(exc))
             if isinstance(exc, RerankerTimeoutError):

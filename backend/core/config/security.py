@@ -27,7 +27,11 @@ class SecuritySettings(BaseSettings):
         default=52_428_800, alias="MAX_UPLOAD_SIZE_BYTES"
     )  # 50MB
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }
 
     @field_validator("cors_origins_str")
     @classmethod

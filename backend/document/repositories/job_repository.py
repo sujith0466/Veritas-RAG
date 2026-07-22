@@ -3,8 +3,8 @@
 Isolates database tracking for background pipeline tasks, step updates, and retry counts.
 """
 
-from datetime import UTC, datetime
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,9 +24,13 @@ class JobRepository:
         await session.refresh(job)
         return job
 
-    async def get_by_id(self, job_id: uuid.UUID, session: AsyncSession) -> ProcessingJob | None:
+    async def get_by_id(
+        self, job_id: uuid.UUID, session: AsyncSession
+    ) -> ProcessingJob | None:
         """Fetch a ProcessingJob by its unique ID."""
-        stmt = select(ProcessingJob).where(ProcessingJob.id == job_id, ProcessingJob.is_deleted.is_(False))
+        stmt = select(ProcessingJob).where(
+            ProcessingJob.id == job_id, ProcessingJob.is_deleted.is_(False)
+        )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -36,7 +40,10 @@ class JobRepository:
         """Fetch the most recent ProcessingJob for a given document."""
         stmt = (
             select(ProcessingJob)
-            .where(ProcessingJob.document_id == document_id, ProcessingJob.is_deleted.is_(False))
+            .where(
+                ProcessingJob.document_id == document_id,
+                ProcessingJob.is_deleted.is_(False),
+            )
             .order_by(ProcessingJob.created_at.desc())
             .limit(1)
         )

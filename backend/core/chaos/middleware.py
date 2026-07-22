@@ -1,5 +1,6 @@
 from backend.core.chaos.injector import ChaosInjector
 
+
 class ChaosMiddleware:
     def __init__(self, injector: ChaosInjector):
         self.injector = injector

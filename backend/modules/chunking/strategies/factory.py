@@ -5,10 +5,9 @@ Dynamically registers all 7 strategies (`recursive`, `markdown`, `sentence`, `pa
 exports strategy metadata descriptions (`ADR-005`).
 """
 
-from typing import Any
-
 from backend.modules.chunking.schemas.chunk import StrategyInfoDTO
 from backend.modules.chunking.schemas.errors import ChunkStrategyNotFound
+
 from .base import BaseChunkSplitter
 from .code import CodeChunkSplitter
 from .markdown import MarkdownChunkSplitter
@@ -33,7 +32,9 @@ class SplitterStrategyFactory:
             "semantic": SemanticChunkSplitterPlaceholder(),
         }
 
-    def get_splitter(self, strategy_name: str | None = None, mime_type: str | None = None) -> BaseChunkSplitter:
+    def get_splitter(
+        self, strategy_name: str | None = None, mime_type: str | None = None
+    ) -> BaseChunkSplitter:
         """Resolve splitter by explicit strategy name, or infer from MIME type (`text/markdown` -> `markdown`)."""
         if strategy_name:
             normalized = strategy_name.lower().strip()
@@ -41,19 +42,28 @@ class SplitterStrategyFactory:
                 return self._strategies[normalized]
             raise ChunkStrategyNotFound(
                 message=f"Chunking strategy '{strategy_name}' is not registered or supported.",
-                detail={"requested": strategy_name, "available": list(self._strategies.keys())},
+                detail={
+                    "requested": strategy_name,
+                    "available": list(self._strategies.keys()),
+                },
             )
 
         if mime_type:
             mime_lower = mime_type.lower().strip()
             # 1. Check exact table/csv matches
-            if mime_lower in {"text/csv", "application/csv", "text/tab-separated-values"}:
+            if mime_lower in {
+                "text/csv",
+                "application/csv",
+                "text/tab-separated-values",
+            }:
                 return self._strategies["table"]
             # 2. Check markdown
             if "markdown" in mime_lower:
                 return self._strategies["markdown"]
             # 3. Check code
-            if any(c in mime_lower for c in {"python", "javascript", "json", "go", "sql"}):
+            if any(
+                c in mime_lower for c in ("python", "javascript", "json", "go", "sql")
+            ):
                 return self._strategies["code"]
 
         # Default fallback is recursive character splitting

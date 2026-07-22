@@ -1,23 +1,22 @@
 """Dashboard service aggregating metrics across Knowledge, Vector, and Analytics domains."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
-from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
+from backend.modules.analytics.models.query_analytics import \
+    QueryAnalyticsRecord
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.dashboard.schemas.dashboard_dto import (
-    ExecutiveDashboardActivityDTO,
-    ExecutiveDashboardAlertDTO,
-    ExecutiveDashboardDTO,
-    KnowledgeIntelligenceSummaryDTO,
-    KnowledgeStageMetric,
-)
+    ExecutiveDashboardActivityDTO, ExecutiveDashboardAlertDTO,
+    ExecutiveDashboardDTO, KnowledgeIntelligenceSummaryDTO,
+    KnowledgeStageMetric)
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
 
@@ -30,7 +29,9 @@ class DashboardService:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_knowledge_intelligence_summary(self, tenant_id: str) -> KnowledgeIntelligenceSummaryDTO:
+    async def get_knowledge_intelligence_summary(
+        self, tenant_id: str
+    ) -> KnowledgeIntelligenceSummaryDTO:
         """Aggregate knowledge foundation metrics: documents, chunks, embeddings, and health scans."""
         # 1. Total Chunks & Average Tokens
         chunk_query = select(
@@ -60,13 +61,19 @@ class DashboardService:
             func.max(ChunkEmbedding.model_name),
         ).where(ChunkEmbedding.tenant_id == tenant_id)
         emb_result = await self._session.execute(emb_query)
-        total_embeddings, provider, model_name = emb_result.first() or (0, "openai", "text-embedding-3-large")
+        total_embeddings, provider, model_name = emb_result.first() or (
+            0,
+            "openai",
+            "text-embedding-3-large",
+        )
         total_embeddings = total_embeddings or 0
         provider = provider or "openai"
         model_name = model_name or "text-embedding-3-large"
 
         # Calculate approximate embedding tokens consumed if not stored separately
-        total_emb_tokens = int(total_embeddings * avg_tokens) if total_embeddings > 0 else 0
+        total_emb_tokens = (
+            int(total_embeddings * avg_tokens) if total_embeddings > 0 else 0
+        )
 
         # 4. Recent Health Scans
         scans_query = (
@@ -92,10 +99,30 @@ class DashboardService:
 
         # 5. Stage Latencies (Derived or default SLA targets)
         stage_latencies = [
-            KnowledgeStageMetric(stage_name="Validation & Checksum", avg_duration_ms=18.5, success_count=total_chunks, failure_count=0),
-            KnowledgeStageMetric(stage_name="Text Extraction & OCR", avg_duration_ms=145.2, success_count=total_chunks, failure_count=0),
-            KnowledgeStageMetric(stage_name="Semantic Chunking Engine", avg_duration_ms=42.0, success_count=total_chunks, failure_count=0),
-            KnowledgeStageMetric(stage_name="Vector Embedding & Storage", avg_duration_ms=210.8, success_count=total_embeddings, failure_count=0),
+            KnowledgeStageMetric(
+                stage_name="Validation & Checksum",
+                avg_duration_ms=18.5,
+                success_count=total_chunks,
+                failure_count=0,
+            ),
+            KnowledgeStageMetric(
+                stage_name="Text Extraction & OCR",
+                avg_duration_ms=145.2,
+                success_count=total_chunks,
+                failure_count=0,
+            ),
+            KnowledgeStageMetric(
+                stage_name="Semantic Chunking Engine",
+                avg_duration_ms=42.0,
+                success_count=total_chunks,
+                failure_count=0,
+            ),
+            KnowledgeStageMetric(
+                stage_name="Vector Embedding & Storage",
+                avg_duration_ms=210.8,
+                success_count=total_embeddings,
+                failure_count=0,
+            ),
         ]
 
         # Estimate documents based on chunks
@@ -119,7 +146,11 @@ class DashboardService:
             total_vector_points=total_embeddings,
             stage_latencies=stage_latencies,
             recent_health_scans=recent_scans,
-            parity_audit_status="PARITY_CONFIRMED" if total_embeddings == total_chunks else "PARITY_SYNCING",
+            parity_audit_status=(
+                "PARITY_CONFIRMED"
+                if total_embeddings == total_chunks
+                else "PARITY_SYNCING"
+            ),
         )
 
     async def get_executive_dashboard(self, tenant_id: str) -> ExecutiveDashboardDTO:
@@ -153,11 +184,13 @@ class DashboardService:
         outcomes_result = await self._session.execute(outcomes_query)
         outcomes_map = {row[0]: row[1] for row in outcomes_result.all() if row[0]}
 
-        blocked_hallucinations = (
-            outcomes_map.get("ABORTED_HALLUCINATION", 0) + outcomes_map.get("ABORTED_LOW_CONFIDENCE", 0)
-        )
+        blocked_hallucinations = outcomes_map.get(
+            "ABORTED_HALLUCINATION", 0
+        ) + outcomes_map.get("ABORTED_LOW_CONFIDENCE", 0)
         clarifications = outcomes_map.get("CLARIFICATION_REQUIRED", 0)
-        clarification_rate = (clarifications / total_24h * 100.0) if total_24h > 0 else 0.0
+        clarification_rate = (
+            (clarifications / total_24h * 100.0) if total_24h > 0 else 0.0
+        )
 
         # Recent Activity (last 10 queries)
         activity_query = (
@@ -173,14 +206,19 @@ class DashboardService:
         security_alerts: list[ExecutiveDashboardAlertDTO] = []
 
         for rec in records:
-            dt_str = rec.created_at.isoformat() if rec.created_at else datetime.now(UTC).isoformat()
+            dt_str = (
+                rec.created_at.isoformat()
+                if rec.created_at
+                else datetime.now(UTC).isoformat()
+            )
             recent_activity.append(
                 ExecutiveDashboardActivityDTO(
                     id=str(rec.id),
                     timestamp=dt_str,
                     event_type="AI_QUERY",
                     title=f"Query Execution ({rec.outcome})",
-                    description=rec.query_text[:80] + ("..." if len(rec.query_text) > 80 else ""),
+                    description=rec.query_text[:80]
+                    + ("..." if len(rec.query_text) > 80 else ""),
                     status=rec.outcome,
                     confidence_score=rec.confidence_score,
                     duration_ms=rec.total_duration_ms,
@@ -193,8 +231,13 @@ class DashboardService:
                         id=str(uuid4()),
                         timestamp=dt_str,
                         alert_type="HALLUCINATION_PREVENTION",
-                        severity="HIGH" if rec.outcome == "ABORTED_HALLUCINATION" else "MEDIUM",
-                        query_snippet=rec.query_text[:60] + ("..." if len(rec.query_text) > 60 else ""),
+                        severity=(
+                            "HIGH"
+                            if rec.outcome == "ABORTED_HALLUCINATION"
+                            else "MEDIUM"
+                        ),
+                        query_snippet=rec.query_text[:60]
+                        + ("..." if len(rec.query_text) > 60 else ""),
                         reason="Pre-generation confidence below SLA safety threshold or reflection loop aborted generation.",
                     )
                 )
@@ -213,32 +256,46 @@ class DashboardService:
         )
 
     # --- Phase 16 Extensions ---
-    async def get_governance_report(self, tenant_id: str, window: str) -> SLAComplianceReportDTO:
-        from backend.modules.dashboard.services.cache_service import RedisDashboardCache
-        from backend.modules.dashboard.schemas.dashboard_dto import SLAComplianceReportDTO, TrustDistributionDTO
-        
+    async def get_governance_report(
+        self, tenant_id: str, window: str
+    ) -> SLAComplianceReportDTO:
+        from backend.modules.dashboard.schemas.dashboard_dto import (
+            SLAComplianceReportDTO, TrustDistributionDTO)
+        from backend.modules.dashboard.services.cache_service import \
+            RedisDashboardCache
+
         cache = getattr(self, "cache", RedisDashboardCache())
         cache_key = f"gov:{tenant_id}:{window}"
         cached = await cache.get(cache_key)
         if cached:
             return SLAComplianceReportDTO(**cached)
-            
+
         report = SLAComplianceReportDTO(
             tenant_id=tenant_id,
             window=window,
             sla_compliance_rate=99.5,
             trust_distribution=TrustDistributionDTO(
-                verified_trusted=85.0,
-                degraded_caution=10.0,
-                unreliable_reject=5.0
-            )
+                verified_trusted=85.0, degraded_caution=10.0, unreliable_reject=5.0
+            ),
         )
         await cache.set(cache_key, report.model_dump())
         return report
 
-    async def get_trust_trends(self, tenant_id: str, window: str) -> list[HallucinationTrendDTO]:
-        from backend.modules.dashboard.schemas.dashboard_dto import HallucinationTrendDTO
+    async def get_trust_trends(
+        self, tenant_id: str, window: str
+    ) -> list[HallucinationTrendDTO]:
+        from backend.modules.dashboard.schemas.dashboard_dto import \
+            HallucinationTrendDTO
+
         return [
-            HallucinationTrendDTO(timestamp="2026-07-20T10:00:00Z", interception_rate=2.5, total_queries=100),
-            HallucinationTrendDTO(timestamp="2026-07-20T11:00:00Z", interception_rate=1.8, total_queries=150)
+            HallucinationTrendDTO(
+                timestamp="2026-07-20T10:00:00Z",
+                interception_rate=2.5,
+                total_queries=100,
+            ),
+            HallucinationTrendDTO(
+                timestamp="2026-07-20T11:00:00Z",
+                interception_rate=1.8,
+                total_queries=150,
+            ),
         ]

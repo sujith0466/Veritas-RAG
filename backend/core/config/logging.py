@@ -17,4 +17,8 @@ class LoggingSettings(BaseSettings):
     format: Literal["json", "console"] = Field(default="console", alias="LOG_FORMAT")
     log_requests: bool = Field(default=True, alias="LOG_REQUESTS")
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }

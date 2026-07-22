@@ -4,8 +4,8 @@ Defines the request-scoped user context and token payload structures
 propagated through FastAPI dependencies and request contexts.
 """
 
-from typing import Any
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,11 @@ class TokenPayload(BaseModel):
 
     sub: str = Field(description="Subject: Supabase Auth user ID")
     email: str | None = Field(default=None, description="User email address if present")
-    role: str = Field(default="viewer", description="User role from JWT claims or metadata")
+    role: str = Field(
+        default="viewer", description="User role from JWT claims or metadata"
+    )
+    tenant_id: str | None = Field(default=None, description="Multi-tenant ID from JWT")
+    workspace_name: str | None = Field(default=None, description="Workspace name from JWT")
     exp: int = Field(description="Expiration timestamp (Unix epoch)")
     aud: str | list[str] | None = Field(default=None, description="Audience claim")
     iss: str | None = Field(default=None, description="Issuer claim")
@@ -36,6 +40,7 @@ class UserContext(BaseModel):
     role: Role = Field(default=Role.VIEWER, description="Assigned platform role")
     is_active: bool = Field(default=True, description="Account active status")
     tenant_id: str | None = Field(default=None, description="Optional multi-tenant ID")
+    workspace_name: str | None = Field(default=None, description="Optional workspace name")
 
     @property
     def is_admin(self) -> bool:

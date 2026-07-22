@@ -8,12 +8,12 @@ on fatal schema or dimension errors (`VEC_001`, `VEC_002`, `VEC_004`).
 
 import asyncio
 from typing import Any
-import uuid
 
 import structlog
 
 from backend.database.engine import get_session_factory
-from backend.modules.vector.schemas.errors import ErrorSeverity, VectorDomainException
+from backend.modules.vector.schemas.errors import (ErrorSeverity,
+                                                   VectorDomainException)
 from backend.modules.vector.services.vector_service import VectorStorageService
 from backend.tasks.celery_app import celery_app
 
@@ -50,7 +50,10 @@ def sync_vectors_to_qdrant_task(
             )
         )
     except VectorDomainException as exc:
-        if exc.severity == ErrorSeverity.RECOVERABLE and self.request.retries < self.max_retries:
+        if (
+            exc.severity == ErrorSeverity.RECOVERABLE
+            and self.request.retries < self.max_retries
+        ):
             countdown = int(2**self.request.retries * 5)
             logger.warning(
                 "Recoverable Qdrant error; scheduling exponential backoff retry",
@@ -59,12 +62,20 @@ def sync_vectors_to_qdrant_task(
                 countdown_s=countdown,
             )
             raise self.retry(exc=exc, countdown=countdown) from exc
-        logger.error("Fatal vector synchronization error or retries exhausted", error_code=exc.code, error=str(exc))
+        logger.error(
+            "Fatal vector synchronization error or retries exhausted",
+            error_code=exc.code,
+            error=str(exc),
+        )
         raise
     except Exception as exc:
         if self.request.retries < self.max_retries:
             countdown = int(2**self.request.retries * 5)
-            logger.warning("Unhandled sync error; scheduling retry", attempt=self.request.retries + 1, error=str(exc))
+            logger.warning(
+                "Unhandled sync error; scheduling retry",
+                attempt=self.request.retries + 1,
+                error=str(exc),
+            )
             raise self.retry(exc=exc, countdown=countdown) from exc
         raise
 

@@ -21,7 +21,11 @@ class DatabaseSettings(BaseSettings):
         alias="TEST_DATABASE_URL",
     )
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }
 
     @field_validator("url")
     @classmethod

@@ -21,13 +21,19 @@ class StorageObjectRepository:
         await session.refresh(obj)
         return obj
 
-    async def get_by_id(self, obj_id: uuid.UUID, session: AsyncSession) -> StorageObject | None:
+    async def get_by_id(
+        self, obj_id: uuid.UUID, session: AsyncSession
+    ) -> StorageObject | None:
         """Fetch a StorageObject by its ID."""
-        stmt = select(StorageObject).where(StorageObject.id == obj_id, StorageObject.is_deleted.is_(False))
+        stmt = select(StorageObject).where(
+            StorageObject.id == obj_id, StorageObject.is_deleted.is_(False)
+        )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_key(self, object_key: str, session: AsyncSession) -> StorageObject | None:
+    async def get_by_key(
+        self, object_key: str, session: AsyncSession
+    ) -> StorageObject | None:
         """Fetch a StorageObject by its unique object_key."""
         stmt = select(StorageObject).where(
             StorageObject.object_key == object_key, StorageObject.is_deleted.is_(False)

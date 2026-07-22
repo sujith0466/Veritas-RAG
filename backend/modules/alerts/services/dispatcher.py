@@ -1,11 +1,11 @@
-from backend.modules.alerts.models.alert_rule import AlertRuleORM
-from backend.modules.alerts.models.alert_history import AlertHistoryORM
-from backend.modules.alerts.schemas.alert_dto import AlertPayloadDTO, ChannelConfigDTO
-from backend.modules.alerts.channels.slack_channel import SlackChannel
-from backend.modules.alerts.channels.pagerduty_channel import PagerDutyChannel
 from backend.modules.alerts.channels.email_channel import EmailChannel
+from backend.modules.alerts.channels.pagerduty_channel import PagerDutyChannel
+from backend.modules.alerts.channels.slack_channel import SlackChannel
 from backend.modules.alerts.channels.webhook_channel import WebhookChannel
-import uuid
+from backend.modules.alerts.models.alert_rule import AlertRuleORM
+from backend.modules.alerts.schemas.alert_dto import (AlertPayloadDTO,
+                                                      ChannelConfigDTO)
+
 
 class AlertDispatcher:
     def __init__(self):
@@ -13,7 +13,7 @@ class AlertDispatcher:
             "SLACK": SlackChannel(),
             "PAGERDUTY": PagerDutyChannel(),
             "EMAIL": EmailChannel(),
-            "WEBHOOK": WebhookChannel()
+            "WEBHOOK": WebhookChannel(),
         }
 
     async def dispatch_async(self, rule: AlertRuleORM, payload: AlertPayloadDTO):

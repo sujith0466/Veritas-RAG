@@ -3,7 +3,8 @@
 import os
 from typing import BinaryIO
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
 
 # Supported extensions whitelist
 ALLOWED_EXTENSIONS: set[str] = {
@@ -29,7 +30,9 @@ ALLOWED_MIMES: set[str] = {
 # Extension to expected MIME mappings
 EXTENSION_TO_MIMES: dict[str, set[str]] = {
     ".pdf": {"application/pdf"},
-    ".docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+    ".docx": {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    },
     ".txt": {"text/plain"},
     ".md": {"text/markdown", "text/plain"},
     ".csv": {"text/csv", "application/csv", "text/plain"},
@@ -77,10 +80,13 @@ def validate_extension_and_mime(
         raise DocumentDomainException(
             code=DocumentErrorCode.VAL_002,
             message=f"File extension '{ext}' is not supported.",
-            detail={"extension": ext, "allowed_extensions": sorted(list(ALLOWED_EXTENSIONS))},
+            detail={
+                "extension": ext,
+                "allowed_extensions": sorted(list(ALLOWED_EXTENSIONS)),
+            },
         )
 
-    clean_mime = declared_mime.split(";")[0].strip().lower()
+    clean_mime = declared_mime.split(";", maxsplit=1)[0].strip().lower()
     allowed_for_ext = EXTENSION_TO_MIMES.get(ext, ALLOWED_MIMES)
 
     if clean_mime not in ALLOWED_MIMES and clean_mime not in allowed_for_ext:
@@ -117,13 +123,20 @@ def validate_extension_and_mime(
 
     if ext == ".docx":
         # ZIP header check (DOCX is an OpenXML ZIP container starting with PK\x03\x04)
-        if not header.startswith(b"PK\x03\x04") and not header.startswith(b"PK\x05\x06") and not header.startswith(b"PK\x07\x08"):
+        if (
+            not header.startswith(b"PK\x03\x04")
+            and not header.startswith(b"PK\x05\x06")
+            and not header.startswith(b"PK\x07\x08")
+        ):
             raise DocumentDomainException(
                 code=DocumentErrorCode.VAL_003,
                 message="File content signature does not match expected OpenXML DOCX container (`PK\x03\x04`).",
                 detail={"filename": filename, "extension": ext},
             )
-        return ext, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        return (
+            ext,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
 
     if ext == ".json":
         stripped = header.strip()

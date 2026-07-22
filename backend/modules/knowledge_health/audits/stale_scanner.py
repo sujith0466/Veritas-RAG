@@ -5,18 +5,20 @@ and orchestrates shadow re-indexing (`ADR-M6-002`).
 """
 
 import uuid
-from typing import List, Optional
+
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
-from backend.core.events.base import BaseEvent
 from backend.core.events.types import EventType
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
-from backend.modules.knowledge_health.events.payloads import KnowledgeDriftDetectedPayload, KnowledgeHealthDomainEvent
-from backend.modules.knowledge_health.models.stale_record import StaleEmbeddingRecord
-from backend.modules.knowledge_health.repositories.health_repository import HealthRepository
+from backend.modules.knowledge_health.events.payloads import (
+    KnowledgeDriftDetectedPayload, KnowledgeHealthDomainEvent)
+from backend.modules.knowledge_health.models.stale_record import \
+    StaleEmbeddingRecord
+from backend.modules.knowledge_health.repositories.health_repository import \
+    HealthRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -27,8 +29,8 @@ class StaleEmbeddingScanner:
     def __init__(
         self,
         session: AsyncSession,
-        repository: Optional[HealthRepository] = None,
-        dispatcher: Optional[EventDispatcher] = None,
+        repository: HealthRepository | None = None,
+        dispatcher: EventDispatcher | None = None,
     ) -> None:
         self.session = session
         self.repo = repository or HealthRepository(session)
@@ -39,15 +41,20 @@ class StaleEmbeddingScanner:
         tenant_id: str,
         active_provider: str,
         active_model: str,
-    ) -> List[StaleEmbeddingRecord]:
+    ) -> list[StaleEmbeddingRecord]:
         """Find chunk embeddings created with older or differing models than the active tenant configuration."""
-        log = logger.bind(tenant_id=tenant_id, active_provider=active_provider, active_model=active_model)
+        log = logger.bind(
+            tenant_id=tenant_id,
+            active_provider=active_provider,
+            active_model=active_model,
+        )
         log.info("Scanning for stale chunk embeddings")
 
         stmt = select(ChunkEmbedding).where(
             ChunkEmbedding.tenant_id == tenant_id,
             ChunkEmbedding.is_deleted.is_(False),
-            (ChunkEmbedding.provider != active_provider) | (ChunkEmbedding.model_name != active_model),
+            (ChunkEmbedding.provider != active_provider)
+            | (ChunkEmbedding.model_name != active_model),
         )
         stale_embs = (await self.session.execute(stmt)).scalars().all()
 
@@ -56,10 +63,12 @@ class StaleEmbeddingScanner:
             return []
 
         # Check existing pending records to avoid duplicates
-        existing_records = await self.repo.get_stale_records(tenant_id=tenant_id, status="PENDING")
+        existing_records = await self.repo.get_stale_records(
+            tenant_id=tenant_id, status="PENDING"
+        )
         existing_chunk_ids = {r.chunk_id for r in existing_records}
 
-        new_records: List[StaleEmbeddingRecord] = []
+        new_records: list[StaleEmbeddingRecord] = []
         for emb in stale_embs:
             if emb.chunk_id not in existing_chunk_ids:
                 rec = StaleEmbeddingRecord(
@@ -79,7 +88,11 @@ class StaleEmbeddingScanner:
 
         all_pending = existing_records + new_records
         if new_records:
-            log.warning("Identified new stale embeddings requiring re-index", count=len(new_records), total_pending=len(all_pending))
+            log.warning(
+                "Identified new stale embeddings requiring re-index",
+                count=len(new_records),
+                total_pending=len(all_pending),
+            )
             payload = KnowledgeDriftDetectedPayload(
                 tenant_id=tenant_id,
                 drift_type="MODEL_ROTATION_STALE",
@@ -90,7 +103,10 @@ class StaleEmbeddingScanner:
                 },
             )
             await self.dispatcher.publish(
-                KnowledgeHealthDomainEvent(event_type=EventType.KNOWLEDGE_DRIFT_DETECTED, payload=payload.to_dict())
+                KnowledgeHealthDomainEvent(
+                    event_type=EventType.KNOWLEDGE_DRIFT_DETECTED,
+                    payload=payload.to_dict(),
+                )
             )
 
         return all_pending
@@ -98,7 +114,7 @@ class StaleEmbeddingScanner:
     async def trigger_shadow_reindex(
         self,
         tenant_id: str,
-        records: List[StaleEmbeddingRecord],
+        records: list[StaleEmbeddingRecord],
         target_provider: str,
         target_model: str,
     ) -> uuid.UUID:

@@ -1,35 +1,19 @@
 """Exceptions package for RAGuard AI."""
 
-from .auth import (
-    AuthenticationException,
-    AuthorizationException,
-    ExpiredTokenException,
-    InsufficientRoleException,
-    InvalidTokenException,
-)
-from .base import ApplicationException, InfrastructureException, RAGuardException
-from .domain import (
-    BusinessRuleException,
-    ConfidenceThresholdException,
-    ConflictException,
-    IngestionException,
-    NotFoundException,
-    RateLimitException,
-    RetrievalException,
-    RetryBudgetExhaustedException,
-    ValidationException,
-)
+from .auth import (AuthenticationException, AuthorizationException,
+                   ExpiredTokenException, InsufficientRoleException,
+                   InvalidTokenException)
+from .base import (ApplicationException, InfrastructureException,
+                   RAGuardException)
+from .domain import (BusinessRuleException, ConfidenceThresholdException,
+                     ConflictException, IngestionException, NotFoundException,
+                     RateLimitException, RetrievalException,
+                     RetryBudgetExhaustedException, ValidationException)
 from .handlers import get_exception_handlers
-from .infrastructure import (
-    CacheConnectionException,
-    CacheException,
-    DatabaseConnectionException,
-    DatabaseException,
-    ExternalServiceException,
-    LLMProviderException,
-    VectorDBConnectionException,
-    VectorDBException,
-)
+from .infrastructure import (CacheConnectionException, CacheException,
+                             DatabaseConnectionException, DatabaseException,
+                             ExternalServiceException, LLMProviderException,
+                             VectorDBConnectionException, VectorDBException)
 
 __all__ = [
     # Base

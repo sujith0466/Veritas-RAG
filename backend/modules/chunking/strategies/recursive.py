@@ -7,6 +7,7 @@ to preserve paragraphs and semantic sentences before breaking across raw words o
 from typing import Any
 
 from backend.modules.chunking.schemas.chunk import ChunkDTO, StrategyInfoDTO
+
 from .base import BaseChunkSplitter, estimate_token_count
 
 
@@ -39,7 +40,9 @@ class RecursiveChunkSplitter(BaseChunkSplitter):
             return []
 
         base_meta = base_metadata or {}
-        raw_chunks = self._split_recursive(text, max_characters, overlap_characters, self.separators)
+        raw_chunks = self._split_recursive(
+            text, max_characters, overlap_characters, self.separators
+        )
 
         # Post-process into ChunkDTOs with index and token gauges
         dtos: list[ChunkDTO] = []
@@ -86,7 +89,9 @@ class RecursiveChunkSplitter(BaseChunkSplitter):
                 good_splits.append(s)
             else:
                 if good_splits:
-                    merged = _merge_splits(good_splits, separator, chunk_size, chunk_overlap)
+                    merged = _merge_splits(
+                        good_splits, separator, chunk_size, chunk_overlap
+                    )
                     final_chunks.extend(merged)
                     good_splits = []
                 if not new_separators:
@@ -96,7 +101,9 @@ class RecursiveChunkSplitter(BaseChunkSplitter):
                         if sub:
                             final_chunks.append(sub)
                 else:
-                    sub_chunks = self._split_recursive(s, chunk_size, chunk_overlap, new_separators)
+                    sub_chunks = self._split_recursive(
+                        s, chunk_size, chunk_overlap, new_separators
+                    )
                     final_chunks.extend(sub_chunks)
 
         if good_splits:
@@ -112,7 +119,9 @@ def _split_text_with_separator(text: str, separator: str) -> list[str]:
     return list(text)
 
 
-def _merge_splits(splits: list[str], separator: str, chunk_size: int, chunk_overlap: int) -> list[str]:
+def _merge_splits(
+    splits: list[str], separator: str, chunk_size: int, chunk_overlap: int
+) -> list[str]:
     docs: list[str] = []
     current_doc: list[str] = []
     total_len = 0
@@ -126,9 +135,13 @@ def _merge_splits(splits: list[str], separator: str, chunk_size: int, chunk_over
                     docs.append(doc)
                 # Trim splits from front until within overlap budget
                 while total_len > chunk_overlap or (
-                    total_len + len_s + (len(separator) if current_doc else 0) > chunk_size and total_len > 0
+                    total_len + len_s + (len(separator) if current_doc else 0)
+                    > chunk_size
+                    and total_len > 0
                 ):
-                    total_len -= len(current_doc[0]) + (len(separator) if len(current_doc) > 1 else 0)
+                    total_len -= len(current_doc[0]) + (
+                        len(separator) if len(current_doc) > 1 else 0
+                    )
                     current_doc.pop(0)
         current_doc.append(s)
         total_len += len_s + (len(separator) if len(current_doc) > 1 else 0)

@@ -2,7 +2,7 @@
  * Auth type definitions — mirror backend UserContext exactly.
  */
 
-export type Role = 'admin' | 'engineer' | 'analyst' | 'viewer'
+export type Role = 'admin' | 'user'
 
 export type AuthStatus = 'UNAUTHENTICATED' | 'LOADING' | 'AUTHENTICATED' | 'ERROR'
 
@@ -12,6 +12,7 @@ export interface UserContext {
   email: string
   role: Role
   tenant_id: string | null
+  workspace_name: string | null
   full_name: string | null
   is_active: boolean
   created_at: string

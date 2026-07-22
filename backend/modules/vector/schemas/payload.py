@@ -7,13 +7,16 @@ and instantaneous indexed payload filtering inside Qdrant.
 
 import uuid
 from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class VectorPointDTO(BaseModel):
     """Represents a single vector point to be upserted into Qdrant."""
 
-    point_id: str | uuid.UUID = Field(..., description="Deterministic point ID (UUIDv5 from content hash)")
+    point_id: str | uuid.UUID = Field(
+        ..., description="Deterministic point ID (UUIDv5 from content hash)"
+    )
     vector: list[float] = Field(..., description="Dense float vector array")
     payload: dict[str, Any] = Field(
         ...,
@@ -30,21 +33,36 @@ class VectorPointDTO(BaseModel):
     @field_validator("payload")
     @classmethod
     def validate_mandatory_payload_keys(cls, v: dict[str, Any]) -> dict[str, Any]:
-        required_keys = {"tenant_id", "document_id", "document_version_id", "content_hash"}
+        required_keys = {
+            "tenant_id",
+            "document_id",
+            "document_version_id",
+            "content_hash",
+        }
         missing = required_keys - v.keys()
         if missing:
-            raise ValueError(f"Vector payload missing mandatory multi-tenant keys: {missing}")
+            raise ValueError(
+                f"Vector payload missing mandatory multi-tenant keys: {missing}"
+            )
         return v
 
 
 class CollectionConfigDTO(BaseModel):
     """Configuration specifications for creating or verifying a Qdrant collection (`ADR-M3-001`)."""
 
-    collection_name: str = Field(..., description="Target Qdrant collection name (e.g., raguard_knowledge_1536)")
+    collection_name: str = Field(
+        ..., description="Target Qdrant collection name (e.g., raguard_knowledge_1536)"
+    )
     dimension: int = Field(..., gt=0, description="Vector dimension size")
-    distance_metric: str = Field("Cosine", description="Vector distance metric (Cosine, Dot, or Euclidean)")
-    on_disk_payload: bool = Field(True, description="Whether payloads are stored on disk to preserve RAM")
-    scalar_quantization: bool = Field(True, description="Whether INT8 scalar quantization is enabled (`ADR-M3-002`)")
+    distance_metric: str = Field(
+        "Cosine", description="Vector distance metric (Cosine, Dot, or Euclidean)"
+    )
+    on_disk_payload: bool = Field(
+        True, description="Whether payloads are stored on disk to preserve RAM"
+    )
+    scalar_quantization: bool = Field(
+        True, description="Whether INT8 scalar quantization is enabled (`ADR-M3-002`)"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -68,7 +86,9 @@ class VectorBatchRequestDTO(BaseModel):
     document_id: str | uuid.UUID
     document_version_id: str | uuid.UUID
     tenant_id: str | uuid.UUID
-    points: list[VectorPointDTO] = Field(..., description="Batch of vector points with payloads")
+    points: list[VectorPointDTO] = Field(
+        ..., description="Batch of vector points with payloads"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,7 +102,9 @@ class VectorSyncRequestDTO(BaseModel):
     """Request DTO to trigger asynchronous vector synchronization for a document version (`ADR-M3-001`)."""
 
     document_id: uuid.UUID = Field(..., description="UUID of the parent document")
-    collection_name: str | None = Field(None, description="Optional target collection override")
+    collection_name: str | None = Field(
+        None, description="Optional target collection override"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

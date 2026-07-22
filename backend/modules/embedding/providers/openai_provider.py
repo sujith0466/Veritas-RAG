@@ -5,20 +5,16 @@ providing native error classification (`EMB_001` through `EMB_005`) and token us
 """
 
 from http import HTTPStatus
-from typing import Any
+
 import httpx
 import structlog
 
 from backend.core.config import get_settings
-from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
+from backend.modules.embedding.providers.base import (BaseEmbeddingProvider,
+                                                      EmbeddingBatchResult)
 from backend.modules.embedding.schemas.errors import (
-    EmbeddingDomainException,
-    EmbeddingErrorCode,
-    InvalidInputError,
-    ProviderAuthenticationError,
-    ProviderTimeoutError,
-    RateLimitExceededError,
-)
+    EmbeddingDomainException, EmbeddingErrorCode, InvalidInputError,
+    ProviderAuthenticationError, ProviderTimeoutError, RateLimitExceededError)
 
 logger = structlog.get_logger(__name__)
 
@@ -88,7 +84,9 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     async def embed_documents(self, texts: list[str]) -> EmbeddingBatchResult:
         """Generate dense vector arrays for a batch of chunk texts."""
         if not texts:
-            raise InvalidInputError("Empty text batch provided to OpenAIEmbeddingProvider.")
+            raise InvalidInputError(
+                "Empty text batch provided to OpenAIEmbeddingProvider."
+            )
 
         if not self._api_key:
             raise ProviderAuthenticationError("Missing OpenAI API key configuration.")
@@ -106,7 +104,9 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
         should_close = self._http_client is None
 
         try:
-            response = await client.post(OPENAI_EMBEDDING_API_URL, headers=headers, json=payload)
+            response = await client.post(
+                OPENAI_EMBEDDING_API_URL, headers=headers, json=payload
+            )
             await self._handle_response_errors(response)
             data = response.json()
 
@@ -118,11 +118,16 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
             return EmbeddingBatchResult(
                 embeddings=vectors,
                 tokens_consumed=tokens,
-                provider_metadata={"model": self._model, "usage": data.get("usage", {})},
+                provider_metadata={
+                    "model": self._model,
+                    "usage": data.get("usage", {}),
+                },
             )
         except (httpx.TimeoutException, httpx.NetworkError) as exc:
             logger.warning("openai_network_error", error=str(exc))
-            raise ProviderTimeoutError(f"OpenAI network timeout or connectivity issue: {exc}") from exc
+            raise ProviderTimeoutError(
+                f"OpenAI network timeout or connectivity issue: {exc}"
+            ) from exc
         finally:
             if should_close:
                 await client.aclose()
@@ -130,7 +135,9 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     async def embed_query(self, text: str) -> list[float]:
         """Generate a single vector for a query string."""
         if not text or not text.strip():
-            raise InvalidInputError("Empty query string provided to OpenAIEmbeddingProvider.")
+            raise InvalidInputError(
+                "Empty query string provided to OpenAIEmbeddingProvider."
+            )
 
         result = await self.embed_documents([text])
         return result.embeddings[0]

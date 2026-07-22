@@ -13,13 +13,26 @@ export const authService = {
   },
 
   async register(data: RegisterFormData) {
+    // If role is user, tenant_id is the invitation code. 
+    // If role is admin, the tenant_id will be set to their own supabase_id during backend sync or they own the workspace.
+    // However, the backend sync handles 'tenant_id' and 'workspace_name' from claims.
+    const metadata: Record<string, any> = {
+      full_name: data.fullName,
+      role: data.role || 'user',
+    }
+
+    if (data.role === 'admin') {
+      metadata.workspace_name = data.workspaceName
+      metadata.organization_name = data.organizationName
+    } else if (data.role === 'user') {
+      metadata.tenant_id = data.invitationCode
+    }
+
     const { error } = await supabaseClient.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
-        data: {
-          full_name: data.fullName,
-        },
+        data: metadata,
       },
     })
     if (error) throw new Error(error.message)

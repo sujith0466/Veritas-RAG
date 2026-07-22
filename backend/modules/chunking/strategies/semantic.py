@@ -10,6 +10,7 @@ from typing import Any
 
 from backend.modules.chunking.schemas.chunk import ChunkDTO, StrategyInfoDTO
 from backend.modules.chunking.schemas.errors import ChunkStrategyNotFound
+
 from .base import BaseChunkSplitter
 
 
@@ -37,5 +38,8 @@ class SemanticChunkSplitterPlaceholder(BaseChunkSplitter):
     ) -> list[ChunkDTO]:
         raise ChunkStrategyNotFound(
             message="Semantic splitting (`semantic`) requires dense embedding vectors from the Milestone 2 Embedding Pipeline. Please select `recursive`, `markdown`, `sentence`, `paragraph`, `table`, or `code` for Milestone 1.",
-            detail={"strategy": "semantic", "required_milestone": "Phase 2 Milestone 2 (Embedding Pipeline)"},
+            detail={
+                "strategy": "semantic",
+                "required_milestone": "Phase 2 Milestone 2 (Embedding Pipeline)",
+            },
         )

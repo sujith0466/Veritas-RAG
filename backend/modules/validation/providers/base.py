@@ -1,9 +1,13 @@
 from abc import ABC, abstractmethod
+
 from backend.modules.validation.schemas.validation_dto import EntailmentVerdict
+
 
 class NLIValidationProvider(ABC):
     @abstractmethod
-    async def evaluate_entailment(self, premise: str, hypothesis: str) -> tuple[EntailmentVerdict, float]:
+    async def evaluate_entailment(
+        self, premise: str, hypothesis: str
+    ) -> tuple[EntailmentVerdict, float]:
         """
         Evaluates whether the premise entails the hypothesis.
         Returns:

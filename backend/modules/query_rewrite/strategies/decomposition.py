@@ -10,10 +10,7 @@ from typing import Any
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2,
-    RewriteResultDTO,
-    RewriteStrategy,
-)
+    RewriteRequestDTOv2, RewriteResultDTO, RewriteStrategy)
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)
@@ -80,11 +77,14 @@ class QueryDecompositionStrategy(BaseRewriteStrategy):
                 if result and len(result) >= 2:
                     return result
             except Exception as exc:
-                logger.warning("LLM decomposition failed, using heuristics", error=str(exc))
+                logger.warning(
+                    "LLM decomposition failed, using heuristics", error=str(exc)
+                )
         return self._heuristic_decompose(query)
 
     def _llm_decompose(self, query: str) -> list[str]:
         import json
+
         prompt = (
             f"Decompose this question into 2-3 independent simpler questions. "
             f"Return ONLY a JSON array of strings.\nQuestion: {query}"
@@ -102,10 +102,13 @@ class QueryDecompositionStrategy(BaseRewriteStrategy):
         q_split = [p.strip() for p in query.split("?") if p.strip()]
         return [p + "?" for p in q_split] if q_split else [query]
 
+
 # ---------------------------------------------------------------------------
 # Phase 3 backward-compatible class
 # ---------------------------------------------------------------------------
-from backend.modules.query_rewrite.schemas.rewrite_dto import DecomposedQueriesDTO
+from backend.modules.query_rewrite.schemas.rewrite_dto import \
+    DecomposedQueriesDTO
+
 
 class DecompositionRewriter:
     """Phase 3 backward-compatible DecompositionRewriter."""

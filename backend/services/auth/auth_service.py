@@ -4,8 +4,8 @@ Encapsulates JWT token validation and non-destructive, idempotent
 user synchronization between Supabase identities and PostgreSQL.
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.auth.context import UserContext
 from backend.core.exceptions.auth import AuthenticationException
@@ -70,7 +70,10 @@ class AuthService:
                 email=email,
                 role=initial_role.value,
                 is_active=True,
+                tenant_id=payload.tenant_id,
+                workspace_name=payload.workspace_name,
             )
+
 
         if not user.is_active:
             await log_auth_event(
@@ -96,5 +99,6 @@ class AuthService:
             email=user.email,
             role=Role.from_str(user.role),
             is_active=user.is_active,
-            tenant_id=None,
+            tenant_id=user.tenant_id,
+            workspace_name=user.workspace_name,
         )

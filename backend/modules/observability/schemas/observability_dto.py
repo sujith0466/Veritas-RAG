@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Dict, Any, List
+
 
 class TraceSpanDTO(BaseModel):
     trace_id: str
@@ -7,6 +7,7 @@ class TraceSpanDTO(BaseModel):
     operation_name: str
     duration_ms: float
     status: str
+
 
 class OperationalMetricsSummaryDTO(BaseModel):
     active_requests: int

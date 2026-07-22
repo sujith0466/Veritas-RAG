@@ -3,9 +3,9 @@
 Includes the canonical Document Manifest DTO, response schemas, and detail views.
 """
 
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,7 +13,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class StageMetricDTO(BaseModel):
     """Processing stage duration and execution details."""
 
-    stage: str = Field(description="Stage name (e.g. validation, storage, extraction, ocr)")
+    stage: str = Field(
+        description="Stage name (e.g. validation, storage, extraction, ocr)"
+    )
     started_at: str | None = None
     completed_at: str | None = None
     duration_ms: float = Field(default=0.0, description="Duration in milliseconds")
@@ -24,7 +26,9 @@ class StageMetricDTO(BaseModel):
 class DocumentManifestDTO(BaseModel):
     """Canonical Document Manifest generated upon successful pipeline execution."""
 
-    manifest_version: str = Field(default="1.0.0", description="Manifest schema version")
+    manifest_version: str = Field(
+        default="1.0.0", description="Manifest schema version"
+    )
     document_id: uuid.UUID
     version_id: uuid.UUID
     version_number: int

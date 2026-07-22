@@ -64,4 +64,8 @@ class FeatureFlagSettings(BaseSettings):
         description="Enable OpenTelemetry distributed tracing",
     )
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }

@@ -1,6 +1,6 @@
 """Unit tests for Qdrant vector database async client and health checks."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -14,12 +14,14 @@ from backend.vector_db.client import (
 )
 
 
+import asyncio
+
 @pytest.fixture(autouse=True)
-async def reset_vector_db_singletons() -> AsyncGenerator[None, None]:
+def reset_vector_db_singletons() -> Generator[None, None, None]:
     """Reset vector DB singletons cleanly before and after each test."""
-    await close_vector_db()
+    asyncio.run(close_vector_db())
     yield
-    await close_vector_db()
+    asyncio.run(close_vector_db())
 
 
 @pytest.mark.unit
@@ -46,6 +48,7 @@ class TestQdrantClient:
             mock_settings.return_value.qdrant.grpc_port = 6334
             mock_settings.return_value.qdrant.prefer_grpc = True
             mock_settings.return_value.qdrant.api_key = "secret_key"
+            mock_settings.return_value.qdrant.url_override = None
 
             get_qdrant_client()
             mock_client_cls.assert_called_once_with(

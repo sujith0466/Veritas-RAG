@@ -3,10 +3,10 @@
 Defines the contract for user account persistence and lookups.
 """
 
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Any
-import uuid
 
 from backend.models.entities.user import User
 

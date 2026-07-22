@@ -220,8 +220,9 @@ class TestOpenRouterProvider:
         with pytest.raises(LLMProviderException) as exc_info:
             await provider.generate(LLMRequest(prompt="Hello"))
 
-        assert "status 429" in str(exc_info.value)
-        assert exc_info.value.detail["status_code"] == 429
+        assert "All OpenRouter models failed" in str(exc_info.value)
+        assert len(exc_info.value.detail["errors"]) > 0
+        assert "Status 429" in exc_info.value.detail["errors"][0]["error"]
 
     @pytest.mark.asyncio
     async def test_health_check(self) -> None:

@@ -5,16 +5,15 @@ and strips English stopwords when initial queries surface 0 candidates.
 """
 
 import time
+
 import structlog
-from backend.modules.reliability.schemas.errors import ZeroResultRecoveryFailedError
+
+from backend.modules.reliability.schemas.errors import \
+    ZeroResultRecoveryFailedError
 from backend.modules.reliability.schemas.reliability_dto import (
-    ReliableCandidateDTO,
-    ReliableRetrievalResultDTO,
-)
+    ReliableCandidateDTO, ReliableRetrievalResultDTO)
 from backend.modules.retrieval.providers.sparse.bm25_provider import (
-    BM25SparseSearchProvider,
-    tokenize,
-)
+    BM25SparseSearchProvider, tokenize)
 from backend.modules.retrieval.schemas.errors import SparseIndexNotFoundError
 
 logger = structlog.get_logger(__name__)
@@ -38,9 +37,14 @@ class ZeroResultRecoverer:
         tokens = tokenize(query)
 
         if not tokens:
-            logger.warning("Zero-result query produced 0 tokens after stopword stripping", query=query)
+            logger.warning(
+                "Zero-result query produced 0 tokens after stopword stripping",
+                query=query,
+            )
             raise ZeroResultRecoveryFailedError(
-                tenant_id=tenant_id, query=query, detail={"reason": "No valid keywords left after stopword filtering"}
+                tenant_id=tenant_id,
+                query=query,
+                detail={"reason": "No valid keywords left after stopword filtering"},
             )
 
         broadened_query = " ".join(tokens)
@@ -58,20 +62,36 @@ class ZeroResultRecoverer:
                 limit=limit,
             )
         except SparseIndexNotFoundError as exc:
-            logger.error("Sparse index uninitialized during zero-result broadening", tenant_id=tenant_id)
+            logger.error(
+                "Sparse index uninitialized during zero-result broadening",
+                tenant_id=tenant_id,
+            )
             raise ZeroResultRecoveryFailedError(
-                tenant_id=tenant_id, query=query, detail={"reason": f"Sparse index uninitialized: {exc}"}
+                tenant_id=tenant_id,
+                query=query,
+                detail={"reason": f"Sparse index uninitialized: {exc}"},
             ) from exc
         except Exception as exc:
-            logger.error("Unexpected error during zero-result recovery", tenant_id=tenant_id, exc_info=True)
+            logger.error(
+                "Unexpected error during zero-result recovery",
+                tenant_id=tenant_id,
+                exc_info=True,
+            )
             raise ZeroResultRecoveryFailedError(
-                tenant_id=tenant_id, query=query, detail={"reason": f"Execution failure: {exc}"}
+                tenant_id=tenant_id,
+                query=query,
+                detail={"reason": f"Execution failure: {exc}"},
             ) from exc
 
         if not raw_candidates:
-            logger.info("Zero-result recovery surfaced 0 candidates even after broadening", tenant_id=tenant_id)
+            logger.info(
+                "Zero-result recovery surfaced 0 candidates even after broadening",
+                tenant_id=tenant_id,
+            )
             raise ZeroResultRecoveryFailedError(
-                tenant_id=tenant_id, query=query, detail={"reason": "No matches found for broadened tokens"}
+                tenant_id=tenant_id,
+                query=query,
+                detail={"reason": "No matches found for broadened tokens"},
             )
 
         candidates = [

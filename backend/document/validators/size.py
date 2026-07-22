@@ -2,7 +2,8 @@
 
 from typing import BinaryIO
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
 
 # Default maximum upload size: 50 MB
 DEFAULT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024
@@ -49,7 +50,10 @@ def validate_size(
         raise DocumentDomainException(
             code=DocumentErrorCode.VAL_001,
             message="File size exceeds remaining tenant storage quota.",
-            detail={"file_size_bytes": file_size, "tenant_quota_remaining": tenant_quota_remaining},
+            detail={
+                "file_size_bytes": file_size,
+                "tenant_quota_remaining": tenant_quota_remaining,
+            },
         )
 
     return file_size

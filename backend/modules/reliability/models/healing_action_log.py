@@ -1,9 +1,12 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import String, Text, Boolean, DateTime, func
 import uuid
 from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.database.base import Base
+
 
 class HealingActionLogORM(Base):
     __tablename__ = "healing_actions_log"
@@ -13,4 +16,6 @@ class HealingActionLogORM(Base):
     trigger_reason: Mapped[str] = mapped_column(Text)
     changes_applied: Mapped[dict] = mapped_column(JSONB)
     is_rolled_back: Mapped[bool] = mapped_column(Boolean, default=False)
-    executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    executed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

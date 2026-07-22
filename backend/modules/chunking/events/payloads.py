@@ -3,9 +3,9 @@
 Enforces versioned domain event payloads across chunk creation, failure, and deletion (`schema_version: "1.0.0"`).
 """
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any
-import uuid
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +13,12 @@ from pydantic import BaseModel, Field
 class ChunkEventPayload(BaseModel):
     """Base schema for all versioned chunking domain events (`schema_version: "1.0.0"`)."""
 
-    schema_version: str = Field(default="1.0.0", description="Event payload schema version")
-    event_id: uuid.UUID = Field(default_factory=uuid.uuid4, description="Unique event instance ID")
+    schema_version: str = Field(
+        default="1.0.0", description="Event payload schema version"
+    )
+    event_id: uuid.UUID = Field(
+        default_factory=uuid.uuid4, description="Unique event instance ID"
+    )
     event_type: str = Field(description="Name of the domain event")
     timestamp: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat(),
@@ -22,9 +26,13 @@ class ChunkEventPayload(BaseModel):
     )
     tenant_id: str = Field(description="Tenant namespace ID")
     document_id: uuid.UUID = Field(description="Document ID")
-    document_version_id: uuid.UUID | None = Field(default=None, description="Document Version ID")
+    document_version_id: uuid.UUID | None = Field(
+        default=None, description="Document Version ID"
+    )
     job_id: uuid.UUID | None = Field(default=None, description="Processing job ID")
-    data: dict[str, Any] = Field(default_factory=dict, description="Event-specific payload metrics and details")
+    data: dict[str, Any] = Field(
+        default_factory=dict, description="Event-specific payload metrics and details"
+    )
 
 
 def create_chunk_event(

@@ -3,10 +3,10 @@
 Enforces provider independence (`ADR-006`) and strict versioned directory layout.
 """
 
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, BinaryIO
-import uuid
 
 
 @dataclass
@@ -35,7 +35,9 @@ def get_versioned_path(
         - metadata   : Canonical (`manifest.json`) & structured (`extraction.json`)
         - artifacts  : Future chunking/preview assets
     """
-    return f"documents/{tenant_id}/{document_id}/v{version_number}/{category}/{filename}"
+    return (
+        f"documents/{tenant_id}/{document_id}/v{version_number}/{category}/{filename}"
+    )
 
 
 class StorageProvider(ABC):
@@ -64,7 +66,9 @@ class StorageProvider(ABC):
         ...
 
     @abstractmethod
-    async def save_json(self, data: dict[str, Any], object_key: str) -> StorageObjectDTO:
+    async def save_json(
+        self, data: dict[str, Any], object_key: str
+    ) -> StorageObjectDTO:
         """Serialize and save JSON dictionary to `object_key`."""
         ...
 

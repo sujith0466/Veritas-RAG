@@ -8,9 +8,10 @@ Create Date: 2026-07-20 01:00:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0009"
@@ -32,12 +33,22 @@ def upgrade() -> None:
         sa.Column("reliability_score", sa.Float(), nullable=True),
         sa.Column("retry_attempts", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("total_duration_ms", sa.Float(), nullable=False),
-        sa.Column("is_safe_to_serve", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "is_safe_to_serve",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("true"),
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_query_analytics_records")),
     )
-    op.create_index(op.f("ix_query_analytics_tenant_id"), "query_analytics_records", ["tenant_id"], unique=False)
+    op.create_index(
+        op.f("ix_query_analytics_tenant_id"),
+        "query_analytics_records",
+        ["tenant_id"],
+        unique=False,
+    )
     op.create_index(
         "ix_query_analytics_tenant_created_idx",
         "query_analytics_records",

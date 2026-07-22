@@ -8,6 +8,7 @@ import re
 from typing import Any
 
 from backend.modules.chunking.schemas.chunk import ChunkDTO, StrategyInfoDTO
+
 from .base import BaseChunkSplitter, estimate_token_count
 from .recursive import RecursiveChunkSplitter
 
@@ -52,7 +53,7 @@ class MarkdownChunkSplitter(BaseChunkSplitter):
                 if current_lines:
                     sections.append((list(current_path), "\n".join(current_lines)))
                     current_lines = []
-                
+
                 level = len(header_match.group(1))
                 title = header_match.group(2).strip()
                 header_text = f"{header_match.group(1)} {title}"
@@ -88,7 +89,9 @@ class MarkdownChunkSplitter(BaseChunkSplitter):
                 )
             else:
                 # Sub-split long sections
-                sub_chunks = recursive_sub.split_text(section_content, max_characters, overlap_characters, base_meta)
+                sub_chunks = recursive_sub.split_text(
+                    section_content, max_characters, overlap_characters, base_meta
+                )
                 for sc in sub_chunks:
                     sc.chunk_index = len(dtos)
                     sc.section_path = breadcrumb

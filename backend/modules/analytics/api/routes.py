@@ -4,33 +4,27 @@ from datetime import datetime
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from fastapi import (APIRouter, Depends, Header, Query, Request, Response,
+                     status)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.database import get_db as get_db_session
-from backend.modules.analytics.api.dependencies import AnalyticsAuth, get_analytics_service, get_reporting_service
+from backend.modules.analytics.api.dependencies import (AnalyticsAuth,
+                                                        get_analytics_service,
+                                                        get_reporting_service)
 from backend.modules.analytics.schemas.analytics_dto import (
-    AnalyticsFilterDTO,
-    ConfidenceAnalyticsDTO,
-    LatencyAnalyticsDTO,
-    QueryHistoryListDTO,
-    QueryTrendsDTO,
-    ReliabilityHistoryDTO,
-    SearchAnalyticsDTO,
-    SuccessRateDTO,
-    QueryTraceDetailDTO,
-    QuerySandboxRequestDTO,
-    QuerySandboxResponseDTO,
-)
+    AnalyticsFilterDTO, ConfidenceAnalyticsDTO, LatencyAnalyticsDTO,
+    QueryHistoryListDTO, QuerySandboxRequestDTO, QuerySandboxResponseDTO,
+    QueryTraceDetailDTO, QueryTrendsDTO, ReliabilityHistoryDTO,
+    SearchAnalyticsDTO, SuccessRateDTO)
 from backend.modules.analytics.schemas.reporting_dto import (
-    ReportExportRequestDTO,
-    ReportMetadataDTO,
-    ReportFormat,
-)
-from backend.modules.analytics.services.analytics_service import QueryAnalyticsService
-from backend.modules.analytics.services.reporting_service import ReportingService
+    ReportExportRequestDTO, ReportMetadataDTO)
+from backend.modules.analytics.services.analytics_service import \
+    QueryAnalyticsService
+from backend.modules.analytics.services.reporting_service import \
+    ReportingService
 
 logger = structlog.get_logger(__name__)
 
@@ -87,7 +81,9 @@ async def get_success_rate(
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[SuccessRateDTO]:
     """Calculate overall success percentage and retry rates."""
-    filter_dto = AnalyticsFilterDTO(tenant_id=x_tenant_id, start_time=start_time, end_time=end_time)
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=x_tenant_id, start_time=start_time, end_time=end_time
+    )
     data = await service.get_success_rate(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -107,7 +103,9 @@ async def get_latency_analytics(
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[LatencyAnalyticsDTO]:
     """Calculate execution latency distribution percentiles."""
-    filter_dto = AnalyticsFilterDTO(tenant_id=x_tenant_id, start_time=start_time, end_time=end_time)
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=x_tenant_id, start_time=start_time, end_time=end_time
+    )
     data = await service.get_latency_analytics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -127,7 +125,9 @@ async def get_confidence_analytics(
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[ConfidenceAnalyticsDTO]:
     """Calculate pre-generation confidence statistics across queries."""
-    filter_dto = AnalyticsFilterDTO(tenant_id=x_tenant_id, start_time=start_time, end_time=end_time)
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=x_tenant_id, start_time=start_time, end_time=end_time
+    )
     data = await service.get_confidence_analytics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -142,13 +142,20 @@ async def get_query_trends(
     request_ctx: Request,
     service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
     auth: AnalyticsAuth,
-    interval: str = Query("daily", description="Time bucket interval: hourly, daily, weekly"),
+    interval: str = Query(
+        "daily", description="Time bucket interval: hourly, daily, weekly"
+    ),
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[QueryTrendsDTO]:
     """Compute bucketed time-series query counts and average confidence scores."""
-    filter_dto = AnalyticsFilterDTO(tenant_id=x_tenant_id, interval=interval, start_time=start_time, end_time=end_time)
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=x_tenant_id,
+        interval=interval,
+        start_time=start_time,
+        end_time=end_time,
+    )
     data = await service.get_query_trends(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -163,13 +170,20 @@ async def get_reliability_history(
     request_ctx: Request,
     service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
     auth: AnalyticsAuth,
-    interval: str = Query("daily", description="Time bucket interval: hourly, daily, weekly"),
+    interval: str = Query(
+        "daily", description="Time bucket interval: hourly, daily, weekly"
+    ),
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[ReliabilityHistoryDTO]:
     """Calculate historical unified reliability scores and moving average trendline."""
-    filter_dto = AnalyticsFilterDTO(tenant_id=x_tenant_id, interval=interval, start_time=start_time, end_time=end_time)
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=x_tenant_id,
+        interval=interval,
+        start_time=start_time,
+        end_time=end_time,
+    )
     data = await service.get_reliability_history(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -205,7 +219,9 @@ async def get_query_trace_detail(
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[QueryTraceDetailDTO]:
     """Fetch complete forensic diagnostics breakdown across stages, candidates, and self-correction steps."""
-    data = await service.get_query_trace_detail(correlation_id=correlation_id, tenant_id=x_tenant_id)
+    data = await service.get_query_trace_detail(
+        correlation_id=correlation_id, tenant_id=x_tenant_id
+    )
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
 
@@ -223,7 +239,9 @@ async def execute_query_sandbox(
     x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[QuerySandboxResponseDTO]:
     """Execute a test query against the AI pipeline with adjustable parameters and trace diagnostics."""
-    data = await service.execute_query_sandbox(request_dto=request_dto, tenant_id=x_tenant_id)
+    data = await service.execute_query_sandbox(
+        request_dto=request_dto, tenant_id=x_tenant_id
+    )
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
 
@@ -282,10 +300,15 @@ async def download_generated_report(
     """Download the generated PDF or JSON report file."""
     if report_id not in _report_cache:
         from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail=f"Report '{report_id}' not found or expired.")
+
+        raise HTTPException(
+            status_code=404, detail=f"Report '{report_id}' not found or expired."
+        )
 
     buffer_bytes, metadata = _report_cache[report_id]
-    media_type = "application/pdf" if metadata.report_type != "json" else "application/json"
+    media_type = (
+        "application/pdf" if metadata.report_type != "json" else "application/json"
+    )
     ext = "pdf" if metadata.report_type != "json" else "json"
     filename = f"RAGuard_{metadata.report_type}_{report_id}.{ext}"
 
@@ -294,5 +317,3 @@ async def download_generated_report(
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
-

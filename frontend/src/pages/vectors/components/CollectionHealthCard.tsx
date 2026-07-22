@@ -13,7 +13,7 @@ export function CollectionHealthCard({ collection, status = 'ONLINE' }: Collecti
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="h-full">
-      <Card className="h-full flex flex-col border-slate-800/80 bg-slate-900/60 backdrop-blur hover:border-slate-700/80 transition-colors">
+      <Card className="h-full flex flex-col border-border/80 bg-surface/60 backdrop-blur hover:border-border/80 transition-colors">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -21,10 +21,10 @@ export function CollectionHealthCard({ collection, status = 'ONLINE' }: Collecti
                 <Database className="w-5 h-5" />
               </div>
               <div>
-                <CardTitle className="text-base text-slate-100 flex items-center gap-2">
+                <CardTitle className="text-base text-foreground flex items-center gap-2">
                   {collection.collection_name}
                 </CardTitle>
-                <CardDescription className="text-xs text-slate-400 mt-0.5">
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
                   QDRANT TENANT NAMESPACE
                 </CardDescription>
               </div>
@@ -40,28 +40,28 @@ export function CollectionHealthCard({ collection, status = 'ONLINE' }: Collecti
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col justify-end pt-2 space-y-4">
-          <div className="grid grid-cols-2 gap-3 bg-slate-950/40 border border-slate-800/60 rounded-lg p-3">
+          <div className="grid grid-cols-2 gap-3 bg-background/40 border border-border/60 rounded-lg p-3">
             <div className="flex flex-col">
-              <span className="text-xs text-slate-400 flex items-center gap-1.5 font-medium">
+              <span className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
                 <Layers className="w-3.5 h-3.5 text-indigo-400" />
                 Total Points
               </span>
-              <span className="text-lg font-bold text-slate-100 mt-1">
+              <span className="text-lg font-bold text-foreground mt-1">
                 {collection.total_points.toLocaleString()}
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-xs text-slate-400 flex items-center gap-1.5 font-medium">
+              <span className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
                 <Shield className="w-3.5 h-3.5 text-emerald-400" />
                 Versions Indexed
               </span>
-              <span className="text-lg font-bold text-slate-100 mt-1">
+              <span className="text-lg font-bold text-foreground mt-1">
                 {collection.indexed_versions_count}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-400 bg-indigo-500/5 border border-indigo-500/10 rounded-md px-3 py-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground bg-indigo-500/5 border border-indigo-500/10 rounded-md px-3 py-2">
             <span className="flex items-center gap-1.5">
               <HardDrive className="w-3.5 h-3.5 text-indigo-400" />
               Scalar Quantization:

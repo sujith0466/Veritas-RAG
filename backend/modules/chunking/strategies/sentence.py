@@ -8,6 +8,7 @@ import re
 from typing import Any
 
 from backend.modules.chunking.schemas.chunk import ChunkDTO, StrategyInfoDTO
+
 from .base import BaseChunkSplitter, estimate_token_count
 from .recursive import _merge_splits
 
@@ -42,7 +43,12 @@ class SentenceChunkSplitter(BaseChunkSplitter):
         base_meta = base_metadata or {}
         # Split into sentence candidates
         sentences = self.SENTENCE_END_PATTERN.split(text)
-        merged = _merge_splits(sentences, separator=" ", chunk_size=max_characters, chunk_overlap=overlap_characters)
+        merged = _merge_splits(
+            sentences,
+            separator=" ",
+            chunk_size=max_characters,
+            chunk_overlap=overlap_characters,
+        )
 
         dtos: list[ChunkDTO] = []
         for chunk_text in merged:
@@ -88,7 +94,12 @@ class ParagraphChunkSplitter(BaseChunkSplitter):
 
         base_meta = base_metadata or {}
         paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-        merged = _merge_splits(paragraphs, separator="\n\n", chunk_size=max_characters, chunk_overlap=overlap_characters)
+        merged = _merge_splits(
+            paragraphs,
+            separator="\n\n",
+            chunk_size=max_characters,
+            chunk_overlap=overlap_characters,
+        )
 
         dtos: list[ChunkDTO] = []
         for chunk_text in merged:

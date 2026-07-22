@@ -14,7 +14,9 @@ def evaluate_role_access(user_role: Role, allowed_roles: tuple[Role, ...]) -> bo
     return user_role in allowed_roles
 
 
-def evaluate_permission_access(user_role: Role, required_permission: Permission) -> bool:
+def evaluate_permission_access(
+    user_role: Role, required_permission: Permission
+) -> bool:
     """Evaluate whether user_role possesses required_permission using the registry."""
     registry = get_permission_registry()
     return registry.has_permission(user_role, required_permission)

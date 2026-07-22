@@ -1,7 +1,7 @@
 """Processing status polling schemas (`GET /api/v1/documents/{id}/status`)."""
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -28,10 +28,16 @@ class ProcessingStatusResponse(BaseModel):
     """Lightweight processing status polling response."""
 
     document_id: uuid.UUID = Field(description="Document ID")
-    status: str = Field(description="Current status (PENDING, VALIDATING, EXTRACTING, PROCESSED, FAILED)")
+    status: str = Field(
+        description="Current status (PENDING, VALIDATING, EXTRACTING, PROCESSED, FAILED)"
+    )
     current_step: str = Field(description="Current active pipeline step")
-    progress_percent: int = Field(default=0, description="Estimated progress percentage (0-100)")
+    progress_percent: int = Field(
+        default=0, description="Estimated progress percentage (0-100)"
+    )
     retry_count: int = Field(default=0, description="Number of retry attempts executed")
     error_code: str | None = Field(default=None, description="Error code if failed")
-    error_message: str | None = Field(default=None, description="Human-readable error if failed")
+    error_message: str | None = Field(
+        default=None, description="Human-readable error if failed"
+    )
     updated_at: datetime = Field(description="Timestamp of last status update")

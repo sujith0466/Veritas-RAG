@@ -5,27 +5,27 @@ inspecting document synchronization status (`GET /document/{document_id}`), moni
 and collection health (`GET /health`, `GET /collections`), and purging document points (`DELETE /document/{document_id}`).
 """
 
-from typing import Any
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.database import get_db
-from backend.modules.vector.api.dependencies import get_vector_repository, get_vector_service, resolve_tenant
+from backend.modules.vector.api.dependencies import (get_vector_repository,
+                                                     get_vector_service,
+                                                     resolve_tenant)
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
-from backend.modules.vector.repositories.vector_repository import VectorMetadataRepository
+from backend.modules.vector.repositories.vector_repository import \
+    VectorMetadataRepository
 from backend.modules.vector.schemas.errors import VectorDomainException
-from backend.modules.vector.schemas.payload import (
-    CollectionDetailDTO,
-    PurgeSummaryDTO,
-    QdrantClusterHealthDTO,
-    VectorIndexMetadataDTO,
-    VectorSyncRequestDTO,
-)
+from backend.modules.vector.schemas.payload import (CollectionDetailDTO,
+                                                    PurgeSummaryDTO,
+                                                    QdrantClusterHealthDTO,
+                                                    VectorIndexMetadataDTO,
+                                                    VectorSyncRequestDTO)
 from backend.modules.vector.services.vector_service import VectorStorageService
 from backend.modules.vector.workers.tasks import sync_vectors_to_qdrant_task
 
@@ -75,7 +75,7 @@ async def sync_document_vectors(
             data=VectorIndexMetadataDTO.model_validate(metadata),
             metadata=_build_metadata(request),
         )
-    except VectorDomainException as exc:
+    except VectorDomainException:
         await session.rollback()
         raise
     except Exception as exc:

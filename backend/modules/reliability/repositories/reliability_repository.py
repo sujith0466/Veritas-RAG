@@ -6,12 +6,14 @@ circuit breaker state transitions, and aggregating tenant reliability summaries.
 
 import math
 from collections.abc import Sequence
-from typing import Optional
 from uuid import UUID
+
+import structlog
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
-from backend.modules.reliability.models.circuit_event import CircuitBreakerEventLog
+
+from backend.modules.reliability.models.circuit_event import \
+    CircuitBreakerEventLog
 from backend.modules.reliability.models.sla_log import RetrievalSLALog
 from backend.modules.reliability.schemas.reliability_dto import SLASummaryDTO
 from backend.repositories.base import BaseRepository
@@ -59,7 +61,10 @@ class ReliabilityRepository(BaseRepository[RetrievalSLALog]):
             await self.session.scalar(
                 select(func.count())
                 .select_from(RetrievalSLALog)
-                .where(RetrievalSLALog.tenant_id == tenant_id, RetrievalSLALog.is_deleted.is_(False))
+                .where(
+                    RetrievalSLALog.tenant_id == tenant_id,
+                    RetrievalSLALog.is_deleted.is_(False),
+                )
             )
             or 0
         )
@@ -90,13 +95,20 @@ class ReliabilityRepository(BaseRepository[RetrievalSLALog]):
             or 0
         )
 
-        sla_compliance_rate = round(((total_queries - breached_queries) / total_queries) * 100, 2) if total_queries > 0 else 100.0
+        sla_compliance_rate = (
+            round(((total_queries - breached_queries) / total_queries) * 100, 2)
+            if total_queries > 0
+            else 100.0
+        )
 
         p95_latency_ms = 0.0
         if total_queries > 0:
             durations_result = await self.session.scalars(
                 select(RetrievalSLALog.duration_ms)
-                .where(RetrievalSLALog.tenant_id == tenant_id, RetrievalSLALog.is_deleted.is_(False))
+                .where(
+                    RetrievalSLALog.tenant_id == tenant_id,
+                    RetrievalSLALog.is_deleted.is_(False),
+                )
                 .order_by(RetrievalSLALog.duration_ms.asc())
             )
             durations = list(durations_result.all())
@@ -119,7 +131,10 @@ class ReliabilityRepository(BaseRepository[RetrievalSLALog]):
         """Fetch paginated SLA compliance logs for a tenant ordered by newest first."""
         result = await self.session.scalars(
             select(RetrievalSLALog)
-            .where(RetrievalSLALog.tenant_id == tenant_id, RetrievalSLALog.is_deleted.is_(False))
+            .where(
+                RetrievalSLALog.tenant_id == tenant_id,
+                RetrievalSLALog.is_deleted.is_(False),
+            )
             .order_by(desc(RetrievalSLALog.created_at))
             .limit(limit)
             .offset(offset)
@@ -127,12 +142,15 @@ class ReliabilityRepository(BaseRepository[RetrievalSLALog]):
         return result.all()
 
     async def get_recent_circuit_events(
-        self, tenant_id: str, target_module: Optional[str] = None, limit: int = 50
+        self, tenant_id: str, target_module: str | None = None, limit: int = 50
     ) -> Sequence[CircuitBreakerEventLog]:
         """Fetch recent circuit breaker transitions for a tenant."""
         query = (
             select(CircuitBreakerEventLog)
-            .where(CircuitBreakerEventLog.tenant_id == tenant_id, CircuitBreakerEventLog.is_deleted.is_(False))
+            .where(
+                CircuitBreakerEventLog.tenant_id == tenant_id,
+                CircuitBreakerEventLog.is_deleted.is_(False),
+            )
             .order_by(desc(CircuitBreakerEventLog.created_at))
             .limit(limit)
         )

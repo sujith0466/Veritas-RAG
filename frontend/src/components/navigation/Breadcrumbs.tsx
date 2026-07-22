@@ -1,11 +1,26 @@
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
 
+const ROUTE_LABELS: Record<string, string> = {
+  dashboard: 'Executive Overview',
+  'knowledge-intelligence': 'Knowledge Intelligence',
+  analytics: 'AI Reliability',
+  investigation: 'Investigation Console',
+  documents: 'Documents',
+  chunks: 'Knowledge Chunks',
+  embeddings: 'Vector Embeddings',
+  vectors: 'Vector Storage',
+  admin: 'Administration',
+  health: 'System Health',
+  users: 'Access Control',
+  settings: 'Preferences',
+}
+
 export function Breadcrumbs() {
   const location = useLocation()
   const paths = location.pathname.split('/').filter(Boolean)
 
-  if (paths.length === 0) return null
+  if (paths.length === 0 || paths[0] === 'dashboard') return null
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center text-sm text-muted-foreground">
@@ -22,7 +37,11 @@ export function Breadcrumbs() {
         {paths.map((path, index) => {
           const isLast = index === paths.length - 1
           const href = `/${paths.slice(0, index + 1).join('/')}`
-          const label = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ')
+          
+          let label = ROUTE_LABELS[path]
+          if (!label) {
+            label = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ')
+          }
 
           return (
             <li key={path} className="flex items-center space-x-2">

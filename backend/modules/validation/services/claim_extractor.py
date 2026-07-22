@@ -1,9 +1,10 @@
 import re
 
+
 class ClaimExtractor:
     def __init__(self):
-        self._sentence_split = re.compile(r'([A-Z][^.!?]*[.!?])', re.DOTALL)
-        self._citation_marker = re.compile(r'\[(\d+)\]')
+        self._sentence_split = re.compile(r"([A-Z][^.!?]*[.!?])", re.DOTALL)
+        self._citation_marker = re.compile(r"\[(\d+)\]")
 
     def extract_atomic_claims(self, answer_text: str) -> list[tuple[str, int | None]]:
         """
@@ -13,7 +14,7 @@ class ClaimExtractor:
         sentences = self._sentence_split.findall(answer_text)
         if not sentences:
             sentences = [answer_text]
-            
+
         results = []
         for sentence in sentences:
             # Find all citation markers in the sentence
@@ -23,5 +24,5 @@ class ClaimExtractor:
                 results.append((sentence.strip(), int(markers[0])))
             else:
                 results.append((sentence.strip(), None))
-                
+
         return [r for r in results if len(r[0]) > 3]

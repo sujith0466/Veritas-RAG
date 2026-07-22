@@ -5,21 +5,20 @@ and admin force-reset, and tenant SLA summaries.
 """
 
 from typing import Any
-from fastapi import APIRouter, Depends, status
+
 import structlog
+from fastapi import APIRouter, Depends, status
+
 from backend.modules.reliability.api.dependencies import (
-    get_reliability_gateway,
-    get_reliability_repository,
-    resolve_tenant,
-)
-from backend.modules.reliability.repositories.reliability_repository import ReliabilityRepository
+    get_reliability_gateway, get_reliability_repository)
+from backend.modules.retrieval.api.dependencies import resolve_tenant
+from backend.modules.reliability.repositories.reliability_repository import \
+    ReliabilityRepository
 from backend.modules.reliability.schemas.reliability_dto import (
-    CircuitBreakerStateDTO,
-    ReliableRetrievalResultDTO,
-    SearchOptionsDTO,
-    SLASummaryDTO,
-)
-from backend.modules.reliability.services.reliability_gateway import ReliabilityGateway
+    CircuitBreakerStateDTO, ReliableRetrievalResultDTO, SearchOptionsDTO,
+    SLASummaryDTO)
+from backend.modules.reliability.services.reliability_gateway import \
+    ReliabilityGateway
 from backend.modules.retrieval.schemas.errors import InvalidQueryError
 
 logger = structlog.get_logger(__name__)
@@ -75,7 +74,9 @@ async def force_reset_circuit_breaker_endpoint(
     gateway: ReliabilityGateway = Depends(get_reliability_gateway),
 ) -> dict[str, Any]:
     """Force reset circuit state and clear failure windows."""
-    success = await gateway.force_reset_circuit_breaker(tenant_id=tenant_id, target=target)
+    success = await gateway.force_reset_circuit_breaker(
+        tenant_id=tenant_id, target=target
+    )
     return {"success": success, "target": target, "state": "CLOSED"}
 
 

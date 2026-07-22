@@ -4,11 +4,12 @@ Provides validation and serialization models across REST API requests/responses,
 job tracking progress detail, provider registry information, and tenant KPI metrics.
 """
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any
-import uuid
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (AliasChoices, BaseModel, ConfigDict, Field,
+                      field_validator)
 
 
 class EmbeddingProcessRequestDTO(BaseModel):
@@ -41,18 +42,30 @@ class EmbeddingProcessRequestDTO(BaseModel):
 class EmbeddingJobDTO(BaseModel):
     """Summary representation of an asynchronous embedding job."""
 
-    job_id: uuid.UUID = Field(validation_alias=AliasChoices("job_id", "id"), description="Unique job UUID")
+    job_id: uuid.UUID = Field(
+        validation_alias=AliasChoices("job_id", "id"), description="Unique job UUID"
+    )
     tenant_id: str = Field(description="Tenant namespace ID")
     document_id: uuid.UUID = Field(description="Parent Document UUID")
     document_version_id: uuid.UUID = Field(description="Target Document Version UUID")
-    status: str = Field(description="Job status ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')")
+    status: str = Field(
+        description="Job status ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')"
+    )
     provider: str = Field(description="Embedding provider used")
     model_name: str = Field(description="Embedding model used")
     total_chunks: int = Field(description="Total chunks in this document version")
-    processed_chunks: int = Field(default=0, description="Chunks successfully vectorized or retrieved from cache")
-    failed_chunks: int = Field(default=0, description="Chunks that failed vectorization")
-    total_tokens_consumed: int = Field(default=0, description="Tokens billed during job execution")
-    error_message: str | None = Field(default=None, description="Error message if job failed")
+    processed_chunks: int = Field(
+        default=0, description="Chunks successfully vectorized or retrieved from cache"
+    )
+    failed_chunks: int = Field(
+        default=0, description="Chunks that failed vectorization"
+    )
+    total_tokens_consumed: int = Field(
+        default=0, description="Tokens billed during job execution"
+    )
+    error_message: str | None = Field(
+        default=None, description="Error message if job failed"
+    )
     created_at: str = Field(
         default_factory=lambda: datetime.now(UTC).isoformat(),
         description="Job creation timestamp",
@@ -71,7 +84,9 @@ class EmbeddingJobDTO(BaseModel):
             return v.isoformat()
         return str(v)
 
-    @field_validator("processed_chunks", "failed_chunks", "total_tokens_consumed", mode="before")
+    @field_validator(
+        "processed_chunks", "failed_chunks", "total_tokens_consumed", mode="before"
+    )
     @classmethod
     def default_zero(cls, v: Any) -> int:
         return v if v is not None else 0
@@ -89,8 +104,13 @@ class EmbeddingJobDTO(BaseModel):
 class EmbeddingJobDetailDTO(EmbeddingJobDTO):
     """Extended inspection detail for an embedding job including progress rate and breakdown."""
 
-    is_cached_hit_count: int = Field(default=0, description="Chunks fulfilled via exact content hash hit without API calls")
-    metadata_json: dict[str, Any] | None = Field(default=None, description="Additional job execution metrics")
+    is_cached_hit_count: int = Field(
+        default=0,
+        description="Chunks fulfilled via exact content hash hit without API calls",
+    )
+    metadata_json: dict[str, Any] | None = Field(
+        default=None, description="Additional job execution metrics"
+    )
 
 
 class PaginatedJobResponse(BaseModel):
@@ -109,7 +129,9 @@ class ProviderModelInfoDTO(BaseModel):
     model_name: str = Field(description="Exact model identifier")
     dimension: int = Field(description="Vector array dimensionality")
     max_input_tokens: int = Field(description="Maximum token limit per chunk")
-    is_default: bool = Field(default=False, description="Whether this is the provider's default model")
+    is_default: bool = Field(
+        default=False, description="Whether this is the provider's default model"
+    )
 
 
 class ProviderInfoDTO(BaseModel):
@@ -117,9 +139,15 @@ class ProviderInfoDTO(BaseModel):
 
     provider: str = Field(description="Provider code ('openai', 'cohere', 'local')")
     display_name: str = Field(description="Human-readable provider name")
-    description: str = Field(description="Brief summary of provider capabilities and latency characteristics")
-    is_available: bool = Field(default=True, description="Whether provider is active and credentials exist")
-    models: list[ProviderModelInfoDTO] = Field(description="List of supported models and dimensions")
+    description: str = Field(
+        description="Brief summary of provider capabilities and latency characteristics"
+    )
+    is_available: bool = Field(
+        default=True, description="Whether provider is active and credentials exist"
+    )
+    models: list[ProviderModelInfoDTO] = Field(
+        description="List of supported models and dimensions"
+    )
 
 
 class EmbeddingMetricsDTO(BaseModel):
@@ -127,10 +155,16 @@ class EmbeddingMetricsDTO(BaseModel):
 
     tenant_id: str = Field(description="Tenant namespace ID")
     monthly_token_quota: int = Field(description="Total monthly allocated token budget")
-    total_tokens_consumed: int = Field(description="Total tokens consumed across all jobs")
+    total_tokens_consumed: int = Field(
+        description="Total tokens consumed across all jobs"
+    )
     remaining_tokens: int = Field(description="Remaining token budget")
-    total_vectors_stored: int = Field(description="Total active vectors staged in chunk_embeddings")
-    active_jobs_count: int = Field(description="Count of currently PENDING or PROCESSING jobs")
+    total_vectors_stored: int = Field(
+        description="Total active vectors staged in chunk_embeddings"
+    )
+    active_jobs_count: int = Field(
+        description="Count of currently PENDING or PROCESSING jobs"
+    )
     completed_jobs_count: int = Field(description="Count of COMPLETED jobs")
     failed_jobs_count: int = Field(description="Count of FAILED jobs")
     provider_distribution: dict[str, int] = Field(

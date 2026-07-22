@@ -6,12 +6,10 @@ CodeChunkSplitter detects language structure (`def`, `class`, `function`, braces
 code files without breaking syntax structures.
 """
 
-import csv
-import io
-import re
 from typing import Any
 
 from backend.modules.chunking.schemas.chunk import ChunkDTO, StrategyInfoDTO
+
 from .base import BaseChunkSplitter, estimate_token_count
 from .recursive import RecursiveChunkSplitter
 
@@ -25,7 +23,11 @@ class TableChunkSplitter(BaseChunkSplitter):
             name="table",
             display_name="Table Schema Preserving Splitter",
             description="Parses tables (CSV or Markdown) and prefixes every split row group with column header titles for context fidelity.",
-            supported_mime_types=["text/csv", "application/csv", "text/tab-separated-values"],
+            supported_mime_types=[
+                "text/csv",
+                "application/csv",
+                "text/tab-separated-values",
+            ],
             default_max_characters=1000,
             default_overlap_characters=100,
             is_placeholder=False,
@@ -71,7 +73,11 @@ class TableChunkSplitter(BaseChunkSplitter):
                         content=chunk_content.strip(),
                         character_count=len(chunk_content.strip()),
                         token_count=estimate_token_count(chunk_content.strip()),
-                        metadata_json={**base_meta, "has_table_headers": True, "header_row": header_row},
+                        metadata_json={
+                            **base_meta,
+                            "has_table_headers": True,
+                            "header_row": header_row,
+                        },
                     )
                 )
                 current_rows = []
@@ -87,7 +93,11 @@ class TableChunkSplitter(BaseChunkSplitter):
                     content=chunk_content.strip(),
                     character_count=len(chunk_content.strip()),
                     token_count=estimate_token_count(chunk_content.strip()),
-                    metadata_json={**base_meta, "has_table_headers": True, "header_row": header_row},
+                    metadata_json={
+                        **base_meta,
+                        "has_table_headers": True,
+                        "header_row": header_row,
+                    },
                 )
             )
 
@@ -142,7 +152,9 @@ class CodeChunkSplitter(BaseChunkSplitter):
         base_meta = base_metadata or {}
         # Delegate to recursive splitter tuned with code block separators
         recursive_code = RecursiveChunkSplitter(separators=self.BLOCK_SEPARATORS)
-        raw_dtos = recursive_code.split_text(text, max_characters, overlap_characters, base_meta)
+        raw_dtos = recursive_code.split_text(
+            text, max_characters, overlap_characters, base_meta
+        )
 
         # Annotate metadata
         for dto in raw_dtos:

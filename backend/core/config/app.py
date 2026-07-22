@@ -13,7 +13,11 @@ class AppSettings(BaseSettings):
     debug: bool = Field(default=False, alias="APP_DEBUG")
     secret_key: str = Field(alias="APP_SECRET_KEY")
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }
 
     @property
     def is_development(self) -> bool:
@@ -36,4 +40,8 @@ class ServerSettings(BaseSettings):
     workers: int = Field(default=1, alias="SERVER_WORKERS")
     reload: bool = Field(default=False, alias="SERVER_RELOAD")
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }

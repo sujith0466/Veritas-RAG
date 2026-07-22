@@ -1,8 +1,11 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import String, Integer, Boolean
 import uuid
+
+from sqlalchemy import Boolean, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.database.base import Base
+
 
 class AlertRuleORM(Base):
     __tablename__ = "alert_rules"

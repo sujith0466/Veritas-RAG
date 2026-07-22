@@ -1,4 +1,5 @@
 import re
+
 from backend.modules.generation.schemas.generation_dto import CitationDTO
 
 
@@ -10,9 +11,7 @@ class CitationExtractor:
     """
 
     def extract(
-        self,
-        answer_text: str,
-        evidence_chunks: list[dict]
+        self, answer_text: str, evidence_chunks: list[dict]
     ) -> list[CitationDTO]:
         """Build an ordered CitationDTO list from the answer's inline markers.
 
@@ -24,7 +23,7 @@ class CitationExtractor:
             An ordered list of CitationDTO objects (1-indexed to match [N] markers).
         """
         # Find all unique citation indices referenced in the answer
-        marker_pattern = re.compile(r'\[(\d+)\]')
+        marker_pattern = re.compile(r"\[(\d+)\]")
         found_indices = sorted(set(int(m) for m in marker_pattern.findall(answer_text)))
 
         citations = []
@@ -38,13 +37,15 @@ class CitationExtractor:
             # Use first 200 chars of content as the supporting excerpt
             excerpt = chunk.get("content", "")[:200].strip()
 
-            citations.append(CitationDTO(
-                citation_index=idx,
-                chunk_id=chunk.get("chunk_id", f"chunk_{idx}"),
-                document_id=chunk.get("document_id", "unknown"),
-                excerpt=excerpt,
-                relevance_score=chunk.get("score", 1.0)
-            ))
+            citations.append(
+                CitationDTO(
+                    citation_index=idx,
+                    chunk_id=chunk.get("chunk_id", f"chunk_{idx}"),
+                    document_id=chunk.get("document_id", "unknown"),
+                    excerpt=excerpt,
+                    relevance_score=chunk.get("score", 1.0),
+                )
+            )
 
         return citations
 
@@ -61,10 +62,9 @@ class CitationExtractor:
         # Match a sentence (ending with . ! ?) optionally followed by [N] markers
         # This handles both "claim. [1]" and "claim [1]." styles
         claim_pattern = re.compile(
-            r'([A-Z][^.!?]*[.!?])\s*(\[\d+\](?:\s*\[\d+\])*)?',
-            re.DOTALL
+            r"([A-Z][^.!?]*[.!?])\s*(\[\d+\](?:\s*\[\d+\])*)?", re.DOTALL
         )
-        marker_pattern = re.compile(r'\[\d+\]')
+        marker_pattern = re.compile(r"\[\d+\]")
 
         matches = claim_pattern.findall(answer_text)
         if not matches:
@@ -83,4 +83,3 @@ class CitationExtractor:
             return False  # Found a meaningful uncited sentence
 
         return True
-

@@ -9,21 +9,24 @@ Logs every incoming request and its response with:
 
 import time
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+import structlog
+from starlette.middleware.base import (BaseHTTPMiddleware,
+                                       RequestResponseEndpoint)
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
-import structlog
 
 logger = structlog.get_logger(__name__)
 
 # Paths that should NOT be logged (health checks create too much noise)
-_SKIP_LOG_PATHS: frozenset[str] = frozenset({
-    "/api/v1/health/live",
-    "/api/v1/health/ready",
-    "/favicon.ico",
-    "/metrics",
-})
+_SKIP_LOG_PATHS: frozenset[str] = frozenset(
+    {
+        "/api/v1/health/live",
+        "/api/v1/health/ready",
+        "/favicon.ico",
+        "/metrics",
+    }
+)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):

@@ -5,20 +5,16 @@ supporting enterprise multilingual search (`embed-multilingual-v3.0`) and input 
 """
 
 from http import HTTPStatus
-from typing import Any
+
 import httpx
 import structlog
 
 from backend.core.config import get_settings
-from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
+from backend.modules.embedding.providers.base import (BaseEmbeddingProvider,
+                                                      EmbeddingBatchResult)
 from backend.modules.embedding.schemas.errors import (
-    EmbeddingDomainException,
-    EmbeddingErrorCode,
-    InvalidInputError,
-    ProviderAuthenticationError,
-    ProviderTimeoutError,
-    RateLimitExceededError,
-)
+    EmbeddingDomainException, EmbeddingErrorCode, InvalidInputError,
+    ProviderAuthenticationError, ProviderTimeoutError, RateLimitExceededError)
 
 logger = structlog.get_logger(__name__)
 
@@ -92,13 +88,19 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
     async def embed_query(self, text: str) -> list[float]:
         """Generate a single vector for a query (`input_type='search_query'`)."""
         if not text or not text.strip():
-            raise InvalidInputError("Empty query string provided to CohereEmbeddingProvider.")
+            raise InvalidInputError(
+                "Empty query string provided to CohereEmbeddingProvider."
+            )
         res = await self._embed_batch([text], input_type="search_query")
         return res.embeddings[0]
 
-    async def _embed_batch(self, texts: list[str], input_type: str) -> EmbeddingBatchResult:
+    async def _embed_batch(
+        self, texts: list[str], input_type: str
+    ) -> EmbeddingBatchResult:
         if not texts:
-            raise InvalidInputError("Empty text batch provided to CohereEmbeddingProvider.")
+            raise InvalidInputError(
+                "Empty text batch provided to CohereEmbeddingProvider."
+            )
 
         if not self._api_key:
             raise ProviderAuthenticationError("Missing Cohere API key configuration.")
@@ -119,7 +121,9 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
         should_close = self._http_client is None
 
         try:
-            response = await client.post(COHERE_EMBEDDING_API_URL, headers=headers, json=payload)
+            response = await client.post(
+                COHERE_EMBEDDING_API_URL, headers=headers, json=payload
+            )
             await self._handle_response_errors(response)
             data = response.json()
 
@@ -142,7 +146,9 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
             )
         except (httpx.TimeoutException, httpx.NetworkError) as exc:
             logger.warning("cohere_network_error", error=str(exc))
-            raise ProviderTimeoutError(f"Cohere network timeout or connectivity issue: {exc}") from exc
+            raise ProviderTimeoutError(
+                f"Cohere network timeout or connectivity issue: {exc}"
+            ) from exc
         finally:
             if should_close:
                 await client.aclose()

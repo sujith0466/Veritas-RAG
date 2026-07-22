@@ -1,5 +1,6 @@
 from backend.modules.analytics.schemas.errors import QuotaExceededError
 
+
 class QuotaGovernor:
     def __init__(self):
         self._mock_redis = {}
@@ -9,10 +10,10 @@ class QuotaGovernor:
     async def check_and_reserve(self, tenant_id: str, est_tokens: int) -> bool:
         key = f"quota:tokens:{tenant_id}"
         current = self._mock_redis.get(key, 0)
-        
+
         if current < est_tokens:
             raise QuotaExceededError(f"Quota exhausted for tenant {tenant_id}")
-            
+
         self._mock_redis[key] = current - est_tokens
         return True
 

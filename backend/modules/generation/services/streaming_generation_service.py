@@ -5,14 +5,15 @@ checking citations and grounding.
 """
 
 import asyncio
-from typing import AsyncGenerator, Any
+from collections.abc import AsyncGenerator
+from typing import Any
+
 from structlog import get_logger
+
 from backend.modules.generation.schemas.generation_dto import (
-    GenerationRequestDTOv2,
-    StreamingGenerationChunkDTO,
-    CitationDTO,
-)
-from backend.modules.generation.services.citation_extractor import CitationExtractor
+    GenerationRequestDTOv2, StreamingGenerationChunkDTO)
+from backend.modules.generation.services.citation_extractor import \
+    CitationExtractor
 from backend.modules.generation.services.prompt_guard import PromptGuard
 
 logger = get_logger(__name__)
@@ -46,7 +47,9 @@ class StreamingGroundedGenerationService:
             )
             return
 
-        evidence_block, safe_chunks = self.prompt_guard.sanitize_and_format_evidence(request.evidence_chunks)
+        evidence_block, safe_chunks = self.prompt_guard.sanitize_and_format_evidence(
+            request.evidence_chunks
+        )
         if not safe_chunks:
             yield StreamingGenerationChunkDTO(
                 chunk_index=0,
@@ -62,7 +65,9 @@ class StreamingGroundedGenerationService:
         if self.llm_provider and hasattr(self.llm_provider, "generate_stream"):
             full_text = ""
             chunk_idx = 0
-            async for delta in self.llm_provider.generate_stream(request.query, evidence_block):
+            async for delta in self.llm_provider.generate_stream(
+                request.query, evidence_block
+            ):
                 full_text += delta
                 yield StreamingGenerationChunkDTO(
                     chunk_index=chunk_idx,
@@ -78,7 +83,11 @@ class StreamingGroundedGenerationService:
             for i, chunk in enumerate(safe_chunks[:3], start=1):
                 content = chunk.get("content", "")
                 period_pos = content.find(". ")
-                sentence = (content[:period_pos + 1] if period_pos > 0 else content[:80].strip().rstrip(".") + ".") + f" [{i}] "
+                sentence = (
+                    content[: period_pos + 1]
+                    if period_pos > 0
+                    else content[:80].strip().rstrip(".") + "."
+                ) + f" [{i}] "
                 parts.append(sentence)
 
             full_text = "".join(parts).strip()
@@ -86,7 +95,7 @@ class StreamingGroundedGenerationService:
             chunk_idx = 0
             batch_size = 4
             for i in range(0, len(words), batch_size):
-                delta = " ".join(words[i:i + batch_size]) + " "
+                delta = " ".join(words[i : i + batch_size]) + " "
                 yield StreamingGenerationChunkDTO(
                     chunk_index=chunk_idx,
                     text_delta=delta,

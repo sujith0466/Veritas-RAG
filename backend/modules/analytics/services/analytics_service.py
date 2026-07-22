@@ -8,29 +8,19 @@ from datetime import datetime
 from uuid import UUID
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
-from backend.modules.analytics.repositories.analytics_repository import AnalyticsRepository
+from backend.modules.analytics.models.query_analytics import \
+    QueryAnalyticsRecord
+from backend.modules.analytics.repositories.analytics_repository import \
+    AnalyticsRepository
 from backend.modules.analytics.schemas.analytics_dto import (
-    AnalyticsFilterDTO,
-    ConfidenceAnalyticsDTO,
-    LatencyAnalyticsDTO,
-    QueryHistoryItemDTO,
-    QueryHistoryListDTO,
-    QueryTrendsDTO,
-    ReliabilityHistoryDTO,
-    SearchAnalyticsDTO,
-    SuccessRateDTO,
-    StageTraceDTO,
-    RetrievalCandidateTraceDTO,
-    ConfidenceSignalTraceDTO,
-    SelfCorrectionTraceDTO,
-    QueryTraceDetailDTO,
-    QuerySandboxRequestDTO,
-    QuerySandboxResponseDTO,
-)
-from backend.modules.analytics.schemas.errors import InvalidDateRange, RecordNotFound
+    AnalyticsFilterDTO, ConfidenceAnalyticsDTO, ConfidenceSignalTraceDTO,
+    LatencyAnalyticsDTO, QueryHistoryItemDTO, QueryHistoryListDTO,
+    QuerySandboxRequestDTO, QuerySandboxResponseDTO, QueryTraceDetailDTO,
+    QueryTrendsDTO, ReliabilityHistoryDTO, RetrievalCandidateTraceDTO,
+    SearchAnalyticsDTO, SelfCorrectionTraceDTO, StageTraceDTO, SuccessRateDTO)
+from backend.modules.analytics.schemas.errors import (InvalidDateRange,
+                                                      RecordNotFound)
 
 logger = structlog.get_logger(__name__)
 
@@ -108,7 +98,11 @@ class QueryAnalyticsService:
 
     async def get_success_rate(self, filter_dto: AnalyticsFilterDTO) -> SuccessRateDTO:
         """Compute success, failure, and retry statistics."""
-        if filter_dto.start_time and filter_dto.end_time and filter_dto.start_time > filter_dto.end_time:
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
             raise InvalidDateRange("start_time cannot be greater than end_time")
 
         return await self.repository.get_success_rate_metrics(
@@ -117,9 +111,15 @@ class QueryAnalyticsService:
             end_time=filter_dto.end_time,
         )
 
-    async def get_latency_analytics(self, filter_dto: AnalyticsFilterDTO) -> LatencyAnalyticsDTO:
+    async def get_latency_analytics(
+        self, filter_dto: AnalyticsFilterDTO
+    ) -> LatencyAnalyticsDTO:
         """Compute latency percentiles (P50, P90, P95, P99, Avg)."""
-        if filter_dto.start_time and filter_dto.end_time and filter_dto.start_time > filter_dto.end_time:
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
             raise InvalidDateRange("start_time cannot be greater than end_time")
 
         return await self.repository.get_latency_analytics(
@@ -128,9 +128,15 @@ class QueryAnalyticsService:
             end_time=filter_dto.end_time,
         )
 
-    async def get_confidence_analytics(self, filter_dto: AnalyticsFilterDTO) -> ConfidenceAnalyticsDTO:
+    async def get_confidence_analytics(
+        self, filter_dto: AnalyticsFilterDTO
+    ) -> ConfidenceAnalyticsDTO:
         """Compute pre-generation confidence score distribution."""
-        if filter_dto.start_time and filter_dto.end_time and filter_dto.start_time > filter_dto.end_time:
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
             raise InvalidDateRange("start_time cannot be greater than end_time")
 
         return await self.repository.get_confidence_analytics(
@@ -141,10 +147,16 @@ class QueryAnalyticsService:
 
     async def get_query_trends(self, filter_dto: AnalyticsFilterDTO) -> QueryTrendsDTO:
         """Compute time-series query volume and score trends."""
-        if filter_dto.start_time and filter_dto.end_time and filter_dto.start_time > filter_dto.end_time:
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
             raise InvalidDateRange("start_time cannot be greater than end_time")
         if filter_dto.interval not in ("hourly", "daily", "weekly"):
-            raise InvalidDateRange(f"Unsupported interval '{filter_dto.interval}'. Must be hourly, daily, or weekly.")
+            raise InvalidDateRange(
+                f"Unsupported interval '{filter_dto.interval}'. Must be hourly, daily, or weekly."
+            )
 
         return await self.repository.get_query_trends(
             tenant_id=filter_dto.tenant_id,
@@ -153,9 +165,15 @@ class QueryAnalyticsService:
             end_time=filter_dto.end_time,
         )
 
-    async def get_reliability_history(self, filter_dto: AnalyticsFilterDTO) -> ReliabilityHistoryDTO:
+    async def get_reliability_history(
+        self, filter_dto: AnalyticsFilterDTO
+    ) -> ReliabilityHistoryDTO:
         """Compute time-series unified reliability score history with moving averages."""
-        if filter_dto.start_time and filter_dto.end_time and filter_dto.start_time > filter_dto.end_time:
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
             raise InvalidDateRange("start_time cannot be greater than end_time")
 
         return await self.repository.get_reliability_history(
@@ -169,11 +187,17 @@ class QueryAnalyticsService:
         """Fetch multi-stage hybrid search performance and candidate counts."""
         return await self.repository.get_search_analytics(tenant_id=tenant_id)
 
-    async def get_query_trace_detail(self, correlation_id: str, tenant_id: str) -> QueryTraceDetailDTO:
+    async def get_query_trace_detail(
+        self, correlation_id: str, tenant_id: str
+    ) -> QueryTraceDetailDTO:
         """Fetch forensic inspection trace details for a specific correlation trace ID."""
-        record = await self.repository.get_record_by_correlation_id(correlation_id=correlation_id, tenant_id=tenant_id)
+        record = await self.repository.get_record_by_correlation_id(
+            correlation_id=correlation_id, tenant_id=tenant_id
+        )
         if not record:
-            raise RecordNotFound(f"Query trace record '{correlation_id}' not found for tenant '{tenant_id}'")
+            raise RecordNotFound(
+                f"Query trace record '{correlation_id}' not found for tenant '{tenant_id}'"
+            )
 
         base_dto = QueryHistoryItemDTO.model_validate(record)
         total_ms = record.total_duration_ms or 250.0
@@ -201,7 +225,10 @@ class QueryAnalyticsService:
                 stage_name="LLM Generation & Safety Check",
                 duration_ms=round(total_ms * 0.40, 2),
                 status="COMPLETED" if record.outcome == "SUCCESS" else "INTERCEPTED",
-                metadata={"provider": "gemini-1.5-pro", "is_safe": record.is_safe_to_serve},
+                metadata={
+                    "provider": "gemini-1.5-pro",
+                    "is_safe": record.is_safe_to_serve,
+                },
             ),
             StageTraceDTO(
                 stage_name="Answer Claim Validation",
@@ -279,7 +306,6 @@ class QueryAnalyticsService:
     ) -> QuerySandboxResponseDTO:
         """Execute a live query test in the sandbox console and return complete forensic diagnostics."""
         import uuid
-        from datetime import datetime, timezone
 
         correlation_id = str(uuid.uuid4())
         # Simulate confidence calculation based on threshold & query properties
@@ -293,7 +319,9 @@ class QueryAnalyticsService:
             f"RAGuard AI confirmed high context alignment and generated a verified response for: '{request_dto.query_text}'."
         )
         retry_attempts = 0
-        total_duration_ms = 185.0 if request_dto.retrieval_strategy == "dense_only" else 245.0
+        total_duration_ms = (
+            185.0 if request_dto.retrieval_strategy == "dense_only" else 245.0
+        )
 
         if base_confidence < request_dto.confidence_threshold:
             if request_dto.enable_self_correction:
@@ -321,7 +349,9 @@ class QueryAnalyticsService:
         )
 
         # Retrieve the created record to build exact trace
-        trace_detail = await self.get_query_trace_detail(correlation_id=correlation_id, tenant_id=tenant_id)
+        trace_detail = await self.get_query_trace_detail(
+            correlation_id=correlation_id, tenant_id=tenant_id
+        )
 
         return QuerySandboxResponseDTO(
             correlation_id=correlation_id,
@@ -329,4 +359,3 @@ class QueryAnalyticsService:
             final_answer=final_answer,
             trace_detail=trace_detail,
         )
-

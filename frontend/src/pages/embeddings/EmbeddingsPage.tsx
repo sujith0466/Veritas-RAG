@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { motion } from 'framer-motion'
 import { Cpu, RefreshCw } from 'lucide-react'
 import { Button, PageHeader } from '@/components/common'
+import { PageTransition } from '@/components/layouts'
 import { embeddingService } from '@/services/embeddingService'
 import { documentService } from '@/services/documentService'
 import type {
@@ -117,33 +117,29 @@ export function EmbeddingsPage() {
 
   if (isLoadingInitial) {
     return (
-      <div className="p-8 space-y-6 animate-pulse">
-        <div className="h-10 bg-slate-800 rounded-xl w-64" />
+      <PageTransition className="p-8 space-y-6">
+        <div className="h-10 bg-muted rounded-xl w-64 animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="h-64 bg-slate-900/60 rounded-xl border border-slate-800" />
-          <div className="h-64 bg-slate-900/60 rounded-xl border border-slate-800" />
-          <div className="h-64 bg-slate-900/60 rounded-xl border border-slate-800" />
+          <div className="h-64 bg-surface rounded-xl border border-border animate-pulse" />
+          <div className="h-64 bg-surface rounded-xl border border-border animate-pulse" />
+          <div className="h-64 bg-surface rounded-xl border border-border animate-pulse" />
         </div>
-        <div className="h-96 bg-slate-900/60 rounded-xl border border-slate-800" />
-      </div>
+        <div className="h-96 bg-surface rounded-xl border border-border animate-pulse" />
+      </PageTransition>
     )
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="p-8 space-y-8 max-w-7xl mx-auto"
-    >
+    <PageTransition className="p-8 space-y-8 max-w-7xl mx-auto pb-12">
       <PageHeader
         title="Knowledge Vectorization (Embeddings)"
-        description="Manage semantic embedding models, monitor token budget consumption, and orchestrate batch chunk vector encoding (`ADR-M2-001`)."
+        description="Manage semantic embedding models, monitor token budget consumption, and orchestrate batch chunk vector encoding."
         actions={
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={refreshMetricsAndJobs}
-            className="flex items-center gap-1.5 bg-slate-900 border-slate-800 hover:bg-slate-800 text-xs"
+            className="flex items-center gap-1.5 text-xs"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Refresh Subsystem</span>
@@ -152,13 +148,13 @@ export function EmbeddingsPage() {
       />
 
       {/* Provider Catalog Cards */}
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-indigo-400" />
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-primary" />
             Registered Vector Engines
           </h2>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-muted-foreground font-medium">
             {providers.filter((p) => p.is_available).length} of {providers.length} engines online
           </span>
         </div>
@@ -171,15 +167,15 @@ export function EmbeddingsPage() {
       </section>
 
       {/* Token Budget Utilization & KPIs */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
-          Token Budget & Pipeline Telemetry (`ADR-M2-002`)
+      <section className="space-y-4 pt-4">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Token Budget & Pipeline Telemetry
         </h2>
         <TokenUsageChart metrics={metrics} isLoading={false} />
       </section>
 
       {/* Batch Jobs Orchestration Table */}
-      <section>
+      <section className="pt-4">
         <EmbeddingJobTable
           jobs={jobs}
           isLoading={isLoadingJobs}
@@ -195,6 +191,6 @@ export function EmbeddingsPage() {
           isCreating={isCreating}
         />
       </section>
-    </motion.div>
+    </PageTransition>
   )
 }

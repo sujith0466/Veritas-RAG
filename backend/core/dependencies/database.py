@@ -11,12 +11,8 @@ from fastapi import Depends
 
 from backend.cache.client import get_cache as _get_cache
 from backend.database.engine import get_async_session
-from backend.repositories import (
-    AuditLogRepository,
-    IAuditLogRepository,
-    IUserRepository,
-    UserRepository,
-)
+from backend.repositories import (AuditLogRepository, IAuditLogRepository,
+                                  IUserRepository, UserRepository)
 from backend.vector_db.client import get_vector_db as _get_vector_db
 
 if TYPE_CHECKING:

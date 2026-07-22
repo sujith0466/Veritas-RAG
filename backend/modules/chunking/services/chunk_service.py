@@ -6,7 +6,6 @@ batch database persistence, contract verification, and event emission (`ADR-005`
 
 import hashlib
 import time
-from typing import Sequence
 import uuid
 
 from sqlalchemy import select
@@ -14,23 +13,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.document.models import Document, DocumentEventLog, DocumentVersion
 from backend.document.storage import LocalStorageProvider, StorageProvider
-from backend.modules.chunking.events import EVENT_DOCUMENT_CHUNKED, create_chunk_event
+from backend.modules.chunking.events import (EVENT_DOCUMENT_CHUNKED,
+                                             create_chunk_event)
 from backend.modules.chunking.models.chunk import DocumentChunk
-from backend.modules.chunking.repositories.chunk_repository import DocumentChunkRepository
-from backend.modules.chunking.schemas.chunk import (
-    ChunkDetailResponse,
-    ChunkListResponse,
-    ChunkMetricsDTO,
-    ChunkResponse,
-    StrategyInfoDTO,
-)
-from backend.modules.chunking.schemas.errors import (
-    ChunkingExecutionError,
-    ChunkNotFoundException,
-    ChunkValidationError,
-)
+from backend.modules.chunking.repositories.chunk_repository import \
+    DocumentChunkRepository
+from backend.modules.chunking.schemas.chunk import (ChunkDetailResponse,
+                                                    ChunkListResponse,
+                                                    ChunkMetricsDTO,
+                                                    ChunkResponse,
+                                                    StrategyInfoDTO)
+from backend.modules.chunking.schemas.errors import (ChunkingExecutionError,
+                                                     ChunkNotFoundException)
 from backend.modules.chunking.strategies import SplitterStrategyFactory
-from backend.modules.chunking.validators import ChunkProcessingContract, ChunkValidator
+from backend.modules.chunking.validators import (ChunkProcessingContract,
+                                                 ChunkValidator)
 
 
 class ChunkingService:
@@ -60,13 +57,19 @@ class ChunkingService:
         start_time = time.perf_counter()
 
         # 1. Fetch Document and DocumentVersion entities
-        doc_stmt = select(Document).where(Document.id == document_id, Document.tenant_id == tenant_id)
+        doc_stmt = select(Document).where(
+            Document.id == document_id, Document.tenant_id == tenant_id
+        )
         doc_result = await session.execute(doc_stmt)
         document = doc_result.scalar_one_or_none()
         if not document:
-            raise ChunkNotFoundException(message=f"Document {document_id} not found in tenant namespace.")
+            raise ChunkNotFoundException(
+                message=f"Document {document_id} not found in tenant namespace."
+            )
 
-        ver_stmt = select(DocumentVersion).where(DocumentVersion.id == version_id, DocumentVersion.document_id == document_id)
+        ver_stmt = select(DocumentVersion).where(
+            DocumentVersion.id == version_id, DocumentVersion.document_id == document_id
+        )
         ver_result = await session.execute(ver_stmt)
         version = ver_result.scalar_one_or_none()
         if not version or not version.extracted_text_path:
@@ -92,7 +95,9 @@ class ChunkingService:
         elif hasattr(document, "filename") and document.filename.endswith(".csv"):
             mime_type = "text/csv"
 
-        splitter = self.factory.get_splitter(strategy_name=strategy_override, mime_type=mime_type)
+        splitter = self.factory.get_splitter(
+            strategy_name=strategy_override, mime_type=mime_type
+        )
         strategy_code = splitter.strategy_info.name
 
         # 4. Execute text splitting
@@ -101,12 +106,17 @@ class ChunkingService:
                 text=normalized_text,
                 max_characters=max_characters,
                 overlap_characters=overlap_characters,
-                base_metadata={"document_id": str(document_id), "version_id": str(version_id)},
+                base_metadata={
+                    "document_id": str(document_id),
+                    "version_id": str(version_id),
+                },
             )
         except Exception as exc:
             if hasattr(exc, "error_code"):
                 raise exc
-            raise ChunkingExecutionError(message=f"Splitting strategy '{strategy_code}' crashed: {exc}") from exc
+            raise ChunkingExecutionError(
+                message=f"Splitting strategy '{strategy_code}' crashed: {exc}"
+            ) from exc
 
         # 5. Validate DTO quotas and rules (`CHK_001`)
         self.validator.validate_chunks(dtos)
@@ -118,7 +128,9 @@ class ChunkingService:
         # 7. Instantiate ORM entities and link doubly-linked sequence pointers (`prev` <-> `next`)
         chunk_entities: list[DocumentChunk] = []
         for idx, dto in enumerate(dtos):
-            content_hash = hashlib.sha256(f"{tenant_id}:{document_id}:{version_id}:{idx}:{dto.content}".encode()).hexdigest()
+            content_hash = hashlib.sha256(
+                f"{tenant_id}:{document_id}:{version_id}:{idx}:{dto.content}".encode()
+            ).hexdigest()
             entity = DocumentChunk(
                 id=uuid.uuid4(),
                 tenant_id=tenant_id,
@@ -192,13 +204,25 @@ class ChunkingService:
         skip = (max(1, page) - 1) * size
 
         if version_id:
-            chunks = await repo.get_chunks_by_version(tenant_id, version_id, skip, size, strategy_used)
-            total = await repo.count_chunks_by_version(tenant_id, version_id, strategy_used)
+            chunks = await repo.get_chunks_by_version(
+                tenant_id, version_id, skip, size, strategy_used
+            )
+            total = await repo.count_chunks_by_version(
+                tenant_id, version_id, strategy_used
+            )
             target_ver_id = version_id
         else:
-            chunks = await repo.get_chunks_by_document(tenant_id, document_id, skip, size, strategy_used)
-            total = await repo.count_chunks_by_document(tenant_id, document_id, strategy_used)
-            target_ver_id = chunks[0].document_version_id if chunks else uuid.UUID("00000000-0000-0000-0000-000000000000")
+            chunks = await repo.get_chunks_by_document(
+                tenant_id, document_id, skip, size, strategy_used
+            )
+            total = await repo.count_chunks_by_document(
+                tenant_id, document_id, strategy_used
+            )
+            target_ver_id = (
+                chunks[0].document_version_id
+                if chunks
+                else uuid.UUID("00000000-0000-0000-0000-000000000000")
+            )
 
         items = [ChunkResponse.model_validate(c) for c in chunks]
         return ChunkListResponse(
@@ -211,12 +235,16 @@ class ChunkingService:
             strategy_used=strategy_used,
         )
 
-    async def get_chunk_by_id(self, tenant_id: str, chunk_id: uuid.UUID, session: AsyncSession) -> ChunkDetailResponse:
+    async def get_chunk_by_id(
+        self, tenant_id: str, chunk_id: uuid.UUID, session: AsyncSession
+    ) -> ChunkDetailResponse:
         """Fetch deep detail view of a single chunk including section path and relationship links."""
         repo = DocumentChunkRepository(session)
         chunk = await repo.get_by_id_and_tenant(chunk_id, tenant_id)
         if not chunk:
-            raise ChunkNotFoundException(message=f"Chunk {chunk_id} not found in tenant namespace.")
+            raise ChunkNotFoundException(
+                message=f"Chunk {chunk_id} not found in tenant namespace."
+            )
 
         return ChunkDetailResponse.model_validate(chunk)
 
@@ -245,4 +273,6 @@ class ChunkingService:
     ) -> ChunkMetricsDTO:
         """Return summary chunk KPIs across tenant or specific document."""
         repo = DocumentChunkRepository(session)
-        return await repo.get_chunk_metrics(tenant_id=tenant_id, document_id=document_id)
+        return await repo.get_chunk_metrics(
+            tenant_id=tenant_id, document_id=document_id
+        )

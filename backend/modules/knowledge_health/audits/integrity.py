@@ -4,17 +4,17 @@ Verifies 1:1 count parity between active PostgreSQL DocumentChunks and indexed Q
 detecting drift and emitting telemetry (`ADR-M6-001`).
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+
 import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
-from backend.core.events.base import BaseEvent
 from backend.core.events.types import EventType
 from backend.modules.chunking.models.chunk import DocumentChunk
-from backend.modules.knowledge_health.events.payloads import KnowledgeDriftDetectedPayload, KnowledgeHealthDomainEvent
+from backend.modules.knowledge_health.events.payloads import (
+    KnowledgeDriftDetectedPayload, KnowledgeHealthDomainEvent)
 from backend.modules.knowledge_health.schemas.health_dto import ParityAuditDTO
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 from backend.modules.vector.providers.base import BaseVectorDBProvider
@@ -29,8 +29,8 @@ class IntegrityAuditor:
     def __init__(
         self,
         session: AsyncSession,
-        provider: Optional[BaseVectorDBProvider] = None,
-        dispatcher: Optional[EventDispatcher] = None,
+        provider: BaseVectorDBProvider | None = None,
+        dispatcher: EventDispatcher | None = None,
     ) -> None:
         self.session = session
         self.provider = provider or VectorProviderFactory.get_provider("qdrant")
@@ -51,10 +51,14 @@ class IntegrityAuditor:
         pg_count = pg_count_res.scalar_one_or_none() or 0
 
         # 2. Discover active collections for this tenant from VectorIndexMetadata
-        meta_stmt = select(VectorIndexMetadata.collection_name).where(
-            VectorIndexMetadata.tenant_id == tenant_id,
-            VectorIndexMetadata.is_deleted.is_(False),
-        ).distinct()
+        meta_stmt = (
+            select(VectorIndexMetadata.collection_name)
+            .where(
+                VectorIndexMetadata.tenant_id == tenant_id,
+                VectorIndexMetadata.is_deleted.is_(False),
+            )
+            .distinct()
+        )
         cols = (await self.session.execute(meta_stmt)).scalars().all()
         collection_names = list(cols) if cols else ["raguard_knowledge_1536"]
 
@@ -64,14 +68,24 @@ class IntegrityAuditor:
                 info = await self.provider.get_collection_info(col)
                 qdrant_count += info.points_count
             except Exception as exc:
-                log.warning("Could not fetch collection info during parity check", collection=col, error=str(exc))
+                log.warning(
+                    "Could not fetch collection info during parity check",
+                    collection=col,
+                    error=str(exc),
+                )
 
-        is_synced = (pg_count == qdrant_count)
+        is_synced = pg_count == qdrant_count
         if is_synced:
             parity_status = f"SYNCED ({pg_count} == {qdrant_count})"
         else:
-            parity_status = f"MISMATCH_DETECTED ({pg_count} DB != {qdrant_count} Qdrant)"
-            log.warning("Parity mismatch detected between PostgreSQL and Qdrant", pg_count=pg_count, qdrant_count=qdrant_count)
+            parity_status = (
+                f"MISMATCH_DETECTED ({pg_count} DB != {qdrant_count} Qdrant)"
+            )
+            log.warning(
+                "Parity mismatch detected between PostgreSQL and Qdrant",
+                pg_count=pg_count,
+                qdrant_count=qdrant_count,
+            )
             payload = KnowledgeDriftDetectedPayload(
                 tenant_id=tenant_id,
                 drift_type="PARITY_MISMATCH",
@@ -82,7 +96,10 @@ class IntegrityAuditor:
                 },
             )
             await self.dispatcher.publish(
-                KnowledgeHealthDomainEvent(event_type=EventType.KNOWLEDGE_DRIFT_DETECTED, payload=payload.to_dict())
+                KnowledgeHealthDomainEvent(
+                    event_type=EventType.KNOWLEDGE_DRIFT_DETECTED,
+                    payload=payload.to_dict(),
+                )
             )
 
         return ParityAuditDTO(
@@ -91,5 +108,5 @@ class IntegrityAuditor:
             qdrant_point_count=qdrant_count,
             is_synced=is_synced,
             parity_status=parity_status,
-            checked_at=datetime.now(timezone.utc),
+            checked_at=datetime.now(UTC),
         )

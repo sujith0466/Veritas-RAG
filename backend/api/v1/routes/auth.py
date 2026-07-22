@@ -6,8 +6,8 @@ and retrieving authenticated user profiles (`/me`).
 
 import uuid
 
-from fastapi import APIRouter, Depends, Request
 import structlog
+from fastapi import APIRouter, Depends, Request
 
 from backend.api.v1.schemas.auth import AuthStatusResponse, UserContext
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse

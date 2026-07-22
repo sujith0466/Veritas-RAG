@@ -7,7 +7,8 @@ Includes clean dev bypass and production ClamAV hook.
 from abc import ABC, abstractmethod
 from typing import BinaryIO
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
 
 
 class VirusScanner(ABC):
@@ -47,7 +48,10 @@ class ClamAVScanner(VirusScanner):
         stream.seek(current_pos)
 
         # Standard EICAR test string check for self-testing / hooks
-        if b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*" in content:
+        if (
+            b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+            in content
+        ):
             raise DocumentDomainException(
                 code=DocumentErrorCode.VAL_005,
                 message="Security violation: Malware or EICAR test virus signature detected.",

@@ -1,7 +1,9 @@
-from backend.modules.scoring.schemas.scoring_dto import ReliabilityScoreDTO
-from backend.modules.confidence.schemas.confidence_dto import ConfidenceResultDTO
-from backend.modules.reflection.schemas.reflection_dto import ReflectionResultDTO
+from backend.modules.confidence.schemas.confidence_dto import \
+    ConfidenceResultDTO
+from backend.modules.reflection.schemas.reflection_dto import \
+    ReflectionResultDTO
 from backend.modules.retry.schemas.retry_dto import RetryContextDTO
+from backend.modules.scoring.schemas.scoring_dto import ReliabilityScoreDTO
 
 
 class ReliabilityScorer:
@@ -18,7 +20,7 @@ class ReliabilityScorer:
         confidence_result: ConfidenceResultDTO,
         reflection_result: ReflectionResultDTO,
         retry_context: RetryContextDTO,
-        is_fully_grounded: bool
+        is_fully_grounded: bool,
     ) -> ReliabilityScoreDTO:
         """Compute the composite reliability score."""
 
@@ -32,9 +34,9 @@ class ReliabilityScorer:
 
         # Composite (normalized to 0-100)
         final_score = (
-            (confidence_score * 0.40) +
-            ((1.0 - hallucination_score) * 100.0 * 0.40) +
-            (retry_efficiency * 100.0 * 0.20)
+            (confidence_score * 0.40)
+            + ((1.0 - hallucination_score) * 100.0 * 0.40)
+            + (retry_efficiency * 100.0 * 0.20)
         )
         final_score = max(0.0, min(100.0, final_score))
 
@@ -44,5 +46,5 @@ class ReliabilityScorer:
             hallucination_score=hallucination_score,
             is_fully_grounded=is_fully_grounded,
             is_safe_to_serve=reflection_result.is_safe_to_serve,
-            retry_attempts=retry_attempts
+            retry_attempts=retry_attempts,
         )

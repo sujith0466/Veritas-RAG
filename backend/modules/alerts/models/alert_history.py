@@ -1,9 +1,12 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import String, ForeignKey, Text, DateTime, func
 import uuid
 from datetime import datetime
+
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.database.base import Base
+
 
 class AlertHistoryORM(Base):
     __tablename__ = "alert_history"
@@ -14,4 +17,6 @@ class AlertHistoryORM(Base):
     status: Mapped[str] = mapped_column(String(32))
     payload_sent: Mapped[dict] = mapped_column(JSONB)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    triggered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    triggered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

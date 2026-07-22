@@ -49,11 +49,16 @@ class GeminiProvider(LLMProvider):
             LLMProviderException: On any API error or timeout.
         """
         model = self._get_model(use_lite=request.use_lite_model)
-        model_name = self._lite_model_name if request.use_lite_model else self._primary_model_name
+        model_name = (
+            self._lite_model_name
+            if request.use_lite_model
+            else self._primary_model_name
+        )
 
         generation_config = genai.GenerationConfig(
             temperature=request.temperature or self._settings.temperature,
-            max_output_tokens=request.max_output_tokens or self._settings.max_output_tokens,
+            max_output_tokens=request.max_output_tokens
+            or self._settings.max_output_tokens,
         )
 
         prompt = request.prompt
@@ -101,7 +106,9 @@ class GeminiProvider(LLMProvider):
                     yield chunk.text
         except Exception as exc:
             logger.error("Gemini streaming error", error=str(exc))
-            raise LLMProviderException(message=f"Gemini streaming error: {exc}") from exc
+            raise LLMProviderException(
+                message=f"Gemini streaming error: {exc}"
+            ) from exc
 
     async def health_check(self) -> bool:
         """Verify Gemini API connectivity with a minimal token generation call."""

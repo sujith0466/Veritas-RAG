@@ -6,7 +6,7 @@ every multi-stage hybrid search query for tenant audit trails and KPI monitoring
 
 from typing import Any
 
-from sqlalchemy import Float, Index, Integer, JSON, String, Text
+from sqlalchemy import JSON, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import BaseModel

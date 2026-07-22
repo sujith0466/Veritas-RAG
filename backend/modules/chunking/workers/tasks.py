@@ -6,19 +6,17 @@ and emits `DocumentChunked` domain events with exponential backoff retry for `RE
 """
 
 import asyncio
-from typing import Any
 import uuid
+from typing import Any
 
 import structlog
 
 from backend.database.engine import get_session_factory
 from backend.document.models import DocumentEventLog
-from backend.modules.chunking.events import EVENT_CHUNKING_FAILED, create_chunk_event
-from backend.modules.chunking.schemas.errors import (
-    ChunkDomainException,
-    ErrorSeverity,
-    get_error_severity,
-)
+from backend.modules.chunking.events import (EVENT_CHUNKING_FAILED,
+                                             create_chunk_event)
+from backend.modules.chunking.schemas.errors import (ErrorSeverity,
+                                                     get_error_severity)
 from backend.modules.chunking.services.chunk_service import ChunkingService
 from backend.tasks.celery_app import celery_app
 
@@ -121,7 +119,11 @@ async def _async_process_chunking(
                     tenant_id=tenant_id,
                     document_id=document_id,
                     document_version_id=version_id,
-                    data={"error_code": str(error_code), "message": str(exc), "severity": str(severity)},
+                    data={
+                        "error_code": str(error_code),
+                        "message": str(exc),
+                        "severity": str(severity),
+                    },
                 )
                 event_log = DocumentEventLog(
                     document_id=document_id,
@@ -133,8 +135,11 @@ async def _async_process_chunking(
             except Exception as log_exc:
                 logger.warning("failed_to_log_chunking_error_event", error=str(log_exc))
 
-            if severity == ErrorSeverity.RECOVERABLE and task_instance.request.retries < task_instance.max_retries:
-                backoff_seconds = 2 ** task_instance.request.retries * 5
+            if (
+                severity == ErrorSeverity.RECOVERABLE
+                and task_instance.request.retries < task_instance.max_retries
+            ):
+                backoff_seconds = 2**task_instance.request.retries * 5
                 raise task_instance.retry(exc=exc, countdown=backoff_seconds)
 
             raise exc

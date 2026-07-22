@@ -4,16 +4,12 @@ Generates a hypothetical answer document to use as a dense retrieval query,
 improving semantic coverage for low-coverage queries.
 """
 
-import asyncio
 from typing import Any
 
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2,
-    RewriteResultDTO,
-    RewriteStrategy,
-)
+    RewriteRequestDTOv2, RewriteResultDTO, RewriteStrategy)
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)
@@ -59,16 +55,26 @@ class HyDEStrategy(BaseRewriteStrategy):
                 if result and len(result.strip()) > 10:
                     return result.strip()
             except Exception as exc:
-                logger.warning("HyDE LLM generation failed, using template fallback", error=str(exc))
+                logger.warning(
+                    "HyDE LLM generation failed, using template fallback",
+                    error=str(exc),
+                )
         return self._template_synthesis_fallback(query)
 
     def _template_synthesis_fallback(self, query: str) -> str:
         """Heuristic fallback when LLM is unavailable."""
         # Strip question words to form declarative form
         clean = query.strip().rstrip("?")
-        for prefix in ("what is", "what are", "how does", "how do", "why does", "explain"):
+        for prefix in (
+            "what is",
+            "what are",
+            "how does",
+            "how do",
+            "why does",
+            "explain",
+        ):
             if clean.lower().startswith(prefix):
-                clean = clean[len(prefix):].strip()
+                clean = clean[len(prefix) :].strip()
                 break
         return (
             f"This is a hypothetical technical explanation regarding {query}. "
@@ -81,7 +87,9 @@ class HyDERewriter(HyDEStrategy):
     """Backward-compatible alias for Phase 3 HyDERewriter."""
 
     def rewrite(self, query: str) -> object:  # type: ignore[override]
-        from backend.modules.query_rewrite.schemas.rewrite_dto import HyDEResponseDTO
+        from backend.modules.query_rewrite.schemas.rewrite_dto import \
+            HyDEResponseDTO
+
         doc = self._generate_hypothetical_doc(query)
         return HyDEResponseDTO(
             original_query=query,

@@ -10,7 +10,8 @@ from typing import Any
 
 import structlog
 
-from backend.ai.interfaces.llm_provider import LLMProvider, LLMRequest, LLMResponse
+from backend.ai.interfaces.llm_provider import (LLMProvider, LLMRequest,
+                                                LLMResponse)
 from backend.ai.registry import ProviderRegistry
 from backend.core.config import get_settings
 from backend.core.exceptions import LLMProviderException
@@ -69,7 +70,9 @@ class LLMProviderManager(LLMProvider):
                 )
                 errors.append({"provider": provider_name, "error": str(exc)})
 
-        logger.error("All configured LLM providers failed for generate request", errors=errors)
+        logger.error(
+            "All configured LLM providers failed for generate request", errors=errors
+        )
         raise LLMProviderException(
             message=f"All configured LLM providers failed: {[e['provider'] + ': ' + e['error'] for e in errors]}",
             detail={"errors": errors, "attempted_providers": priority_list},
@@ -121,7 +124,10 @@ class LLMProviderManager(LLMProvider):
                     )
                     raise LLMProviderException(
                         message=f"Stream aborted mid-generation from {provider_name}: {exc}",
-                        detail={"failed_provider": provider_name, "chunks_yielded": chunks_yielded},
+                        detail={
+                            "failed_provider": provider_name,
+                            "chunks_yielded": chunks_yielded,
+                        },
                     ) from exc
 
                 logger.warning(
@@ -131,7 +137,9 @@ class LLMProviderManager(LLMProvider):
                 )
                 errors.append({"provider": provider_name, "error": str(exc)})
 
-        logger.error("All configured LLM providers failed for stream request", errors=errors)
+        logger.error(
+            "All configured LLM providers failed for stream request", errors=errors
+        )
         raise LLMProviderException(
             message=f"All configured LLM providers failed for streaming: {[e['provider'] + ': ' + e['error'] for e in errors]}",
             detail={"errors": errors, "attempted_providers": priority_list},
@@ -146,7 +154,11 @@ class LLMProviderManager(LLMProvider):
                 if await provider.health_check():
                     return True
             except Exception as exc:
-                logger.debug("Provider health check failed or registry error", provider=provider_name, error=str(exc))
+                logger.debug(
+                    "Provider health check failed or registry error",
+                    provider=provider_name,
+                    error=str(exc),
+                )
         return False
 
     async def detailed_health_check(self) -> dict[str, bool]:

@@ -5,7 +5,9 @@ Prepared abstractions ready for cloud provider SDK adoption upon configuration t
 
 from typing import Any, BinaryIO
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
+
 from .base import StorageObjectDTO, StorageProvider
 
 
@@ -34,7 +36,9 @@ class S3StorageProvider(StorageProvider):
     async def save_bytes(self, content: bytes, object_key: str) -> StorageObjectDTO:
         raise NotImplementedError("S3 save_bytes not configured.")
 
-    async def save_json(self, data: dict[str, Any], object_key: str) -> StorageObjectDTO:
+    async def save_json(
+        self, data: dict[str, Any], object_key: str
+    ) -> StorageObjectDTO:
         raise NotImplementedError("S3 save_json not configured.")
 
     async def get_stream(self, object_key: str) -> BinaryIO:
@@ -79,7 +83,9 @@ class AzureBlobStorageProvider(StorageProvider):
     async def save_bytes(self, content: bytes, object_key: str) -> StorageObjectDTO:
         raise NotImplementedError("Azure Blob save_bytes not configured.")
 
-    async def save_json(self, data: dict[str, Any], object_key: str) -> StorageObjectDTO:
+    async def save_json(
+        self, data: dict[str, Any], object_key: str
+    ) -> StorageObjectDTO:
         raise NotImplementedError("Azure Blob save_json not configured.")
 
     async def get_stream(self, object_key: str) -> BinaryIO:
@@ -124,7 +130,9 @@ class GCSStorageProvider(StorageProvider):
     async def save_bytes(self, content: bytes, object_key: str) -> StorageObjectDTO:
         raise NotImplementedError("GCS save_bytes not configured.")
 
-    async def save_json(self, data: dict[str, Any], object_key: str) -> StorageObjectDTO:
+    async def save_json(
+        self, data: dict[str, Any], object_key: str
+    ) -> StorageObjectDTO:
         raise NotImplementedError("GCS save_json not configured.")
 
     async def get_stream(self, object_key: str) -> BinaryIO:

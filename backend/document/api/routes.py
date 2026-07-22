@@ -4,22 +4,20 @@ Provides endpoints for file upload (`POST /upload`), status inspection (`GET /{i
 document details and manifest (`GET /{id}`), listing (`GET /`), and deletion (`DELETE /{id}`).
 """
 
-from typing import Any
 import uuid
+from typing import Any
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile, status
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from fastapi import (APIRouter, Depends, File, Header, HTTPException, Query,
+                     Request, UploadFile, status)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
-from backend.document.schemas import (
-    DocumentDetailResponse,
-    DocumentListResponse,
-    ProcessingStatusResponse,
-    UploadResponse,
-)
+from backend.document.schemas import (DocumentDetailResponse,
+                                      DocumentListResponse,
+                                      ProcessingStatusResponse, UploadResponse)
 from backend.document.services import DocumentService
 
 logger = structlog.get_logger(__name__)
@@ -109,7 +107,9 @@ async def get_document_status(
 
     status_resp = await service.get_status(document_id, tenant_id, session)
     if not status_resp:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
 
     return SuccessResponse(
         success=True,
@@ -137,7 +137,9 @@ async def get_document_detail(
 
     detail_resp = await service.get_document_detail(document_id, tenant_id, session)
     if not detail_resp:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
 
     return SuccessResponse(
         success=True,
@@ -156,7 +158,11 @@ async def list_documents(
     request: Request,
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    status_filter: str | None = Query(None, alias="status", description="Filter by status (PENDING, VALIDATING, EXTRACTING, PROCESSED, FAILED)"),
+    status_filter: str | None = Query(
+        None,
+        alias="status",
+        description="Filter by status (PENDING, VALIDATING, EXTRACTING, PROCESSED, FAILED)",
+    ),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
@@ -199,7 +205,10 @@ async def delete_document(
 
     success = await service.delete_document(document_id, tenant_id, session)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found or delete failed")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found or delete failed",
+        )
 
     return SuccessResponse(
         success=True,

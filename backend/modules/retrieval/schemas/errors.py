@@ -16,8 +16,10 @@ from backend.core.exceptions.base import RAGuardException
 class ErrorSeverity(StrEnum):
     """Severity level determining background worker retry behavior."""
 
-    RECOVERABLE = "RECOVERABLE"  # Transient connection issue or timeout; trigger backoff retry
-    FATAL = "FATAL"              # Permanent query syntax, configuration, or pipeline error
+    RECOVERABLE = (
+        "RECOVERABLE"  # Transient connection issue or timeout; trigger backoff retry
+    )
+    FATAL = "FATAL"  # Permanent query syntax, configuration, or pipeline error
 
 
 class RetrievalErrorCode(StrEnum):
@@ -84,7 +86,7 @@ class RetrievalDomainException(RAGuardException):
         elif str(code_str) == "RET_006":
             status_code = HTTPStatus.BAD_REQUEST
         elif str(code_str) == "RET_007":
-            status_code = HTTPStatus.OK # Soft failure
+            status_code = HTTPStatus.OK  # Soft failure
         elif str(code_str) == "RET_008":
             status_code = HTTPStatus.FORBIDDEN
 
@@ -101,19 +103,22 @@ class RetrievalDomainException(RAGuardException):
         }
 
 
-
 class InvalidQueryError(RetrievalDomainException):
     """Raised when query string exceeds length constraints or is invalid (`RET_001`)."""
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
-        super().__init__(code=RetrievalErrorCode.RET_001, message=message, detail=detail)
+        super().__init__(
+            code=RetrievalErrorCode.RET_001, message=message, detail=detail
+        )
 
 
 class SparseIndexNotFoundError(RetrievalDomainException):
     """Raised when attempting sparse search against a missing BM25 index (`RET_002`)."""
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
-        super().__init__(code=RetrievalErrorCode.RET_002, message=message, detail=detail)
+        super().__init__(
+            code=RetrievalErrorCode.RET_002, message=message, detail=detail
+        )
 
 
 class RerankerTimeoutError(RetrievalDomainException):
@@ -144,34 +149,42 @@ class FusionPipelineError(RetrievalDomainException):
     """Raised when RRF rank fusion or deduplication encounters a pipeline error (`RET_005`)."""
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
-        super().__init__(code=RetrievalErrorCode.RET_005, message=message, detail=detail)
+        super().__init__(
+            code=RetrievalErrorCode.RET_005, message=message, detail=detail
+        )
 
 
 class CandidateDeduplicationError(RetrievalDomainException):
     """Raised when deduplication filtering fails during candidate merging (`RET_005`)."""
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
-        super().__init__(code=RetrievalErrorCode.RET_005, message=message, detail=detail)
+        super().__init__(
+            code=RetrievalErrorCode.RET_005, message=message, detail=detail
+        )
 
 
 class FilterDSLValidationError(RetrievalDomainException):
     """Raised when FilterDSL validation fails (`RET_006`)."""
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
-        super().__init__(code=RetrievalErrorCode.RET_006, message=message, detail=detail)
+        super().__init__(
+            code=RetrievalErrorCode.RET_006, message=message, detail=detail
+        )
 
 
 class CompressionError(RetrievalDomainException):
     """Raised when context compression fails (`RET_007`)."""
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
-        super().__init__(code=RetrievalErrorCode.RET_007, message=message, detail=detail)
+        super().__init__(
+            code=RetrievalErrorCode.RET_007, message=message, detail=detail
+        )
 
 
 class TenantViolationError(RetrievalDomainException):
     """Raised when tenant isolation is violated (`RET_008`)."""
 
     def __init__(self, message: str, detail: dict[str, Any] | None = None) -> None:
-        super().__init__(code=RetrievalErrorCode.RET_008, message=message, detail=detail)
-
-
+        super().__init__(
+            code=RetrievalErrorCode.RET_008, message=message, detail=detail
+        )

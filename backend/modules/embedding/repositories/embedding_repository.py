@@ -5,9 +5,9 @@ bulk vector staging (`chunk_embeddings`), zero-call idempotency hash filtering,
 and multi-tenant namespace isolation (`ADR-005`, `ADR-M2-001`).
 """
 
+import uuid
 from collections.abc import Sequence
 from typing import Any
-import uuid
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +32,9 @@ class EmbeddingRepository(BaseRepository[EmbeddingJob], IEmbeddingRepository):
         await self.session.refresh(job)
         return job
 
-    async def get_job_by_id_and_tenant(self, job_id: uuid.UUID, tenant_id: str) -> EmbeddingJob | None:
+    async def get_job_by_id_and_tenant(
+        self, job_id: uuid.UUID, tenant_id: str
+    ) -> EmbeddingJob | None:
         """Fetch an `EmbeddingJob` by UUID ensuring tenant boundary isolation."""
         stmt = select(EmbeddingJob).where(
             EmbeddingJob.id == job_id,
@@ -60,7 +62,9 @@ class EmbeddingRepository(BaseRepository[EmbeddingJob], IEmbeddingRepository):
         if status:
             where_clauses.append(EmbeddingJob.status == status)
 
-        count_stmt = select(func.count()).select_from(EmbeddingJob).where(*where_clauses)
+        count_stmt = (
+            select(func.count()).select_from(EmbeddingJob).where(*where_clauses)
+        )
         total = (await self.session.execute(count_stmt)).scalar() or 0
 
         stmt = (
@@ -172,7 +176,9 @@ class EmbeddingRepository(BaseRepository[EmbeddingJob], IEmbeddingRepository):
         await self.session.flush()
         return len(records)
 
-    async def mark_chunks_as_embedded(self, chunk_ids: list[uuid.UUID], tenant_id: str) -> int:
+    async def mark_chunks_as_embedded(
+        self, chunk_ids: list[uuid.UUID], tenant_id: str
+    ) -> int:
         """Update `DocumentChunk.is_embedded = True` for successfully vectorized chunks."""
         if not chunk_ids:
             return 0
@@ -255,6 +261,9 @@ class EmbeddingRepository(BaseRepository[EmbeddingJob], IEmbeddingRepository):
         provider_distribution = {row[0]: row[1] for row in dist_res.all()}
 
         return {
+            "tenant_id": tenant_id,
+            "monthly_token_quota": 1000000,
+            "remaining_tokens": 1000000 - total_tokens,
             "active_jobs_count": active_count,
             "completed_jobs_count": completed_count,
             "failed_jobs_count": failed_count,

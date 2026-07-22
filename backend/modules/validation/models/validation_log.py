@@ -1,8 +1,11 @@
-from sqlalchemy import Column, String, Float, Boolean, JSON, DateTime, Integer
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
+
 from backend.database.base import Base
+
 
 class ValidationLogORM(Base):
     __tablename__ = "validation_logs"
@@ -16,4 +19,6 @@ class ValidationLogORM(Base):
     invalid_citation_count = Column(Integer, nullable=False)
     is_valid = Column(Boolean, nullable=False)
     metadata_payload = Column(JSON, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )

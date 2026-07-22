@@ -4,7 +4,6 @@ Sweeps and purges unreferenced chunks and vector points lacking valid parent doc
 preventing phantom retrieval results and storage bloat (`ADR-M6-001`).
 """
 
-from typing import Optional
 import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.document.models.document import Document
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
-from backend.modules.vector.services.vector_service import VectorStorageService
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
+from backend.modules.vector.services.vector_service import VectorStorageService
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +23,7 @@ class OrphanCleanupEngine:
     def __init__(
         self,
         session: AsyncSession,
-        vector_service: Optional[VectorStorageService] = None,
+        vector_service: VectorStorageService | None = None,
     ) -> None:
         self.session = session
         self.vector_service = vector_service or VectorStorageService(session)
@@ -58,9 +57,15 @@ class OrphanCleanupEngine:
         doc_ids_to_purge = {c.document_id for c in orphaned_chunks}
         for doc_id in doc_ids_to_purge:
             try:
-                await self.vector_service.delete_document_points(document_id=doc_id, tenant_id=tenant_id)
+                await self.vector_service.delete_document_points(
+                    document_id=doc_id, tenant_id=tenant_id
+                )
             except Exception as exc:
-                log.warning("Partial Qdrant point cleanup during orphan sweep", document_id=str(doc_id), error=str(exc))
+                log.warning(
+                    "Partial Qdrant point cleanup during orphan sweep",
+                    document_id=str(doc_id),
+                    error=str(exc),
+                )
 
         orphan_chunk_ids = [c.id for c in orphaned_chunks]
 
@@ -80,7 +85,11 @@ class OrphanCleanupEngine:
 
         await self.session.flush()
         purged_count = len(orphaned_chunks)
-        log.info("Completed orphan chunk sweep", purged_count=purged_count, affected_docs=len(doc_ids_to_purge))
+        log.info(
+            "Completed orphan chunk sweep",
+            purged_count=purged_count,
+            affected_docs=len(doc_ids_to_purge),
+        )
         return purged_count
 
     async def sweep_orphaned_vectors(self, tenant_id: str) -> int:

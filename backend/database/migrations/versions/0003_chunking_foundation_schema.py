@@ -8,9 +8,10 @@ Create Date: 2026-07-19 02:00:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0003"
@@ -35,26 +36,69 @@ def upgrade() -> None:
         sa.Column("parent_chunk_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("previous_chunk_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("next_chunk_id", postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column("page_numbers", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("section_path", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column("is_embedded", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "page_numbers", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+        sa.Column(
+            "section_path", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+        sa.Column(
+            "metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
+        sa.Column(
+            "is_embedded", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
         sa.ForeignKeyConstraint(["document_id"], ["documents.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["document_version_id"], ["document_versions.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["parent_chunk_id"], ["document_chunks.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["previous_chunk_id"], ["document_chunks.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["next_chunk_id"], ["document_chunks.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["document_version_id"], ["document_versions.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["parent_chunk_id"], ["document_chunks.id"], ondelete="SET NULL"
+        ),
+        sa.ForeignKeyConstraint(
+            ["previous_chunk_id"], ["document_chunks.id"], ondelete="SET NULL"
+        ),
+        sa.ForeignKeyConstraint(
+            ["next_chunk_id"], ["document_chunks.id"], ondelete="SET NULL"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_document_chunks_tenant_id"), "document_chunks", ["tenant_id"], unique=False)
-    op.create_index(op.f("ix_document_chunks_document_id"), "document_chunks", ["document_id"], unique=False)
-    op.create_index(op.f("ix_document_chunks_document_version_id"), "document_chunks", ["document_version_id"], unique=False)
-    op.create_index(op.f("ix_document_chunks_content_hash"), "document_chunks", ["content_hash"], unique=False)
-    op.create_index(op.f("ix_document_chunks_parent_chunk_id"), "document_chunks", ["parent_chunk_id"], unique=False)
+    op.create_index(
+        op.f("ix_document_chunks_tenant_id"),
+        "document_chunks",
+        ["tenant_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_document_chunks_document_id"),
+        "document_chunks",
+        ["document_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_document_chunks_document_version_id"),
+        "document_chunks",
+        ["document_version_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_document_chunks_content_hash"),
+        "document_chunks",
+        ["content_hash"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_document_chunks_parent_chunk_id"),
+        "document_chunks",
+        ["parent_chunk_id"],
+        unique=False,
+    )
     op.create_index(
         "ix_document_chunks_tenant_doc_ver_idx",
         "document_chunks",
@@ -75,31 +119,64 @@ def upgrade() -> None:
         sa.Column("source_chunk_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("target_chunk_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("relationship_type", sa.String(length=50), nullable=False),
-        sa.Column("metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            "metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True
+        ),
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")),
-        sa.ForeignKeyConstraint(["source_chunk_id"], ["document_chunks.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["target_chunk_id"], ["document_chunks.id"], ondelete="CASCADE"),
+        sa.Column(
+            "is_deleted", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
+        sa.ForeignKeyConstraint(
+            ["source_chunk_id"], ["document_chunks.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(
+            ["target_chunk_id"], ["document_chunks.id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_chunk_relationships_tenant_id"), "chunk_relationships", ["tenant_id"], unique=False)
-    op.create_index(op.f("ix_chunk_relationships_source_chunk_id"), "chunk_relationships", ["source_chunk_id"], unique=False)
-    op.create_index(op.f("ix_chunk_relationships_target_chunk_id"), "chunk_relationships", ["target_chunk_id"], unique=False)
+    op.create_index(
+        op.f("ix_chunk_relationships_tenant_id"),
+        "chunk_relationships",
+        ["tenant_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_chunk_relationships_source_chunk_id"),
+        "chunk_relationships",
+        ["source_chunk_id"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_chunk_relationships_target_chunk_id"),
+        "chunk_relationships",
+        ["target_chunk_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_chunk_relationships_target_chunk_id"), table_name="chunk_relationships")
-    op.drop_index(op.f("ix_chunk_relationships_source_chunk_id"), table_name="chunk_relationships")
-    op.drop_index(op.f("ix_chunk_relationships_tenant_id"), table_name="chunk_relationships")
+    op.drop_index(
+        op.f("ix_chunk_relationships_target_chunk_id"), table_name="chunk_relationships"
+    )
+    op.drop_index(
+        op.f("ix_chunk_relationships_source_chunk_id"), table_name="chunk_relationships"
+    )
+    op.drop_index(
+        op.f("ix_chunk_relationships_tenant_id"), table_name="chunk_relationships"
+    )
     op.drop_table("chunk_relationships")
 
     op.drop_index("ix_document_chunks_tenant_hash", table_name="document_chunks")
     op.drop_index("ix_document_chunks_tenant_doc_ver_idx", table_name="document_chunks")
-    op.drop_index(op.f("ix_document_chunks_parent_chunk_id"), table_name="document_chunks")
+    op.drop_index(
+        op.f("ix_document_chunks_parent_chunk_id"), table_name="document_chunks"
+    )
     op.drop_index(op.f("ix_document_chunks_content_hash"), table_name="document_chunks")
-    op.drop_index(op.f("ix_document_chunks_document_version_id"), table_name="document_chunks")
+    op.drop_index(
+        op.f("ix_document_chunks_document_version_id"), table_name="document_chunks"
+    )
     op.drop_index(op.f("ix_document_chunks_document_id"), table_name="document_chunks")
     op.drop_index(op.f("ix_document_chunks_tenant_id"), table_name="document_chunks")
     op.drop_table("document_chunks")

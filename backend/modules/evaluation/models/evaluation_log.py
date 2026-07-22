@@ -1,8 +1,11 @@
-from sqlalchemy import Column, String, Float, JSON, DateTime, Integer
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
+
 from backend.database.base import Base
+
 
 class GoldenDatasetORM(Base):
     __tablename__ = "golden_datasets"
@@ -11,7 +14,10 @@ class GoldenDatasetORM(Base):
     tenant_id = Column(String(64), nullable=False, index=True)
     name = Column(String(128), nullable=False)
     examples = Column(JSON, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
 
 class EvaluationRunORM(Base):
     __tablename__ = "evaluation_runs"
@@ -23,4 +29,6 @@ class EvaluationRunORM(Base):
     f1_score = Column(Float, nullable=False)
     average_reliability_score = Column(Float, nullable=False)
     total_examples = Column(Integer, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )

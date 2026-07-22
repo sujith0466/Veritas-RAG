@@ -25,13 +25,17 @@ class QueryAnalyticsRecord(BaseModel):
     tenant_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     correlation_id: Mapped[str] = mapped_column(String(100), nullable=False)
     query_text: Mapped[str] = mapped_column(Text, nullable=False)
-    outcome: Mapped[str] = mapped_column(String(50), nullable=False)  # SUCCESS, CLARIFICATION_REQUIRED, etc.
+    outcome: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # SUCCESS, CLARIFICATION_REQUIRED, etc.
     confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     hallucination_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     reliability_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
-    is_safe_to_serve: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_safe_to_serve: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
 
     def __init__(self, **kwargs: Any) -> None:
         kwargs.setdefault("is_safe_to_serve", True)

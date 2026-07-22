@@ -6,39 +6,31 @@ enforcing strict retry policy based on error severity (`RECOVERABLE` vs `FATAL`)
 """
 
 import asyncio
-from datetime import UTC, datetime
 import time
-from typing import Any
 import uuid
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
 from backend.database.engine import get_session_factory
-from backend.document.events import (
-    EVENT_DOCUMENT_FAILED,
-    EVENT_DOCUMENT_PROCESSED,
-    EVENT_DOCUMENT_VALIDATED,
-    EVENT_METADATA_EXTRACTED,
-    EVENT_OCR_COMPLETED,
-    EVENT_TEXT_EXTRACTED,
-    create_domain_event,
-)
+from backend.document.events import (EVENT_DOCUMENT_FAILED,
+                                     EVENT_DOCUMENT_PROCESSED,
+                                     EVENT_DOCUMENT_VALIDATED,
+                                     EVENT_METADATA_EXTRACTED,
+                                     EVENT_OCR_COMPLETED, EVENT_TEXT_EXTRACTED,
+                                     create_domain_event)
 from backend.document.extractors import create_default_registry, normalize_text
 from backend.document.models import DocumentEventLog
 from backend.document.ocr import OCRPipeline
-from backend.document.repositories import (
-    DocumentEventRepository,
-    DocumentRepository,
-    JobRepository,
-)
+from backend.document.repositories import (DocumentEventRepository,
+                                           DocumentRepository, JobRepository)
 from backend.document.schemas import DocumentManifestDTO, StageMetricDTO
-from backend.document.schemas.errors import (
-    DocumentDomainException,
-    DocumentErrorCode,
-    ErrorSeverity,
-    get_error_severity,
-)
-from backend.document.storage import DocumentProcessingContract, LocalStorageProvider, get_versioned_path
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode, ErrorSeverity,
+                                             get_error_severity)
+from backend.document.storage import (DocumentProcessingContract,
+                                      LocalStorageProvider, get_versioned_path)
 from backend.tasks.celery_app import celery_app
 
 logger = structlog.get_logger(__name__)
@@ -82,7 +74,9 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     message="Job is missing target version_id.",
                 )
 
-            doc = await doc_repo.get_by_id_with_versions(job.document_id, str(job.document_id), session)
+            doc = await doc_repo.get_by_id_with_versions(
+                job.document_id, str(job.document_id), session
+            )
             if not doc:
                 # Fallback without tenant check if tenant_id is unknown to worker initially
                 version = await doc_repo.get_version_by_id(job.version_id, session)
@@ -91,7 +85,9 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                         code=DocumentErrorCode.SYS_001,
                         message="Target document or version missing.",
                     )
-                doc = await doc_repo.get_by_id_with_versions(job.document_id, version.document.tenant_id, session)
+                doc = await doc_repo.get_by_id_with_versions(
+                    job.document_id, version.document.tenant_id, session
+                )
 
             if not doc or not doc.versions:
                 raise DocumentDomainException(
@@ -99,7 +95,9 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     message="Document aggregate root missing or has zero versions.",
                 )
 
-            version = next((v for v in doc.versions if v.id == job.version_id), doc.versions[0])
+            version = next(
+                (v for v in doc.versions if v.id == job.version_id), doc.versions[0]
+            )
             if not version.storage_object:
                 raise DocumentDomainException(
                     code=DocumentErrorCode.STORE_002,
@@ -117,7 +115,11 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
             stream = await storage.get_stream(version.storage_object.object_key)
             val_duration = (time.perf_counter() - t0) * 1000.0
             stage_metrics.append(
-                StageMetricDTO(stage="validation", duration_ms=round(val_duration, 2), status="COMPLETED")
+                StageMetricDTO(
+                    stage="validation",
+                    duration_ms=round(val_duration, 2),
+                    status="COMPLETED",
+                )
             )
 
             # Log validation event
@@ -126,7 +128,10 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                 tenant_id=tenant_id,
                 document_id=doc.id,
                 job_id=job.id,
-                data={"object_key": version.storage_object.object_key, "duration_ms": round(val_duration, 2)},
+                data={
+                    "object_key": version.storage_object.object_key,
+                    "duration_ms": round(val_duration, 2),
+                },
             )
             await event_repo.append_event(
                 DocumentEventLog(
@@ -148,12 +153,20 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
 
             extractor = registry.get_extractor(
                 mime_type=version.storage_object.mime_type,
-                extension="." + doc.filename.split(".")[-1] if "." in doc.filename else ".txt",
+                extension=(
+                    "." + doc.filename.split(".")[-1] if "." in doc.filename else ".txt"
+                ),
             )
-            extracted = await extractor.extract(stream, doc.filename, version.storage_object.mime_type)
+            extracted = await extractor.extract(
+                stream, doc.filename, version.storage_object.mime_type
+            )
             ext_duration = (time.perf_counter() - t1) * 1000.0
             stage_metrics.append(
-                StageMetricDTO(stage="extraction", duration_ms=round(ext_duration, 2), status="COMPLETED")
+                StageMetricDTO(
+                    stage="extraction",
+                    duration_ms=round(ext_duration, 2),
+                    status="COMPLETED",
+                )
             )
 
             # Log metadata and text extracted events
@@ -163,7 +176,10 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     tenant_id=tenant_id,
                     document_id=doc.id,
                     job_id=job.id,
-                    data={"word_count": extracted.word_count, "page_count": extracted.page_count},
+                    data={
+                        "word_count": extracted.word_count,
+                        "page_count": extracted.page_count,
+                    },
                 )
                 await event_repo.append_event(
                     DocumentEventLog(
@@ -192,7 +208,11 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
 
                 ocr_duration = (time.perf_counter() - t2) * 1000.0
                 stage_metrics.append(
-                    StageMetricDTO(stage="ocr", duration_ms=round(ocr_duration, 2), status="COMPLETED")
+                    StageMetricDTO(
+                        stage="ocr",
+                        duration_ms=round(ocr_duration, 2),
+                        status="COMPLETED",
+                    )
                 )
 
                 ocr_payload = create_domain_event(
@@ -200,7 +220,10 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     tenant_id=tenant_id,
                     document_id=doc.id,
                     job_id=job.id,
-                    data={"engine": ocr_res.engine_used, "confidence": ocr_res.confidence},
+                    data={
+                        "engine": ocr_res.engine_used,
+                        "confidence": ocr_res.confidence,
+                    },
                 )
                 await event_repo.append_event(
                     DocumentEventLog(
@@ -309,8 +332,16 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
             )
             await session.commit()
 
-            logger.info("Document processing completed successfully", document_id=str(doc.id), job_id=job_id)
-            return {"status": "success", "document_id": str(doc.id), "word_count": doc.word_count}
+            logger.info(
+                "Document processing completed successfully",
+                document_id=str(doc.id),
+                job_id=job_id,
+            )
+            return {
+                "status": "success",
+                "document_id": str(doc.id),
+                "word_count": doc.word_count,
+            }
 
         except Exception as e:
             await session.rollback()
@@ -329,13 +360,24 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
             job_uuid = uuid.UUID(job_id)
             job = await job_repo.get_by_id(job_uuid, session)
             if job:
-                doc = await doc_repo.get_by_id(job.document_id, str(job.document_id), session)
+                doc = await doc_repo.get_by_id(
+                    job.document_id, str(job.document_id), session
+                )
                 if not doc:
-                    v = await doc_repo.get_version_by_id(job.version_id, session) if job.version_id else None
+                    v = (
+                        await doc_repo.get_version_by_id(job.version_id, session)
+                        if job.version_id
+                        else None
+                    )
                     if v:
-                        doc = await doc_repo.get_by_id(job.document_id, v.document.tenant_id, session)
+                        doc = await doc_repo.get_by_id(
+                            job.document_id, v.document.tenant_id, session
+                        )
 
-                if severity == ErrorSeverity.RECOVERABLE and job.retry_count < job.max_retries:
+                if (
+                    severity == ErrorSeverity.RECOVERABLE
+                    and job.retry_count < job.max_retries
+                ):
                     job.retry_count += 1
                     job.error_code = str(code_str)
                     job.error_message = str(e)
@@ -343,7 +385,7 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     await session.commit()
 
                     # Trigger Celery exponential backoff retry
-                    countdown = int(2 ** job.retry_count)
+                    countdown = int(2**job.retry_count)
                     logger.warning(
                         "Recoverable error during ingestion; retrying",
                         job_id=job_id,
@@ -366,7 +408,11 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                         tenant_id=doc.tenant_id,
                         document_id=doc.id,
                         job_id=job.id,
-                        data={"error_code": str(code_str), "error_message": str(e), "severity": str(severity)},
+                        data={
+                            "error_code": str(code_str),
+                            "error_message": str(e),
+                            "severity": str(severity),
+                        },
                     )
                     await event_repo.append_event(
                         DocumentEventLog(
@@ -380,5 +426,10 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     )
                 await session.commit()
 
-            logger.error("Document ingestion job failed permanently", job_id=job_id, error_code=str(code_str), error=str(e))
+            logger.error(
+                "Document ingestion job failed permanently",
+                job_id=job_id,
+                error_code=str(code_str),
+                error=str(e),
+            )
             return {"status": "failed", "error_code": str(code_str), "message": str(e)}

@@ -1,8 +1,13 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from backend.modules.evaluation.models.evaluation_log import GoldenDatasetORM, EvaluationRunORM
-from backend.modules.evaluation.schemas.evaluation_dto import DatasetCreateDTO, EvaluationResultDTO
 import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.modules.evaluation.models.evaluation_log import (EvaluationRunORM,
+                                                              GoldenDatasetORM)
+from backend.modules.evaluation.schemas.evaluation_dto import (
+    DatasetCreateDTO, EvaluationResultDTO)
+
 
 class EvaluationRepository:
     def __init__(self, session: AsyncSession):
@@ -12,7 +17,7 @@ class EvaluationRepository:
         dataset = GoldenDatasetORM(
             tenant_id=dto.tenant_id,
             name=dto.name,
-            examples=[e.model_dump(mode="json") for e in dto.examples]
+            examples=[e.model_dump(mode="json") for e in dto.examples],
         )
         self.session.add(dataset)
         await self.session.commit()
@@ -20,18 +25,22 @@ class EvaluationRepository:
         return dataset
 
     async def get_dataset(self, dataset_id: str) -> GoldenDatasetORM | None:
-        stmt = select(GoldenDatasetORM).where(GoldenDatasetORM.id == uuid.UUID(dataset_id))
+        stmt = select(GoldenDatasetORM).where(
+            GoldenDatasetORM.id == uuid.UUID(dataset_id)
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def save_evaluation_run(self, result: EvaluationResultDTO) -> EvaluationRunORM:
+    async def save_evaluation_run(
+        self, result: EvaluationResultDTO
+    ) -> EvaluationRunORM:
         run = EvaluationRunORM(
             dataset_id=uuid.UUID(result.dataset_id),
             precision=result.precision,
             recall=result.recall,
             f1_score=result.f1_score,
             average_reliability_score=result.average_reliability_score,
-            total_examples=result.total_examples
+            total_examples=result.total_examples,
         )
         self.session.add(run)
         await self.session.commit()

@@ -15,8 +15,10 @@ from backend.core.exceptions.base import RAGuardException
 class ErrorSeverity(StrEnum):
     """Severity level determining background worker retry behavior."""
 
-    RECOVERABLE = "RECOVERABLE"  # Transient connection issue or timeout; trigger backoff retry
-    FATAL = "FATAL"              # Permanent schema, dimension, or collection configuration error
+    RECOVERABLE = (
+        "RECOVERABLE"  # Transient connection issue or timeout; trigger backoff retry
+    )
+    FATAL = "FATAL"  # Permanent schema, dimension, or collection configuration error
 
 
 class VectorErrorCode(StrEnum):
@@ -24,8 +26,12 @@ class VectorErrorCode(StrEnum):
 
     VEC_001 = "VEC_001"  # Invalid or missing required payload schema properties — FATAL
     VEC_002 = "VEC_002"  # Target vector collection not found — FATAL
-    VEC_003 = "VEC_003"  # Qdrant connection error or gRPC transport failure — RECOVERABLE
-    VEC_004 = "VEC_004"  # Vector dimension mismatch with collection configuration — FATAL
+    VEC_003 = (
+        "VEC_003"  # Qdrant connection error or gRPC transport failure — RECOVERABLE
+    )
+    VEC_004 = (
+        "VEC_004"  # Vector dimension mismatch with collection configuration — FATAL
+    )
     VEC_005 = "VEC_005"  # Indexing synchronization timeout — RECOVERABLE
 
 

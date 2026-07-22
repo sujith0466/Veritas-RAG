@@ -1,6 +1,8 @@
 import re
+
 from backend.modules.generation.schemas.generation_dto import CitationDTO
-from backend.modules.reflection.schemas.reflection_dto import ClaimValidationResultDTO, ClaimVerdict
+from backend.modules.reflection.schemas.reflection_dto import (
+    ClaimValidationResultDTO, ClaimVerdict)
 
 
 class ClaimValidator:
@@ -10,7 +12,9 @@ class ClaimValidator:
     In a production system, this calls a cross-encoder or NLI model.
     """
 
-    def __init__(self, support_threshold: float = 0.3, contradiction_threshold: float = 0.15):
+    def __init__(
+        self, support_threshold: float = 0.3, contradiction_threshold: float = 0.15
+    ):
         # Minimum token overlap ratio to consider a claim SUPPORTED by an excerpt
         self.support_threshold = support_threshold
         # Maximum overlap ratio below which a claim with opposing numerics is CONTRADICTED
@@ -18,9 +22,31 @@ class ClaimValidator:
 
     def _tokenize(self, text: str) -> set[str]:
         """Lowercase word tokenizer stripping stopwords."""
-        stopwords = {"the", "a", "an", "is", "are", "was", "were", "it", "its", "of", "in",
-                     "on", "at", "to", "and", "or", "but", "not", "for", "with", "by", "from"}
-        return {w for w in re.findall(r'\b\w+\b', text.lower()) if w not in stopwords}
+        stopwords = {
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "it",
+            "its",
+            "of",
+            "in",
+            "on",
+            "at",
+            "to",
+            "and",
+            "or",
+            "but",
+            "not",
+            "for",
+            "with",
+            "by",
+            "from",
+        }
+        return {w for w in re.findall(r"\b\w+\b", text.lower()) if w not in stopwords}
 
     def _overlap_ratio(self, claim_tokens: set[str], excerpt_tokens: set[str]) -> float:
         if not claim_tokens:
@@ -28,13 +54,10 @@ class ClaimValidator:
         return len(claim_tokens.intersection(excerpt_tokens)) / len(claim_tokens)
 
     def _extract_numbers(self, text: str) -> set[str]:
-        return set(re.findall(r'\b\d+(?:[.,]\d+)?\b', text))
+        return set(re.findall(r"\b\d+(?:[.,]\d+)?\b", text))
 
     def validate_claim(
-        self,
-        claim_text: str,
-        citation_index: int | None,
-        citations: list[CitationDTO]
+        self, claim_text: str, citation_index: int | None, citations: list[CitationDTO]
     ) -> ClaimValidationResultDTO:
         """Validate a single claim against its referenced citation."""
         if not citations or citation_index is None:
@@ -42,17 +65,19 @@ class ClaimValidator:
                 claim_text=claim_text,
                 verdict=ClaimVerdict.UNSUPPORTED,
                 citation_index=None,
-                supporting_excerpt=None
+                supporting_excerpt=None,
             )
 
         # Find the referenced citation (1-indexed)
-        citation = next((c for c in citations if c.citation_index == citation_index), None)
+        citation = next(
+            (c for c in citations if c.citation_index == citation_index), None
+        )
         if not citation:
             return ClaimValidationResultDTO(
                 claim_text=claim_text,
                 verdict=ClaimVerdict.UNSUPPORTED,
                 citation_index=citation_index,
-                supporting_excerpt=None
+                supporting_excerpt=None,
             )
 
         claim_tokens = self._tokenize(claim_text)
@@ -68,7 +93,7 @@ class ClaimValidator:
         excerpt_only_nums = excerpt_nums - claim_nums
 
         # Non-numeric tokens for context similarity check
-        num_pattern = re.compile(r'^\d')
+        num_pattern = re.compile(r"^\d")
         non_num_claim = {t for t in claim_tokens if not num_pattern.match(t)}
         non_num_excerpt = {t for t in excerpt_tokens if not num_pattern.match(t)}
         non_num_overlap = self._overlap_ratio(non_num_claim, non_num_excerpt)
@@ -90,11 +115,13 @@ class ClaimValidator:
             claim_text=claim_text,
             verdict=verdict,
             citation_index=citation_index,
-            supporting_excerpt=citation.excerpt
+            supporting_excerpt=citation.excerpt,
         )
 
     async def validate_claims_async(
-        self, extracted_claims: list[tuple[str, int | None]], citations: list[CitationDTO]
+        self,
+        extracted_claims: list[tuple[str, int | None]],
+        citations: list[CitationDTO],
     ) -> list[ClaimValidationResultDTO]:
         results = []
         for claim_text, citation_index in extracted_claims:

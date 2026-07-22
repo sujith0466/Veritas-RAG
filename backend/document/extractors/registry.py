@@ -3,7 +3,9 @@
 Routes file streams to the highest-priority enabled extractor based on MIME type and file extension (`Refinement 5`).
 """
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
+
 from .base import BaseExtractor, ExtractorCapability
 
 
@@ -24,7 +26,7 @@ class ExtractorCapabilityRegistry:
 
     def get_extractor(self, mime_type: str, extension: str) -> BaseExtractor:
         """Find the highest-priority enabled extractor matching `mime_type` or `extension` (`EXTRACT_003`)."""
-        clean_mime = mime_type.split(";")[0].strip().lower()
+        clean_mime = mime_type.split(";", maxsplit=1)[0].strip().lower()
         clean_ext = extension.lower()
 
         candidates: list[BaseExtractor] = []
@@ -32,7 +34,10 @@ class ExtractorCapabilityRegistry:
             cap = ext_instance.capability
             if not cap.enabled:
                 continue
-            if clean_mime in cap.supported_mimes or clean_ext in cap.supported_extensions:
+            if (
+                clean_mime in cap.supported_mimes
+                or clean_ext in cap.supported_extensions
+            ):
                 candidates.append(ext_instance)
 
         if not candidates:

@@ -1,11 +1,14 @@
 """Repository implementation for Knowledge Health audit logs and stale records (`ADR-005`)."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from uuid import UUID
-from sqlalchemy import desc, select, func
+
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
-from backend.modules.knowledge_health.models.stale_record import StaleEmbeddingRecord
+from backend.modules.knowledge_health.models.stale_record import \
+    StaleEmbeddingRecord
 
 
 class HealthRepository:
@@ -25,8 +28,8 @@ class HealthRepository:
         self,
         job_id: UUID,
         status: str,
-        stats: Optional[Dict[str, Any]] = None,
-    ) -> Optional[HealthScanJob]:
+        stats: dict[str, Any] | None = None,
+    ) -> HealthScanJob | None:
         """Update job status and cumulative metrics."""
         stmt = select(HealthScanJob).where(HealthScanJob.id == job_id)
         result = await self.session.execute(stmt)
@@ -53,7 +56,7 @@ class HealthRepository:
         await self.session.refresh(job)
         return job
 
-    async def get_scan_job(self, job_id: UUID, tenant_id: str) -> Optional[HealthScanJob]:
+    async def get_scan_job(self, job_id: UUID, tenant_id: str) -> HealthScanJob | None:
         """Fetch a specific scan job by ID and tenant namespace."""
         stmt = select(HealthScanJob).where(
             HealthScanJob.id == job_id,
@@ -65,13 +68,15 @@ class HealthRepository:
     async def list_scan_jobs(
         self,
         tenant_id: str,
-        scan_type: Optional[str] = None,
+        scan_type: str | None = None,
         page: int = 1,
         size: int = 20,
-    ) -> Tuple[List[HealthScanJob], int]:
+    ) -> tuple[list[HealthScanJob], int]:
         """Paginated query of past health scan jobs for a tenant."""
         query = select(HealthScanJob).where(HealthScanJob.tenant_id == tenant_id)
-        count_query = select(func.count(HealthScanJob.id)).where(HealthScanJob.tenant_id == tenant_id)
+        count_query = select(func.count(HealthScanJob.id)).where(
+            HealthScanJob.tenant_id == tenant_id
+        )
 
         if scan_type and scan_type != "ALL":
             query = query.where(HealthScanJob.scan_type == scan_type)
@@ -80,7 +85,11 @@ class HealthRepository:
         total_res = await self.session.execute(count_query)
         total_count = total_res.scalar_one_or_none() or 0
 
-        query = query.order_by(desc(HealthScanJob.created_at)).offset((page - 1) * size).limit(size)
+        query = (
+            query.order_by(desc(HealthScanJob.created_at))
+            .offset((page - 1) * size)
+            .limit(size)
+        )
         items_res = await self.session.execute(query)
         items = list(items_res.scalars().all())
 
@@ -97,7 +106,7 @@ class HealthRepository:
         self,
         tenant_id: str,
         status: str = "PENDING",
-    ) -> List[StaleEmbeddingRecord]:
+    ) -> list[StaleEmbeddingRecord]:
         """Retrieve all pending stale embedding records for a tenant."""
         stmt = (
             select(StaleEmbeddingRecord)

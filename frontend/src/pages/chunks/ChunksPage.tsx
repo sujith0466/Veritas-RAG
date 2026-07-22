@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Button, PageHeader } from '@/components/common'
+import { PageTransition } from '@/components/layouts'
 import { chunkService } from '@/services/chunkService'
 import { documentService } from '@/services/documentService'
 import type {
@@ -124,10 +125,10 @@ export function ChunksPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <PageTransition className="pb-12">
       <PageHeader
         title="Knowledge Layer: Chunking Foundation"
-        description="Transform normalized document text into structured, doubly-linked, and validated chunks with zero embedding leakage (`Phase 2 Milestone 1`)."
+        description="Transform normalized document text into structured, doubly-linked, and validated chunks with zero embedding leakage."
         actions={
           <Button
             variant="secondary"
@@ -158,10 +159,10 @@ export function ChunksPage() {
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-base font-bold text-slate-100">Doubly-Linked Chunk Registry</h3>
-            <p className="text-xs text-slate-400">Inspecting chunks for sequence index, breadcrumb headers, and doubly-linked graph continuity (`prev` ↔ `next`)</p>
+            <h3 className="text-base font-bold text-foreground">Doubly-Linked Chunk Registry</h3>
+            <p className="text-xs text-muted-foreground">Inspecting chunks for sequence index, breadcrumb headers, and doubly-linked graph continuity (`prev` ↔ `next`)</p>
           </div>
-          <div className="text-xs font-mono bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-indigo-400">
+          <div className="text-xs font-mono bg-surface border border-border px-3 py-1.5 rounded-lg text-primary">
             Active Document: {selectedDocId || 'None Selected'}
           </div>
         </div>
@@ -186,6 +187,6 @@ export function ChunksPage() {
         onClose={() => setIsDrawerOpen(false)}
         onNavigateToChunkId={handleNavigateToChunkId}
       />
-    </div>
+    </PageTransition>
   )
 }

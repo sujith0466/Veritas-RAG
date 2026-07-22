@@ -7,11 +7,9 @@ allowing clean testing mocks and future extensibility while enforcing multi-tena
 from abc import ABC, abstractmethod
 from typing import Any
 
-from backend.modules.vector.schemas.payload import (
-    CollectionConfigDTO,
-    CollectionSummaryDTO,
-    VectorPointDTO,
-)
+from backend.modules.vector.schemas.payload import (CollectionConfigDTO,
+                                                    CollectionSummaryDTO,
+                                                    VectorPointDTO)
 
 
 class BaseVectorDBProvider(ABC):
@@ -34,7 +32,9 @@ class BaseVectorDBProvider(ABC):
         """
 
     @abstractmethod
-    async def create_payload_indexes(self, collection_name: str, indexed_fields: list[str]) -> bool:
+    async def create_payload_indexes(
+        self, collection_name: str, indexed_fields: list[str]
+    ) -> bool:
         """Create exact keyword payload index structures for instantaneous multi-tenant filtering.
 
         Args:
@@ -46,7 +46,9 @@ class BaseVectorDBProvider(ABC):
         """
 
     @abstractmethod
-    async def upsert_points(self, collection_name: str, points: list[VectorPointDTO]) -> int:
+    async def upsert_points(
+        self, collection_name: str, points: list[VectorPointDTO]
+    ) -> int:
         """Batch upsert vector points into the target collection.
 
         Args:
@@ -103,4 +105,3 @@ class BaseVectorDBProvider(ABC):
         Returns:
             List of dictionaries containing 'point_id', 'score', and 'payload'.
         """
-

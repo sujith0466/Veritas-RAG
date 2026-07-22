@@ -8,7 +8,8 @@ import structlog
 from qdrant_client import AsyncQdrantClient
 
 from backend.modules.vector.providers.base import BaseVectorDBProvider
-from backend.modules.vector.providers.qdrant_provider import QdrantVectorDBProvider
+from backend.modules.vector.providers.qdrant_provider import \
+    QdrantVectorDBProvider
 
 logger = structlog.get_logger(__name__)
 
@@ -36,7 +37,9 @@ class VectorProviderFactory:
                 cls._cached_provider = provider
             return provider
 
-        raise ValueError(f"Unsupported vector database provider engine: '{provider_name}'.")
+        raise ValueError(
+            f"Unsupported vector database provider engine: '{provider_name}'."
+        )
 
     @classmethod
     def clear_cache(cls) -> None:

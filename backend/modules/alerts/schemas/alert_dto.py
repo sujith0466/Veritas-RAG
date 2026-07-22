@@ -1,10 +1,11 @@
 from pydantic import BaseModel
-from typing import Any
+
 
 class ChannelConfigDTO(BaseModel):
     channel_type: str
     target_url: str | None = None
     routing_key: str | None = None
+
 
 class AlertRuleCreateDTO(BaseModel):
     name: str
@@ -15,12 +16,15 @@ class AlertRuleCreateDTO(BaseModel):
     cooldown_minutes: int = 15
     is_active: bool = True
 
+
 class AlertRuleDTO(AlertRuleCreateDTO):
     id: str
     tenant_id: str
 
+
 class AlertRuleUpdateDTO(BaseModel):
     is_active: bool
+
 
 class AlertPayloadDTO(BaseModel):
     tenant_id: str
@@ -29,6 +33,7 @@ class AlertPayloadDTO(BaseModel):
     metric_name: str
     value: str
     threshold: str
+
 
 class AlertHistoryDTO(BaseModel):
     id: str

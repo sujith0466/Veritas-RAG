@@ -4,10 +4,11 @@ Tracks synchronization health, status transitions (`PENDING`, `PROCESSING`, `COM
 and point counts for document version embeddings inside self-hosted Qdrant collections (`ADR-M3-001`).
 """
 
-from typing import Any
 import uuid
+from typing import Any
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (ForeignKey, Index, Integer, String, Text,
+                        UniqueConstraint)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,10 +32,16 @@ class VectorIndexMetadata(BaseModel):
 
     tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     document_version_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_versions.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     collection_name: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="PENDING", nullable=False)

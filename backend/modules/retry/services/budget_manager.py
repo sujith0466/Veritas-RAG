@@ -11,7 +11,9 @@ class RetryBudgetManager:
     def __init__(self, cache_provider: Any = None) -> None:
         self.cache_provider = cache_provider
 
-    async def check_budget(self, tenant_id: str, query_id: str, attempt_number: int) -> bool:
+    async def check_budget(
+        self, tenant_id: str, query_id: str, attempt_number: int
+    ) -> bool:
         """Return True if budget is available (attempt_number <= HARD_CAP), False otherwise."""
         return attempt_number <= self.HARD_CAP
 

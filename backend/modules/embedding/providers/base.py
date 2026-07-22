@@ -6,15 +6,22 @@ enforcing asynchronous vector generation, dimension checking, and token usage ac
 
 from abc import ABC, abstractmethod
 from typing import Any
+
 from pydantic import BaseModel, Field
 
 
 class EmbeddingBatchResult(BaseModel):
     """Result payload returned by provider batch vectorization."""
 
-    embeddings: list[list[float]] = Field(description="List of floating point dense vector arrays")
-    tokens_consumed: int = Field(default=0, description="Total tokens billed or processed during generation")
-    provider_metadata: dict[str, Any] = Field(default_factory=dict, description="Additional provider response metadata")
+    embeddings: list[list[float]] = Field(
+        description="List of floating point dense vector arrays"
+    )
+    tokens_consumed: int = Field(
+        default=0, description="Total tokens billed or processed during generation"
+    )
+    provider_metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional provider response metadata"
+    )
 
 
 class BaseEmbeddingProvider(ABC):

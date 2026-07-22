@@ -14,4 +14,8 @@ class SupabaseSettings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="SUPABASE_JWT_ALGORITHM")
     jwks_url: str | None = Field(default=None, alias="SUPABASE_JWKS_URL")
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }

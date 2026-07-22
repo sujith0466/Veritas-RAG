@@ -1,15 +1,12 @@
 import logging
-from backend.modules.retry.schemas.retry_dto import (
-    RetryContextDTO,
-    RetryAttemptDTO,
-    RetryState
-)
-from backend.modules.retry.schemas.errors import (
-    MaxRetriesExceeded,
-    NonMonotonicImprovement,
-    InvalidStateTransition
-)
+
 from backend.modules.confidence.schemas.confidence_dto import ConfidenceAction
+from backend.modules.retry.schemas.errors import (InvalidStateTransition,
+                                                  MaxRetriesExceeded,
+                                                  NonMonotonicImprovement)
+from backend.modules.retry.schemas.retry_dto import (RetryAttemptDTO,
+                                                     RetryContextDTO,
+                                                     RetryState)
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +29,7 @@ class RetryStateMachine:
         self.context = RetryContextDTO(
             correlation_id=correlation_id,
             original_query=original_query,
-            max_retries=enforced_max
+            max_retries=enforced_max,
         )
 
     @property
@@ -50,10 +47,15 @@ class RetryStateMachine:
                 f"Cannot record retrieval from state: {self.context.current_state}"
             )
         self.context.current_state = RetryState.RETRIEVED
-        logger.debug(f"[{self.context.correlation_id}] State -> RETRIEVED (attempt {self.attempt_count})")
+        logger.debug(
+            f"[{self.context.correlation_id}] State -> RETRIEVED (attempt {self.attempt_count})"
+        )
 
     def record_confidence_evaluation(
-        self, confidence_score: float, action: ConfidenceAction, rewrite_applied: bool = False
+        self,
+        confidence_score: float,
+        action: ConfidenceAction,
+        rewrite_applied: bool = False,
     ) -> None:
         """Transition from RETRIEVED -> CONFIDENCE_EVALUATED and check retry logic."""
         if self.context.current_state != RetryState.RETRIEVED:
@@ -65,7 +67,7 @@ class RetryStateMachine:
             attempt_number=self.attempt_count,
             confidence_score=confidence_score,
             state=RetryState.CONFIDENCE_EVALUATED,
-            rewrite_applied=rewrite_applied
+            rewrite_applied=rewrite_applied,
         )
         self.context.attempts.append(attempt)
         self.context.current_state = RetryState.CONFIDENCE_EVALUATED
@@ -77,7 +79,9 @@ class RetryStateMachine:
 
         # Determine next state based on the ConfidenceEngine action
         if action == ConfidenceAction.PROCEED:
-            self.context.best_confidence_score = max(self.context.best_confidence_score, confidence_score)
+            self.context.best_confidence_score = max(
+                self.context.best_confidence_score, confidence_score
+            )
             self.context.current_state = RetryState.GENERATING
 
         elif action == ConfidenceAction.RETRY:
@@ -92,13 +96,15 @@ class RetryStateMachine:
     def _try_retry(self, confidence_score: float) -> None:
         """Attempt a retry after checking budget and monotonic improvement."""
         if self.attempt_count > self.context.max_retries:
-            logger.warning(f"[{self.context.correlation_id}] Max retries exceeded. Aborting.")
+            logger.warning(
+                f"[{self.context.correlation_id}] Max retries exceeded. Aborting."
+            )
             self.context.current_state = RetryState.ABORTED
             raise MaxRetriesExceeded(
                 detail={
                     "correlation_id": self.context.correlation_id,
                     "attempts": self.attempt_count,
-                    "max_retries": self.context.max_retries
+                    "max_retries": self.context.max_retries,
                 }
             )
 
@@ -116,18 +122,24 @@ class RetryStateMachine:
                         "correlation_id": self.context.correlation_id,
                         "current_score": confidence_score,
                         "best_score": self.context.best_confidence_score,
-                        "delta": improvement
+                        "delta": improvement,
                     }
                 )
 
-        self.context.best_confidence_score = max(self.context.best_confidence_score, confidence_score)
+        self.context.best_confidence_score = max(
+            self.context.best_confidence_score, confidence_score
+        )
         self.context.current_state = RetryState.RETRYING
         from backend.observability.metrics import record_retry_metric
         from backend.observability.tracing import trace_retry_controller
 
         record_retry_metric(strategy="query_rewrite", trigger_reason="low_confidence")
-        with trace_retry_controller(attempt=self.attempt_count, strategy="query_rewrite"):
-            logger.info(f"[{self.context.correlation_id}] Retry approved. Moving to RETRYING state.")
+        with trace_retry_controller(
+            attempt=self.attempt_count, strategy="query_rewrite"
+        ):
+            logger.info(
+                f"[{self.context.correlation_id}] Retry approved. Moving to RETRYING state."
+            )
 
     def record_generation_complete(self) -> None:
         """Transition from GENERATING -> COMPLETED."""
@@ -140,4 +152,3 @@ class RetryStateMachine:
 
     def get_context(self) -> RetryContextDTO:
         return self.context
-

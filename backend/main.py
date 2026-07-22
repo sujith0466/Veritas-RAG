@@ -26,25 +26,24 @@ Usage:
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import structlog
 
 from backend.core.config import get_settings
 from backend.core.events import get_dispatcher
 from backend.core.exceptions import get_exception_handlers
 from backend.core.logging import RequestLoggingMiddleware, configure_logging
-from backend.core.middleware import (
-    CorrelationIDMiddleware,
-    ObservabilityMiddleware,
-    SecurityHeadersMiddleware,
-)
+from backend.core.middleware import (CorrelationIDMiddleware,
+                                     ObservabilityMiddleware,
+                                     SecurityHeadersMiddleware)
 from backend.observability.tracing import init_tracer
 
 logger = structlog.get_logger(__name__)
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -96,6 +95,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
 
     # Publish startup event so any registered handlers can react
+    from backend.core.auth.seed import seed_demo_user
+
+    await seed_demo_user()
 
     # NOTE: EventDispatcher is initialized and handlers can be registered here.
     logger.info("RAGuard AI startup complete ✓")
@@ -114,6 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 # ── Application Factory ────────────────────────────────────────────────────────
+
 
 def create_app() -> FastAPI:
     """Construct and return the fully configured FastAPI application.
@@ -139,9 +142,9 @@ def create_app() -> FastAPI:
             "reliability scores."
         ),
         version=settings.app.version,
-        docs_url="/docs" if settings.app.is_development else None,
-        redoc_url="/redoc" if settings.app.is_development else None,
-        openapi_url="/openapi.json" if not settings.app.is_production else None,
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
         lifespan=lifespan,
     )
 
@@ -189,7 +192,23 @@ def create_app() -> FastAPI:
 def _register_routes(app: FastAPI) -> None:
     """Mount all API version routers and root telemetry onto the application."""
     from backend.api.v1.router import api_v1_router
+    from backend.api.v1.routes.health import router as health_router
     from backend.observability.monitoring import router as metrics_router
 
+    app.include_router(health_router)
     app.include_router(api_v1_router, prefix="/api/v1")
     app.include_router(metrics_router)
+
+    from backend.core.landing import router as landing_router
+
+    app.include_router(landing_router)
+
+    from fastapi.responses import Response
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        return Response(status_code=204)
+
+
+# Expose app for ASGI servers (e.g. uvicorn backend.main:app)
+app = create_app()

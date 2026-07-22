@@ -8,9 +8,10 @@ Create Date: 2026-07-17 00:00:00.000000
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0001"
@@ -53,8 +54,12 @@ def upgrade() -> None:
         sa.Column("is_deleted", sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_audit_logs_action"), "audit_logs", ["action"], unique=False)
-    op.create_index(op.f("ix_audit_logs_user_id"), "audit_logs", ["user_id"], unique=False)
+    op.create_index(
+        op.f("ix_audit_logs_action"), "audit_logs", ["action"], unique=False
+    )
+    op.create_index(
+        op.f("ix_audit_logs_user_id"), "audit_logs", ["user_id"], unique=False
+    )
 
 
 def downgrade() -> None:

@@ -5,13 +5,15 @@ when the primary hybrid retrieval engine circuit trips or times out.
 """
 
 import time
+
 import structlog
-from backend.modules.reliability.schemas.errors import FallbackProviderUnavailableError
+
+from backend.modules.reliability.schemas.errors import \
+    FallbackProviderUnavailableError
 from backend.modules.reliability.schemas.reliability_dto import (
-    ReliableCandidateDTO,
-    ReliableRetrievalResultDTO,
-)
-from backend.modules.retrieval.providers.sparse.bm25_provider import BM25SparseSearchProvider
+    ReliableCandidateDTO, ReliableRetrievalResultDTO)
+from backend.modules.retrieval.providers.sparse.bm25_provider import \
+    BM25SparseSearchProvider
 from backend.modules.retrieval.schemas.errors import SparseIndexNotFoundError
 
 logger = structlog.get_logger(__name__)
@@ -47,12 +49,21 @@ class FallbackRouter:
                 limit=limit,
             )
         except SparseIndexNotFoundError as exc:
-            logger.error("Sparse fallback index not found for tenant", tenant_id=tenant_id, exc_info=True)
+            logger.error(
+                "Sparse fallback index not found for tenant",
+                tenant_id=tenant_id,
+                exc_info=True,
+            )
             raise FallbackProviderUnavailableError(
-                tenant_id=tenant_id, reason=f"Sparse BM25 index uninitialized (`RET_002`): {exc}"
+                tenant_id=tenant_id,
+                reason=f"Sparse BM25 index uninitialized (`RET_002`): {exc}",
             ) from exc
         except Exception as exc:
-            logger.error("Unexpected failure during degraded fallback execution", tenant_id=tenant_id, exc_info=True)
+            logger.error(
+                "Unexpected failure during degraded fallback execution",
+                tenant_id=tenant_id,
+                exc_info=True,
+            )
             raise FallbackProviderUnavailableError(
                 tenant_id=tenant_id, reason=f"Sparse BM25 execution failure: {exc}"
             ) from exc

@@ -9,15 +9,17 @@ import os
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
 from backend.document.utils.hashing import calculate_sha256
+
 from .base import StorageObjectDTO, StorageProvider
 
 
 class LocalStorageProvider(StorageProvider):
     """Local volume filesystem storage implementation."""
 
-    def __init__(self, root_path: str | Path = "storage") -> None:
+    def __init__(self, root_path: str | Path = "/tmp/storage") -> None:
         self.root = Path(root_path).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -78,7 +80,9 @@ class LocalStorageProvider(StorageProvider):
         stream = io.BytesIO(content)
         return await self.save_stream(stream, object_key)
 
-    async def save_json(self, data: dict[str, Any], object_key: str) -> StorageObjectDTO:
+    async def save_json(
+        self, data: dict[str, Any], object_key: str
+    ) -> StorageObjectDTO:
         try:
             content = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
             return await self.save_bytes(content, object_key)
@@ -162,7 +166,11 @@ class LocalStorageProvider(StorageProvider):
 
     async def object_exists(self, object_key: str) -> bool:
         target_path = self._resolve_path(object_key)
-        return target_path.exists() and target_path.is_file() and target_path.stat().st_size > 0
+        return (
+            target_path.exists()
+            and target_path.is_file()
+            and target_path.stat().st_size > 0
+        )
 
     async def get_uri(self, object_key: str) -> str:
         target_path = self._resolve_path(object_key)

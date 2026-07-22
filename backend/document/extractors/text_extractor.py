@@ -5,7 +5,9 @@ Extracts UTF-8 / ASCII content from `.txt`, `.md`, `.csv`, `.json` files.
 
 from typing import BinaryIO
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
+
 from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 
 
@@ -28,7 +30,9 @@ class PlainTextExtractor(BaseExtractor):
             enabled=True,
         )
 
-    async def extract(self, stream: BinaryIO, filename: str, mime_type: str) -> ExtractedContent:
+    async def extract(
+        self, stream: BinaryIO, filename: str, mime_type: str
+    ) -> ExtractedContent:
         try:
             current_pos = stream.tell()
             stream.seek(0)

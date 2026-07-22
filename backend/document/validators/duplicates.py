@@ -1,10 +1,11 @@
 """Duplicate detection hooks (`VAL_006`)."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.document.models.document import DocumentVersion
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
 
 
 async def check_duplicate_content(
@@ -42,7 +43,10 @@ async def check_duplicate_content(
             raise DocumentDomainException(
                 code=DocumentErrorCode.VAL_006,
                 message="Duplicate document content detected in this tenant namespace.",
-                detail={"content_hash": content_hash, "existing_version_id": str(existing_id)},
+                detail={
+                    "content_hash": content_hash,
+                    "existing_version_id": str(existing_id),
+                },
             )
         return True
 

@@ -5,15 +5,11 @@ to increase token-level recall during BM25 sparse retrieval.
 """
 
 import re
-from typing import Any
 
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2,
-    RewriteResultDTO,
-    RewriteStrategy,
-)
+    RewriteRequestDTOv2, RewriteResultDTO, RewriteStrategy)
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)

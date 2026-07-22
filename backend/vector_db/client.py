@@ -7,8 +7,8 @@ helpers, and health monitoring.
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from qdrant_client import AsyncQdrantClient
 import structlog
+from qdrant_client import AsyncQdrantClient
 
 from backend.core.config import get_settings
 
@@ -29,15 +29,21 @@ def get_qdrant_client() -> AsyncQdrantClient:
 
     settings = get_settings().qdrant
     client_kwargs: dict[str, Any] = {
-        "host": settings.host,
-        "port": settings.port,
-        "grpc_port": settings.grpc_port,
         "prefer_grpc": settings.prefer_grpc,
     }
+
+    if settings.url_override:
+        client_kwargs["url"] = settings.url_override
+    else:
+        client_kwargs["host"] = settings.host
+        client_kwargs["port"] = settings.port
+        client_kwargs["grpc_port"] = settings.grpc_port
     if settings.api_key:
         client_kwargs["api_key"] = settings.api_key
 
-    logger.info("Initializing AsyncQdrantClient", host=settings.host, port=settings.port)
+    logger.info(
+        "Initializing AsyncQdrantClient", host=settings.host, port=settings.port
+    )
     _state.client = AsyncQdrantClient(**client_kwargs)
     return _state.client
 

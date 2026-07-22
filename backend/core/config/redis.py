@@ -14,6 +14,8 @@ class RedisSettings(BaseSettings):
     max_connections: int = Field(default=20, alias="REDIS_MAX_CONNECTIONS")
     socket_timeout: int = Field(default=5, alias="REDIS_SOCKET_TIMEOUT")
 
+    url_override: str | None = Field(default=None, alias="REDIS_URL")
+
     # Celery-specific
     celery_broker_url: str = Field(
         default="redis://localhost:6379/1", alias="CELERY_BROKER_URL"
@@ -25,11 +27,17 @@ class RedisSettings(BaseSettings):
     # Test Redis
     test_db: int = Field(default=15, alias="TEST_REDIS_DB")
 
-    model_config = {"populate_by_name": True, "env_file": ".env.local", "extra": "ignore"}
+    model_config = {
+        "populate_by_name": True,
+        "env_file": (".env", ".env.local"),
+        "extra": "ignore",
+    }
 
     @property
     def url(self) -> str:
-        """Build Redis URL from components."""
+        """Build Redis URL from components or use override."""
+        if self.url_override:
+            return self.url_override
         auth = f":{self.password}@" if self.password else ""
         return f"redis://{auth}{self.host}:{self.port}/{self.db}"
 

@@ -1,9 +1,9 @@
 """Document Chunk Repository (`DocumentChunkRepository`)."""
 
-from collections.abc import Sequence
-from typing import Any
 import uuid
+from collections.abc import Sequence
 
+import sqlalchemy as sa
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,7 +19,9 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, DocumentChunk)
 
-    async def get_by_id_and_tenant(self, chunk_id: uuid.UUID, tenant_id: str) -> DocumentChunk | None:
+    async def get_by_id_and_tenant(
+        self, chunk_id: uuid.UUID, tenant_id: str
+    ) -> DocumentChunk | None:
         """Fetch a single chunk by ID and tenant ID with relationships eagerly loaded."""
         stmt = (
             select(DocumentChunk)
@@ -65,10 +67,14 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         strategy_used: str | None = None,
     ) -> int:
         """Count active chunks belonging to a document version."""
-        stmt = select(func.count()).select_from(DocumentChunk).where(
-            DocumentChunk.tenant_id == tenant_id,
-            DocumentChunk.document_version_id == document_version_id,
-            DocumentChunk.is_deleted.is_(False),
+        stmt = (
+            select(func.count())
+            .select_from(DocumentChunk)
+            .where(
+                DocumentChunk.tenant_id == tenant_id,
+                DocumentChunk.document_version_id == document_version_id,
+                DocumentChunk.is_deleted.is_(False),
+            )
         )
         if strategy_used:
             stmt = stmt.where(DocumentChunk.strategy_used == strategy_used)
@@ -93,7 +99,9 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
             stmt = stmt.where(DocumentChunk.strategy_used == strategy_used)
 
         stmt = (
-            stmt.order_by(DocumentChunk.document_version_id, DocumentChunk.chunk_index.asc())
+            stmt.order_by(
+                DocumentChunk.document_version_id, DocumentChunk.chunk_index.asc()
+            )
             .offset(skip)
             .limit(limit)
         )
@@ -107,17 +115,23 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         strategy_used: str | None = None,
     ) -> int:
         """Count active chunks belonging to a document across versions."""
-        stmt = select(func.count()).select_from(DocumentChunk).where(
-            DocumentChunk.tenant_id == tenant_id,
-            DocumentChunk.document_id == document_id,
-            DocumentChunk.is_deleted.is_(False),
+        stmt = (
+            select(func.count())
+            .select_from(DocumentChunk)
+            .where(
+                DocumentChunk.tenant_id == tenant_id,
+                DocumentChunk.document_id == document_id,
+                DocumentChunk.is_deleted.is_(False),
+            )
         )
         if strategy_used:
             stmt = stmt.where(DocumentChunk.strategy_used == strategy_used)
         result = await self.session.execute(stmt)
         return result.scalar_one() or 0
 
-    async def batch_create_chunks(self, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
+    async def batch_create_chunks(
+        self, chunks: list[DocumentChunk]
+    ) -> list[DocumentChunk]:
         """Bulk add chunk instances to session (`ADR-005`)."""
         if not chunks:
             return []
@@ -125,27 +139,25 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         await self.session.flush()
         return chunks
 
-    async def delete_chunks_by_version(self, tenant_id: str, document_version_id: uuid.UUID) -> int:
+    async def delete_chunks_by_version(
+        self, tenant_id: str, document_version_id: uuid.UUID
+    ) -> int:
         """Hard delete chunks for a specific document version before re-chunking."""
-        stmt = (
-            delete(DocumentChunk)
-            .where(
-                DocumentChunk.tenant_id == tenant_id,
-                DocumentChunk.document_version_id == document_version_id,
-            )
+        stmt = delete(DocumentChunk).where(
+            DocumentChunk.tenant_id == tenant_id,
+            DocumentChunk.document_version_id == document_version_id,
         )
         result = await self.session.execute(stmt)
         await self.session.flush()
         return result.rowcount or 0
 
-    async def delete_chunks_by_document(self, tenant_id: str, document_id: uuid.UUID) -> int:
+    async def delete_chunks_by_document(
+        self, tenant_id: str, document_id: uuid.UUID
+    ) -> int:
         """Hard delete all chunks for a document namespace."""
-        stmt = (
-            delete(DocumentChunk)
-            .where(
-                DocumentChunk.tenant_id == tenant_id,
-                DocumentChunk.document_id == document_id,
-            )
+        stmt = delete(DocumentChunk).where(
+            DocumentChunk.tenant_id == tenant_id,
+            DocumentChunk.document_id == document_id,
         )
         result = await self.session.execute(stmt)
         await self.session.flush()

@@ -1,9 +1,12 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from backend.modules.dashboard.services.live_feed import LiveEventBroadcaster
 import asyncio
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from backend.modules.dashboard.services.live_feed import LiveEventBroadcaster
 
 router = APIRouter()
 broadcaster = LiveEventBroadcaster()
+
 
 @router.websocket("/ws/{tenant_id}")
 async def websocket_endpoint(websocket: WebSocket, tenant_id: str):

@@ -41,7 +41,9 @@ class BaseExtractor(ABC):
         ...
 
     @abstractmethod
-    async def extract(self, stream: BinaryIO, filename: str, mime_type: str) -> ExtractedContent:
+    async def extract(
+        self, stream: BinaryIO, filename: str, mime_type: str
+    ) -> ExtractedContent:
         """Extract plain text, structural metadata, and metrics from the binary stream.
 
         Returns:

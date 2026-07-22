@@ -5,18 +5,17 @@ each request in an OpenTelemetry span with correlation ID propagation.
 """
 
 import time
-from typing import Any
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+import structlog
+from starlette.middleware.base import (BaseHTTPMiddleware,
+                                       RequestResponseEndpoint)
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
-import structlog
 
-from backend.observability.metrics import (
-    HTTP_REQUESTS_ACTIVE,
-    record_error_metric,
-    record_http_request,
-)
+from backend.observability.metrics import (HTTP_REQUESTS_ACTIVE,
+                                           record_error_metric,
+                                           record_http_request)
 from backend.observability.tracing import get_tracer
 
 logger = structlog.get_logger(__name__)
@@ -34,7 +33,11 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         method = request.method
         # Extract normalized path to avoid metric cardinality explosion on dynamic IDs
         endpoint = request.url.path
-        if hasattr(request, "route") and request.route and hasattr(request.route, "path"):
+        if (
+            hasattr(request, "route")
+            and request.route
+            and hasattr(request.route, "path")
+        ):
             endpoint = request.route.path
 
         # Ignore metrics endpoint itself from skewing latency stats if desired, or include

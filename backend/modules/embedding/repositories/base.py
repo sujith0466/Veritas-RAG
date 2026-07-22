@@ -5,10 +5,10 @@ vector staging (`ChunkEmbedding`), idempotency hash queries (`filter_existing_co
 and tenant quota/metrics aggregation across multi-tenant boundaries (`ADR-005`).
 """
 
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Any
-import uuid
 
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.embedding.models.embedding_job import EmbeddingJob
@@ -23,7 +23,9 @@ class IEmbeddingRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_job_by_id_and_tenant(self, job_id: uuid.UUID, tenant_id: str) -> EmbeddingJob | None:
+    async def get_job_by_id_and_tenant(
+        self, job_id: uuid.UUID, tenant_id: str
+    ) -> EmbeddingJob | None:
         """Fetch an `EmbeddingJob` by UUID ensuring tenant boundary isolation."""
         pass
 
@@ -91,7 +93,9 @@ class IEmbeddingRepository(ABC):
         pass
 
     @abstractmethod
-    async def mark_chunks_as_embedded(self, chunk_ids: list[uuid.UUID], tenant_id: str) -> int:
+    async def mark_chunks_as_embedded(
+        self, chunk_ids: list[uuid.UUID], tenant_id: str
+    ) -> int:
         """Update `DocumentChunk.is_embedded = True` for successfully vectorized chunks."""
         pass
 

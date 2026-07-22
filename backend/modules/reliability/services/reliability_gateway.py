@@ -11,29 +11,31 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
+
 import structlog
-from backend.modules.reliability.circuit_breaker.engine import CircuitBreakerEngine
+
+from backend.modules.reliability.circuit_breaker.engine import \
+    CircuitBreakerEngine
 from backend.modules.reliability.circuit_breaker.states import CircuitState
 from backend.modules.reliability.events.payloads import (
-    create_circuit_tripped_event,
-    create_fallback_triggered_event,
-)
+    create_circuit_tripped_event, create_fallback_triggered_event)
 from backend.modules.reliability.fallbacks.router import FallbackRouter
-from backend.modules.reliability.fallbacks.zero_result import ZeroResultRecoverer
-from backend.modules.reliability.models.circuit_event import CircuitBreakerEventLog
+from backend.modules.reliability.fallbacks.zero_result import \
+    ZeroResultRecoverer
+from backend.modules.reliability.models.circuit_event import \
+    CircuitBreakerEventLog
 from backend.modules.reliability.models.sla_log import RetrievalSLALog
-from backend.modules.reliability.repositories.reliability_repository import ReliabilityRepository
+from backend.modules.reliability.repositories.reliability_repository import \
+    ReliabilityRepository
 from backend.modules.reliability.schemas.errors import CircuitBreakerOpenError
 from backend.modules.reliability.schemas.reliability_dto import (
-    CircuitBreakerStateDTO,
-    ReliableCandidateDTO,
-    ReliableRetrievalResultDTO,
-    SearchOptionsDTO,
-)
+    CircuitBreakerStateDTO, ReliableCandidateDTO, ReliableRetrievalResultDTO,
+    SearchOptionsDTO)
 from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
-from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
+from backend.modules.retrieval.services.retrieval_service import \
+    RetrievalOrchestrator
 
 logger = structlog.get_logger(__name__)
 
@@ -47,8 +49,8 @@ class ReliabilityGateway:
         circuit_breaker: CircuitBreakerEngine,
         fallback_router: FallbackRouter,
         zero_result_recoverer: ZeroResultRecoverer,
-        repository: Optional[ReliabilityRepository] = None,
-        event_dispatcher: Optional[Any] = None,
+        repository: ReliabilityRepository | None = None,
+        event_dispatcher: Any | None = None,
         target_module: str = "qdrant_hybrid",
     ) -> None:
         self.orchestrator = orchestrator
@@ -71,22 +73,34 @@ class ReliabilityGateway:
         if correlation_id == "auto" or not correlation_id:
             correlation_id = f"req_{uuid4().hex[:8]}"
 
-        from backend.observability.metrics import record_query_metric, record_stage_duration
-        from backend.observability.tracing import trace_query_processing
         import sys
 
-        span_ctx = trace_query_processing(correlation_id=correlation_id, tenant_id=tenant_id)
+        from backend.observability.metrics import (record_query_metric,
+                                                   record_stage_duration)
+        from backend.observability.tracing import trace_query_processing
+
+        span_ctx = trace_query_processing(
+            correlation_id=correlation_id, tenant_id=tenant_id
+        )
         span_ctx.__enter__()
         try:
-            result = await self._execute_reliable_search_inner(query, tenant_id, options, correlation_id, start_time)
+            result = await self._execute_reliable_search_inner(
+                query, tenant_id, options, correlation_id, start_time
+            )
             duration_sec = time.perf_counter() - start_time
             record_stage_duration("query_processing", duration_sec)
-            record_query_metric(tenant_id, outcome="success" if not result.is_sla_breached else "degraded", duration_seconds=duration_sec)
+            record_query_metric(
+                tenant_id,
+                outcome="success" if not result.is_sla_breached else "degraded",
+                duration_seconds=duration_sec,
+            )
             return result
         except Exception:
             duration_sec = time.perf_counter() - start_time
             record_stage_duration("query_processing", duration_sec)
-            record_query_metric(tenant_id, outcome="failed", duration_seconds=duration_sec)
+            record_query_metric(
+                tenant_id, outcome="failed", duration_seconds=duration_sec
+            )
             raise
         finally:
             span_ctx.__exit__(*sys.exc_info())
@@ -100,7 +114,9 @@ class ReliabilityGateway:
         start_time: float,
     ) -> ReliableRetrievalResultDTO:
         # 1. Check circuit breaker state
-        state = await self.circuit_breaker.check_state(tenant_id=tenant_id, target=self.target_module)
+        state = await self.circuit_breaker.check_state(
+            tenant_id=tenant_id, target=self.target_module
+        )
 
         if state == CircuitState.OPEN:
             if not options.enable_fallback:
@@ -109,7 +125,9 @@ class ReliabilityGateway:
                     tenant_id=tenant_id,
                     target=self.target_module,
                 )
-                raise CircuitBreakerOpenError(tenant_id=tenant_id, target=self.target_module)
+                raise CircuitBreakerOpenError(
+                    tenant_id=tenant_id, target=self.target_module
+                )
 
             result = await self.fallback_router.route_fallback(
                 query=query,
@@ -156,7 +174,9 @@ class ReliabilityGateway:
         except (TimeoutError, Exception) as exc:
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
             if isinstance(exc, TimeoutError):
-                reason = f"Execution timeout ({options.sla_budget_ms}ms budget exceeded)"
+                reason = (
+                    f"Execution timeout ({options.sla_budget_ms}ms budget exceeded)"
+                )
                 error_code = "REL_002"
                 logger.warning(
                     "Primary hybrid retrieval timed out; tripping/recording failure",
@@ -231,10 +251,14 @@ class ReliabilityGateway:
 
         # 3. Clean execution: Record success and evaluate zero-result or standard return
         duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
-        await self.circuit_breaker.record_success(tenant_id=tenant_id, target=self.target_module)
+        await self.circuit_breaker.record_success(
+            tenant_id=tenant_id, target=self.target_module
+        )
 
         if state == CircuitState.HALF_OPEN:
-            current_state = await self.circuit_breaker.check_state(tenant_id=tenant_id, target=self.target_module)
+            current_state = await self.circuit_breaker.check_state(
+                tenant_id=tenant_id, target=self.target_module
+            )
             if current_state == CircuitState.CLOSED:
                 await self._record_circuit_event(
                     tenant_id=tenant_id,
@@ -251,15 +275,19 @@ class ReliabilityGateway:
                 query=query,
             )
             try:
-                recovered_result = await self.zero_result_recoverer.recover_empty_results(
-                    query=query,
-                    tenant_id=tenant_id,
-                    correlation_id=correlation_id,
-                    limit=options.top_k,
+                recovered_result = (
+                    await self.zero_result_recoverer.recover_empty_results(
+                        query=query,
+                        tenant_id=tenant_id,
+                        correlation_id=correlation_id,
+                        limit=options.top_k,
+                    )
                 )
                 total_duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
                 recovered_result.duration_ms = total_duration_ms
-                recovered_result.is_sla_breached = total_duration_ms > options.sla_budget_ms
+                recovered_result.is_sla_breached = (
+                    total_duration_ms > options.sla_budget_ms
+                )
 
                 await self._record_sla_log(
                     tenant_id=tenant_id,
@@ -286,7 +314,11 @@ class ReliabilityGateway:
                 document_version_id=str(item.document_version_id),
                 tenant_id=item.tenant_id,
                 content=item.content,
-                score=item.rerank_score if item.rerank_score is not None else item.rrf_score,
+                score=(
+                    item.rerank_score
+                    if item.rerank_score is not None
+                    else item.rrf_score
+                ),
                 rank=item.final_rank,
                 source="hybrid",
                 is_fallback=False,
@@ -319,20 +351,23 @@ class ReliabilityGateway:
         )
         return result
 
-
     async def get_circuit_breaker_state(
-        self, tenant_id: str, target: Optional[str] = None
+        self, tenant_id: str, target: str | None = None
     ) -> CircuitBreakerStateDTO:
         """Fetch current state of target circuit breaker."""
         target_mod = target or self.target_module
-        return await self.circuit_breaker.get_circuit_breaker_state(tenant_id=tenant_id, target=target_mod)
+        return await self.circuit_breaker.get_circuit_breaker_state(
+            tenant_id=tenant_id, target=target_mod
+        )
 
     async def force_reset_circuit_breaker(
-        self, tenant_id: str, target: Optional[str] = None
+        self, tenant_id: str, target: str | None = None
     ) -> bool:
         """Admin operation: force reset circuit breaker state."""
         target_mod = target or self.target_module
-        return await self.circuit_breaker.force_reset(tenant_id=tenant_id, target=target_mod)
+        return await self.circuit_breaker.force_reset(
+            tenant_id=tenant_id, target=target_mod
+        )
 
     async def _record_sla_log(
         self,
@@ -342,7 +377,7 @@ class ReliabilityGateway:
         duration_ms: float,
         is_breached: bool,
         is_degraded: bool,
-        reason: Optional[str],
+        reason: str | None,
     ) -> None:
         if not self.repository:
             return
@@ -359,7 +394,9 @@ class ReliabilityGateway:
             )
             await self.repository.log_sla_metric(log_entity)
         except Exception as exc:
-            logger.error("Failed to persist retrieval SLA log to repository", error=str(exc))
+            logger.error(
+                "Failed to persist retrieval SLA log to repository", error=str(exc)
+            )
 
     async def _record_circuit_event(
         self,
@@ -367,7 +404,7 @@ class ReliabilityGateway:
         previous_state: str,
         new_state: str,
         reason: str,
-        error_code: Optional[str],
+        error_code: str | None,
     ) -> None:
         if not self.repository:
             return
@@ -382,7 +419,10 @@ class ReliabilityGateway:
             )
             await self.repository.log_circuit_event(event_entity)
         except Exception as exc:
-            logger.error("Failed to persist circuit breaker event log to repository", error=str(exc))
+            logger.error(
+                "Failed to persist circuit breaker event log to repository",
+                error=str(exc),
+            )
 
     async def _emit_fallback_event(
         self,
@@ -404,14 +444,16 @@ class ReliabilityGateway:
             )
             await self.event_dispatcher.publish(event)
         except Exception as exc:
-            logger.error("Failed to emit retrieval.fallback_triggered event", error=str(exc))
+            logger.error(
+                "Failed to emit retrieval.fallback_triggered event", error=str(exc)
+            )
 
     async def _emit_circuit_tripped_event(
         self,
         tenant_id: str,
         target_module: str,
         failures: int,
-        error_code: Optional[str],
+        error_code: str | None,
     ) -> None:
         if not self.event_dispatcher:
             return
@@ -424,4 +466,6 @@ class ReliabilityGateway:
             )
             await self.event_dispatcher.publish(event)
         except Exception as exc:
-            logger.error("Failed to emit retrieval.circuit_breaker_tripped event", error=str(exc))
+            logger.error(
+                "Failed to emit retrieval.circuit_breaker_tripped event", error=str(exc)
+            )

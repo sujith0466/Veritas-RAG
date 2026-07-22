@@ -5,31 +5,28 @@ batch point upserts into Qdrant (`ADR-004`), synchronization state tracking insi
 PostgreSQL (`VectorIndexMetadata`), and domain event distribution (`VectorsIndexed`).
 """
 
-from typing import Any
 import uuid
+from typing import Any
+
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
 from backend.core.events.types import EventType
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.vector.events.payloads import (
-    VectorDomainEvent,
-    create_vector_index_failed_payload,
-    create_vector_indexed_payload,
-)
+    VectorDomainEvent, create_vector_index_failed_payload,
+    create_vector_indexed_payload)
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 from backend.modules.vector.providers.base import BaseVectorDBProvider
 from backend.modules.vector.providers.factory import VectorProviderFactory
-from backend.modules.vector.repositories.vector_repository import VectorMetadataRepository
-from backend.modules.vector.schemas.errors import VectorDomainException
-from backend.modules.vector.schemas.payload import (
-    CollectionConfigDTO,
-    CollectionSummaryDTO,
-    VectorPointDTO,
-)
+from backend.modules.vector.repositories.vector_repository import \
+    VectorMetadataRepository
+from backend.modules.vector.schemas.payload import (CollectionConfigDTO,
+                                                    CollectionSummaryDTO,
+                                                    VectorPointDTO)
 
 logger = structlog.get_logger(__name__)
 
@@ -56,7 +53,11 @@ class VectorStorageService:
         collection_name: str | None = None,
     ) -> int:
         """Fetch staged chunk embeddings and sync them as indexed points into Qdrant."""
-        doc_uuid = document_id if isinstance(document_id, uuid.UUID) else uuid.UUID(str(document_id))
+        doc_uuid = (
+            document_id
+            if isinstance(document_id, uuid.UUID)
+            else uuid.UUID(str(document_id))
+        )
         ver_uuid = (
             document_version_id
             if isinstance(document_version_id, uuid.UUID)
@@ -78,7 +79,9 @@ class VectorStorageService:
         )
         embeddings = (await self.session.execute(emb_stmt)).scalars().all()
         if not embeddings:
-            log.warning("No staged chunk embeddings found for document version; skipping sync")
+            log.warning(
+                "No staged chunk embeddings found for document version; skipping sync"
+            )
             return 0
 
         # 2. Fetch corresponding document chunks for rich payload metadata
@@ -132,18 +135,30 @@ class VectorStorageService:
             # 6. Build point DTOs
             points: list[VectorPointDTO] = []
             for emb in embeddings:
-                chunk = chunks_map.get(emb.chunk_id) or chunks_map.get(str(emb.chunk_id))
+                chunk = chunks_map.get(emb.chunk_id) or chunks_map.get(
+                    str(emb.chunk_id)
+                )
                 payload: dict[str, Any] = {
                     "tenant_id": tenant_id,
                     "document_id": str(doc_uuid),
                     "document_version_id": str(ver_uuid),
                     "content_hash": emb.content_hash,
-                    "strategy_used": getattr(chunk, "strategy_used", "hierarchical") if chunk else "hierarchical",
+                    "strategy_used": (
+                        getattr(chunk, "strategy_used", "hierarchical")
+                        if chunk
+                        else "hierarchical"
+                    ),
                     "chunk_index": getattr(chunk, "chunk_index", 0) if chunk else 0,
                     "token_count": getattr(chunk, "token_count", 0) if chunk else 0,
-                    "character_count": getattr(chunk, "character_count", 0) if chunk else 0,
-                    "section_path": getattr(chunk, "section_path", None) if chunk else None,
-                    "page_numbers": getattr(chunk, "page_numbers", None) if chunk else None,
+                    "character_count": (
+                        getattr(chunk, "character_count", 0) if chunk else 0
+                    ),
+                    "section_path": (
+                        getattr(chunk, "section_path", None) if chunk else None
+                    ),
+                    "page_numbers": (
+                        getattr(chunk, "page_numbers", None) if chunk else None
+                    ),
                     "provider": emb.provider,
                     "model_name": emb.model_name,
                 }
@@ -157,7 +172,9 @@ class VectorStorageService:
 
             # 7. Batch upsert points into Qdrant
             upserted_count = await self.provider.upsert_points(target_col, points)
-            log.info("Successfully upserted points to Qdrant", upserted_count=upserted_count)
+            log.info(
+                "Successfully upserted points to Qdrant", upserted_count=upserted_count
+            )
 
             # 8. Mark metadata completed and emit versioned domain event
             await self.repo.update_sync_status(
@@ -175,14 +192,20 @@ class VectorStorageService:
                 dimension=dimension,
             )
             await self.dispatcher.publish(
-                VectorDomainEvent(event_type=EventType.VECTORS_INDEXED, payload=payload_event)
+                VectorDomainEvent(
+                    event_type=EventType.VECTORS_INDEXED, payload=payload_event
+                )
             )
             return upserted_count
 
         except Exception as exc:
             err_code = getattr(exc, "code", "VEC_003")
             err_msg = str(exc)
-            log.error("Document vector synchronization failed", error_code=err_code, error=err_msg)
+            log.error(
+                "Document vector synchronization failed",
+                error_code=err_code,
+                error=err_msg,
+            )
 
             await self.repo.update_sync_status(
                 metadata_record.id,
@@ -199,7 +222,9 @@ class VectorStorageService:
                 error_message=err_msg,
             )
             await self.dispatcher.publish(
-                VectorDomainEvent(event_type=EventType.VECTORS_INDEX_FAILED, payload=fail_event)
+                VectorDomainEvent(
+                    event_type=EventType.VECTORS_INDEX_FAILED, payload=fail_event
+                )
             )
             raise
 
@@ -210,7 +235,11 @@ class VectorStorageService:
         collection_name: str | None = None,
     ) -> int:
         """Purge all vector points associated with a document via exact payload filtering (`ADR-M3-001`)."""
-        doc_uuid = document_id if isinstance(document_id, uuid.UUID) else uuid.UUID(str(document_id))
+        doc_uuid = (
+            document_id
+            if isinstance(document_id, uuid.UUID)
+            else uuid.UUID(str(document_id))
+        )
         log = logger.bind(tenant_id=tenant_id, document_id=str(doc_uuid))
 
         filter_conds = {
@@ -222,11 +251,15 @@ class VectorStorageService:
             col_list = [collection_name]
         else:
             # Discover target collections where this document was indexed
-            stmt = select(VectorIndexMetadata.collection_name).where(
-                VectorIndexMetadata.tenant_id == tenant_id,
-                VectorIndexMetadata.document_id == doc_uuid,
-                VectorIndexMetadata.is_deleted.is_(False),
-            ).distinct()
+            stmt = (
+                select(VectorIndexMetadata.collection_name)
+                .where(
+                    VectorIndexMetadata.tenant_id == tenant_id,
+                    VectorIndexMetadata.document_id == doc_uuid,
+                    VectorIndexMetadata.is_deleted.is_(False),
+                )
+                .distinct()
+            )
             cols = (await self.session.execute(stmt)).scalars().all()
             col_list = list(cols) if cols else ["raguard_knowledge_1536"]
 
@@ -236,7 +269,11 @@ class VectorStorageService:
                 op_id = await self.provider.delete_points_by_filter(col, filter_conds)
                 total_ops += op_id
             except Exception as exc:
-                log.warning("Failed to delete points from collection during purge", collection=col, error=str(exc))
+                log.warning(
+                    "Failed to delete points from collection during purge",
+                    collection=col,
+                    error=str(exc),
+                )
 
         # Soft delete metadata records
         meta_stmt = select(VectorIndexMetadata).where(
@@ -246,11 +283,15 @@ class VectorStorageService:
         )
         meta_records = (await self.session.execute(meta_stmt)).scalars().all()
         for rec in meta_records:
-            await self.repo.update_sync_status(rec.id, status="FAILED", error_message="Document deleted")
+            await self.repo.update_sync_status(
+                rec.id, status="FAILED", error_message="Document deleted"
+            )
             rec.is_deleted = True
 
         await self.session.flush()
-        log.info("Completed document point deletion across collections", collections=col_list)
+        log.info(
+            "Completed document point deletion across collections", collections=col_list
+        )
         return total_ops
 
     async def get_tenant_summary(self, tenant_id: str) -> dict[str, Any]:

@@ -1,5 +1,6 @@
 from backend.modules.marketplace.schemas.marketplace_dto import AppBundleDTO
 
+
 class MarketplaceRegistry:
     def __init__(self):
         self._bundles: dict[str, AppBundleDTO] = {}

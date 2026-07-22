@@ -8,7 +8,8 @@ from typing import Any
 
 from structlog import get_logger
 
-from backend.modules.retrieval.providers.reranker.base import BaseRerankerProvider
+from backend.modules.retrieval.providers.reranker.base import \
+    BaseRerankerProvider
 from backend.modules.retrieval.schemas.errors import RerankerTimeoutError
 from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 
@@ -17,6 +18,7 @@ logger = get_logger(__name__)
 try:
     import cohere
     from cohere.errors import CohereError
+
     COHERE_AVAILABLE = True
 except ImportError:
     cohere = None

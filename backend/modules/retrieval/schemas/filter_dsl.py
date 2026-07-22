@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class DateRangeFilter(BaseModel):
     """Filter condition for a specific date range."""
+
     start: datetime = Field(..., description="Start of date range (inclusive).")
     end: datetime = Field(..., description="End of date range (inclusive).")
 
@@ -28,10 +29,10 @@ class DateRangeFilter(BaseModel):
 
 class FilterDSL(BaseModel):
     """Structured Domain Specific Language for metadata filtering."""
-    
+
     tenant_id: str | None = Field(
         default=None,
-        description="Tenant ID. Injected server-side from JWT, do not accept from client."
+        description="Tenant ID. Injected server-side from JWT, do not accept from client.",
     )
     document_ids: list[UUID] | None = Field(
         default=None, description="Filter to specific document IDs."
@@ -46,7 +47,8 @@ class FilterDSL(BaseModel):
         default=None, description="Exact match key-value filters for custom metadata."
     )
     metadata_contains: dict[str, str] | None = Field(
-        default=None, description="Substring match key-value filters for custom metadata."
+        default=None,
+        description="Substring match key-value filters for custom metadata.",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -54,6 +56,7 @@ class FilterDSL(BaseModel):
 
 class FusionOptionsDTO(BaseModel):
     """Options for Reciprocal Rank Fusion."""
+
     k: int = Field(default=60, ge=1, le=200, description="RRF smoothing parameter.")
 
     model_config = ConfigDict(from_attributes=True)
@@ -61,17 +64,28 @@ class FusionOptionsDTO(BaseModel):
 
 class CompressionOptionsDTO(BaseModel):
     """Options for context compression stage."""
+
     enabled: bool = Field(default=True, description="Enable context compression.")
-    max_tokens_per_chunk: int = Field(default=512, ge=50, le=2000, description="Max tokens per compressed chunk.")
-    min_relevance_score: float = Field(default=0.3, ge=0.0, le=1.0, description="Minimum relevance threshold for sentence extraction.")
+    max_tokens_per_chunk: int = Field(
+        default=512, ge=50, le=2000, description="Max tokens per compressed chunk."
+    )
+    min_relevance_score: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Minimum relevance threshold for sentence extraction.",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CompressedEvidenceDTO(BaseModel):
     """Result of context compression."""
+
     original_chunk_id: UUID = Field(..., description="ID of original chunk.")
     compressed_content: str = Field(..., description="Compressed text content.")
-    compression_ratio: float = Field(..., description="Length ratio (compressed / original).")
+    compression_ratio: float = Field(
+        ..., description="Length ratio (compressed / original)."
+    )
 
     model_config = ConfigDict(from_attributes=True)

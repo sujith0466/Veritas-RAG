@@ -7,14 +7,10 @@ and health check capabilities for the PostgreSQL database.
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
 import structlog
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
+                                    async_sessionmaker, create_async_engine)
 
 from backend.core.config import get_settings
 
@@ -44,12 +40,14 @@ def get_engine() -> AsyncEngine:
 
     # Only pass pool arguments if using PostgreSQL / asyncpg (not SQLite)
     if "sqlite" not in url:
-        engine_kwargs.update({
-            "pool_size": settings.pool_size,
-            "max_overflow": settings.max_overflow,
-            "pool_timeout": settings.pool_timeout,
-            "pool_recycle": settings.pool_recycle,
-        })
+        engine_kwargs.update(
+            {
+                "pool_size": settings.pool_size,
+                "max_overflow": settings.max_overflow,
+                "pool_timeout": settings.pool_timeout,
+                "pool_recycle": settings.pool_recycle,
+            }
+        )
 
     logger.info("Initializing SQLAlchemy AsyncEngine", url=url.split("@")[-1])
     _state.engine = create_async_engine(url, **engine_kwargs)
@@ -79,7 +77,9 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
             yield session
         except Exception as exc:
             await session.rollback()
-            logger.error("Database transaction rolled back due to error", error=str(exc))
+            logger.error(
+                "Database transaction rolled back due to error", error=str(exc)
+            )
             raise
         finally:
             await session.close()

@@ -5,27 +5,27 @@ paginated chunk exploration with doubly-linked neighbors (`GET /document/{id}`),
 chunk detail views (`GET /{id}`), metrics summary (`GET /metrics`), and purge (`DELETE /document/{id}`).
 """
 
-from typing import Any
 import uuid
+from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from fastapi import (APIRouter, Depends, Header, HTTPException, Query, Request,
+                     status)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
 from backend.document.repositories import DocumentRepository
-from backend.modules.chunking.schemas.chunk import (
-    ChunkCreateRequest,
-    ChunkDetailResponse,
-    ChunkListResponse,
-    ChunkMetricsDTO,
-    StrategyInfoDTO,
-)
+from backend.modules.chunking.schemas.chunk import (ChunkCreateRequest,
+                                                    ChunkDetailResponse,
+                                                    ChunkListResponse,
+                                                    ChunkMetricsDTO,
+                                                    StrategyInfoDTO)
 from backend.modules.chunking.schemas.errors import ChunkDomainException
 from backend.modules.chunking.services.chunk_service import ChunkingService
-from backend.modules.chunking.workers.tasks import process_document_chunking_task
+from backend.modules.chunking.workers.tasks import \
+    process_document_chunking_task
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/chunks", tags=["Chunking Foundation"])
@@ -61,7 +61,9 @@ async def list_strategies(request: Request) -> SuccessResponse[list[StrategyInfo
 )
 async def get_chunk_metrics(
     request: Request,
-    document_id: uuid.UUID | None = Query(default=None, description="Optional document ID filter"),
+    document_id: uuid.UUID | None = Query(
+        default=None, description="Optional document ID filter"
+    ),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
@@ -69,7 +71,9 @@ async def get_chunk_metrics(
     """Retrieve aggregate KPIs: total chunks, average character/token gauges, and strategy breakdown."""
     tenant_id = _resolve_tenant(user, x_tenant_id)
     service = ChunkingService()
-    metrics = await service.get_metrics(tenant_id=tenant_id, session=session, document_id=document_id)
+    metrics = await service.get_metrics(
+        tenant_id=tenant_id, session=session, document_id=document_id
+    )
     return SuccessResponse(data=metrics, metadata=_build_metadata(request))
 
 
@@ -83,8 +87,12 @@ async def process_document_chunking(
     request: Request,
     document_id: uuid.UUID,
     payload: ChunkCreateRequest = ChunkCreateRequest(),
-    async_mode: bool = Query(default=True, description="Run via background Celery worker if True"),
-    version_id: uuid.UUID | None = Query(default=None, description="Optional specific version ID to chunk"),
+    async_mode: bool = Query(
+        default=True, description="Run via background Celery worker if True"
+    ),
+    version_id: uuid.UUID | None = Query(
+        default=None, description="Optional specific version ID to chunk"
+    ),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
@@ -99,9 +107,15 @@ async def process_document_chunking(
         doc_repo = DocumentRepository()
         doc = await doc_repo.get_by_id(document_id, session)
         if not doc or doc.tenant_id != tenant_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found in tenant namespace.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found in tenant namespace.",
+            )
         if not doc.latest_version_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document has no active versions.")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Document has no active versions.",
+            )
         target_version_id = doc.latest_version_id
 
     if async_mode:
@@ -158,7 +172,9 @@ async def process_document_chunking(
 async def list_document_chunks(
     request: Request,
     document_id: uuid.UUID,
-    version_id: uuid.UUID | None = Query(default=None, description="Filter by version ID"),
+    version_id: uuid.UUID | None = Query(
+        default=None, description="Filter by version ID"
+    ),
     strategy: str | None = Query(default=None, description="Filter by strategy used"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     size: int = Query(default=50, ge=1, le=200, description="Page size"),
@@ -200,7 +216,9 @@ async def get_chunk_detail(
     tenant_id = _resolve_tenant(user, x_tenant_id)
     service = ChunkingService()
     try:
-        detail = await service.get_chunk_by_id(tenant_id=tenant_id, chunk_id=chunk_id, session=session)
+        detail = await service.get_chunk_by_id(
+            tenant_id=tenant_id, chunk_id=chunk_id, session=session
+        )
         return SuccessResponse(data=detail, metadata=_build_metadata(request))
     except ChunkDomainException as exc:
         raise HTTPException(status_code=exc.http_status, detail=exc.message)
@@ -214,7 +232,9 @@ async def get_chunk_detail(
 async def delete_document_chunks(
     request: Request,
     document_id: uuid.UUID,
-    version_id: uuid.UUID | None = Query(default=None, description="Optional version ID to delete specifically"),
+    version_id: uuid.UUID | None = Query(
+        default=None, description="Optional version ID to delete specifically"
+    ),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
@@ -229,6 +249,10 @@ async def delete_document_chunks(
         version_id=version_id,
     )
     return SuccessResponse(
-        data={"document_id": str(document_id), "version_id": str(version_id) if version_id else "all", "deleted_count": deleted_count},
+        data={
+            "document_id": str(document_id),
+            "version_id": str(version_id) if version_id else "all",
+            "deleted_count": deleted_count,
+        },
         metadata=_build_metadata(request),
     )

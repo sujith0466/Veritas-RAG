@@ -8,7 +8,9 @@ sets `needs_ocr = True` to trigger OCR fallback (`EXTRACT_002`).
 import io
 from typing import BinaryIO
 
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
+
 from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 
 # Minimal word threshold below which a PDF is considered scanned/image-heavy
@@ -28,7 +30,9 @@ class PDFExtractor(BaseExtractor):
             enabled=True,
         )
 
-    async def extract(self, stream: BinaryIO, filename: str, mime_type: str) -> ExtractedContent:
+    async def extract(
+        self, stream: BinaryIO, filename: str, mime_type: str
+    ) -> ExtractedContent:
         try:
             current_pos = stream.tell()
             stream.seek(0)
@@ -46,7 +50,9 @@ class PDFExtractor(BaseExtractor):
                 reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
                 page_count = len(reader.pages)
                 if reader.metadata:
-                    metadata = {k.lstrip("/"): str(v) for k, v in reader.metadata.items() if v}
+                    metadata = {
+                        k.lstrip("/"): str(v) for k, v in reader.metadata.items() if v
+                    }
 
                 for page in reader.pages:
                     page_text = page.extract_text() or ""

@@ -6,7 +6,9 @@ exist and have valid non-zero content before a document can transition to `PROCE
 """
 
 from backend.document.models import Document, DocumentVersion
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import (DocumentDomainException,
+                                             DocumentErrorCode)
+
 from .base import StorageProvider, get_versioned_path
 
 
@@ -38,20 +40,30 @@ class DocumentProcessingContract:
             )
 
         # 1. Verify original binary artifact
-        original_key = version.storage_object.object_key if version.storage_object else None
+        original_key = (
+            version.storage_object.object_key if version.storage_object else None
+        )
         if not original_key or not await storage_provider.object_exists(original_key):
             raise DocumentDomainException(
                 code=DocumentErrorCode.CONTRACT_001,
                 message="Contract failure: Original binary artifact missing from storage provider.",
-                detail={"document_id": str(document.id), "expected_key": str(original_key)},
+                detail={
+                    "document_id": str(document.id),
+                    "expected_key": str(original_key),
+                },
             )
 
         # 2. Verify normalized text artifact
-        if not version.extracted_text_path or not await storage_provider.object_exists(version.extracted_text_path):
+        if not version.extracted_text_path or not await storage_provider.object_exists(
+            version.extracted_text_path
+        ):
             raise DocumentDomainException(
                 code=DocumentErrorCode.CONTRACT_001,
                 message="Contract failure: Normalized text artifact (`text.txt`) missing from storage provider.",
-                detail={"document_id": str(document.id), "expected_path": str(version.extracted_text_path)},
+                detail={
+                    "document_id": str(document.id),
+                    "expected_path": str(version.extracted_text_path),
+                },
             )
 
         # 3. Verify canonical manifest artifact

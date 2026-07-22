@@ -5,35 +5,31 @@ and model rotation drift detection across all storage tiers (`ADR-005`, `ADR-M6-
 """
 
 import time
-from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from datetime import UTC, datetime
 from uuid import UUID
+
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
-from backend.core.events.base import BaseEvent
 from backend.core.events.types import EventType
 from backend.modules.knowledge_health.audits.integrity import IntegrityAuditor
-from backend.modules.knowledge_health.audits.stale_scanner import StaleEmbeddingScanner
-from backend.modules.knowledge_health.cleanups.orphans import OrphanCleanupEngine
+from backend.modules.knowledge_health.audits.stale_scanner import \
+    StaleEmbeddingScanner
+from backend.modules.knowledge_health.cleanups.orphans import \
+    OrphanCleanupEngine
 from backend.modules.knowledge_health.cleanups.purge import PurgeOrchestrator
 from backend.modules.knowledge_health.events.payloads import (
-    KnowledgeHealthDomainEvent,
-    KnowledgeHealthScanCompletedPayload,
-    KnowledgeHealthScanStartedPayload,
-)
+    KnowledgeHealthDomainEvent, KnowledgeHealthScanCompletedPayload,
+    KnowledgeHealthScanStartedPayload)
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
-from backend.modules.knowledge_health.repositories.health_repository import HealthRepository
-from backend.modules.knowledge_health.schemas.errors import InvalidScanTypeError
+from backend.modules.knowledge_health.repositories.health_repository import \
+    HealthRepository
+from backend.modules.knowledge_health.schemas.errors import \
+    InvalidScanTypeError
 from backend.modules.knowledge_health.schemas.health_dto import (
-    HealthScanJobDTO,
-    MigrationJobDTO,
-    ParityAuditDTO,
-    PurgeSummaryDTO,
-    ScanStatus,
-    ScanType,
-)
+    HealthScanJobDTO, MigrationJobDTO, ParityAuditDTO, PurgeSummaryDTO,
+    ScanStatus, ScanType)
 from backend.modules.vector.services.vector_service import VectorStorageService
 
 logger = structlog.get_logger(__name__)
@@ -45,16 +41,20 @@ class KnowledgeHealthOrchestrator:
     def __init__(
         self,
         session: AsyncSession,
-        vector_service: Optional[VectorStorageService] = None,
-        dispatcher: Optional[EventDispatcher] = None,
+        vector_service: VectorStorageService | None = None,
+        dispatcher: EventDispatcher | None = None,
     ) -> None:
         self.session = session
         self.vector_service = vector_service or VectorStorageService(session)
         self.dispatcher = dispatcher or get_dispatcher()
         self.repo = HealthRepository(session)
-        self.purge_engine = PurgeOrchestrator(session, self.vector_service, self.dispatcher)
+        self.purge_engine = PurgeOrchestrator(
+            session, self.vector_service, self.dispatcher
+        )
         self.orphan_engine = OrphanCleanupEngine(session, self.vector_service)
-        self.auditor = IntegrityAuditor(session, self.vector_service.provider, self.dispatcher)
+        self.auditor = IntegrityAuditor(
+            session, self.vector_service.provider, self.dispatcher
+        )
         self.stale_scanner = StaleEmbeddingScanner(session, self.repo, self.dispatcher)
 
     async def run_health_scan(
@@ -69,7 +69,12 @@ class KnowledgeHealthOrchestrator:
         log = logger.bind(tenant_id=tenant_id, scan_type=str(scan_type))
         log.info("Initiating Knowledge Health scan job")
 
-        if scan_type not in {ScanType.ORPHAN_SWEEP, ScanType.PARITY_AUDIT, ScanType.STALE_DETECTOR, ScanType.ALL}:
+        if scan_type not in {
+            ScanType.ORPHAN_SWEEP,
+            ScanType.PARITY_AUDIT,
+            ScanType.STALE_DETECTOR,
+            ScanType.ALL,
+        }:
             raise InvalidScanTypeError(tenant_id=tenant_id, scan_type=str(scan_type))
 
         # 1. Create and log HealthScanJob in PROCESSING state
@@ -86,7 +91,10 @@ class KnowledgeHealthOrchestrator:
             scan_type=str(scan_type),
         )
         await self.dispatcher.publish(
-            KnowledgeHealthDomainEvent(event_type=EventType.KNOWLEDGE_HEALTH_SCAN_STARTED, payload=start_payload.to_dict())
+            KnowledgeHealthDomainEvent(
+                event_type=EventType.KNOWLEDGE_HEALTH_SCAN_STARTED,
+                payload=start_payload.to_dict(),
+            )
         )
 
         orphans_purged = 0
@@ -97,7 +105,9 @@ class KnowledgeHealthOrchestrator:
         try:
             # Phase A: Orphan Sweep
             if scan_type in {ScanType.ORPHAN_SWEEP, ScanType.ALL}:
-                orphans_purged = await self.orphan_engine.sweep_orphaned_chunks(tenant_id)
+                orphans_purged = await self.orphan_engine.sweep_orphaned_chunks(
+                    tenant_id
+                )
 
             # Phase B: Parity Check
             if scan_type in {ScanType.PARITY_AUDIT, ScanType.ALL}:
@@ -137,10 +147,16 @@ class KnowledgeHealthOrchestrator:
                 parity_status=parity_status,
             )
             await self.dispatcher.publish(
-                KnowledgeHealthDomainEvent(event_type=EventType.KNOWLEDGE_HEALTH_SCAN_COMPLETED, payload=end_payload.to_dict())
+                KnowledgeHealthDomainEvent(
+                    event_type=EventType.KNOWLEDGE_HEALTH_SCAN_COMPLETED,
+                    payload=end_payload.to_dict(),
+                )
             )
 
-            log.info("Completed Knowledge Health scan job successfully", duration_ms=duration_ms)
+            log.info(
+                "Completed Knowledge Health scan job successfully",
+                duration_ms=duration_ms,
+            )
             return HealthScanJobDTO.model_validate(updated_job)
 
         except Exception as exc:
@@ -163,11 +179,16 @@ class KnowledgeHealthOrchestrator:
                 parity_status=parity_status,
             )
             await self.dispatcher.publish(
-                KnowledgeHealthDomainEvent(event_type=EventType.KNOWLEDGE_HEALTH_SCAN_COMPLETED, payload=end_payload.to_dict())
+                KnowledgeHealthDomainEvent(
+                    event_type=EventType.KNOWLEDGE_HEALTH_SCAN_COMPLETED,
+                    payload=end_payload.to_dict(),
+                )
             )
             raise
 
-    async def execute_two_phase_purge(self, document_id: UUID, tenant_id: str) -> PurgeSummaryDTO:
+    async def execute_two_phase_purge(
+        self, document_id: UUID, tenant_id: str
+    ) -> PurgeSummaryDTO:
         """Execute two-phase transactional purge (`ADR-M6-001`)."""
         return await self.purge_engine.execute_two_phase_purge(document_id, tenant_id)
 
@@ -183,7 +204,9 @@ class KnowledgeHealthOrchestrator:
     ) -> MigrationJobDTO:
         """Initiate model rotation campaign, detecting stale chunks and triggering shadow re-index (`ADR-M6-002`)."""
         t0 = time.perf_counter()
-        log = logger.bind(tenant_id=tenant_id, target_provider=new_provider, target_model=new_model)
+        log = logger.bind(
+            tenant_id=tenant_id, target_provider=new_provider, target_model=new_model
+        )
         log.info("Initiating model rotation campaign")
 
         stale_records = await self.stale_scanner.detect_stale_embeddings(
@@ -206,17 +229,19 @@ class KnowledgeHealthOrchestrator:
             target_model=new_model,
             stale_chunks_enqueued=len(stale_records),
             status="PROCESSING",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
 
     async def list_scan_jobs(
         self,
         tenant_id: str,
-        scan_type: Optional[str] = None,
+        scan_type: str | None = None,
         page: int = 1,
         size: int = 20,
-    ) -> Tuple[List[HealthScanJobDTO], int]:
+    ) -> tuple[list[HealthScanJobDTO], int]:
         """Fetch paginated scan job history for a tenant."""
-        items, total = await self.repo.list_scan_jobs(tenant_id, scan_type=scan_type, page=page, size=size)
+        items, total = await self.repo.list_scan_jobs(
+            tenant_id, scan_type=scan_type, page=page, size=size
+        )
         dtos = [HealthScanJobDTO.model_validate(item) for item in items]
         return dtos, total

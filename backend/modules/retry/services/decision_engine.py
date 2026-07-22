@@ -1,13 +1,11 @@
 """Decision Engine — Phase 7. Combines policy, budget, rules, and monotonicity into a decision."""
 
-from backend.modules.retry.schemas.retry_dto import (
-    RetryRequestContextDTO,
-    RetryDecisionDTO,
-    RetryAction,
-)
-from backend.modules.retry.services.rule_engine import RuleEngine
+from backend.modules.retry.schemas.retry_dto import (RetryAction,
+                                                     RetryDecisionDTO,
+                                                     RetryRequestContextDTO)
 from backend.modules.retry.services.budget_manager import RetryBudgetManager
 from backend.modules.retry.services.policy_engine import PolicyEngine
+from backend.modules.retry.services.rule_engine import RuleEngine
 
 
 class DecisionEngine:
@@ -63,6 +61,8 @@ class DecisionEngine:
             reason_code="RULE_MATCHED",
         )
 
-    def is_monotonic_improvement(self, current_score: float, previous_score: float) -> bool:
+    def is_monotonic_improvement(
+        self, current_score: float, previous_score: float
+    ) -> bool:
         """Return True if current_score >= previous_score (monotonic improvement)."""
         return current_score >= previous_score

@@ -1,5 +1,7 @@
-from pydantic import BaseModel, Field
 from enum import StrEnum
+
+from pydantic import BaseModel, Field
+
 
 class IssueType(StrEnum):
     REDUNDANT = "REDUNDANT"
@@ -7,10 +9,12 @@ class IssueType(StrEnum):
     LOW_USAGE = "LOW_USAGE"
     OUTDATED = "OUTDATED"
 
+
 class QuarantineAction(StrEnum):
     FLAG = "FLAG"
     SOFT_DELETE = "SOFT_DELETE"
     ARCHIVE = "ARCHIVE"
+
 
 class DocumentIssueDTO(BaseModel):
     document_id: str = Field(...)
@@ -19,10 +23,12 @@ class DocumentIssueDTO(BaseModel):
     severity: float = Field(..., ge=0.0, le=1.0)
     related_document_ids: list[str] = Field(default_factory=list)
 
+
 class QuarantineRequestDTO(BaseModel):
     document_id: str = Field(...)
     action: QuarantineAction = Field(...)
     reason: str = Field(...)
+
 
 class HealthReportDTO(BaseModel):
     tenant_id: str = Field(...)

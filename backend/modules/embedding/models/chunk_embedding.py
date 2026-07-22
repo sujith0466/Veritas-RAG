@@ -4,8 +4,8 @@ Stores high-dimensional dense vector arrays (`JSONB`) generated from `DocumentCh
 alongside content hashes (`content_hash`) to enable zero-call idempotency checks (`ADR-M2-001`, `ADR-M2-002`).
 """
 
-from typing import Any
 import uuid
+from typing import Any
 
 from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -19,14 +19,27 @@ class ChunkEmbedding(BaseModel):
 
     __tablename__ = "chunk_embeddings"
     __table_args__ = (
-        UniqueConstraint("tenant_id", "chunk_id", name="uq_chunk_embeddings_tenant_chunk"),
-        Index("ix_chunk_embeddings_tenant_hash_model_idx", "tenant_id", "content_hash", "provider", "model_name"),
-        Index("ix_chunk_embeddings_tenant_doc_ver_idx", "tenant_id", "document_version_id"),
+        UniqueConstraint(
+            "tenant_id", "chunk_id", name="uq_chunk_embeddings_tenant_chunk"
+        ),
+        Index(
+            "ix_chunk_embeddings_tenant_hash_model_idx",
+            "tenant_id",
+            "content_hash",
+            "provider",
+            "model_name",
+        ),
+        Index(
+            "ix_chunk_embeddings_tenant_doc_ver_idx", "tenant_id", "document_version_id"
+        ),
     )
 
     tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     chunk_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_chunks.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     document_version_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), index=True, nullable=False

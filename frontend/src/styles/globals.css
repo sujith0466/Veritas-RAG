@@ -9,80 +9,80 @@
 
 @layer base {
   :root {
-    /* ── Dark Theme (Default) ── */
-    --background: 240 6% 5%;            /* #0A0A0C — deep obsidian */
-    --foreground: 0 0% 92%;             /* #EBEBEB — near-white text */
-    --surface: 240 5% 8%;              /* #141418 — elevated card */
-    --surface-elevated: 240 4% 11%;    /* #1B1B21 — modal/popover */
-    --border: 240 5% 14%;              /* #1F1F24 — subtle border */
-    --border-subtle: 240 4% 18%;       /* #2A2A32 — very subtle divider */
-    --muted: 240 4% 14%;               /* #222228 — muted background */
-    --muted-foreground: 240 4% 52%;    /* #7F7F8F — muted text */
+    /* ── Dark Theme (Default - Enterprise Minimal) ── */
+    --background: 224 71% 4%;           /* #020617 - slate-950 */
+    --foreground: 210 40% 98%;          /* #f8fafc - slate-50 */
+    --surface: 222 47% 11%;             /* #0f172a - slate-900 */
+    --surface-elevated: 215 28% 17%;    /* #1e293b - slate-800 */
+    --border: 215 28% 17%;              /* #1e293b - slate-800 */
+    --border-subtle: 217 33% 17%;       /* #1e293b slightly lighter */
+    --muted: 215 28% 17%;               /* #1e293b - slate-800 */
+    --muted-foreground: 215 20% 65%;    /* #94a3b8 - slate-400 */
 
-    /* ── Brand Accent: Indigo-Violet ── */
-    --primary: 239 84% 67%;            /* #6366F1 — indigo */
-    --primary-foreground: 0 0% 100%;   /* white text on primary */
-    --primary-hover: 239 72% 60%;      /* #4F52DB — darker hover */
-    --primary-subtle: 239 84% 67% / 0.1; /* transparent accent bg */
+    /* ── Brand Accent: Indigo/Violet ── */
+    --primary: 239 84% 67%;             /* #6366f1 - indigo-500 */
+    --primary-foreground: 0 0% 100%;    /* white text */
+    --primary-hover: 239 84% 60%;       /* darker hover */
+    --primary-subtle: 239 84% 67% / 0.15; /* subtle accent */
 
     /* ── Semantic Colors ── */
-    --success: 152 67% 41%;            /* #22C55E-ish emerald */
+    --success: 142 71% 45%;             /* emerald-500 */
     --success-foreground: 0 0% 100%;
-    --success-subtle: 152 67% 41% / 0.12;
-    --warning: 38 92% 50%;             /* #F59E0B amber */
+    --success-subtle: 142 71% 45% / 0.15;
+    --warning: 38 92% 50%;              /* amber-500 */
     --warning-foreground: 0 0% 10%;
-    --warning-subtle: 38 92% 50% / 0.12;
-    --danger: 0 72% 51%;               /* #EF4444 red */
+    --warning-subtle: 38 92% 50% / 0.15;
+    --danger: 346 87% 61%;              /* rose-500 */
     --danger-foreground: 0 0% 100%;
-    --danger-subtle: 0 72% 51% / 0.12;
-    --info: 199 89% 48%;               /* #0EA5E9 sky blue */
+    --danger-subtle: 346 87% 61% / 0.15;
+    --info: 199 89% 48%;                /* sky-500 */
     --info-foreground: 0 0% 100%;
-    --info-subtle: 199 89% 48% / 0.12;
+    --info-subtle: 199 89% 48% / 0.15;
 
     /* ── Radius ── */
     --radius: 0.5rem;
 
     /* ── Scrollbar ── */
     --scrollbar-width: 6px;
-    --scrollbar-track: hsl(240 5% 8%);
-    --scrollbar-thumb: hsl(240 4% 22%);
-    --scrollbar-thumb-hover: hsl(240 4% 32%);
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: hsl(215 28% 25%);
+    --scrollbar-thumb-hover: hsl(215 28% 35%);
   }
 
   .light {
-    /* ── Light Theme ── */
-    --background: 0 0% 98%;            /* #FAFAFB — near-white */
-    --foreground: 240 10% 8%;          /* #12121A — near-black text */
-    --surface: 0 0% 100%;             /* #FFFFFF — white card */
-    --surface-elevated: 240 6% 97%;   /* #F7F7FA — elevated bg */
-    --border: 240 6% 90%;             /* #E4E4EA — light border */
-    --border-subtle: 240 5% 95%;      /* #F1F1F5 — very subtle divider */
-    --muted: 240 5% 95%;              /* #F2F2F5 — muted bg */
-    --muted-foreground: 240 4% 46%;   /* #6F6F80 — muted text */
+    /* ── Light Theme (Clean, Vercel-like) ── */
+    --background: 0 0% 100%;            /* #ffffff - white */
+    --foreground: 222 47% 11%;          /* #0f172a - slate-900 */
+    --surface: 0 0% 100%;               /* #ffffff - white */
+    --surface-elevated: 0 0% 100%;      /* #ffffff */
+    --border: 214 32% 91%;              /* #e2e8f0 - slate-200 */
+    --border-subtle: 210 40% 96%;       /* #f1f5f9 - slate-100 */
+    --muted: 210 40% 96%;               /* #f1f5f9 - slate-100 */
+    --muted-foreground: 215 16% 47%;    /* #64748b - slate-500 */
 
-    /* ── Brand Accent (same tone) ── */
-    --primary: 239 84% 60%;           /* #4F52DB — slightly darker for light bg contrast */
+    /* ── Brand Accent ── */
+    --primary: 239 84% 60%;             /* #4f46e5 - indigo-600 */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 239 72% 52%;
-    --primary-subtle: 239 84% 60% / 0.08;
+    --primary-hover: 239 84% 50%;
+    --primary-subtle: 239 84% 60% / 0.1;
 
     /* ── Semantic Colors (Light) ── */
-    --success: 142 71% 35%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --success-subtle: 142 71% 35% / 0.1;
+    --success-subtle: 142 76% 36% / 0.1;
     --warning: 32 95% 44%;
     --warning-foreground: 0 0% 10%;
     --warning-subtle: 32 95% 44% / 0.1;
-    --danger: 0 72% 47%;
+    --danger: 346 84% 50%;
     --danger-foreground: 0 0% 100%;
-    --danger-subtle: 0 72% 47% / 0.1;
+    --danger-subtle: 346 84% 50% / 0.1;
     --info: 199 89% 40%;
     --info-foreground: 0 0% 100%;
     --info-subtle: 199 89% 40% / 0.1;
 
-    --scrollbar-track: hsl(240 5% 95%);
-    --scrollbar-thumb: hsl(240 4% 80%);
-    --scrollbar-thumb-hover: hsl(240 4% 65%);
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: hsl(214 32% 85%);
+    --scrollbar-thumb-hover: hsl(214 32% 70%);
   }
 
   /* ── Base Resets ── */
@@ -99,7 +99,7 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans selection:bg-primary/20 selection:text-primary;
     min-height: 100dvh;
   }
 
@@ -113,7 +113,7 @@
   }
   ::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb);
-    border-radius: 3px;
+    border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover);
@@ -124,22 +124,29 @@
     @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
   }
 
-  /* ── Selection ── */
-  ::selection {
-    @apply bg-primary/20 text-foreground;
-  }
-
   /* ── Headings ── */
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
   }
 
-  h1 { @apply text-4xl; }
-  h2 { @apply text-3xl; }
-  h3 { @apply text-2xl; }
-  h4 { @apply text-xl; }
-  h5 { @apply text-lg; }
-  h6 { @apply text-base; }
+  h1 {
+    @apply text-4xl;
+  }
+  h2 {
+    @apply text-3xl;
+  }
+  h3 {
+    @apply text-2xl;
+  }
+  h4 {
+    @apply text-xl;
+  }
+  h5 {
+    @apply text-lg;
+  }
+  h6 {
+    @apply text-base;
+  }
 
   /* ── Code ── */
   code, pre, kbd {

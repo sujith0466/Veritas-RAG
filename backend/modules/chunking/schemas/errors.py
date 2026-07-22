@@ -16,7 +16,7 @@ class ErrorSeverity(StrEnum):
     """Severity level determining background worker retry behavior."""
 
     RECOVERABLE = "RECOVERABLE"  # Transient database/lock issue; trigger exponential backoff retry
-    FATAL = "FATAL"              # Permanent validation/parsing issue; transition immediately to CHUNKING_FAILED
+    FATAL = "FATAL"  # Permanent validation/parsing issue; transition immediately to CHUNKING_FAILED
 
 
 class ChunkErrorCode(StrEnum):
@@ -25,8 +25,12 @@ class ChunkErrorCode(StrEnum):
     CHK_001 = "CHK_001"  # Chunk validation error (e.g. exceeds quota or empty) — FATAL
     CHK_002 = "CHK_002"  # Chunk strategy unsupported or placeholder invoked — FATAL
     CHK_003 = "CHK_003"  # Execution error during text splitting or AST parsing — FATAL
-    CHK_004 = "CHK_004"  # Chunk contract violation (no chunks or broken links) — RECOVERABLE
-    CHK_005 = "CHK_005"  # Chunk or document entity not found in repository — RECOVERABLE
+    CHK_004 = (
+        "CHK_004"  # Chunk contract violation (no chunks or broken links) — RECOVERABLE
+    )
+    CHK_005 = (
+        "CHK_005"  # Chunk or document entity not found in repository — RECOVERABLE
+    )
 
 
 ERROR_SEVERITY_MAP: dict[ChunkErrorCode | str, ErrorSeverity] = {
@@ -53,7 +57,15 @@ class ChunkDomainException(RAGuardException):
         detail: dict[str, Any] | None = None,
         severity: ErrorSeverity | None = None,
     ) -> None:
-        code_str = code if isinstance(code, ChunkErrorCode) else ChunkErrorCode(code) if code in ChunkErrorCode._value2member_map_ else str(code)
+        code_str = (
+            code
+            if isinstance(code, ChunkErrorCode)
+            else (
+                ChunkErrorCode(code)
+                if code in ChunkErrorCode._value2member_map_
+                else str(code)
+            )
+        )
         self.code = code_str
         self.severity = severity or get_error_severity(self.code)
 

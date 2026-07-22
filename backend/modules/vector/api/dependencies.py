@@ -5,13 +5,15 @@ Provides FastAPI dependency injection functions for repository access,
 """
 
 from typing import Any
+
 from fastapi import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
 from backend.core.events.dispatcher import get_dispatcher
-from backend.modules.vector.repositories.vector_repository import VectorMetadataRepository
+from backend.modules.vector.repositories.vector_repository import \
+    VectorMetadataRepository
 from backend.modules.vector.services.vector_service import VectorStorageService
 
 
@@ -25,7 +27,9 @@ def resolve_tenant(
     return x_tenant_id or "default_tenant"
 
 
-def get_vector_repository(session: AsyncSession = Depends(get_db)) -> VectorMetadataRepository:
+def get_vector_repository(
+    session: AsyncSession = Depends(get_db),
+) -> VectorMetadataRepository:
     """Inject a `VectorMetadataRepository` bound to the current request transaction session."""
     return VectorMetadataRepository(session)
 

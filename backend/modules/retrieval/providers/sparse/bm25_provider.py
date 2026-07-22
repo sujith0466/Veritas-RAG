@@ -7,13 +7,14 @@ matching to satisfy exact term recall requirements.
 
 import math
 import re
-from collections import OrderedDict, Counter
+from collections import Counter, OrderedDict
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from structlog import get_logger
 
-from backend.modules.retrieval.providers.sparse.base import BaseSparseSearchProvider
+from backend.modules.retrieval.providers.sparse.base import \
+    BaseSparseSearchProvider
 from backend.modules.retrieval.schemas.errors import SparseIndexNotFoundError
 from backend.modules.retrieval.schemas.retrieval_dto import CandidatePointDTO
 
@@ -24,18 +25,130 @@ logger = get_logger(__name__)
 
 # Basic English stopword set for token normalization
 STOPWORDS: set[str] = {
-    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any",
-    "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below",
-    "between", "both", "but", "by", "can", "cannot", "could", "did", "do", "does",
-    "doing", "down", "during", "each", "few", "for", "from", "further", "had", "has",
-    "have", "having", "he", "her", "here", "hers", "herself", "him", "himself", "his",
-    "how", "i", "if", "in", "into", "is", "it", "its", "itself", "me", "more", "most",
-    "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or",
-    "other", "our", "ours", "ourselves", "out", "over", "own", "same", "she", "should",
-    "so", "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves",
-    "then", "there", "these", "they", "this", "those", "through", "to", "too", "under",
-    "until", "up", "very", "was", "we", "were", "what", "when", "where", "which",
-    "while", "who", "whom", "why", "with", "would", "you", "your", "yours", "yourself",
+    "a",
+    "about",
+    "above",
+    "after",
+    "again",
+    "against",
+    "all",
+    "am",
+    "an",
+    "and",
+    "any",
+    "are",
+    "aren't",
+    "as",
+    "at",
+    "be",
+    "because",
+    "been",
+    "before",
+    "being",
+    "below",
+    "between",
+    "both",
+    "but",
+    "by",
+    "can",
+    "cannot",
+    "could",
+    "did",
+    "do",
+    "does",
+    "doing",
+    "down",
+    "during",
+    "each",
+    "few",
+    "for",
+    "from",
+    "further",
+    "had",
+    "has",
+    "have",
+    "having",
+    "he",
+    "her",
+    "here",
+    "hers",
+    "herself",
+    "him",
+    "himself",
+    "his",
+    "how",
+    "i",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "its",
+    "itself",
+    "me",
+    "more",
+    "most",
+    "my",
+    "myself",
+    "no",
+    "nor",
+    "not",
+    "of",
+    "off",
+    "on",
+    "once",
+    "only",
+    "or",
+    "other",
+    "our",
+    "ours",
+    "ourselves",
+    "out",
+    "over",
+    "own",
+    "same",
+    "she",
+    "should",
+    "so",
+    "some",
+    "such",
+    "than",
+    "that",
+    "the",
+    "their",
+    "theirs",
+    "them",
+    "themselves",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "to",
+    "too",
+    "under",
+    "until",
+    "up",
+    "very",
+    "was",
+    "we",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "who",
+    "whom",
+    "why",
+    "with",
+    "would",
+    "you",
+    "your",
+    "yours",
+    "yourself",
 }
 
 
@@ -175,15 +288,15 @@ class BM25SparseSearchProvider(BaseSparseSearchProvider):
 
         if len(self._indices) >= self.max_tenants:
             evicted_tenant, _ = self._indices.popitem(last=False)
-            logger.info("Evicted LRU tenant sparse index", evicted_tenant=evicted_tenant)
+            logger.info(
+                "Evicted LRU tenant sparse index", evicted_tenant=evicted_tenant
+            )
 
         idx = _TenantBM25Index(k1=self.k1, b=self.b)
         self._indices[tenant_id] = idx
         return idx
 
-    async def index_chunks(
-        self, tenant_id: str, chunks: list["DocumentChunk"]
-    ) -> int:
+    async def index_chunks(self, tenant_id: str, chunks: list["DocumentChunk"]) -> int:
         """Index a batch of DocumentChunk objects for a tenant."""
         idx = self._get_or_create_index(tenant_id)
         indexed_count = 0
@@ -252,9 +365,7 @@ class BM25SparseSearchProvider(BaseSparseSearchProvider):
 
         return candidates
 
-    async def remove_document_chunks(
-        self, tenant_id: str, document_id: str
-    ) -> int:
+    async def remove_document_chunks(self, tenant_id: str, document_id: str) -> int:
         """Remove all chunks associated with a document_id from the tenant index."""
         if tenant_id not in self._indices:
             return 0

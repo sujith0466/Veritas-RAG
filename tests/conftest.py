@@ -14,36 +14,35 @@ from typing import Any
 
 import pytest
 
-# ── Environment: force testing mode before any imports ────────────────────────
-os.environ.setdefault("APP_ENVIRONMENT", "testing")
-os.environ.setdefault("APP_DEBUG", "true")
-os.environ.setdefault("APP_SECRET_KEY", "test-secret-key-32-characters-ok!")
-os.environ.setdefault("APP_NAME", "RAGuard AI Test")
-os.environ.setdefault("APP_VERSION", "1.0.0-test")
+# ─── Environment: force testing mode before any imports ────────────────────────
+os.environ["APP_ENVIRONMENT"] = "testing"
+os.environ["APP_DEBUG"] = "true"
+os.environ["APP_SECRET_KEY"] = "test-secret-key-32-characters-ok!"
+os.environ["APP_NAME"] = "RAGuard AI Test"
+os.environ["APP_VERSION"] = "1.0.0-test"
 
 # Supabase
-os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
-os.environ.setdefault("SUPABASE_ANON_KEY", "test-anon-key")
-os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
-os.environ.setdefault("SUPABASE_JWT_SECRET", "test-jwt-secret")
+os.environ["SUPABASE_URL"] = "https://test.supabase.co"
+os.environ["SUPABASE_ANON_KEY"] = "test-anon-key"
+os.environ["SUPABASE_SERVICE_ROLE_KEY"] = "test-service-role-key"
+os.environ["SUPABASE_JWT_SECRET"] = "test-jwt-secret"
 
 # Database (scaffold)
-os.environ.setdefault(
-    "DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/raguard_test"
-)
-os.environ.setdefault(
-    "ALEMBIC_DATABASE_URL", "postgresql://test:test@localhost:5432/raguard_test"
-)
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost:5432/raguard_test"
+os.environ["ALEMBIC_DATABASE_URL"] = "postgresql://test:test@localhost:5432/raguard_test"
 
 # Redis (scaffold)
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
+os.environ["REDIS_URL"] = "redis://localhost:6379/15"
 
 # Qdrant (scaffold)
-os.environ.setdefault("QDRANT_HOST", "localhost")
-os.environ.setdefault("QDRANT_PORT", "6333")
+os.environ["QDRANT_HOST"] = "localhost"
+os.environ["QDRANT_PORT"] = "6333"
+# Clear URL to not conflict with Qdrant config
+if "QDRANT_URL" in os.environ:
+    del os.environ["QDRANT_URL"]
 
 # Gemini
-os.environ.setdefault("GEMINI_API_KEY", "test-gemini-api-key")
+os.environ["GEMINI_API_KEY"] = "test-gemini-api-key"
 
 
 # ── Settings cache reset ───────────────────────────────────────────────────────

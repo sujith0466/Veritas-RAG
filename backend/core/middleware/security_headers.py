@@ -17,7 +17,8 @@ it must be managed at the reverse proxy / load balancer level in production,
 since it requires HTTPS to be meaningful.
 """
 
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.middleware.base import (BaseHTTPMiddleware,
+                                       RequestResponseEndpoint)
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp

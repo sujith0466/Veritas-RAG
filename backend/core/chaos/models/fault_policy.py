@@ -1,8 +1,11 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Integer, Float, Boolean, DateTime, func
 import uuid
 from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Float, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.database.base import Base
+
 
 class FaultPolicyORM(Base):
     __tablename__ = "fault_policies"
@@ -13,4 +16,6 @@ class FaultPolicyORM(Base):
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     error_rate_pct: Mapped[float] = mapped_column(Float, default=1.0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.now)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.now
+    )

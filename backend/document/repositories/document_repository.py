@@ -40,7 +40,11 @@ class DocumentRepository:
         """Fetch a Document with all its related version records eager-loaded."""
         stmt = (
             select(Document)
-            .options(selectinload(Document.versions).selectinload(DocumentVersion.storage_object))
+            .options(
+                selectinload(Document.versions).selectinload(
+                    DocumentVersion.storage_object
+                )
+            )
             .where(
                 Document.id == document_id,
                 Document.tenant_id == tenant_id,
@@ -86,7 +90,9 @@ class DocumentRepository:
         self, document_id: uuid.UUID, status: str, session: AsyncSession
     ) -> Document | None:
         """Update the processing status of a document."""
-        stmt = select(Document).where(Document.id == document_id, Document.is_deleted.is_(False))
+        stmt = select(Document).where(
+            Document.id == document_id, Document.is_deleted.is_(False)
+        )
         result = await session.execute(stmt)
         doc = result.scalar_one_or_none()
         if doc:
@@ -95,7 +101,9 @@ class DocumentRepository:
             await session.refresh(doc)
         return doc
 
-    async def add_version(self, version: DocumentVersion, session: AsyncSession) -> DocumentVersion:
+    async def add_version(
+        self, version: DocumentVersion, session: AsyncSession
+    ) -> DocumentVersion:
         """Add and persist a new DocumentVersion record."""
         session.add(version)
         await session.flush()
@@ -109,12 +117,16 @@ class DocumentRepository:
         stmt = (
             select(DocumentVersion)
             .options(selectinload(DocumentVersion.storage_object))
-            .where(DocumentVersion.id == version_id, DocumentVersion.is_deleted.is_(False))
+            .where(
+                DocumentVersion.id == version_id, DocumentVersion.is_deleted.is_(False)
+            )
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def delete(self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession) -> bool:
+    async def delete(
+        self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
+    ) -> bool:
         """Soft-delete a document by setting `is_deleted = True`."""
         doc = await self.get_by_id(document_id, tenant_id, session)
         if not doc:

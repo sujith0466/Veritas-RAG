@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.dependencies.auth import get_current_user
 from backend.core.dependencies.database import get_db
-from backend.modules.dashboard.services.dashboard_service import DashboardService
+from backend.modules.dashboard.services.dashboard_service import \
+    DashboardService
 
 DashboardAuth = Annotated[Any, Depends(get_current_user)]
 

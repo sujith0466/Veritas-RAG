@@ -14,20 +14,21 @@ Liveness vs Readiness:
   A failure here removes the pod from the load balancer without restarting it.
 """
 
-from datetime import UTC, datetime
 import time
+from datetime import UTC, datetime
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
-import structlog
 
 from backend.core.auth.context import UserContext
 from backend.core.config import get_settings
 from backend.core.dependencies.auth import require_role
 from backend.core.permissions.rbac import Role
 
-from ..schemas.common import DependencyHealth, DetailedHealthResponse, HealthStatus
+from ..schemas.common import (DependencyHealth, DetailedHealthResponse,
+                              HealthStatus)
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/health", tags=["Health"])
@@ -40,6 +41,7 @@ def _get_uptime_seconds() -> float:
 
 
 # ── GET /health ────────────────────────────────────────────────────────────────
+
 
 @router.get(
     "",
@@ -58,6 +60,7 @@ async def health() -> HealthStatus:
 
 
 # ── GET /health/live ───────────────────────────────────────────────────────────
+
 
 @router.get(
     "/live",
@@ -95,6 +98,7 @@ async def _check_dependencies() -> dict[str, str]:
 
 # ── GET /health/ready ──────────────────────────────────────────────────────────
 
+
 @router.get(
     "/ready",
     summary="Readiness probe",
@@ -111,9 +115,7 @@ async def readiness() -> JSONResponse:
 
     # All dependencies must be healthy (or not_initialized in M1)
     # In M2, change "not_initialized" checks to real health checks
-    is_ready = all(
-        v in ("healthy", "not_initialized") for v in dependencies.values()
-    )
+    is_ready = all(v in ("healthy", "not_initialized") for v in dependencies.values())
 
     payload = {
         "status": "ready" if is_ready else "not_ready",
@@ -133,6 +135,7 @@ async def readiness() -> JSONResponse:
 
 
 # ── GET /health/detailed ───────────────────────────────────────────────────────
+
 
 @router.get(
     "/detailed",

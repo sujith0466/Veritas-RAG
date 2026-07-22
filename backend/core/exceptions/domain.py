@@ -51,6 +51,7 @@ class BusinessRuleException(ApplicationException):
 
 # ── RAG-specific domain exceptions (reserved for Phase 2+) ─────────────────────
 
+
 class RetrievalException(ApplicationException):
     """500 — Retrieval pipeline encountered an unrecoverable error."""
 
@@ -73,7 +74,9 @@ class ConfidenceThresholdException(BusinessRuleException):
     """422 — Retrieved context confidence is below the acceptance threshold."""
 
     error_code = "SC_002"
-    default_message = "Retrieved context does not meet the confidence threshold for generation"
+    default_message = (
+        "Retrieved context does not meet the confidence threshold for generation"
+    )
 
 
 class IngestionException(ApplicationException):

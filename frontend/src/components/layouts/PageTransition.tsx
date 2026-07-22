@@ -12,7 +12,7 @@ export function PageTransition({ children, className }: PageTransitionProps) {
     <motion.div
       variants={pageTransitionVariants}
       initial="initial"
-      animate="animate"
+      animate="enter"
       exit="exit"
       className={cn('w-full h-full', className)}
     >

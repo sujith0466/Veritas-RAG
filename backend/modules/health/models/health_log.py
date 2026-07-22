@@ -1,8 +1,11 @@
-from sqlalchemy import Column, String, Float, JSON, DateTime, Integer
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
+from sqlalchemy.dialects.postgresql import UUID
+
 from backend.database.base import Base
+
 
 class HealthLogORM(Base):
     __tablename__ = "health_logs"
@@ -12,7 +15,10 @@ class HealthLogORM(Base):
     health_score = Column(Float, nullable=False)
     issues_found_count = Column(Integer, nullable=False)
     metadata_payload = Column(JSON, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
 
 class QuarantineLogORM(Base):
     __tablename__ = "quarantine_logs"
@@ -21,4 +27,6 @@ class QuarantineLogORM(Base):
     document_id = Column(String(128), nullable=False, index=True)
     action = Column(String(32), nullable=False)
     reason = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )

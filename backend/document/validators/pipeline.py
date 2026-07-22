@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import BinaryIO
 
 from backend.document.utils.hashing import calculate_sha256
+
 from .mime_magic import validate_extension_and_mime
 from .sanitization import sanitize_filename
 from .size import validate_size
@@ -53,7 +54,9 @@ class ValidationPipeline:
         sanitized = sanitize_filename(original_filename)
 
         # 3. Extension, MIME, and magic byte signature check (`VAL_002`, `VAL_003`)
-        ext, verified_mime = validate_extension_and_mime(sanitized, declared_mime, stream)
+        ext, verified_mime = validate_extension_and_mime(
+            sanitized, declared_mime, stream
+        )
 
         # 4. Virus and malware scan (`VAL_005`)
         await self.virus_scanner.scan(stream, sanitized)

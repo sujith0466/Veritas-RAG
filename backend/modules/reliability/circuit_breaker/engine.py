@@ -7,12 +7,15 @@ and controlling failover to degraded fallback paths.
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any
+
 import structlog
 from redis.asyncio import Redis
+
 from backend.cache.client import get_redis_client
 from backend.modules.reliability.circuit_breaker.states import CircuitState
-from backend.modules.reliability.schemas.reliability_dto import CircuitBreakerStateDTO
+from backend.modules.reliability.schemas.reliability_dto import \
+    CircuitBreakerStateDTO
 
 logger = structlog.get_logger(__name__)
 
@@ -22,7 +25,7 @@ class CircuitBreakerEngine:
 
     def __init__(
         self,
-        redis_client: Optional[Redis[Any]] = None,
+        redis_client: Redis[Any] | None = None,
         failure_threshold: int = 5,
         recovery_threshold: int = 3,
         cooldown_seconds: int = 30,
@@ -79,7 +82,9 @@ class CircuitBreakerEngine:
 
         return CircuitState.CLOSED
 
-    async def record_failure(self, tenant_id: str, target: str, error_code: str) -> CircuitState:
+    async def record_failure(
+        self, tenant_id: str, target: str, error_code: str
+    ) -> CircuitState:
         """Record a target failure. May trip circuit from CLOSED to OPEN or re-trip from HALF_OPEN."""
         current_state = await self.check_state(tenant_id, target)
         state_key = self._state_key(tenant_id, target)
@@ -150,7 +155,9 @@ class CircuitBreakerEngine:
                 self._probes_key(tenant_id, target),
             )
 
-    async def get_circuit_breaker_state(self, tenant_id: str, target: str) -> CircuitBreakerStateDTO:
+    async def get_circuit_breaker_state(
+        self, tenant_id: str, target: str
+    ) -> CircuitBreakerStateDTO:
         """Fetch complete snapshot of target circuit breaker state and counters."""
         state = await self.check_state(tenant_id, target)
         failures_str = await self.redis.get(self._failures_key(tenant_id, target))
@@ -176,7 +183,9 @@ class CircuitBreakerEngine:
 
     async def force_reset(self, tenant_id: str, target: str) -> bool:
         """Admin operation: immediately force circuit state to CLOSED and clear all error counters."""
-        await self.redis.set(self._state_key(tenant_id, target), CircuitState.CLOSED.value)
+        await self.redis.set(
+            self._state_key(tenant_id, target), CircuitState.CLOSED.value
+        )
         await self.redis.delete(
             self._failures_key(tenant_id, target),
             self._probes_key(tenant_id, target),

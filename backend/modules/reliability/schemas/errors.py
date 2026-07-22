@@ -4,7 +4,8 @@ Defines structured exceptions for circuit breakers, SLA breaches, and fallback r
 """
 
 from http import HTTPStatus
-from typing import Any, Dict, Optional
+from typing import Any
+
 from backend.core.exceptions import RAGuardException
 
 
@@ -16,7 +17,7 @@ class ReliabilityDomainException(RAGuardException):
         code: str,
         message: str,
         is_recoverable: bool = True,
-        detail: Optional[Dict[str, Any]] = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
         self.code = code
         self.is_recoverable = is_recoverable
@@ -35,7 +36,7 @@ class ReliabilityDomainException(RAGuardException):
             error_code=code,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize exception to standard API error response structure."""
         return {
             "success": False,
@@ -50,7 +51,9 @@ class ReliabilityDomainException(RAGuardException):
 class CircuitBreakerOpenError(ReliabilityDomainException):
     """REL_001: Raised when a target service circuit breaker is OPEN (tripped)."""
 
-    def __init__(self, tenant_id: str, target: str, detail: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, tenant_id: str, target: str, detail: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(
             code="REL_001",
             message=f"Circuit breaker is OPEN for target '{target}' and tenant '{tenant_id}'. Delegating to fallback path.",
@@ -67,7 +70,7 @@ class RetrievalSLABreachedError(ReliabilityDomainException):
         tenant_id: str,
         duration_ms: float,
         threshold_ms: float = 400.0,
-        detail: Optional[Dict[str, Any]] = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             code="REL_002",
@@ -91,7 +94,7 @@ class FailureThresholdExceededError(ReliabilityDomainException):
         target: str,
         failures: int,
         threshold: int = 5,
-        detail: Optional[Dict[str, Any]] = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             code="REL_003",
@@ -110,7 +113,9 @@ class FailureThresholdExceededError(ReliabilityDomainException):
 class FallbackProviderUnavailableError(ReliabilityDomainException):
     """REL_004: Raised when fallback path (e.g., BM25 sparse search) fails or is unavailable."""
 
-    def __init__(self, tenant_id: str, reason: str, detail: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, tenant_id: str, reason: str, detail: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(
             code="REL_004",
             message=f"Degraded fallback provider is unavailable for tenant '{tenant_id}': {reason}",
@@ -122,7 +127,9 @@ class FallbackProviderUnavailableError(ReliabilityDomainException):
 class ZeroResultRecoveryFailedError(ReliabilityDomainException):
     """REL_005: Raised when zero-result recovery algorithms cannot surface any candidates."""
 
-    def __init__(self, tenant_id: str, query: str, detail: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self, tenant_id: str, query: str, detail: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(
             code="REL_005",
             message=f"Zero-result recovery failed to surface candidates for tenant '{tenant_id}' query: {query}",
@@ -130,9 +137,11 @@ class ZeroResultRecoveryFailedError(ReliabilityDomainException):
             detail={"tenant_id": tenant_id, "query": query, **(detail or {})},
         )
 
+
 class SelfHealingPolicyError(RAGuardException):
     def __init__(self, message: str):
         super().__init__(message=message, error_code="REL_GOV_001")
+
 
 class RotationFailedError(RAGuardException):
     def __init__(self, message: str):

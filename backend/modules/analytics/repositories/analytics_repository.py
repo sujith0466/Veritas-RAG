@@ -6,23 +6,18 @@ and computing aggregations across query outcomes, confidence, latency, and relia
 
 import math
 from collections.abc import Sequence
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 from uuid import UUID
 
+import structlog
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
-from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
+from backend.modules.analytics.models.query_analytics import \
+    QueryAnalyticsRecord
 from backend.modules.analytics.schemas.analytics_dto import (
-    ConfidenceAnalyticsDTO,
-    LatencyAnalyticsDTO,
-    QueryTrendsDTO,
-    ReliabilityHistoryDTO,
-    SearchAnalyticsDTO,
-    SuccessRateDTO,
-)
+    ConfidenceAnalyticsDTO, LatencyAnalyticsDTO, QueryTrendsDTO,
+    ReliabilityHistoryDTO, SearchAnalyticsDTO, SuccessRateDTO)
 from backend.modules.retrieval.models.retrieval_log import RetrievalQueryLog
 from backend.repositories.base import BaseRepository
 
@@ -39,9 +34,10 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
         """Insert a new query analytics execution record into PostgreSQL (`query_analytics_records`)."""
         if record.id is None:
             import uuid
+
             record.id = uuid.uuid4()
         if record.created_at is None:
-            record.created_at = datetime.now(timezone.utc)
+            record.created_at = datetime.now(UTC)
         self.session.add(record)
         await self.session.commit()
         await self.session.refresh(record)
@@ -68,28 +64,40 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
             QueryAnalyticsRecord.tenant_id == tenant_id,
             QueryAnalyticsRecord.is_deleted.is_(False),
         )
-        count_query = select(func.count()).select_from(QueryAnalyticsRecord).where(
-            QueryAnalyticsRecord.tenant_id == tenant_id,
-            QueryAnalyticsRecord.is_deleted.is_(False),
+        count_query = (
+            select(func.count())
+            .select_from(QueryAnalyticsRecord)
+            .where(
+                QueryAnalyticsRecord.tenant_id == tenant_id,
+                QueryAnalyticsRecord.is_deleted.is_(False),
+            )
         )
 
         if outcome_filter:
             query = query.where(QueryAnalyticsRecord.outcome == outcome_filter)
-            count_query = count_query.where(QueryAnalyticsRecord.outcome == outcome_filter)
+            count_query = count_query.where(
+                QueryAnalyticsRecord.outcome == outcome_filter
+            )
         if start_time:
             query = query.where(QueryAnalyticsRecord.created_at >= start_time)
-            count_query = count_query.where(QueryAnalyticsRecord.created_at >= start_time)
+            count_query = count_query.where(
+                QueryAnalyticsRecord.created_at >= start_time
+            )
         if end_time:
             query = query.where(QueryAnalyticsRecord.created_at <= end_time)
             count_query = count_query.where(QueryAnalyticsRecord.created_at <= end_time)
 
         total = (await self.session.scalar(count_query)) or 0
         result = await self.session.scalars(
-            query.order_by(desc(QueryAnalyticsRecord.created_at)).limit(limit).offset(offset)
+            query.order_by(desc(QueryAnalyticsRecord.created_at))
+            .limit(limit)
+            .offset(offset)
         )
         return result.all(), total
 
-    async def get_record_by_correlation_id(self, correlation_id: str, tenant_id: str) -> QueryAnalyticsRecord | None:
+    async def get_record_by_correlation_id(
+        self, correlation_id: str, tenant_id: str
+    ) -> QueryAnalyticsRecord | None:
         """Fetch a single query analytics record by its correlation trace ID."""
         query = select(QueryAnalyticsRecord).where(
             QueryAnalyticsRecord.correlation_id == correlation_id,
@@ -128,8 +136,19 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
             )
 
         success_count = sum(1 for r in records if r.outcome == "SUCCESS")
-        clarification_count = sum(1 for r in records if r.outcome == "CLARIFICATION_REQUIRED")
-        failure_count = sum(1 for r in records if r.outcome in ("ABORTED_LOW_CONFIDENCE", "ABORTED_HALLUCINATION", "ABORTED_MAX_RETRIES"))
+        clarification_count = sum(
+            1 for r in records if r.outcome == "CLARIFICATION_REQUIRED"
+        )
+        failure_count = sum(
+            1
+            for r in records
+            if r.outcome
+            in (
+                "ABORTED_LOW_CONFIDENCE",
+                "ABORTED_HALLUCINATION",
+                "ABORTED_MAX_RETRIES",
+            )
+        )
         retry_count = sum(1 for r in records if r.retry_attempts > 0)
         total_retries = sum(r.retry_attempts for r in records)
 
@@ -162,10 +181,20 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
         if end_time:
             query = query.where(QueryAnalyticsRecord.created_at <= end_time)
 
-        durations = sorted(list((await self.session.scalars(query.order_by(QueryAnalyticsRecord.total_duration_ms.asc()))).all()))
+        durations = sorted(
+            list(
+                (
+                    await self.session.scalars(
+                        query.order_by(QueryAnalyticsRecord.total_duration_ms.asc())
+                    )
+                ).all()
+            )
+        )
         total = len(durations)
         if total == 0:
-            return LatencyAnalyticsDTO(p50_ms=0.0, p90_ms=0.0, p95_ms=0.0, p99_ms=0.0, avg_ms=0.0)
+            return LatencyAnalyticsDTO(
+                p50_ms=0.0, p90_ms=0.0, p95_ms=0.0, p99_ms=0.0, avg_ms=0.0
+            )
 
         def get_percentile(pct: float) -> float:
             idx = max(0, math.ceil(total * pct) - 1)
@@ -197,7 +226,9 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
         if end_time:
             query = query.where(QueryAnalyticsRecord.created_at <= end_time)
 
-        scores = [float(s) for s in (await self.session.scalars(query)).all() if s is not None]
+        scores = [
+            float(s) for s in (await self.session.scalars(query)).all() if s is not None
+        ]
         total = len(scores)
         if total == 0:
             return ConfidenceAnalyticsDTO(
@@ -239,7 +270,9 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
         if end_time:
             query = query.where(QueryAnalyticsRecord.created_at <= end_time)
 
-        records = sorted(list((await self.session.scalars(query)).all()), key=lambda r: r.created_at)
+        records = sorted(
+            list((await self.session.scalars(query)).all()), key=lambda r: r.created_at
+        )
         buckets: dict[str, list[QueryAnalyticsRecord]] = {}
 
         for r in records:
@@ -261,7 +294,9 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
         for key, recs in buckets.items():
             counts.append(len(recs))
             confs = [r.confidence_score for r in recs if r.confidence_score is not None]
-            rels = [r.reliability_score for r in recs if r.reliability_score is not None]
+            rels = [
+                r.reliability_score for r in recs if r.reliability_score is not None
+            ]
             avg_conf.append(round(sum(confs) / len(confs), 4) if confs else 0.0)
             avg_rel.append(round(sum(rels) / len(rels), 2) if rels else 0.0)
 
@@ -281,7 +316,10 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
     ) -> ReliabilityHistoryDTO:
         """Compute reliability history timeline with moving averages."""
         trends = await self.get_query_trends(
-            tenant_id=tenant_id, interval=interval, start_time=start_time, end_time=end_time
+            tenant_id=tenant_id,
+            interval=interval,
+            start_time=start_time,
+            end_time=end_time,
         )
         scores = trends.avg_reliability_scores
         moving_avg = []
@@ -324,5 +362,9 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
             avg_sparse_candidates=avg_sparse,
             avg_merged_unique=avg_merged,
             avg_retrieval_duration_ms=avg_duration,
-            stage_breakdowns={"dense_avg": avg_dense, "sparse_avg": avg_sparse, "rrf_avg": avg_merged},
+            stage_breakdowns={
+                "dense_avg": avg_dense,
+                "sparse_avg": avg_sparse,
+                "rrf_avg": avg_merged,
+            },
         )

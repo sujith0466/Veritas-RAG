@@ -5,11 +5,14 @@ based on tenant configuration and request overrides (`ADR-M2-001`).
 """
 
 from typing import Any
+
 import structlog
 
 from backend.modules.embedding.providers.base import BaseEmbeddingProvider
-from backend.modules.embedding.schemas.embedding_dto import ProviderInfoDTO, ProviderModelInfoDTO
-from backend.modules.embedding.schemas.errors import EmbeddingErrorCode, EmbeddingDomainException
+from backend.modules.embedding.schemas.embedding_dto import (
+    ProviderInfoDTO, ProviderModelInfoDTO)
+from backend.modules.embedding.schemas.errors import (EmbeddingDomainException,
+                                                      EmbeddingErrorCode)
 
 logger = structlog.get_logger(__name__)
 
@@ -19,7 +22,9 @@ logger = structlog.get_logger(__name__)
 _PROVIDER_REGISTRY: dict[str, type[BaseEmbeddingProvider] | Any] = {}
 
 
-def register_provider(name: str, provider_cls: type[BaseEmbeddingProvider] | Any) -> None:
+def register_provider(
+    name: str, provider_cls: type[BaseEmbeddingProvider] | Any
+) -> None:
     """Register a concrete provider implementation with the factory."""
     _PROVIDER_REGISTRY[name.lower()] = provider_cls
 
@@ -55,13 +60,20 @@ class EmbeddingProviderFactory:
             raise EmbeddingDomainException(
                 code=EmbeddingErrorCode.EMB_001,
                 message=f"Embedding provider '{target_provider}' is not registered or supported.",
-                detail={"requested_provider": target_provider, "available_providers": list(_PROVIDER_REGISTRY.keys())},
+                detail={
+                    "requested_provider": target_provider,
+                    "available_providers": list(_PROVIDER_REGISTRY.keys()),
+                },
             )
 
         try:
             return provider_cls(model_name=model_name, api_key=api_key)
         except Exception as exc:
-            logger.error("provider_instantiation_failed", provider=target_provider, error=str(exc))
+            logger.error(
+                "provider_instantiation_failed",
+                provider=target_provider,
+                error=str(exc),
+            )
             raise EmbeddingDomainException(
                 code=EmbeddingErrorCode.EMB_005,
                 message=f"Failed to initialize embedding provider '{target_provider}': {exc}",

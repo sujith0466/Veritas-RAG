@@ -122,7 +122,7 @@ export function EmbeddingJobTable({
       case 'PENDING':
         return (
           <Badge variant="secondary" className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
             <span>Pending</span>
           </Badge>
         )
@@ -142,14 +142,14 @@ export function EmbeddingJobTable({
   const availableModels = currentProviderObj?.models || []
 
   return (
-    <Card className="border-slate-800/80 bg-slate-900/60 backdrop-blur">
-      <div className="p-5 border-b border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <Card className="border-border/80 bg-surface/60 backdrop-blur">
+      <div className="p-5 border-b border-border/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h3 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+          <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
             <Layers className="w-4 h-4 text-indigo-400" />
             Embedding Pipeline Jobs
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Real-time batch vectorization tracking across active document versions (`ADR-M2-003`)
           </p>
         </div>
@@ -158,7 +158,7 @@ export function EmbeddingJobTable({
           <select
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value)}
-            className="rounded-md border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="ALL">All Statuses</option>
             <option value="PROCESSING">Processing</option>
@@ -172,7 +172,7 @@ export function EmbeddingJobTable({
             size="sm"
             onClick={onRefresh}
             disabled={isLoading}
-            className="flex items-center gap-1.5 text-xs bg-slate-950/60 border-slate-800 hover:bg-slate-800"
+            className="flex items-center gap-1.5 text-xs bg-background/60 border-border hover:bg-border"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -193,7 +193,7 @@ export function EmbeddingJobTable({
       {isLoading && jobs.length === 0 ? (
         <div className="p-12 text-center">
           <Loader2 className="w-8 h-8 text-indigo-400 animate-spin mx-auto mb-3" />
-          <p className="text-sm text-slate-400">Loading embedding jobs history...</p>
+          <p className="text-sm text-muted-foreground">Loading embedding jobs history...</p>
         </div>
       ) : jobs.length === 0 ? (
         <div className="p-12">
@@ -210,7 +210,7 @@ export function EmbeddingJobTable({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-800/80 bg-slate-950/40 text-slate-400 uppercase font-semibold">
+              <tr className="border-b border-border/80 bg-background/40 text-muted-foreground uppercase font-semibold">
                 <th className="p-3 pl-5">Job ID & Document</th>
                 <th className="p-3">Provider & Model</th>
                 <th className="p-3">Status</th>
@@ -220,7 +220,7 @@ export function EmbeddingJobTable({
                 <th className="p-3 pr-5 text-right">Error info</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-200">
+            <tbody className="divide-y divide-border/60 text-foreground">
               {jobs.map((job) => {
                 const doc = documents.find((d) => d.id === job.document_id)
                 const docTitle = doc ? (doc.original_filename || doc.filename) : `${job.document_id.slice(0, 8)}...`
@@ -231,21 +231,21 @@ export function EmbeddingJobTable({
                     key={job.job_id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="hover:bg-slate-800/30 transition-colors"
+                    className="hover:bg-border/30 transition-colors"
                   >
                     <td className="p-3 pl-5 font-mono text-[11px]">
-                      <div className="font-semibold text-slate-200 truncate max-w-[180px]" title={docTitle}>
+                      <div className="font-semibold text-foreground truncate max-w-[180px]" title={docTitle}>
                         {docTitle}
                       </div>
-                      <div className="text-slate-500 text-[10px] mt-0.5">
+                      <div className="text-muted-foreground text-[10px] mt-0.5">
                         ID: {job.job_id.slice(0, 8)}...
                       </div>
                     </td>
                     <td className="p-3">
-                      <div className="font-medium text-slate-200 uppercase text-[11px]">
+                      <div className="font-medium text-foreground uppercase text-[11px]">
                         {job.provider}
                       </div>
-                      <div className="text-slate-400 text-[10px] mt-0.5 flex items-center gap-1">
+                      <div className="text-muted-foreground text-[10px] mt-0.5 flex items-center gap-1">
                         <Sparkles className="w-3 h-3 text-indigo-400" />
                         {job.model_name}
                       </div>
@@ -253,14 +253,14 @@ export function EmbeddingJobTable({
                     <td className="p-3">{getStatusBadge(job.status)}</td>
                     <td className="p-3">
                       <div className="flex items-center justify-between text-[11px] mb-1">
-                        <span className="font-semibold text-slate-300">
+                        <span className="font-semibold text-foreground">
                           {progress.toFixed(1)}%
                         </span>
-                        <span className="text-slate-500 text-[10px]">
+                        <span className="text-muted-foreground text-[10px]">
                           {job.processed_chunks} / {job.total_chunks} chunks
                         </span>
                       </div>
-                      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-500 ${
                             job.status === 'FAILED'
@@ -273,11 +273,11 @@ export function EmbeddingJobTable({
                         />
                       </div>
                     </td>
-                    <td className="p-3 font-mono text-slate-300">
+                    <td className="p-3 font-mono text-foreground">
                       {job.total_tokens_consumed.toLocaleString()}{' '}
-                      <span className="text-[10px] text-slate-500">tok</span>
+                      <span className="text-[10px] text-muted-foreground">tok</span>
                     </td>
-                    <td className="p-3 text-slate-400 text-[11px]">
+                    <td className="p-3 text-muted-foreground text-[11px]">
                       {new Date(job.created_at).toLocaleDateString()} {new Date(job.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="p-3 pr-5 text-right">
@@ -296,7 +296,7 @@ export function EmbeddingJobTable({
                           </Tooltip>
                         </TooltipProvider>
                       ) : (
-                        <span className="text-slate-600">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                   </motion.tr>
@@ -309,7 +309,7 @@ export function EmbeddingJobTable({
 
       {/* Pagination Footer */}
       {totalJobs > 0 && (
-        <div className="p-4 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <div className="p-4 border-t border-border/80 flex items-center justify-between text-xs text-muted-foreground">
           <div>
             Showing {jobs.length} of {totalJobs} jobs
           </div>
@@ -323,7 +323,7 @@ export function EmbeddingJobTable({
             >
               Previous
             </Button>
-            <span className="px-2 font-medium text-slate-300">Page {page}</span>
+            <span className="px-2 font-medium text-foreground">Page {page}</span>
             <Button
               variant="outline"
               size="sm"
@@ -339,24 +339,24 @@ export function EmbeddingJobTable({
 
       {/* Modal for Creating Job */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg bg-slate-900 border border-slate-800 text-slate-100">
+        <DialogContent className="max-w-lg bg-surface border border-border text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-indigo-400">
               <Play className="w-4 h-4 fill-current" />
               Initiate Batch Embedding Job
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-400">
+            <DialogDescription className="text-xs text-muted-foreground">
               Select a document to vector-encode all unindexed chunks. Idempotent content hashes will automatically bypass re-generation unless forced.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-3 text-xs">
             <div>
-              <Label className="text-slate-300 font-semibold mb-1.5 block">Target Document</Label>
+              <Label className="text-foreground font-semibold mb-1.5 block">Target Document</Label>
               <select
                 value={selectedDocId}
                 onChange={(e) => setSelectedDocId(e.target.value)}
-                className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 {documents.map((doc) => (
                   <option key={doc.id} value={doc.id}>
@@ -368,11 +368,11 @@ export function EmbeddingJobTable({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-slate-300 font-semibold mb-1.5 block">Embedding Provider</Label>
+                <Label className="text-foreground font-semibold mb-1.5 block">Embedding Provider</Label>
                 <select
                   value={selectedProvider}
                   onChange={(e) => setSelectedProvider(e.target.value)}
-                  className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 uppercase focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground uppercase focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   {providers.map((p) => (
                     <option key={p.provider} value={p.provider} disabled={!p.is_available}>
@@ -383,11 +383,11 @@ export function EmbeddingJobTable({
               </div>
 
               <div>
-                <Label className="text-slate-300 font-semibold mb-1.5 block">Target Model</Label>
+                <Label className="text-foreground font-semibold mb-1.5 block">Target Model</Label>
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   {availableModels.map((m) => (
                     <option key={m.model_name} value={m.model_name}>
@@ -399,9 +399,9 @@ export function EmbeddingJobTable({
             </div>
 
             <div>
-              <Label className="text-slate-300 font-semibold mb-1.5 flex items-center justify-between">
+              <Label className="text-foreground font-semibold mb-1.5 flex items-center justify-between">
                 <span>Batch Size per Request</span>
-                <span className="text-[11px] font-normal text-slate-500">Recommended: 100</span>
+                <span className="text-[11px] font-normal text-muted-foreground">Recommended: 100</span>
               </Label>
               <Input
                 type="number"
@@ -409,21 +409,21 @@ export function EmbeddingJobTable({
                 max={500}
                 value={batchSize}
                 onChange={(e) => setBatchSize(Number(e.target.value))}
-                className="w-full bg-slate-950 border-slate-800 text-xs font-mono"
+                className="w-full bg-background border-border text-xs font-mono"
               />
             </div>
 
-            <div className="pt-2 border-t border-slate-800/60">
+            <div className="pt-2 border-t border-border/60">
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={forceReembed}
                   onChange={(e) => setForceReembed(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+                  className="mt-0.5 rounded border-border bg-background text-indigo-600 focus:ring-indigo-500"
                 />
                 <div>
-                  <span className="text-slate-200 font-medium block">Force Re-embedding</span>
-                  <span className="text-[11px] text-slate-400 block mt-0.5 leading-relaxed">
+                  <span className="text-foreground font-medium block">Force Re-embedding</span>
+                  <span className="text-[11px] text-muted-foreground block mt-0.5 leading-relaxed">
                     Bypasses SHA-256 idempotency check and regenerates vectors for all chunks even if existing vectors are present in cache.
                   </span>
                 </div>
@@ -431,7 +431,7 @@ export function EmbeddingJobTable({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 pt-2 border-t border-slate-800/80">
+          <DialogFooter className="gap-2 pt-2 border-t border-border/80">
             <Button variant="outline" size="sm" onClick={() => setIsModalOpen(false)} disabled={isCreating}>
               Cancel
             </Button>

@@ -6,7 +6,6 @@ percentile latency calculations ($P_{95}$), and stage timing aggregations (`ADR-
 
 import math
 from collections.abc import Sequence
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
@@ -15,10 +14,7 @@ from structlog import get_logger
 
 from backend.modules.retrieval.models.retrieval_log import RetrievalQueryLog
 from backend.modules.retrieval.schemas.retrieval_dto import (
-    RetrievalMetricsDTO,
-    RetrievalQueryLogDTO,
-    RetrievalStageBreakdownDTO,
-)
+    RetrievalMetricsDTO, RetrievalQueryLogDTO, RetrievalStageBreakdownDTO)
 from backend.repositories.base import BaseRepository
 
 logger = get_logger(__name__)

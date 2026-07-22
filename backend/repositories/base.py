@@ -4,9 +4,9 @@ Provides standard CRUD operations (get, list, create, update, soft/hard delete)
 backed by SQLAlchemy 2.0 `AsyncSession` and `BaseModel`.
 """
 
+import uuid
 from collections.abc import Sequence
 from typing import Any, Generic, TypeVar
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

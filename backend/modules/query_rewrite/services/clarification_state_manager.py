@@ -5,16 +5,14 @@ and persistence across paused query executions.
 """
 
 import time
-from typing import Dict, Optional
+
 from structlog import get_logger
 
+from backend.modules.query_rewrite.schemas.errors import \
+    ClarificationGenerationFailed
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    ClarificationStateDTO,
-    ClarificationStatus,
-    ClarificationResumeRequestDTO,
-    ClarifiedQueryDTO,
-)
-from backend.modules.query_rewrite.schemas.errors import ClarificationGenerationFailed
+    ClarificationResumeRequestDTO, ClarificationStateDTO, ClarificationStatus,
+    ClarifiedQueryDTO)
 
 logger = get_logger(__name__)
 
@@ -24,7 +22,7 @@ class ClarificationStateManager:
 
     def __init__(self, default_ttl_seconds: int = 600) -> None:
         self.default_ttl = default_ttl_seconds
-        self._store: Dict[str, ClarificationStateDTO] = {}
+        self._store: dict[str, ClarificationStateDTO] = {}
 
     def save_state(
         self,
@@ -47,15 +45,22 @@ class ClarificationStateManager:
             expires_at=now + self.default_ttl,
         )
         self._store[correlation_id] = state
-        logger.info("Saved clarification state", correlation_id=correlation_id, tenant_id=tenant_id)
+        logger.info(
+            "Saved clarification state",
+            correlation_id=correlation_id,
+            tenant_id=tenant_id,
+        )
         return state
 
-    def get_state(self, correlation_id: str) -> Optional[ClarificationStateDTO]:
+    def get_state(self, correlation_id: str) -> ClarificationStateDTO | None:
         """Retrieve state, checking for expiration."""
         state = self._store.get(correlation_id)
         if not state:
             return None
-        if time.time() > state.expires_at and state.status == ClarificationStatus.REQUIRED:
+        if (
+            time.time() > state.expires_at
+            and state.status == ClarificationStatus.REQUIRED
+        ):
             state.status = ClarificationStatus.TIMEOUT
             logger.warning("Clarification state expired", correlation_id=correlation_id)
         return state
@@ -81,14 +86,22 @@ class ClarificationStateManager:
 
         # Merge selected option and additional context
         selected = resume_req.selected_option.strip()
-        context_suffix = f" (Context: {resume_req.additional_context.strip()})" if resume_req.additional_context else ""
+        context_suffix = (
+            f" (Context: {resume_req.additional_context.strip()})"
+            if resume_req.additional_context
+            else ""
+        )
         clarified_query = f"{state.original_query} — specifically focusing on: {selected}{context_suffix}"
 
         state.status = ClarificationStatus.RESOLVED
         state.selected_option = selected
         state.clarified_query = clarified_query
 
-        logger.info("Clarification resolved successfully", correlation_id=state.correlation_id, clarified_query=clarified_query)
+        logger.info(
+            "Clarification resolved successfully",
+            correlation_id=state.correlation_id,
+            clarified_query=clarified_query,
+        )
         return ClarifiedQueryDTO(
             correlation_id=state.correlation_id,
             original_query=state.original_query,

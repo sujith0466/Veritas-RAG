@@ -13,7 +13,7 @@ class ErrorSeverity(StrEnum):
     """Severity level determining background worker retry behavior."""
 
     RECOVERABLE = "RECOVERABLE"  # Transient issue; trigger exponential backoff retry
-    FATAL = "FATAL"              # Permanent issue; immediately transition status to FAILED
+    FATAL = "FATAL"  # Permanent issue; immediately transition status to FAILED
 
 
 class DocumentErrorCode(StrEnum):
@@ -33,8 +33,12 @@ class DocumentErrorCode(StrEnum):
     STORE_003 = "STORE_003"  # Storage provider connection or quota failure
 
     # Extraction errors (EXTRACT_xxx)
-    EXTRACT_001 = "EXTRACT_001"  # Extractor parsing exception or corrupted structure (FATAL)
-    EXTRACT_002 = "EXTRACT_002"  # Minimal text extracted; requires OCR fallback (RECOVERABLE)
+    EXTRACT_001 = (
+        "EXTRACT_001"  # Extractor parsing exception or corrupted structure (FATAL)
+    )
+    EXTRACT_002 = (
+        "EXTRACT_002"  # Minimal text extracted; requires OCR fallback (RECOVERABLE)
+    )
     EXTRACT_003 = "EXTRACT_003"  # No capable extractor registered for MIME type (FATAL)
 
     # OCR errors (OCR_xxx) — RECOVERABLE by default
@@ -78,6 +82,7 @@ def get_error_severity(code: DocumentErrorCode | str) -> ErrorSeverity:
 
 
 from http import HTTPStatus
+
 from backend.core.exceptions.base import RAGuardException
 
 
@@ -91,7 +96,15 @@ class DocumentDomainException(RAGuardException):
         detail: dict[str, Any] | None = None,
         severity: ErrorSeverity | None = None,
     ) -> None:
-        code_str = code if isinstance(code, DocumentErrorCode) else DocumentErrorCode(code) if code in DocumentErrorCode._value2member_map_ else str(code)
+        code_str = (
+            code
+            if isinstance(code, DocumentErrorCode)
+            else (
+                DocumentErrorCode(code)
+                if code in DocumentErrorCode._value2member_map_
+                else str(code)
+            )
+        )
         self.code = code_str
         self.severity = severity or get_error_severity(self.code)
 
@@ -106,4 +119,3 @@ class DocumentDomainException(RAGuardException):
 
         self.http_status = int(status_code)
         super().__init__(message=message, detail=detail, error_code=str(code_str))
-

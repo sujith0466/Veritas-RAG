@@ -6,23 +6,20 @@ filtering (`ADR-M3-001`), and standardized domain error mapping (`VEC_xxx`).
 """
 
 from typing import Any
+
 import structlog
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http import models as qdrant_models
 
-from backend.vector_db.client import get_qdrant_client
 from backend.modules.vector.providers.base import BaseVectorDBProvider
-from backend.modules.vector.schemas.errors import (
-    CollectionNotFoundError,
-    DimensionMismatchError,
-    InvalidPayloadSchemaError,
-    QdrantConnectionError,
-)
-from backend.modules.vector.schemas.payload import (
-    CollectionConfigDTO,
-    CollectionSummaryDTO,
-    VectorPointDTO,
-)
+from backend.modules.vector.schemas.errors import (CollectionNotFoundError,
+                                                   DimensionMismatchError,
+                                                   InvalidPayloadSchemaError,
+                                                   QdrantConnectionError)
+from backend.modules.vector.schemas.payload import (CollectionConfigDTO,
+                                                    CollectionSummaryDTO,
+                                                    VectorPointDTO)
+from backend.vector_db.client import get_qdrant_client
 
 logger = structlog.get_logger(__name__)
 
@@ -44,22 +41,40 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
     def provider_name(self) -> str:
         return "qdrant"
 
+    async def check_connection(self) -> bool:
+        """Check if the Qdrant connection is healthy."""
+        try:
+            # list_collections acts as a simple health check ping
+            await self.client.get_collections()
+            return True
+        except Exception as e:
+            logger.error("qdrant_health_check_failed", error=str(e))
+            return False
+
     async def ensure_collection(self, config: CollectionConfigDTO) -> bool:
         """Ensure the target collection exists with exact dimension and quantization settings."""
-        log = logger.bind(collection_name=config.collection_name, dimension=config.dimension)
+        log = logger.bind(
+            collection_name=config.collection_name, dimension=config.dimension
+        )
         try:
-            exists = await self.client.collection_exists(collection_name=config.collection_name)
+            exists = await self.client.collection_exists(
+                collection_name=config.collection_name
+            )
             if exists:
                 log.debug("Target Qdrant collection already exists; verifying status")
                 return True
 
-            log.info("Creating new Qdrant collection with HNSW and INT8 scalar quantization")
+            log.info(
+                "Creating new Qdrant collection with HNSW and INT8 scalar quantization"
+            )
             distance_map = {
                 "Cosine": qdrant_models.Distance.COSINE,
                 "Dot": qdrant_models.Distance.DOT,
                 "Euclidean": qdrant_models.Distance.EUCLID,
             }
-            distance = distance_map.get(config.distance_metric, qdrant_models.Distance.COSINE)
+            distance = distance_map.get(
+                config.distance_metric, qdrant_models.Distance.COSINE
+            )
 
             quantization_config = None
             if config.scalar_quantization:
@@ -88,9 +103,13 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 detail={"collection_name": config.collection_name, "error": str(exc)},
             ) from exc
 
-    async def create_payload_indexes(self, collection_name: str, indexed_fields: list[str]) -> bool:
+    async def create_payload_indexes(
+        self, collection_name: str, indexed_fields: list[str]
+    ) -> bool:
         """Create keyword index structures on payload fields (`ADR-M3-001`)."""
-        log = logger.bind(collection_name=collection_name, indexed_fields=indexed_fields)
+        log = logger.bind(
+            collection_name=collection_name, indexed_fields=indexed_fields
+        )
         try:
             for field in indexed_fields:
                 try:
@@ -101,8 +120,13 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                     )
                 except Exception as idx_exc:
                     # If index already exists or status is running, log and continue safely
-                    if "already exists" in str(idx_exc).lower() or "running" in str(idx_exc).lower():
-                        log.debug("Payload index already present or initializing", field=field)
+                    if (
+                        "already exists" in str(idx_exc).lower()
+                        or "running" in str(idx_exc).lower()
+                    ):
+                        log.debug(
+                            "Payload index already present or initializing", field=field
+                        )
                     else:
                         raise
             return True
@@ -113,7 +137,9 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 detail={"collection_name": collection_name, "error": str(exc)},
             ) from exc
 
-    async def upsert_points(self, collection_name: str, points: list[VectorPointDTO]) -> int:
+    async def upsert_points(
+        self, collection_name: str, points: list[VectorPointDTO]
+    ) -> int:
         """Batch upsert points into Qdrant collection with structured payload validation."""
         if not points:
             return 0
@@ -144,12 +170,16 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                     message=f"Collection '{collection_name}' not found during batch upsert.",
                     detail={"collection_name": collection_name},
                 ) from exc
-            elif "dimension" in err_str or "size mismatch" in err_str or "wrong vector size" in err_str:
+            if (
+                "dimension" in err_str
+                or "size mismatch" in err_str
+                or "wrong vector size" in err_str
+            ):
                 raise DimensionMismatchError(
                     message=f"Vector dimension mismatch when upserting into '{collection_name}': {exc}",
                     detail={"collection_name": collection_name, "error": str(exc)},
                 ) from exc
-            elif "payload" in err_str or "schema" in err_str:
+            if "payload" in err_str or "schema" in err_str:
                 raise InvalidPayloadSchemaError(
                     message=f"Payload schema violation during upsert: {exc}",
                     detail={"collection_name": collection_name, "error": str(exc)},
@@ -222,7 +252,9 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 collection_name=collection_name,
                 points_count=info.points_count or 0,
                 indexed_vectors_count=info.indexed_vectors_count or 0,
-                status=str(info.status.name if hasattr(info.status, "name") else info.status),
+                status=str(
+                    info.status.name if hasattr(info.status, "name") else info.status
+                ),
                 vector_dimension=dimension,
             )
         except Exception as exc:
@@ -245,7 +277,9 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Search for approximate nearest neighbors in Qdrant with exact payload filtering."""
-        log = logger.bind(collection_name=collection_name, filter=filter_conditions, limit=limit)
+        log = logger.bind(
+            collection_name=collection_name, filter=filter_conditions, limit=limit
+        )
         try:
             must_conditions = [
                 qdrant_models.FieldCondition(
@@ -268,12 +302,17 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
             )
             candidates: list[dict[str, Any]] = []
             for hit in results:
-                candidates.append({
-                    "point_id": str(hit.id),
-                    "score": float(hit.score),
-                    "payload": hit.payload or {},
-                })
-            log.debug("Successfully executed dense search in Qdrant", hits_count=len(candidates))
+                candidates.append(
+                    {
+                        "point_id": str(hit.id),
+                        "score": float(hit.score),
+                        "payload": hit.payload or {},
+                    }
+                )
+            log.debug(
+                "Successfully executed dense search in Qdrant",
+                hits_count=len(candidates),
+            )
             return candidates
         except Exception as exc:
             err_str = str(exc).lower()
@@ -287,4 +326,3 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 message=f"Qdrant failure during point search: {exc}",
                 detail={"collection_name": collection_name, "error": str(exc)},
             ) from exc
-

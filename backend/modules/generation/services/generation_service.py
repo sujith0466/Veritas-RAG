@@ -1,9 +1,9 @@
 import logging
+
 from backend.modules.generation.schemas.generation_dto import (
-    GenerationRequestDTO,
-    GroundedAnswerDTO
-)
-from backend.modules.generation.services.citation_extractor import CitationExtractor
+    GenerationRequestDTO, GroundedAnswerDTO)
+from backend.modules.generation.services.citation_extractor import \
+    CitationExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ Answer (with citations):"""
 
 
 import time
+
 from backend.observability.metrics import record_stage_duration
 from backend.observability.tracing import trace_generation
 
@@ -57,25 +58,30 @@ class GroundedGenerationService:
         start_time = time.perf_counter()
         evidence_chunks = request.evidence_chunks
         if not evidence_chunks:
-            logger.warning(f"[{request.correlation_id}] No evidence chunks provided for generation")
+            logger.warning(
+                f"[{request.correlation_id}] No evidence chunks provided for generation"
+            )
             return GroundedAnswerDTO(
                 answer_text="Insufficient evidence to generate an answer.",
                 citations=[],
                 is_fully_grounded=False,
                 correlation_id=request.correlation_id,
-                evidence_used_count=0
+                evidence_used_count=0,
             )
 
         evidence_block = _build_evidence_block(evidence_chunks)
         model_name = getattr(self.llm_provider, "model_name", "gemini-mock")
 
-        with trace_generation(model=model_name, prompt_tokens=len(evidence_block.split())):
+        with trace_generation(
+            model=model_name, prompt_tokens=len(evidence_block.split())
+        ):
             if self.llm_provider:
                 prompt = _ANSWER_PROMPT_TEMPLATE.format(
-                    query=request.query,
-                    evidence_block=evidence_block
+                    query=request.query, evidence_block=evidence_block
                 )
-                answer_text = self.llm_provider.generate(prompt, max_tokens=request.max_answer_tokens)
+                answer_text = self.llm_provider.generate(
+                    prompt, max_tokens=request.max_answer_tokens
+                )
             else:
                 # Deterministic mock: use first complete sentence from each evidence chunk
                 # so citation markers follow cleanly after each period (no mid-sentence truncation).
@@ -85,15 +91,17 @@ class GroundedGenerationService:
                     # Extract first complete sentence (up to first '. ')
                     period_pos = content.find(". ")
                     if period_pos > 0:
-                        sentence = content[:period_pos + 1]
+                        sentence = content[: period_pos + 1]
                     else:
-                        sentence = content[:80].strip().rstrip(".")  + "."
+                        sentence = content[:80].strip().rstrip(".") + "."
                     parts.append(f"{sentence} [{i}]")
                 answer_text = " ".join(parts) if parts else "Insufficient evidence."
 
             # Extract citations from answer markers
             citations = self.citation_extractor.extract(answer_text, evidence_chunks)
-            is_grounded = self.citation_extractor.check_grounding(answer_text, citations)
+            is_grounded = self.citation_extractor.check_grounding(
+                answer_text, citations
+            )
 
             logger.info(
                 f"[{request.correlation_id}] Generation complete. "
@@ -108,6 +116,5 @@ class GroundedGenerationService:
                 citations=citations,
                 is_fully_grounded=is_grounded,
                 correlation_id=request.correlation_id,
-                evidence_used_count=len(evidence_chunks)
+                evidence_used_count=len(evidence_chunks),
             )
-

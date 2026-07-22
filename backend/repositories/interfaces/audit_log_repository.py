@@ -3,10 +3,10 @@
 Defines the contract for audit log trail persistence and querying.
 """
 
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Any
-import uuid
 
 from backend.models.entities.audit_log import AuditLog
 

@@ -5,13 +5,19 @@ token accounting, and capability checks (`ADR-M2-001`). Also registers concrete 
 """
 
 from typing import Any
+
 import structlog
 
-from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
-from backend.modules.embedding.providers.cohere_provider import CohereEmbeddingProvider
-from backend.modules.embedding.providers.factory import EmbeddingProviderFactory, register_provider
-from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
-from backend.modules.embedding.providers.openai_provider import OpenAIEmbeddingProvider
+from backend.modules.embedding.providers.base import (BaseEmbeddingProvider,
+                                                      EmbeddingBatchResult)
+from backend.modules.embedding.providers.cohere_provider import \
+    CohereEmbeddingProvider
+from backend.modules.embedding.providers.factory import (
+    EmbeddingProviderFactory, register_provider)
+from backend.modules.embedding.providers.local_provider import \
+    LocalEmbeddingProvider
+from backend.modules.embedding.providers.openai_provider import \
+    OpenAIEmbeddingProvider
 from backend.modules.embedding.schemas.errors import InvalidInputError
 
 logger = structlog.get_logger(__name__)
@@ -49,10 +55,14 @@ class EmbeddingManager:
     def model_name(self) -> str:
         return self.provider.model_name
 
-    async def vectorize_batch(self, texts: list[str], batch_size: int = 100) -> EmbeddingBatchResult:
+    async def vectorize_batch(
+        self, texts: list[str], batch_size: int = 100
+    ) -> EmbeddingBatchResult:
         """Vectorize a list of strings, splitting into chunks of `batch_size` if needed."""
         if not texts:
-            raise InvalidInputError("Empty text list provided to EmbeddingManager.vectorize_batch.")
+            raise InvalidInputError(
+                "Empty text list provided to EmbeddingManager.vectorize_batch."
+            )
         if batch_size < 1:
             raise InvalidInputError("batch_size must be at least 1.")
 
@@ -80,7 +90,9 @@ class EmbeddingManager:
         """Generate a single vector for a query string."""
         return await self.provider.embed_query(query)
 
-    def validate_capabilities(self, chunk_count: int, max_tokens_per_chunk: int) -> bool:
+    def validate_capabilities(
+        self, chunk_count: int, max_tokens_per_chunk: int
+    ) -> bool:
         """Validate whether the provider and model support the requested chunk dimensions and counts."""
         if chunk_count <= 0:
             return False

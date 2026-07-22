@@ -1,7 +1,10 @@
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Integer, Boolean
 import uuid
+
+from sqlalchemy import Boolean, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.database.base import Base
+
 
 class SelfHealingPolicyORM(Base):
     __tablename__ = "self_healing_policies"

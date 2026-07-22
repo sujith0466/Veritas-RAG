@@ -23,6 +23,10 @@ export const registerSchema = z
     password: passwordSchema,
     confirmPassword: z.string().min(1, 'Please confirm your password'),
     fullName: z.string().min(2, 'Full name must be at least 2 characters').optional(),
+    workspaceName: z.string().optional(),
+    organizationName: z.string().optional(),
+    invitationCode: z.string().optional(),
+    role: z.enum(['admin', 'user']).optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",

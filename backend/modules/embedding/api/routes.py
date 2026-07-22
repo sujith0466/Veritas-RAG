@@ -4,27 +4,26 @@ Provides endpoints for asynchronous job initiation (`POST /jobs`), job progress 
 paginated job history (`GET /jobs`), tenant metrics inspection (`GET /metrics`), and provider catalog (`GET /providers`).
 """
 
-from typing import Any
 import uuid
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.database import get_db
-from backend.modules.embedding.api.dependencies import get_embedding_service, resolve_tenant
-from backend.modules.embedding.providers.factory import EmbeddingProviderFactory
+from backend.modules.embedding.api.dependencies import (get_embedding_service,
+                                                        resolve_tenant)
+from backend.modules.embedding.providers.factory import \
+    EmbeddingProviderFactory
 from backend.modules.embedding.schemas.embedding_dto import (
-    EmbeddingJobDTO,
-    EmbeddingMetricsDTO,
-    EmbeddingProcessRequestDTO,
-    PaginatedJobResponse,
-    ProviderInfoDTO,
-)
-from backend.modules.embedding.schemas.errors import EmbeddingDomainException, EmbeddingErrorCode
-from backend.modules.embedding.services.embedding_service import EmbeddingService
-from backend.modules.embedding.workers.tasks import process_embedding_batch_task
+    EmbeddingJobDTO, EmbeddingMetricsDTO, EmbeddingProcessRequestDTO,
+    PaginatedJobResponse, ProviderInfoDTO)
+from backend.modules.embedding.schemas.errors import EmbeddingDomainException
+from backend.modules.embedding.services.embedding_service import \
+    EmbeddingService
+from backend.modules.embedding.workers.tasks import \
+    process_embedding_batch_task
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/embeddings", tags=["Embedding Pipeline"])
@@ -78,7 +77,9 @@ async def create_embedding_job(
     except Exception as exc:
         await session.rollback()
         logger.error("create_embedding_job_unexpected_error", error=str(exc))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+        )
 
 
 @router.get(
@@ -95,8 +96,13 @@ async def get_embedding_job(
     """Retrieve progress metrics (`processed / total` chunks) for a specific embedding job (`ADR-M2-001`)."""
     job = await service.get_job_status(job_id=job_id, tenant_id=tenant_id)
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Embedding job not found under this tenant namespace.")
-    return SuccessResponse(data=EmbeddingJobDTO.model_validate(job), metadata=_build_metadata(request))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Embedding job not found under this tenant namespace.",
+        )
+    return SuccessResponse(
+        data=EmbeddingJobDTO.model_validate(job), metadata=_build_metadata(request)
+    )
 
 
 @router.get(
@@ -106,8 +112,14 @@ async def get_embedding_job(
 )
 async def list_embedding_jobs(
     request: Request,
-    document_id: uuid.UUID | None = Query(default=None, description="Filter by Document ID"),
-    job_status: str | None = Query(default=None, alias="status", description="Filter by status ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')"),
+    document_id: uuid.UUID | None = Query(
+        default=None, description="Filter by Document ID"
+    ),
+    job_status: str | None = Query(
+        default=None,
+        alias="status",
+        description="Filter by status ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')",
+    ),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     size: int = Query(default=20, ge=1, le=100, description="Page size"),
     tenant_id: str = Depends(resolve_tenant),
@@ -125,7 +137,9 @@ async def list_embedding_jobs(
     pages = (total + size - 1) // size if total > 0 else 1
     items = [EmbeddingJobDTO.model_validate(j) for j in jobs]
     return SuccessResponse(
-        data=PaginatedJobResponse(items=items, total=total, page=page, size=size, pages=pages),
+        data=PaginatedJobResponse(
+            items=items, total=total, page=page, size=size, pages=pages
+        ),
         metadata=_build_metadata(request),
     )
 
@@ -142,7 +156,10 @@ async def get_embedding_metrics(
 ) -> SuccessResponse[EmbeddingMetricsDTO]:
     """Retrieve aggregate token budget usage, total vector inventory, and job distribution (`ADR-M2-001`)."""
     metrics = await service.get_tenant_metrics(tenant_id)
-    return SuccessResponse(data=EmbeddingMetricsDTO.model_validate(metrics), metadata=_build_metadata(request))
+    return SuccessResponse(
+        data=EmbeddingMetricsDTO.model_validate(metrics),
+        metadata=_build_metadata(request),
+    )
 
 
 @router.get(

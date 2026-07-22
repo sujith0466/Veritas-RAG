@@ -13,7 +13,9 @@ class AuthStatusResponse(BaseModel):
     """Response payload for authentication status inspection."""
 
     is_authenticated: bool = Field(description="Whether a valid JWT was provided")
-    user: UserContext | None = Field(default=None, description="Authenticated user context")
+    user: UserContext | None = Field(
+        default=None, description="Authenticated user context"
+    )
 
 
 __all__ = [

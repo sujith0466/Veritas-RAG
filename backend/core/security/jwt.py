@@ -9,12 +9,14 @@ from functools import lru_cache
 from typing import Any
 
 import jwt
-from jwt.exceptions import ExpiredSignatureError, InvalidTokenError, PyJWKClientError
 import structlog
+from jwt.exceptions import (ExpiredSignatureError, InvalidTokenError,
+                            PyJWKClientError)
 
 from backend.core.auth.context import TokenPayload
 from backend.core.config import get_settings
-from backend.core.exceptions.auth import ExpiredTokenException, InvalidTokenException
+from backend.core.exceptions.auth import (ExpiredTokenException,
+                                          InvalidTokenException)
 
 logger = structlog.get_logger(__name__)
 
@@ -61,14 +63,16 @@ class JWTVerifier:
                 try:
                     signing_key = self._jwk_client.get_signing_key_from_jwt(token)
                     key: Any = signing_key.key
-                    algorithms = [settings.supabase.jwt_algorithm, "RS256"]
+                    algorithms = [settings.supabase.jwt_algorithm, "RS256", "ES256"]
                 except PyJWKClientError as e:
-                    logger.warning("JWKS lookup failed; falling back to secret", error=str(e))
+                    logger.warning(
+                        "JWKS lookup failed; falling back to secret", error=str(e)
+                    )
                     key = settings.supabase.jwt_secret
-                    algorithms = [settings.supabase.jwt_algorithm, "HS256", "RS256"]
+                    algorithms = [settings.supabase.jwt_algorithm, "HS256"]
             else:
                 key = settings.supabase.jwt_secret
-                algorithms = [settings.supabase.jwt_algorithm, "HS256", "RS256"]
+                algorithms = [settings.supabase.jwt_algorithm, "HS256"]
 
             raw_claims = jwt.decode(
                 token,
@@ -100,11 +104,23 @@ class JWTVerifier:
                 or user_metadata.get("role")
                 or "viewer"
             )
+            tenant_id = (
+                raw_claims.get("tenant_id")
+                or app_metadata.get("tenant_id")
+                or user_metadata.get("tenant_id")
+            )
+            workspace_name = (
+                raw_claims.get("workspace_name")
+                or app_metadata.get("workspace_name")
+                or user_metadata.get("workspace_name")
+            )
 
             return TokenPayload(
                 sub=str(sub),
                 email=str(email) if email else None,
                 role=str(role_claim),
+                tenant_id=str(tenant_id) if tenant_id else None,
+                workspace_name=str(workspace_name) if workspace_name else None,
                 exp=int(raw_claims.get("exp", 0)),
                 aud=raw_claims.get("aud"),
                 iss=raw_claims.get("iss"),
@@ -116,9 +132,7 @@ class JWTVerifier:
             raise ExpiredTokenException() from e
         except (InvalidTokenError, PyJWKClientError, ValueError) as e:
             logger.debug("Token verification failed: invalid token", error=str(e))
-            raise InvalidTokenException(
-                f"Invalid authentication token: {e!s}"
-            ) from e
+            raise InvalidTokenException(f"Invalid authentication token: {e!s}") from e
 
 
 @lru_cache(maxsize=1)

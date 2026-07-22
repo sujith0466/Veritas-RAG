@@ -8,4 +8,6 @@ class CircuitState(str, Enum):
 
     CLOSED = "CLOSED"  # Healthy: Traffic flows normally.
     OPEN = "OPEN"  # Tripped: Fast failover to fallback path; traffic blocked.
-    HALF_OPEN = "HALF_OPEN"  # Probe: Limited test requests allowed to verify target recovery.
+    HALF_OPEN = (
+        "HALF_OPEN"  # Probe: Limited test requests allowed to verify target recovery.
+    )

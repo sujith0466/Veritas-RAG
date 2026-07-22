@@ -5,17 +5,13 @@ stages, self-correction interventions, confidence scores, and reliability distri
 """
 
 from typing import Any
+
 import structlog
 
 try:
-    from prometheus_client import (
-        CONTENT_TYPE_LATEST,
-        REGISTRY,
-        Counter,
-        Gauge,
-        Histogram,
-        generate_latest,
-    )
+    from prometheus_client import (CONTENT_TYPE_LATEST, REGISTRY, Counter,
+                                   Gauge, Histogram, generate_latest)
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -25,14 +21,19 @@ except ImportError:
     class _MockMetric:
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
+
         def labels(self, *args: Any, **kwargs: Any) -> "_MockMetric":
             return self
+
         def inc(self, amount: float = 1.0) -> None:
             pass
+
         def dec(self, amount: float = 1.0) -> None:
             pass
+
         def set(self, value: float) -> None:
             pass
+
         def observe(self, amount: float) -> None:
             pass
 
@@ -42,6 +43,7 @@ except ImportError:
 
     def generate_latest(registry: Any = None) -> bytes:
         return b"# Prometheus metrics disabled (prometheus_client not installed)\n"
+
 
 logger = structlog.get_logger(__name__)
 
@@ -122,17 +124,26 @@ HALLUCINATION_DETECTIONS_TOTAL = Counter(
 
 # ── Helper Recording Functions ────────────────────────────────────────────────
 
-def record_http_request(method: str, endpoint: str, status_code: int, duration_seconds: float) -> None:
+
+def record_http_request(
+    method: str, endpoint: str, status_code: int, duration_seconds: float
+) -> None:
     """Record a completed HTTP request metrics."""
     status_str = str(status_code)
-    HTTP_REQUESTS_TOTAL.labels(method=method, endpoint=endpoint, status_code=status_str).inc()
-    HTTP_REQUEST_DURATION_SECONDS.labels(method=method, endpoint=endpoint).observe(duration_seconds)
+    HTTP_REQUESTS_TOTAL.labels(
+        method=method, endpoint=endpoint, status_code=status_str
+    ).inc()
+    HTTP_REQUEST_DURATION_SECONDS.labels(method=method, endpoint=endpoint).observe(
+        duration_seconds
+    )
 
 
 def record_query_metric(tenant_id: str, outcome: str, duration_seconds: float) -> None:
     """Record an AI query execution metric and total pipeline duration."""
     QUERIES_PROCESSED_TOTAL.labels(tenant_id=tenant_id, outcome=outcome).inc()
-    PIPELINE_STAGE_DURATION_SECONDS.labels(stage="total_pipeline").observe(duration_seconds)
+    PIPELINE_STAGE_DURATION_SECONDS.labels(stage="total_pipeline").observe(
+        duration_seconds
+    )
 
 
 def record_stage_duration(stage: str, duration_seconds: float) -> None:
@@ -147,7 +158,9 @@ def record_error_metric(error_code: str, stage: str) -> None:
 
 def record_retry_metric(strategy: str, trigger_reason: str) -> None:
     """Record a self-correction retry trigger."""
-    SELF_CORRECTION_RETRIES_TOTAL.labels(strategy=strategy, trigger_reason=trigger_reason).inc()
+    SELF_CORRECTION_RETRIES_TOTAL.labels(
+        strategy=strategy, trigger_reason=trigger_reason
+    ).inc()
 
 
 def record_confidence_metric(score: float) -> None:
@@ -160,7 +173,9 @@ def record_reliability_metric(score: float) -> None:
     POST_GEN_RELIABILITY_SCORE.observe(max(0.0, min(1.0, score)))
 
 
-def record_reflection_metric(failed: bool, hallucination_detected: bool, reason: str = "unsupported_claim") -> None:
+def record_reflection_metric(
+    failed: bool, hallucination_detected: bool, reason: str = "unsupported_claim"
+) -> None:
     """Record reflection entailment outcomes and hallucination detections."""
     if failed:
         REFLECTION_FAILURES_TOTAL.labels(reason=reason).inc()

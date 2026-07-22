@@ -1,9 +1,11 @@
 """ORM entity representing scheduled or manual health scan audit jobs (`health_scan_jobs`)."""
 
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import Column, Float, Integer, String, Text, DateTime
+from datetime import UTC, datetime
+
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
 from backend.database.base import Base
 
 
@@ -22,12 +24,14 @@ class HealthScanJob(Base):
     parity_status = Column(String(100), nullable=False, default="UNKNOWN")
     duration_ms = Column(Float, nullable=False, default=0.0)
     error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     updated_at = Column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     def __repr__(self) -> str:

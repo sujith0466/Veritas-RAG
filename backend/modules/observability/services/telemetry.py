@@ -1,6 +1,9 @@
-import uuid
 import time
-from backend.modules.observability.schemas.observability_dto import TraceSpanDTO
+import uuid
+
+from backend.modules.observability.schemas.observability_dto import \
+    TraceSpanDTO
+
 
 class TelemetryService:
     @staticmethod
@@ -11,7 +14,7 @@ class TelemetryService:
             "trace_id": trace_id,
             "span_id": span_id,
             "operation_name": operation_name,
-            "start_time": time.time()
+            "start_time": time.time(),
         }
 
     @staticmethod
@@ -22,5 +25,5 @@ class TelemetryService:
             span_id=trace_context["span_id"],
             operation_name=trace_context["operation_name"],
             duration_ms=duration_ms,
-            status=status
+            status=status,
         )

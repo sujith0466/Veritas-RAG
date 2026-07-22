@@ -1,8 +1,8 @@
 """Pydantic v2 DTOs for Chunking & Document Processing (`ADR-005`)."""
 
+import uuid
 from datetime import datetime
 from typing import Any
-import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,11 +12,19 @@ class ChunkDTO(BaseModel):
 
     chunk_index: int = Field(description="Sequence order within document version")
     content: str = Field(description="NFC UTF-8 cleaned chunk text content")
-    token_count: int = Field(default=0, description="Estimated or calculated token count")
+    token_count: int = Field(
+        default=0, description="Estimated or calculated token count"
+    )
     character_count: int = Field(default=0, description="Exact character count")
-    page_numbers: list[int] = Field(default_factory=list, description="Origin page numbers")
-    section_path: list[str] = Field(default_factory=list, description="Heading section breadcrumbs")
-    metadata_json: dict[str, Any] = Field(default_factory=dict, description="Custom tags, table column headers, AST info")
+    page_numbers: list[int] = Field(
+        default_factory=list, description="Origin page numbers"
+    )
+    section_path: list[str] = Field(
+        default_factory=list, description="Heading section breadcrumbs"
+    )
+    metadata_json: dict[str, Any] = Field(
+        default_factory=dict, description="Custom tags, table column headers, AST info"
+    )
 
 
 class ChunkRelationshipDTO(BaseModel):
@@ -33,9 +41,18 @@ class ChunkRelationshipDTO(BaseModel):
 class ChunkCreateRequest(BaseModel):
     """Request DTO to trigger explicit chunking for a document."""
 
-    strategy: str | None = Field(default=None, description="Optional override of splitting strategy")
-    max_characters: int = Field(default=1000, ge=100, le=10000, description="Maximum characters per chunk")
-    overlap_characters: int = Field(default=200, ge=0, le=1000, description="Overlap characters between sequential chunks")
+    strategy: str | None = Field(
+        default=None, description="Optional override of splitting strategy"
+    )
+    max_characters: int = Field(
+        default=1000, ge=100, le=10000, description="Maximum characters per chunk"
+    )
+    overlap_characters: int = Field(
+        default=200,
+        ge=0,
+        le=1000,
+        description="Overlap characters between sequential chunks",
+    )
 
 
 class ChunkResponse(BaseModel):
@@ -86,11 +103,17 @@ class StrategyInfoDTO(BaseModel):
 
     name: str = Field(description="Unique strategy identifier code")
     display_name: str = Field(description="Human-readable strategy name")
-    description: str = Field(description="Description of the splitting logic and suitable document types")
-    supported_mime_types: list[str] = Field(description="List of compatible MIME types or ['*']")
+    description: str = Field(
+        description="Description of the splitting logic and suitable document types"
+    )
+    supported_mime_types: list[str] = Field(
+        description="List of compatible MIME types or ['*']"
+    )
     default_max_characters: int = Field(default=1000)
     default_overlap_characters: int = Field(default=200)
-    is_placeholder: bool = Field(default=False, description="True if semantic placeholder waiting for Phase 2 M2")
+    is_placeholder: bool = Field(
+        default=False, description="True if semantic placeholder waiting for Phase 2 M2"
+    )
 
 
 class ChunkMetricsDTO(BaseModel):

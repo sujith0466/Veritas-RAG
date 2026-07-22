@@ -4,8 +4,8 @@ Represents the core chunking domain entities with doubly-linked sequential navig
 hierarchical parent/child links, stable content hashes, and structured metadata.
 """
 
-from typing import Any
 import uuid
+from typing import Any
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -21,10 +21,16 @@ class DocumentChunk(BaseModel):
 
     tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     document_version_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_versions.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("document_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -35,13 +41,20 @@ class DocumentChunk(BaseModel):
 
     # Doubly-linked sequential graph pointers & hierarchical linking
     parent_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_chunks.id", ondelete="SET NULL"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     previous_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_chunks.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="SET NULL"),
+        nullable=True,
     )
     next_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_chunks.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="SET NULL"),
+        nullable=True,
     )
 
     page_numbers: Mapped[list[int] | None] = mapped_column(JSONB, nullable=True)
@@ -54,7 +67,9 @@ class DocumentChunk(BaseModel):
         "DocumentChunk", remote_side="DocumentChunk.id", foreign_keys=[parent_chunk_id]
     )
     previous_chunk: Mapped["DocumentChunk | None"] = relationship(
-        "DocumentChunk", remote_side="DocumentChunk.id", foreign_keys=[previous_chunk_id]
+        "DocumentChunk",
+        remote_side="DocumentChunk.id",
+        foreign_keys=[previous_chunk_id],
     )
     next_chunk: Mapped["DocumentChunk | None"] = relationship(
         "DocumentChunk", remote_side="DocumentChunk.id", foreign_keys=[next_chunk_id]
@@ -71,18 +86,29 @@ class ChunkRelationship(BaseModel):
 
     tenant_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     source_chunk_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_chunks.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     target_chunk_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("document_chunks.id", ondelete="CASCADE"), index=True, nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
     )
     relationship_type: Mapped[str] = mapped_column(
-        String(50), nullable=False  # e.g., 'parent_child', 'sequential', 'table_cell', 'cross_ref'
+        String(50),
+        nullable=False,  # e.g., 'parent_child', 'sequential', 'table_cell', 'cross_ref'
     )
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
-    source_chunk: Mapped["DocumentChunk"] = relationship("DocumentChunk", foreign_keys=[source_chunk_id])
-    target_chunk: Mapped["DocumentChunk"] = relationship("DocumentChunk", foreign_keys=[target_chunk_id])
+    source_chunk: Mapped["DocumentChunk"] = relationship(
+        "DocumentChunk", foreign_keys=[source_chunk_id]
+    )
+    target_chunk: Mapped["DocumentChunk"] = relationship(
+        "DocumentChunk", foreign_keys=[target_chunk_id]
+    )
 
     def __repr__(self) -> str:
         return f"<ChunkRelationship(src={self.source_chunk_id}, tgt={self.target_chunk_id}, type='{self.relationship_type}')>"
