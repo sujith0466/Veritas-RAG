@@ -105,7 +105,7 @@ async def process_document_chunking(
     target_version_id = version_id
     if not target_version_id:
         doc_repo = DocumentRepository()
-        doc = await doc_repo.get_by_id(document_id, session)
+        doc = await doc_repo.get_by_id(document_id, tenant_id, session)
         if not doc or doc.tenant_id != tenant_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

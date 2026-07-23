@@ -61,3 +61,8 @@ api_v1_router.include_router(analytics_router, prefix="/analytics")
 from backend.modules.dashboard.api import router as dashboard_router
 
 api_v1_router.include_router(dashboard_router, prefix="/dashboard")
+
+# ── AI Chat & Persistence (`/chat`) ────────────────────────────────────────────
+from backend.modules.chat.api import router as chat_router
+
+api_v1_router.include_router(chat_router)

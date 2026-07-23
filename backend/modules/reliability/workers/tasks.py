@@ -25,17 +25,26 @@ def aggregate_sla_metrics_task(self: Any, tenant_id: str) -> dict[str, Any]:
 
 
 async def _async_aggregate_sla_metrics(tenant_id: str) -> dict[str, Any]:
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        repo = ReliabilityRepository(session)
-        summary = await repo.get_tenant_sla_summary(tenant_id)
-        logger.info(
-            "Aggregated SLA metrics background task completed",
-            tenant_id=tenant_id,
-            compliance_rate=summary.sla_compliance_rate,
-            p95_ms=summary.p95_latency_ms,
-        )
-        return summary.model_dump()
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from backend.core.config import get_settings
+    
+    settings = get_settings().database
+    engine = create_async_engine(settings.url, pool_pre_ping=True)
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+    
+    try:
+        async with session_factory() as session:
+            repo = ReliabilityRepository(session)
+            summary = await repo.get_tenant_sla_summary(tenant_id)
+            logger.info(
+                "Aggregated SLA metrics background task completed",
+                tenant_id=tenant_id,
+                compliance_rate=summary.sla_compliance_rate,
+                p95_ms=summary.p95_latency_ms,
+            )
+            return summary.model_dump()
+    finally:
+        await engine.dispose()
 
 
 @celery_app.task(bind=True, queue="retrieval", max_retries=1, acks_late=True)

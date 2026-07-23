@@ -13,6 +13,8 @@ services:
       - .env
     environment:
       - ENVIRONMENT=production
+    volumes:
+      - app_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,6 +28,29 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: raguard:1.0.0
+    command: celery -A backend.tasks.celery_app worker -l info -Q ingestion,embeddings,retrieval,default
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
 
   frontend:
     build:
@@ -81,3 +106,4 @@ volumes:
   postgres_data:
   redis_data:
   qdrant_data:
+  app_data:

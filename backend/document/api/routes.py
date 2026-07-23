@@ -70,7 +70,7 @@ async def upload_document(
         session=session,
     )
 
-    file_size = version.storage_object.file_size_bytes if version.storage_object else 0
+    file_size = getattr(file, "size", 0) or 0
 
     return SuccessResponse(
         success=True,

@@ -12,7 +12,12 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from backend.core.config import get_settings
+import backend.models as models
 from backend.models import BaseModel
+
+# Force load all models from __getattr__ for alembic
+for name in models.__all__:
+    getattr(models, name)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

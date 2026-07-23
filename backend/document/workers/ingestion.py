@@ -13,7 +13,8 @@ from typing import Any
 
 import structlog
 
-from backend.database.engine import get_session_factory
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from backend.core.config import get_settings
 from backend.document.events import (EVENT_DOCUMENT_FAILED,
                                      EVENT_DOCUMENT_PROCESSED,
                                      EVENT_DOCUMENT_VALIDATED,
@@ -50,8 +51,19 @@ def process_document_job(self: Any, job_id: str) -> dict[str, Any]:
 
 
 async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
+    """Async wrapper that creates an isolated AsyncEngine per task to prevent MissingGreenlet errors."""
+    settings = get_settings().database
+    engine = create_async_engine(settings.url, pool_pre_ping=True)
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+    try:
+        return await _do_process_job(task_instance, job_id, session_factory)
+    finally:
+        await engine.dispose()
+
+
+async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any) -> dict[str, Any]:
     """Async inner implementation for `process_document_job`."""
-    session_factory = get_session_factory()
+
     doc_repo = DocumentRepository()
     job_repo = JobRepository()
     event_repo = DocumentEventRepository()
@@ -79,14 +91,19 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
             )
             if not doc:
                 # Fallback without tenant check if tenant_id is unknown to worker initially
-                version = await doc_repo.get_version_by_id(job.version_id, session)
-                if not version:
+                from sqlalchemy import select
+                from backend.document.models import Document
+                
+                tenant_id_stmt = select(Document.tenant_id).where(Document.id == job.document_id)
+                actual_tenant_id = await session.scalar(tenant_id_stmt)
+                
+                if not actual_tenant_id:
                     raise DocumentDomainException(
                         code=DocumentErrorCode.SYS_001,
                         message="Target document or version missing.",
                     )
                 doc = await doc_repo.get_by_id_with_versions(
-                    job.document_id, version.document.tenant_id, session
+                    job.document_id, actual_tenant_id, session
                 )
 
             if not doc or not doc.versions:
@@ -138,7 +155,7 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     document_id=doc.id,
                     job_id=job.id,
                     event_type=EVENT_DOCUMENT_VALIDATED,
-                    payload=payload.model_dump(),
+                    payload=payload.model_dump(mode="json"),
                     triggered_by="celery_worker",
                 ),
                 session,
@@ -186,7 +203,7 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                         document_id=doc.id,
                         job_id=job.id,
                         event_type=ev_type,
-                        payload=ev_payload.model_dump(),
+                        payload=ev_payload.model_dump(mode="json"),
                         triggered_by="celery_worker",
                     ),
                     session,
@@ -230,7 +247,7 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                         document_id=doc.id,
                         job_id=job.id,
                         event_type=EVENT_OCR_COMPLETED,
-                        payload=ocr_payload.model_dump(),
+                        payload=ocr_payload.model_dump(mode="json"),
                         triggered_by="celery_worker",
                     ),
                     session,
@@ -325,7 +342,7 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     document_id=doc.id,
                     job_id=job.id,
                     event_type=EVENT_DOCUMENT_PROCESSED,
-                    payload=proc_payload.model_dump(),
+                    payload=proc_payload.model_dump(mode="json"),
                     triggered_by="celery_worker",
                 ),
                 session,
@@ -371,7 +388,7 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                     )
                     if v:
                         doc = await doc_repo.get_by_id(
-                            job.document_id, v.document.tenant_id, session
+                            job.document_id, actual_tenant_id, session
                         )
 
                 if (
@@ -419,7 +436,7 @@ async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
                             document_id=doc.id,
                             job_id=job.id,
                             event_type=EVENT_DOCUMENT_FAILED,
-                            payload=fail_payload.model_dump(),
+                            payload=fail_payload.model_dump(mode="json"),
                             triggered_by="celery_worker",
                         ),
                         session,

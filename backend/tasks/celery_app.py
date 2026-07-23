@@ -26,6 +26,12 @@ def create_celery_app() -> Celery:
         backend=settings.redis.celery_result_backend,
         include=[
             "backend.document.workers.ingestion",
+            "backend.modules.chunking.workers.tasks",
+            "backend.modules.embedding.workers.tasks",
+            "backend.modules.vector.workers.tasks",
+            "backend.modules.retrieval.workers.tasks",
+            "backend.modules.knowledge_health.workers.tasks",
+            "backend.modules.reliability.workers.tasks",
         ],
     )
 
@@ -49,6 +55,8 @@ def create_celery_app() -> Celery:
         task_queues={
             "default": {"exchange": "default", "routing_key": "default"},
             "ingestion": {"exchange": "ingestion", "routing_key": "ingestion"},
+            "embeddings": {"exchange": "embeddings", "routing_key": "embeddings"},
+            "retrieval": {"exchange": "retrieval", "routing_key": "retrieval"},
             "evaluation": {"exchange": "evaluation", "routing_key": "evaluation"},
             "health": {"exchange": "health", "routing_key": "health"},
             "ai": {"exchange": "ai", "routing_key": "ai"},

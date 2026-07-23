@@ -19,7 +19,7 @@ from .base import StorageObjectDTO, StorageProvider
 class LocalStorageProvider(StorageProvider):
     """Local volume filesystem storage implementation."""
 
-    def __init__(self, root_path: str | Path = "/tmp/storage") -> None:
+    def __init__(self, root_path: str | Path = "/app/data/storage") -> None:
         self.root = Path(root_path).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 

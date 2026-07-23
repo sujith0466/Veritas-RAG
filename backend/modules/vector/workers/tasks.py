@@ -87,19 +87,28 @@ async def _async_sync_vectors_task(
     tenant_id: str,
     collection_name: str | None,
 ) -> dict[str, Any]:
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        service = VectorStorageService(session=session)
-        upserted = await service.sync_document_vectors(
-            document_id=document_id,
-            document_version_id=document_version_id,
-            tenant_id=tenant_id,
-            collection_name=collection_name,
-        )
-        return {
-            "tenant_id": tenant_id,
-            "document_id": document_id,
-            "document_version_id": document_version_id,
-            "upserted_points": upserted,
-            "status": "COMPLETED",
-        }
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from backend.core.config import get_settings
+    
+    settings = get_settings().database
+    engine = create_async_engine(settings.url, pool_pre_ping=True)
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+    
+    try:
+        async with session_factory() as session:
+            service = VectorStorageService(session=session)
+            upserted = await service.sync_document_vectors(
+                document_id=document_id,
+                document_version_id=document_version_id,
+                tenant_id=tenant_id,
+                collection_name=collection_name,
+            )
+            return {
+                "tenant_id": tenant_id,
+                "document_id": document_id,
+                "document_version_id": document_version_id,
+                "upserted_points": upserted,
+                "status": "COMPLETED",
+            }
+    finally:
+        await engine.dispose()

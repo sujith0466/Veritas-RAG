@@ -182,7 +182,7 @@ class ChunkingService:
         event_log = DocumentEventLog(
             document_id=document_id,
             event_type=EVENT_DOCUMENT_CHUNKED,
-            payload=event_payload.model_dump(),
+            payload=event_payload.model_dump(mode="json"),
         )
         session.add(event_log)
         await session.flush()

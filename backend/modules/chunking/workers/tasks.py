@@ -68,78 +68,87 @@ async def _async_process_chunking(
     max_characters: int,
     overlap_characters: int,
 ) -> dict[str, Any]:
-    session_factory = get_session_factory()
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from backend.core.config import get_settings
+    
+    settings = get_settings().database
+    engine = create_async_engine(settings.url, pool_pre_ping=True)
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+    
     service = ChunkingService()
 
-    async with session_factory() as session:
-        try:
-            chunks, duration_ms = await service.chunk_document_version(
-                tenant_id=tenant_id,
-                document_id=document_id,
-                version_id=version_id,
-                session=session,
-                strategy_override=strategy_override,
-                max_characters=max_characters,
-                overlap_characters=overlap_characters,
-            )
-            await session.commit()
-            logger.info(
-                "chunking_task_completed",
-                tenant_id=tenant_id,
-                document_id=str(document_id),
-                chunk_count=len(chunks),
-                duration_ms=duration_ms,
-            )
-            return {
-                "status": "success",
-                "document_id": str(document_id),
-                "version_id": str(version_id),
-                "chunk_count": len(chunks),
-                "duration_ms": duration_ms,
-            }
-
-        except Exception as exc:
-            await session.rollback()
-            error_code = getattr(exc, "code", "CHK_003")
-            severity = getattr(exc, "severity", get_error_severity(str(error_code)))
-
-            logger.error(
-                "chunking_task_failed",
-                tenant_id=tenant_id,
-                document_id=str(document_id),
-                error_code=str(error_code),
-                severity=str(severity),
-                error=str(exc),
-            )
-
-            # Record failure event if possible
+    try:
+        async with session_factory() as session:
             try:
-                fail_event = create_chunk_event(
-                    event_type=EVENT_CHUNKING_FAILED,
+                chunks, duration_ms = await service.chunk_document_version(
                     tenant_id=tenant_id,
                     document_id=document_id,
-                    document_version_id=version_id,
-                    data={
-                        "error_code": str(error_code),
-                        "message": str(exc),
-                        "severity": str(severity),
-                    },
+                    version_id=version_id,
+                    session=session,
+                    strategy_override=strategy_override,
+                    max_characters=max_characters,
+                    overlap_characters=overlap_characters,
                 )
-                event_log = DocumentEventLog(
-                    document_id=document_id,
-                    event_type=EVENT_CHUNKING_FAILED,
-                    payload=fail_event.model_dump(),
-                )
-                session.add(event_log)
                 await session.commit()
-            except Exception as log_exc:
-                logger.warning("failed_to_log_chunking_error_event", error=str(log_exc))
+                logger.info(
+                    "chunking_task_completed",
+                    tenant_id=tenant_id,
+                    document_id=str(document_id),
+                    chunk_count=len(chunks),
+                    duration_ms=duration_ms,
+                )
+                return {
+                    "status": "success",
+                    "document_id": str(document_id),
+                    "version_id": str(version_id),
+                    "chunk_count": len(chunks),
+                    "duration_ms": duration_ms,
+                }
 
-            if (
-                severity == ErrorSeverity.RECOVERABLE
-                and task_instance.request.retries < task_instance.max_retries
-            ):
-                backoff_seconds = 2**task_instance.request.retries * 5
-                raise task_instance.retry(exc=exc, countdown=backoff_seconds)
+            except Exception as exc:
+                await session.rollback()
+                error_code = getattr(exc, "code", "CHK_003")
+                severity = getattr(exc, "severity", get_error_severity(str(error_code)))
 
-            raise exc
+                logger.error(
+                    "chunking_task_failed",
+                    tenant_id=tenant_id,
+                    document_id=str(document_id),
+                    error_code=str(error_code),
+                    severity=str(severity),
+                    error=str(exc),
+                )
+
+                # Record failure event if possible
+                try:
+                    fail_event = create_chunk_event(
+                        event_type=EVENT_CHUNKING_FAILED,
+                        tenant_id=tenant_id,
+                        document_id=document_id,
+                        document_version_id=version_id,
+                        data={
+                            "error_code": str(error_code),
+                            "message": str(exc),
+                            "severity": str(severity),
+                        },
+                    )
+                    event_log = DocumentEventLog(
+                        document_id=document_id,
+                        event_type=EVENT_CHUNKING_FAILED,
+                        payload=fail_event.model_dump(),
+                    )
+                    session.add(event_log)
+                    await session.commit()
+                except Exception as log_exc:
+                    logger.warning("failed_to_log_chunking_error_event", error=str(log_exc))
+
+                if (
+                    severity == ErrorSeverity.RECOVERABLE
+                    and task_instance.request.retries < task_instance.max_retries
+                ):
+                    backoff_seconds = 2**task_instance.request.retries * 5
+                    raise task_instance.retry(exc=exc, countdown=backoff_seconds)
+
+                raise exc
+    finally:
+        await engine.dispose()

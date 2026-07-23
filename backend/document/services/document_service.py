@@ -151,7 +151,7 @@ class DocumentService:
             document_id=document.id,
             job_id=job.id,
             event_type=EVENT_DOCUMENT_UPLOADED,
-            payload=payload.model_dump(),
+            payload=payload.model_dump(mode="json"),
             triggered_by="upload_api",
         )
         await self.event_repo.append_event(event_log, session)

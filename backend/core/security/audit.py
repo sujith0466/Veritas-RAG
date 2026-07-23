@@ -37,13 +37,16 @@ async def log_auth_event(
     """
     try:
         repo = AuditLogRepository(session)
+        details_payload = metadata or {}
+        if ip_address:
+            details_payload["ip_address"] = ip_address
+
         await repo.create(
             user_id=user_id,
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
-            metadata=metadata or {},
-            ip_address=ip_address,
+            details=details_payload,
         )
     except Exception as e:
         # Audit log failures must never crash the primary request path

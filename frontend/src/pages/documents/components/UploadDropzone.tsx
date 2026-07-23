@@ -22,6 +22,12 @@ export function UploadDropzone({ onUpload, isUploading, uploadProgress }: Upload
   const validateFile = (file: File): boolean => {
     setError(null)
     const ext = '.' + file.name.split('.').pop()?.toLowerCase()
+    
+    if (ext === '.doc') {
+      setError('Legacy Word documents (.doc) are not supported for reliability reasons. Please save or convert your file to .docx and try again.')
+      return false
+    }
+    
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       setError(`Disallowed file extension "${ext}". Allowed: ${ALLOWED_EXTENSIONS.join(', ')}`)
       return false

@@ -10,6 +10,7 @@ import { VectorsPage } from '@/pages/vectors'
 import { KnowledgeHealthPage } from '@/pages/knowledge_health'
 import { ReliabilityDashboardPage } from '@/pages/analytics'
 import { DeveloperInvestigationPage } from '@/pages/investigation'
+import { AIChatPage } from '@/pages/chat'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { useAuthStore } from '@/stores/authStore'
 import { GlobalLoadingOverlay } from '@/components/feedback/GlobalLoadingOverlay'
@@ -75,15 +76,20 @@ export const router = createBrowserRouter([
         path: '/',
         element: <ProtectedRoute><DashboardLayout /></ProtectedRoute>,
         children: [
+          // Common (User & Admin)
           { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'knowledge-intelligence', element: <KnowledgeIntelligenceDashboardPage /> },
-          { path: 'analytics', element: <ReliabilityDashboardPage /> },
-          { path: 'investigation', element: <ProtectedRoute adminOnly><DeveloperInvestigationPage /></ProtectedRoute> },
+          { path: 'knowledge', element: <KnowledgeIntelligenceDashboardPage /> },
           { path: 'documents', element: <DocumentsPage /> },
-          { path: 'chunks', element: <ChunksPage /> },
-          { path: 'embeddings', element: <EmbeddingsPage /> },
-          { path: 'vectors', element: <VectorsPage /> },
-          { path: 'admin/health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
+          { path: 'chat', element: <AIChatPage /> },
+          { path: 'chat/:sessionId', element: <AIChatPage /> },
+          { path: 'analytics', element: <ReliabilityDashboardPage /> },
+          
+          // Admin Only
+          { path: 'chunks', element: <ProtectedRoute adminOnly><ChunksPage /></ProtectedRoute> },
+          { path: 'embeddings', element: <ProtectedRoute adminOnly><EmbeddingsPage /></ProtectedRoute> },
+          { path: 'vectors', element: <ProtectedRoute adminOnly><VectorsPage /></ProtectedRoute> },
+          { path: 'health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
+          { path: 'diagnostics', element: <ProtectedRoute adminOnly><DeveloperInvestigationPage /></ProtectedRoute> },
         ],
       },
       {

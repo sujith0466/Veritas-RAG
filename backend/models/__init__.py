@@ -9,6 +9,8 @@ from .entities.user import User
 __all__ = [
     "AuditLog",
     "BaseModel",
+    "ChatMessage",
+    "ChatSession",
     "ChunkEmbedding",
     "ChunkRelationship",
     "CircuitBreakerEventLog",
@@ -68,4 +70,8 @@ def __getattr__(name: str) -> Any:
         import backend.modules.analytics.models as anl_models
 
         return getattr(anl_models, name)
+    if name in {"ChatSession", "ChatMessage"}:
+        import backend.modules.chat.models as chat_models
+
+        return getattr(chat_models, name)
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

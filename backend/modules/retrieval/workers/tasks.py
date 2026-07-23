@@ -88,44 +88,53 @@ async def _async_execute_batch_search(
     top_k: int,
     webhook_url: str | None,
 ) -> dict[str, Any]:
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        repository = RetrievalRepository(session)
-        # Default embedding provider (OpenAI or Local fallback)
-        embedding_provider = OpenAIEmbeddingProvider()
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from backend.core.config import get_settings
+    
+    settings = get_settings().database
+    engine = create_async_engine(settings.url, pool_pre_ping=True)
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+    
+    try:
+        async with session_factory() as session:
+            repository = RetrievalRepository(session)
+            # Default embedding provider (OpenAI or Local fallback)
+            embedding_provider = OpenAIEmbeddingProvider()
 
-        orchestrator = RetrievalOrchestrator(
-            embedding_provider=embedding_provider,
-            vector_provider=_qdrant_provider,
-            sparse_provider=_bm25_provider,
-            reranker_provider=_reranker_provider,
-            repository=repository,
-        )
-
-        results_summary: list[dict[str, Any]] = []
-        for q in queries:
-            req = SearchRequestDTO(query=q, top_k=top_k)
-            res = await orchestrator.execute_hybrid_search(
-                options=req, tenant_id=tenant_id
-            )
-            results_summary.append(
-                {
-                    "query": q,
-                    "correlation_id": res.correlation_id,
-                    "evidence_count": len(res.final_evidence),
-                    "duration_ms": res.stage_latencies.total_ms,
-                }
+            orchestrator = RetrievalOrchestrator(
+                embedding_provider=embedding_provider,
+                vector_provider=_qdrant_provider,
+                sparse_provider=_bm25_provider,
+                reranker_provider=_reranker_provider,
+                repository=repository,
             )
 
-        logger.info(
-            "async_batch_search_completed",
-            tenant_id=tenant_id,
-            queries_count=len(queries),
-            webhook=webhook_url,
-        )
-        return {
-            "status": "COMPLETED",
-            "tenant_id": tenant_id,
-            "queries_processed": len(queries),
-            "results": results_summary,
-        }
+            results_summary: list[dict[str, Any]] = []
+            for q in queries:
+                req = SearchRequestDTO(query=q, top_k=top_k)
+                res = await orchestrator.execute_hybrid_search(
+                    options=req, tenant_id=tenant_id
+                )
+                results_summary.append(
+                    {
+                        "query": q,
+                        "correlation_id": res.correlation_id,
+                        "evidence_count": len(res.final_evidence),
+                        "duration_ms": res.stage_latencies.total_ms,
+                    }
+                )
+
+            logger.info(
+                "async_batch_search_completed",
+                tenant_id=tenant_id,
+                queries_count=len(queries),
+                webhook=webhook_url,
+            )
+            return {
+                "status": "COMPLETED",
+                "tenant_id": tenant_id,
+                "queries_processed": len(queries),
+                "results": results_summary,
+            }
+    finally:
+        await engine.dispose()
