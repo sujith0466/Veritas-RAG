@@ -20,17 +20,17 @@ class TableChunkSplitter(BaseChunkSplitter):
     @property
     def strategy_info(self) -> StrategyInfoDTO:
         return StrategyInfoDTO(
-            name="table",
-            display_name="Table Schema Preserving Splitter",
-            description="Parses tables (CSV or Markdown) and prefixes every split row group with column header titles for context fidelity.",
+            id="table",
+            display_name="Table / CSV Structure",
+            description="Preserves row headers and column integrity when splitting CSV or tabular data.",
+            status="supported",
             supported_mime_types=[
                 "text/csv",
                 "application/csv",
                 "text/tab-separated-values",
             ],
-            default_max_characters=1000,
-            default_overlap_characters=100,
-            is_placeholder=False,
+            default_max_characters=1500,
+            default_overlap_characters=0,
         )
 
     def split_text(
@@ -123,9 +123,10 @@ class CodeChunkSplitter(BaseChunkSplitter):
     @property
     def strategy_info(self) -> StrategyInfoDTO:
         return StrategyInfoDTO(
-            name="code",
-            display_name="Code Syntax & AST Splitter",
-            description="Splits programming files along function, class, and comment block definitions while respecting syntax structure.",
+            id="code",
+            display_name="Source Code AST",
+            description="Splits source code using Abstract Syntax Tree rules (functions, classes) for supported languages.",
+            status="supported",
             supported_mime_types=[
                 "application/x-python",
                 "text/x-python",
@@ -136,7 +137,6 @@ class CodeChunkSplitter(BaseChunkSplitter):
             ],
             default_max_characters=1500,
             default_overlap_characters=200,
-            is_placeholder=False,
         )
 
     def split_text(

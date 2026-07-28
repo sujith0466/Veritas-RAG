@@ -1,7 +1,7 @@
 # Phase 11: Reflection Engine (v2) Implementation Report
 
 ## Summary
-The Reflection Engine (Phase 11) has been fully implemented, adding asynchronous multi-pass claim validation, completeness evaluation, and logical consistency review. It fulfills all requirements defined in the approved `PHASE_11_IMPLEMENTATION_PLAN.md`.
+The Reflection Engine (Phase 11) has been fully implemented, adding asynchronous multi-pass claim validation, completeness evaluation, and logical consistency review. It fulfills all requirements defined in the approved `phase-11-implementation-plan.md`.
 
 ## Milestones Completed
 

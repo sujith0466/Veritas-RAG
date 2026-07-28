@@ -1,7 +1,9 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppProvider } from '@/providers/AppProvider'
-import { AuthLayout, DashboardLayout } from '@/components/layouts'
+import { AuthLayout, DashboardLayout, LandingLayout } from '@/components/layouts'
 import { LoginPage, RegisterPage } from '@/pages/auth'
+import { LandingPage } from '@/pages/landing/LandingPage'
 import { DashboardPage, KnowledgeIntelligenceDashboardPage } from '@/pages/dashboard'
 import { DocumentsPage } from '@/pages/documents'
 import { ChunksPage } from '@/pages/chunks'
@@ -10,11 +12,26 @@ import { VectorsPage } from '@/pages/vectors'
 import { KnowledgeHealthPage } from '@/pages/knowledge_health'
 import { ReliabilityDashboardPage } from '@/pages/analytics'
 import { DeveloperInvestigationPage } from '@/pages/investigation'
+import { 
+  SettingsLayout, 
+  ProfileSettings, 
+  AppearanceSettings, 
+  SecuritySettings, 
+  NotificationSettings, 
+  AIPrefSettings, 
+  WorkspaceSettings, 
+  DeveloperSettings, 
+  PrivacySettings, 
+  ActivitySettings 
+} from '@/pages/settings'
 import { AIChatPage } from '@/pages/chat'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { useAuthStore } from '@/stores/authStore'
-import { GlobalLoadingOverlay } from '@/components/feedback/GlobalLoadingOverlay'
 import { AnimatePresence } from 'framer-motion'
+import { MarketingThemeProvider } from '@/providers/MarketingThemeProvider'
+
+import { PostAuthenticationRouteResolver } from '@/components/auth/PostAuthenticationRouteResolver'
+import { Outlet, useLocation } from 'react-router-dom'
 
 // ─── Route Guards ─────────────────────────────────────────────────────────────
 
@@ -24,7 +41,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   const user = useAuthStore((s) => s.user)
 
   if (status === 'LOADING') {
-    return <GlobalLoadingOverlay message="Verifying secure session..." />
+    return null
   }
 
   if (!isAuthenticated) {
@@ -43,11 +60,14 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
 
   if (status === 'LOADING') {
-    return <GlobalLoadingOverlay message="Checking session..." />
+    return null
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    const lastVisited = localStorage.getItem('raguard-last-page')
+    // If we have a last visited page that isn't auth, use it, else default to dashboard
+    const target = (lastVisited && !lastVisited.startsWith('/auth')) ? lastVisited : '/dashboard'
+    return <Navigate to={target} replace />
   }
 
   return <>{children}</>
@@ -61,7 +81,10 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: <Navigate to="/dashboard" replace />,
+        element: <LandingLayout />,
+        children: [
+          { index: true, element: <LandingPage /> }
+        ]
       },
       {
         path: '/auth',
@@ -73,36 +96,60 @@ export const router = createBrowserRouter([
         ],
       },
       {
-        path: '/',
-        element: <ProtectedRoute><DashboardLayout /></ProtectedRoute>,
+        element: (
+          <ProtectedRoute>
+            <PostAuthenticationRouteResolver />
+          </ProtectedRoute>
+        ),
         children: [
-          // Common (User & Admin)
-          { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'knowledge', element: <KnowledgeIntelligenceDashboardPage /> },
-          { path: 'documents', element: <DocumentsPage /> },
-          { path: 'chat', element: <AIChatPage /> },
-          { path: 'chat/:sessionId', element: <AIChatPage /> },
-          { path: 'analytics', element: <ReliabilityDashboardPage /> },
-          
-          // Admin Only
-          { path: 'chunks', element: <ProtectedRoute adminOnly><ChunksPage /></ProtectedRoute> },
-          { path: 'embeddings', element: <ProtectedRoute adminOnly><EmbeddingsPage /></ProtectedRoute> },
-          { path: 'vectors', element: <ProtectedRoute adminOnly><VectorsPage /></ProtectedRoute> },
-          { path: 'health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
-          { path: 'diagnostics', element: <ProtectedRoute adminOnly><DeveloperInvestigationPage /></ProtectedRoute> },
+          {
+            element: <DashboardLayout />,
+            children: [
+              // Common (User & Admin)
+              { path: 'dashboard', element: <DashboardPage /> },
+              { path: 'chat', element: <AIChatPage /> },
+              { path: 'chat/:sessionId', element: <AIChatPage /> },
+              
+              // Admin Only
+              { path: 'knowledge', element: <ProtectedRoute adminOnly><KnowledgeIntelligenceDashboardPage /></ProtectedRoute> },
+              { path: 'documents', element: <ProtectedRoute adminOnly><DocumentsPage /></ProtectedRoute> },
+              { path: 'analytics', element: <ProtectedRoute adminOnly><ReliabilityDashboardPage /></ProtectedRoute> },
+              { path: 'chunks', element: <ProtectedRoute adminOnly><ChunksPage /></ProtectedRoute> },
+              { path: 'embeddings', element: <ProtectedRoute adminOnly><EmbeddingsPage /></ProtectedRoute> },
+              { path: 'vectors', element: <ProtectedRoute adminOnly><VectorsPage /></ProtectedRoute> },
+              { path: 'health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
+              { path: 'diagnostics', element: <ProtectedRoute adminOnly><DeveloperInvestigationPage /></ProtectedRoute> },
+              
+              // Settings
+              {
+                path: 'settings',
+                element: <SettingsLayout />,
+                children: [
+                  { index: true, element: <Navigate to="profile" replace /> },
+                  { path: 'profile', element: <ProfileSettings /> },
+                  { path: 'security', element: <SecuritySettings /> },
+                  { path: 'appearance', element: <AppearanceSettings /> },
+                  { path: 'notifications', element: <NotificationSettings /> },
+                  { path: 'ai', element: <AIPrefSettings /> },
+                  { path: 'workspace', element: <WorkspaceSettings /> },
+                  { path: 'developer', element: <DeveloperSettings /> },
+                  { path: 'privacy', element: <PrivacySettings /> },
+                  { path: 'activity', element: <ActivitySettings /> },
+                ]
+              }
+            ],
+          }
         ],
       },
       {
         path: '*',
-        element: <NotFoundPage />,
+        element: <MarketingThemeProvider><NotFoundPage /></MarketingThemeProvider>,
       },
     ],
   },
 ])
 
 // Helper component for AnimatePresence support across layout boundaries
-import { Outlet, useLocation } from 'react-router-dom'
-
 function OutletWithAnimation() {
   const location = useLocation()
   return (

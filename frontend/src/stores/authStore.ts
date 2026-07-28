@@ -11,6 +11,7 @@ interface AuthStoreActions {
   setStatus: (status: AuthStatus) => void
   setAuth: (user: UserContext, token: string) => void
   clearAuth: () => void
+  updateUser: (user: Partial<UserContext>) => void
 }
 
 const initialState: AuthStoreState = {
@@ -29,6 +30,11 @@ export const useAuthStore = create<AuthStoreState & AuthStoreActions>()((set) =>
 
   clearAuth: () =>
     set({ ...initialState, status: 'UNAUTHENTICATED' }),
+    
+  updateUser: (partialUser) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, ...partialUser } : null,
+    })),
 }))
 
 // ─── Typed selectors ──────────────────────────────────────────────────────────

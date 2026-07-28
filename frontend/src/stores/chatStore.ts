@@ -1,14 +1,14 @@
 import { create } from 'zustand'
-import { api } from '@/utils/api'
+import { apiClient as api } from '@/api/client'
 
 export interface ChatMessage {
   id: string
   session_id: string
   role: 'user' | 'assistant'
   message: string
-  citations?: any[]
+  citations?: unknown[]
   reliability_score?: number
-  metadata_json?: any
+  metadata_json?: unknown
   created_at: string
 }
 
@@ -36,7 +36,7 @@ interface ChatState {
   setActiveSession: (session: ChatSession | null) => void
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+export const useChatStore = create<ChatState>((set) => ({
   sessions: [],
   activeSession: null,
   isLoading: false,
@@ -55,8 +55,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchSession: async (id: string) => {
     try {
-      const { data } = await api.get(`/chat/sessions/${id}`)
-      set({ activeSession: data.data })
+      const [sessionRes, messagesRes] = await Promise.all([
+        api.get(`/chat/sessions/${id}`),
+        api.get(`/chat/sessions/${id}/messages?limit=100`)
+      ])
+      const sessionData = sessionRes.data.data
+      sessionData.messages = messagesRes.data.data || []
+      set({ activeSession: sessionData })
     } catch (error) {
       console.error('Failed to fetch chat session', error)
     }

@@ -22,13 +22,13 @@ This checklist verifies all assets required before making the RAGuard Enterprise
 - [ ] Mock datasets (`datasets/`) are provided.
 
 ## 4. Community & Security
-- [ ] `CONTRIBUTING.md` verified.
-- [ ] `CODE_OF_CONDUCT.md` verified.
-- [ ] `SECURITY.md` verified.
+- [ ] `contributing.md` verified.
+- [ ] `code-of-conduct.md` verified.
+- [ ] `security.md` verified.
 - [ ] `LICENSE` is MIT and present.
 
 ## 5. Showcase & Portfolio
-- [ ] `docs/showcase/` is populated.
+- [ ] `docs/Showcase/` is populated.
 - [ ] Executive One-Pager generated.
 - [ ] Demo Script / Walkthrough generated.
 - [ ] Media Kit & Screenshot Guide present.

@@ -57,6 +57,29 @@ async def get_session(
         metadata=_build_metadata(request)
     )
 
+from backend.modules.chat.schemas.chat_dto import ChatMessageDTO
+
+@router.get("/sessions/{session_id}/messages", response_model=SuccessResponse[List[ChatMessageDTO]])
+async def list_messages(
+    session_id: str,
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+    repo: ChatRepository = Depends(get_chat_repository),
+    user: UserContext = Depends(get_current_user)
+):
+    messages = await repo.list_messages(
+        session_id=session_id, 
+        tenant_id=user.tenant_id, 
+        user_id=str(user.id),
+        limit=limit,
+        offset=offset
+    )
+    return SuccessResponse[List[ChatMessageDTO]](
+        data=[ChatMessageDTO.model_validate(m) for m in messages],
+        metadata=_build_metadata(request)
+    )
+
 @router.put("/sessions/{session_id}", response_model=SuccessResponse[ChatSessionDTO])
 async def update_session(
     session_id: str,

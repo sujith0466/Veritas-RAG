@@ -1,17 +1,13 @@
 ---
-name: Feature Request
-about: Suggest a new feature for RAGuard AI
+name: Feature request
+about: Suggest an idea for this project
+title: ''
 labels: enhancement
+assignees: sujith0466
 ---
 
-## Feature Summary
-A brief description of the proposed feature.
+**Is your feature request related to a problem? Please describe.**
+A clear and concise description of what the problem is.
 
-## Problem It Solves
-What problem does this feature address?
-
-## Proposed Solution
-How should this feature work?
-
-## Alternatives Considered
-Other approaches you've considered.
+**Describe the solution you'd like**
+A clear and concise description of what you want to happen.

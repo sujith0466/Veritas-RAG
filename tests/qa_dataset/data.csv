@@ -1,0 +1,3 @@
+id,metric,value
+1,latency,45ms
+2,throughput,1500rps

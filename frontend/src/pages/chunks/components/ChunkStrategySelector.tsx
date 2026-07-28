@@ -25,7 +25,7 @@ export function ChunkStrategySelector({
   const [maxChars, setMaxChars] = React.useState<number>(1000)
   const [overlapChars, setOverlapChars] = React.useState<number>(200)
 
-  const currentStrategy = strategies.find((s) => s.name === selectedStrategy)
+  const currentStrategy = strategies.find((s) => s.id === selectedStrategy)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,13 +79,14 @@ export function ChunkStrategySelector({
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {strategies.map((strat) => {
-              const isSelected = selectedStrategy === strat.name
+              const isSelected = selectedStrategy === strat.id
+              const isPlaceholder = strat.status !== 'supported'
               return (
                 <button
-                  key={strat.name}
+                  key={strat.id}
                   type="button"
                   onClick={() => {
-                    setSelectedStrategy(strat.name)
+                    setSelectedStrategy(strat.id)
                     setMaxChars(strat.default_max_characters || 1000)
                     setOverlapChars(strat.default_overlap_characters || 200)
                   }}
@@ -97,13 +98,13 @@ export function ChunkStrategySelector({
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold capitalize">{strat.name}</span>
+                    <span className="text-xs font-bold capitalize">{strat.id}</span>
                     {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />}
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{strat.display_name}</p>
-                  {strat.is_placeholder && (
+                  {isPlaceholder && (
                     <span className="absolute top-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 border border-amber-500/30 text-amber-400">
-                      M2 Stub
+                      {strat.status === 'experimental' ? 'M2 Stub' : 'Disabled'}
                     </span>
                   )}
                 </button>
@@ -132,7 +133,7 @@ export function ChunkStrategySelector({
                 step="100"
                 value={maxChars}
                 onChange={(e) => setMaxChars(Number(e.target.value))}
-                disabled={isProcessing || currentStrategy?.is_placeholder}
+                disabled={isProcessing || currentStrategy?.status !== 'supported'}
                 className="w-full accent-indigo-500 bg-border h-1.5 rounded-lg cursor-pointer"
               />
             </div>
@@ -149,7 +150,7 @@ export function ChunkStrategySelector({
                 step="25"
                 value={overlapChars}
                 onChange={(e) => setOverlapChars(Number(e.target.value))}
-                disabled={isProcessing || currentStrategy?.is_placeholder}
+                disabled={isProcessing || currentStrategy?.status !== 'supported'}
                 className="w-full accent-indigo-500 bg-border h-1.5 rounded-lg cursor-pointer"
               />
             </div>
@@ -158,7 +159,7 @@ export function ChunkStrategySelector({
           <Button
             type="submit"
             variant="default"
-            disabled={!selectedDocId || isProcessing || currentStrategy?.is_placeholder}
+            disabled={!selectedDocId || isProcessing || currentStrategy?.status !== 'supported'}
             className="w-full justify-center gap-2 py-2.5 shadow-lg shadow-indigo-500/20"
           >
             <Zap className="w-4 h-4" />
@@ -167,11 +168,11 @@ export function ChunkStrategySelector({
         </div>
       </form>
 
-      {currentStrategy?.is_placeholder && (
+      {currentStrategy && currentStrategy.status !== 'supported' && (
         <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-amber-300 text-xs">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <strong className="font-bold">Phase 2 Milestone 2 Dependency:</strong> Semantic similarity chunking requires dense embedding vectors from the upcoming Embedding Pipeline (`M2`). Please select `recursive`, `markdown`, `sentence`, `paragraph`, `table`, or `code` for Milestone 1.
+            <strong className="font-bold">Strategy Status: {currentStrategy.status}</strong> This strategy is currently not available for Milestone 1. {currentStrategy.requires && currentStrategy.requires.length > 0 && `Requires: ${currentStrategy.requires.join(', ')}.`}
           </div>
         </div>
       )}

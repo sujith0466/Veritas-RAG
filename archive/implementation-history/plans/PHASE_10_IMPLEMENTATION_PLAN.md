@@ -1,4 +1,4 @@
-﻿# PHASE_10_IMPLEMENTATION_PLAN.md
+﻿# phase-10-implementation-plan.md
 # RAGuard AI — Phase 10: Grounded Answer Generation (Production Grade)
 
 **Version**: 1.0.0  

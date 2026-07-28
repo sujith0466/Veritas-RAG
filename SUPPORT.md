@@ -17,4 +17,4 @@ https://docs.raguard.ai
 
 ## Known Issues
 
-See [CHANGELOG.md](CHANGELOG.md) for known limitations in the current release.
+See [changelog.md](changelog.md) for known limitations in the current release.

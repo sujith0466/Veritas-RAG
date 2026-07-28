@@ -21,6 +21,7 @@ export type {
   ChunkListResponse,
   ChunkMetricsDTO,
   ChunkCreateRequest,
+  StrategyDiscoveryDTO,
 } from './chunk'
 export type {
   ProviderModelInfoDTO,

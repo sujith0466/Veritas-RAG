@@ -20,13 +20,14 @@ class RecursiveChunkSplitter(BaseChunkSplitter):
     @property
     def strategy_info(self) -> StrategyInfoDTO:
         return StrategyInfoDTO(
-            name="recursive",
-            display_name="Recursive Character Splitter",
-            description="Hierarchically splits on paragraphs, newlines, sentences, and words while maintaining overlap.",
-            supported_mime_types=["*"],
+            id="recursive",
+            display_name="Recursive Character",
+            description="Dynamically splits generic text by character boundaries (paragraphs, sentences, words) while respecting size constraints.",
+            status="supported",
+            recommended=True,
+            supported_mime_types=["text/plain", "*"],
             default_max_characters=1000,
             default_overlap_characters=200,
-            is_placeholder=False,
         )
 
     def split_text(

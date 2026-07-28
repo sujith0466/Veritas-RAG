@@ -51,14 +51,10 @@ def process_document_job(self: Any, job_id: str) -> dict[str, Any]:
 
 
 async def _async_process_job(task_instance: Any, job_id: str) -> dict[str, Any]:
-    """Async wrapper that creates an isolated AsyncEngine per task to prevent MissingGreenlet errors."""
-    settings = get_settings().database
-    engine = create_async_engine(settings.url, pool_pre_ping=True)
-    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    try:
-        return await _do_process_job(task_instance, job_id, session_factory)
-    finally:
-        await engine.dispose()
+    """Async wrapper that delegates to _do_process_job."""
+    from backend.database.engine import get_session_factory
+    session_factory = get_session_factory()
+    return await _do_process_job(task_instance, job_id, session_factory)
 
 
 async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any) -> dict[str, Any]:
@@ -125,6 +121,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
 
             # ── Stage 1: Validation ──────────────────────────────────────────────
             t0 = time.perf_counter()
+            doc.status = "VALIDATING"
             job.current_step = "validation"
             job.status = "VALIDATING"
             await session.commit()
@@ -164,6 +161,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
 
             # ── Stage 2: Extraction ──────────────────────────────────────────────
             t1 = time.perf_counter()
+            doc.status = "EXTRACTING"
             job.current_step = "extraction"
             job.status = "EXTRACTING"
             await session.commit()
@@ -213,6 +211,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             # ── Stage 3: OCR Fallback (if required) ──────────────────────────────
             if extracted.needs_ocr:
                 t2 = time.perf_counter()
+                doc.status = "OCR"
                 job.current_step = "ocr"
                 await session.commit()
 
@@ -281,6 +280,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             await session.commit()
 
             # ── Stage 5: Canonical Manifest Generation ───────────────────────────
+            doc.status = "MANIFEST_GENERATING"
             job.current_step = "manifest"
             await session.commit()
 
@@ -348,6 +348,11 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
                 session,
             )
             await session.commit()
+            
+            # Publish event in process to trigger next pipeline stage
+            from backend.core.events.dispatcher import get_dispatcher
+            dispatcher = get_dispatcher()
+            await dispatcher.publish(proc_payload)
 
             logger.info(
                 "Document processing completed successfully",

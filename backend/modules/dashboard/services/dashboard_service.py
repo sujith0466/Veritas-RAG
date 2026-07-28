@@ -7,7 +7,7 @@ from typing import Any
 from uuid import uuid4
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.analytics.models.query_analytics import \
@@ -19,6 +19,7 @@ from backend.modules.dashboard.schemas.dashboard_dto import (
     KnowledgeStageMetric)
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
+from backend.document.models.document import Document
 
 logger = structlog.get_logger(__name__)
 
@@ -125,15 +126,26 @@ class DashboardService:
             ),
         ]
 
-        # Estimate documents based on chunks
-        est_docs = max(1, total_chunks // 15) if total_chunks > 0 else 0
+        # 6. Real Document Metrics
+        doc_query = select(
+            func.count(Document.id),
+            func.sum(case((Document.status == "PROCESSED", 1), else_=0)),
+            func.sum(case((Document.status == "FAILED", 1), else_=0)),
+        ).where(Document.tenant_id == tenant_id)
+        doc_result = await self._session.execute(doc_query)
+        total_docs, processed_docs, failed_docs = doc_result.first() or (0, 0, 0)
+        total_docs = total_docs or 0
+        processed_docs = processed_docs or 0
+        failed_docs = failed_docs or 0
+
+        validation_pass_rate = 100.0 if total_docs == 0 else round(100.0 * (total_docs - failed_docs) / total_docs, 1)
 
         return KnowledgeIntelligenceSummaryDTO(
             tenant_id=tenant_id,
-            total_documents=est_docs,
-            processed_documents=est_docs,
-            failed_documents=0,
-            validation_pass_rate=100.0,
+            total_documents=total_docs,
+            processed_documents=processed_docs,
+            failed_documents=failed_docs,
+            validation_pass_rate=validation_pass_rate,
             total_chunks=total_chunks,
             avg_tokens_per_chunk=avg_tokens,
             chunk_strategy_counts=strategy_counts,
@@ -169,8 +181,8 @@ class DashboardService:
         stats_result = await self._session.execute(stats_query)
         total_24h, avg_conf, avg_rel = stats_result.first() or (0, None, None)
         total_24h = total_24h or 0
-        avg_conf = float(avg_conf) if avg_conf is not None else 0.88
-        avg_rel = float(avg_rel) if avg_rel is not None else 95.4
+        avg_conf = float(avg_conf) if avg_conf is not None else 0.0
+        avg_rel = float(avg_rel) if avg_rel is not None else 0.0
 
         # Blocked hallucinations & clarifications
         outcomes_query = (

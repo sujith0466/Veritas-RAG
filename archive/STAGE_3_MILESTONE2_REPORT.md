@@ -3,8 +3,8 @@
 
 ## Completed Tasks
 - Generated `mkdocs.yml` defining the static site structure and Material theme.
-- Created `docs/developer/API_QUICKSTART.md` (5-minute guide).
-- Created `docs/developer/ARCHITECTURE_WALKTHROUGH.md` to map the codebase control flow.
+- Created `docs/Developer/API_QUICKSTART.md` (5-minute guide).
+- Created `docs/Developer/ARCHITECTURE_WALKTHROUGH.md` to map the codebase control flow.
 - Integrated existing Markdown guides (`INSTALLATION_GUIDE`, `USER_GUIDE`, etc.) into the MkDocs navigation map.
 
 ## Quality Gates Passed

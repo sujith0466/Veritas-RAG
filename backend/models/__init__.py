@@ -20,6 +20,7 @@ __all__ = [
     "DocumentVersion",
     "EmbeddingJob",
     "HealthScanJob",
+    "LLMAuditRecord",
     "ProcessingJob",
     "QueryAnalyticsRecord",
     "RetrievalQueryLog",
@@ -70,6 +71,10 @@ def __getattr__(name: str) -> Any:
         import backend.modules.analytics.models as anl_models
 
         return getattr(anl_models, name)
+    if name in {"LLMAuditRecord"}:
+        import backend.modules.generation.models as gen_models
+
+        return getattr(gen_models, name)
     if name in {"ChatSession", "ChatMessage"}:
         import backend.modules.chat.models as chat_models
 

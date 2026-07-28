@@ -13,6 +13,7 @@ import {
   DocumentProgress,
   DocumentList,
   DocumentDetailDrawer,
+  ZipPreviewDialog,
 } from './components'
 
 export function DocumentsPage() {
@@ -26,6 +27,7 @@ export function DocumentsPage() {
   const [activeStatus, setActiveStatus] = React.useState<ProcessingStatusResponse | null>(null)
   const [activeDocName, setActiveDocName] = React.useState<string>('')
   const [isPolling, setIsPolling] = React.useState(false)
+  const [selectedZipFile, setSelectedZipFile] = React.useState<File | null>(null)
 
   // Detail drawer state
   const [selectedDocId, setSelectedDocId] = React.useState<string | null>(null)
@@ -93,6 +95,28 @@ export function DocumentsPage() {
     }
   }
 
+  const handleZipConfirm = async (files: Array<{file: File, path: string}>) => {
+    setSelectedZipFile(null)
+    setIsUploading(true)
+    setUploadProgress(0)
+    let completed = 0
+
+    for (const item of files) {
+      try {
+        await documentService.uploadDocument(item.file, undefined, item.path)
+      } catch (err) {
+        console.error(`Failed to upload ${item.path}:`, err)
+      } finally {
+        completed++
+        setUploadProgress(Math.round((completed / files.length) * 100))
+        if (completed % 5 === 0) fetchDocuments() // Refresh periodically
+      }
+    }
+    
+    fetchDocuments()
+    setIsUploading(false)
+  }
+
   const handleDelete = async (docId: string) => {
     await documentService.deleteDocument(docId)
     if (activeStatus?.document_id === docId) {
@@ -133,9 +157,19 @@ export function DocumentsPage() {
       {/* Upload Dropzone */}
       <UploadDropzone
         onUpload={handleUpload}
+        onZipSelect={(file) => setSelectedZipFile(file)}
         isUploading={isUploading}
         uploadProgress={uploadProgress}
       />
+
+      {/* ZIP Preview Dialog */}
+      {selectedZipFile && (
+        <ZipPreviewDialog
+          zipFile={selectedZipFile}
+          onClose={() => setSelectedZipFile(null)}
+          onConfirm={handleZipConfirm}
+        />
+      )}
 
       {/* Real-Time Processing Lifecycle Tracker */}
       <AnimatePresence>

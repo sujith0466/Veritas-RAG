@@ -13,7 +13,7 @@ export const springs = {
   /** Snappy, responsive — for interactive UI elements */
   snappy: { type: 'spring', stiffness: 400, damping: 30 },
   /** Smooth, natural — for layout transitions */
-  smooth: { type: 'spring', stiffness: 300, damping: 35 },
+  smooth: { type: 'spring', stiffness: 350, damping: 35 },
   /** Bouncy — for playful interactions (toasts, badges) */
   bouncy: { type: 'spring', stiffness: 500, damping: 25 },
   /** Gentle — for subtle fades and background animations */
@@ -26,19 +26,19 @@ export const springs = {
 
 export const transitions = {
   /** Ultra-fast micro-interaction (hover states) */
-  instant: { duration: 0.1, ease: 'easeOut' },
-  /** Fast UI feedback (button press, focus) */
-  fast: { duration: 0.15, ease: [0.4, 0, 0.2, 1] },
-  /** Standard element transition */
-  normal: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
+  instant: { duration: 0.1, ease: 'easeOut' }, // 100ms
+  /** Fast UI feedback (button press, focus, cards, dialogs) */
+  fast: { duration: 0.15, ease: [0.4, 0, 0.2, 1] }, // 150ms
+  /** Standard element transition (page nav) */
+  normal: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }, // 200ms
   /** Relaxed page-level transition */
-  relaxed: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+  relaxed: { duration: 0.25, ease: [0.4, 0, 0.2, 1] }, // 250ms
   /** Slow, cinematic — for background effects */
   slow: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
   /** Spring-based sidebar collapse/expand */
-  sidebar: springs.smooth,
+  sidebar: { duration: 0.18, ease: [0.4, 0, 0.2, 1] }, // 180ms
   /** Spring-based modal/dialog open */
-  modal: springs.snappy,
+  modal: { duration: 0.15, ease: [0.4, 0, 0.2, 1] }, // 150ms
 } as const satisfies Record<string, Transition>
 
 // ─── Page Transition Variants ─────────────────────────────────────────────────

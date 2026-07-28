@@ -48,13 +48,13 @@ def process_document_chunking_task(
     """
     return asyncio.run(
         _async_process_chunking(
-            self,
-            tenant_id,
-            uuid.UUID(document_id),
-            uuid.UUID(version_id),
-            strategy_override,
-            max_characters,
-            overlap_characters,
+        self,
+        tenant_id,
+        uuid.UUID(document_id),
+        uuid.UUID(version_id),
+        strategy_override,
+        max_characters,
+        overlap_characters,
         )
     )
 
@@ -68,19 +68,14 @@ async def _async_process_chunking(
     max_characters: int,
     overlap_characters: int,
 ) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-    from backend.core.config import get_settings
-    
-    settings = get_settings().database
-    engine = create_async_engine(settings.url, pool_pre_ping=True)
-    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+    from backend.database.engine import get_session_factory
+    session_factory = get_session_factory()
     
     service = ChunkingService()
 
-    try:
-        async with session_factory() as session:
-            try:
-                chunks, duration_ms = await service.chunk_document_version(
+    async with session_factory() as session:
+        try:
+            chunks, duration_ms = await service.chunk_document_version(
                     tenant_id=tenant_id,
                     document_id=document_id,
                     version_id=version_id,
@@ -88,39 +83,64 @@ async def _async_process_chunking(
                     strategy_override=strategy_override,
                     max_characters=max_characters,
                     overlap_characters=overlap_characters,
-                )
-                await session.commit()
-                logger.info(
+            )
+            await session.commit()
+            # Emit and persist CHUNKING_COMPLETED event
+            from backend.core.events.types import EventType
+            from backend.core.events.dispatcher import get_dispatcher
+            
+            success_event = create_chunk_event(
+                    event_type=EventType.CHUNKING_COMPLETED,
+                    tenant_id=tenant_id,
+                    document_id=document_id,
+                    document_version_id=version_id,
+                    data={"chunk_count": len(chunks), "duration_ms": duration_ms}
+            )
+            
+            event_log = DocumentEventLog(
+                    document_id=document_id,
+                    event_type=EventType.CHUNKING_COMPLETED,
+                    payload=success_event.model_dump(mode="json"),
+                    triggered_by="celery_worker"
+            )
+            session.add(event_log)
+            await session.commit()
+            
+            # Publish event in process to trigger next pipeline stage
+            dispatcher = get_dispatcher()
+            await dispatcher.publish(success_event)
+            
+            logger.info(
                     "chunking_task_completed",
                     tenant_id=tenant_id,
                     document_id=str(document_id),
                     chunk_count=len(chunks),
                     duration_ms=duration_ms,
-                )
-                return {
+            )
+            return {
                     "status": "success",
                     "document_id": str(document_id),
                     "version_id": str(version_id),
                     "chunk_count": len(chunks),
                     "duration_ms": duration_ms,
-                }
+            }
 
-            except Exception as exc:
-                await session.rollback()
-                error_code = getattr(exc, "code", "CHK_003")
-                severity = getattr(exc, "severity", get_error_severity(str(error_code)))
+        except Exception as exc:
+            await session.rollback()
+            error_code = getattr(exc, "code", "CHK_003")
+            severity = getattr(exc, "severity", get_error_severity(str(error_code)))
 
-                logger.error(
+            logger.error(
                     "chunking_task_failed",
                     tenant_id=tenant_id,
                     document_id=str(document_id),
                     error_code=str(error_code),
                     severity=str(severity),
                     error=str(exc),
-                )
+            )
 
-                # Record failure event if possible
-                try:
+            # Record failure event if possible
+            try:
                     fail_event = create_chunk_event(
                         event_type=EVENT_CHUNKING_FAILED,
                         tenant_id=tenant_id,
@@ -135,20 +155,18 @@ async def _async_process_chunking(
                     event_log = DocumentEventLog(
                         document_id=document_id,
                         event_type=EVENT_CHUNKING_FAILED,
-                        payload=fail_event.model_dump(),
+                        payload=fail_event.model_dump(mode="json"),
                     )
                     session.add(event_log)
                     await session.commit()
-                except Exception as log_exc:
+            except Exception as log_exc:
                     logger.warning("failed_to_log_chunking_error_event", error=str(log_exc))
 
-                if (
+            if (
                     severity == ErrorSeverity.RECOVERABLE
                     and task_instance.request.retries < task_instance.max_retries
-                ):
+            ):
                     backoff_seconds = 2**task_instance.request.retries * 5
                     raise task_instance.retry(exc=exc, countdown=backoff_seconds)
 
-                raise exc
-    finally:
-        await engine.dispose()
+            raise exc

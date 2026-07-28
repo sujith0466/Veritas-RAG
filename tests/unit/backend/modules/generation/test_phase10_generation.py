@@ -27,7 +27,41 @@ def test_prompt_guard_evidence_formatting_and_filtering():
     assert len(safe_chunks) == 2
     assert "c2" not in [c["chunk_id"] for c in safe_chunks]
     assert "<evidence_chunk id='1'>" in formatted
-    assert "<evidence_chunk id='3'>" in formatted
+    assert "<evidence_chunk id='2'>" in formatted
+    assert "<evidence_chunk id='3'>" not in formatted
+
+
+def test_prompt_guard_filters_empty_evidence_before_prompt_construction():
+    guard = PromptGuard()
+    chunks = [
+        {"chunk_id": "empty", "document_id": "doc_1", "content": ""},
+        {"chunk_id": "blank", "document_id": "doc_1", "content": "   \n\t  "},
+        {"chunk_id": "valid", "document_id": "doc_1", "content": "RAGuard reduces hallucinations."},
+        {"chunk_id": "none", "document_id": "doc_1", "content": None},
+    ]
+
+    formatted, safe_chunks = guard.sanitize_and_format_evidence(chunks)
+
+    assert [chunk["chunk_id"] for chunk in safe_chunks] == ["valid"]
+    assert "[1] RAGuard reduces hallucinations." in formatted
+    assert "[2]" not in formatted
+    assert '""' not in formatted
+
+
+def test_citation_extraction_uses_filtered_evidence_mapping():
+    guard = PromptGuard()
+    extractor = CitationExtractor()
+    chunks = [
+        {"chunk_id": "empty", "document_id": "doc_1", "content": ""},
+        {"chunk_id": "valid", "document_id": "doc_2", "content": "RAGuard uses hybrid retrieval.", "score": 0.91},
+    ]
+
+    _, safe_chunks = guard.sanitize_and_format_evidence(chunks)
+    citations = extractor.extract("RAGuard uses hybrid retrieval. [1] Invalid citation. [2]", safe_chunks)
+
+    assert len(citations) == 1
+    assert citations[0].citation_index == 1
+    assert citations[0].chunk_id == "valid"
 
 
 @pytest.mark.asyncio

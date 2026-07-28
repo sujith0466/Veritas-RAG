@@ -61,11 +61,11 @@
 
 | Report | Location |
 |--------|----------|
-| Architecture Compliance | `docs/certification/01_ARCHITECTURE_COMPLIANCE_REPORT.md` |
-| PRD Compliance Matrix | `docs/certification/02_PRD_COMPLIANCE_MATRIX.md` |
-| Feature Completeness | `docs/certification/04_FEATURE_COMPLETENESS_MATRIX.md` |
-| Security Compliance | `docs/certification/08_SECURITY_COMPLIANCE_REPORT.md` |
-| Final Enterprise Certification | `docs/certification/12_FINAL_ENTERPRISE_CERTIFICATION_REPORT.md` |
+| Architecture Compliance | `docs/Certification/01_ARCHITECTURE_COMPLIANCE_REPORT.md` |
+| PRD Compliance Matrix | `docs/Certification/02_PRD_COMPLIANCE_MATRIX.md` |
+| Feature Completeness | `docs/Certification/04_FEATURE_COMPLETENESS_MATRIX.md` |
+| Security Compliance | `docs/Certification/08_SECURITY_COMPLIANCE_REPORT.md` |
+| Final Enterprise Certification | `docs/Certification/12_FINAL_ENTERPRISE_CERTIFICATION_REPORT.md` |
 
 ## Repository Checksum
 

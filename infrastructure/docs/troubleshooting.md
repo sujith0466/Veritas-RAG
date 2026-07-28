@@ -70,8 +70,8 @@ raguard-backend    Up 10 seconds (waiting)    0.0.0.0:8000->8000/tcp
    If `pg_isready` reports `FATAL: password authentication failed for user "postgres"`, the named volume `postgres-data` was created with an old password before `.env.local` was updated.
 3. **Resolution: Reset data volume cleanly**:
    ```bash
-   ./infrastructure/scripts/reset.ps1   # or make reset
-   ./infrastructure/scripts/bootstrap.ps1 # or make setup
+   ./Infrastructure/scripts/reset.ps1   # or make reset
+   ./Infrastructure/scripts/bootstrap.ps1 # or make setup
    ```
 
 ---
@@ -115,7 +115,7 @@ PermissionError: [Errno 13] Permission denied: '/app/backend/__pycache__'
 ## 5. Alembic Migration Lock / Divergent History
 
 ### Symptom
-Running `./infrastructure/scripts/migrate.ps1` (`make migrate`) outputs:
+Running `./Infrastructure/scripts/migrate.ps1` (`make migrate`) outputs:
 ```
 alembic.util.exc.CommandError: Can't locate revision identified by 'xxxxxx'
 ```
@@ -135,6 +135,6 @@ The database `alembic_version` table references a migration hash that no longer 
    ```
 3. **Option B: Reset database and re-migrate from scratch**:
    ```bash
-   ./infrastructure/scripts/reset.ps1
-   ./infrastructure/scripts/bootstrap.ps1
+   ./Infrastructure/scripts/reset.ps1
+   ./Infrastructure/scripts/bootstrap.ps1
    ```

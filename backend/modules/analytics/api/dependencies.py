@@ -15,8 +15,10 @@ from backend.modules.analytics.services.analytics_service import \
 from backend.modules.analytics.services.reporting_service import \
     ReportingService
 
-AnalyticsAuth = Annotated[dict, Depends(require_role(Role.VIEWER))]
-AdminAuth = Annotated[dict, Depends(require_role(Role.ADMIN))]
+from backend.core.auth.context import UserContext
+
+AnalyticsAuth = Annotated[UserContext, Depends(require_role(Role.VIEWER))]
+AdminAuth = Annotated[UserContext, Depends(require_role(Role.ADMIN))]
 
 
 async def get_analytics_service(

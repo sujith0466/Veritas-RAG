@@ -100,6 +100,9 @@ async def _async_execute_batch_search(
             repository = RetrievalRepository(session)
             # Default embedding provider (OpenAI or Local fallback)
             embedding_provider = OpenAIEmbeddingProvider()
+            
+            from backend.modules.retrieval.services.bm25_manager import SparseIndexManager
+            index_manager = SparseIndexManager(sparse_provider=_bm25_provider)
 
             orchestrator = RetrievalOrchestrator(
                 embedding_provider=embedding_provider,
@@ -107,6 +110,7 @@ async def _async_execute_batch_search(
                 sparse_provider=_bm25_provider,
                 reranker_provider=_reranker_provider,
                 repository=repository,
+                index_manager=index_manager
             )
 
             results_summary: list[dict[str, Any]] = []

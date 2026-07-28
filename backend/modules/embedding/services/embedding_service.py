@@ -83,6 +83,7 @@ class EmbeddingService:
             status="PENDING",
         )
         created_job = await self.repository.create_job(job)
+        await self.repository.session.commit()
 
         if self.event_dispatcher:
             payload = create_embedding_event(

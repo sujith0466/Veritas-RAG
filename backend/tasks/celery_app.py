@@ -74,5 +74,12 @@ def create_celery_app() -> Celery:
     return app
 
 
+from celery.signals import worker_process_init
+
+@worker_process_init.connect
+def init_worker(**kwargs):
+    from backend.tasks.listeners import register_pipeline_listeners
+    register_pipeline_listeners()
+
 # Application-level singleton
 celery_app: Celery = create_celery_app()

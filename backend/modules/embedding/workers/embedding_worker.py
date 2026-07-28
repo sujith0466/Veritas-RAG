@@ -68,6 +68,23 @@ class CeleryEmbeddingWorker:
                         "tokens": job.total_tokens_consumed,
                     },
                 )
+                
+            from backend.core.events.types import EventType
+            from backend.core.events.dispatcher import get_dispatcher
+            from backend.modules.embedding.events import create_embedding_event
+            
+            success_event = create_embedding_event(
+                event_type=EventType.EMBEDDING_COMPLETED,
+                tenant_id=tenant_id,
+                job_id=job.id,
+                document_id=job.document_id,
+                data={
+                    "processed_chunks": job.processed_chunks,
+                    "tokens_consumed": job.total_tokens_consumed,
+                }
+            )
+            dispatcher = get_dispatcher()
+            await dispatcher.publish(success_event)
 
             return {
                 "status": "success",

@@ -39,6 +39,7 @@ class RetrievalOrchestrator:
         reranker_provider: BaseRerankerProvider,
         repository: Any | None = None,
         event_dispatcher: Any | None = None,
+        index_manager: Any | None = None,
         collection_prefix: str = "raguard_knowledge",
     ) -> None:
         self.embedding_provider = embedding_provider
@@ -47,9 +48,10 @@ class RetrievalOrchestrator:
         self.reranker_provider = reranker_provider
         self.repository = repository
         self.event_dispatcher = event_dispatcher
+        self.index_manager = index_manager
         self.collection_prefix = collection_prefix
 
-    def _get_collection_name(self, options: SearchRequestDTO) -> str:
+    def _get_collection_name(self, options: SearchRequestDTO, tenant_id: str = None) -> str:
         if (
             hasattr(options, "filter_dsl")
             and options.filter_dsl
@@ -63,8 +65,11 @@ class RetrievalOrchestrator:
             and options.filters.get("collection_name")
         ):
             return str(options.filters["collection_name"])
-        dimension = getattr(self.embedding_provider, "dimension", 1536)
-        return f"{self.collection_prefix}_{dimension}"
+        
+        # FIX: Ensure we use the exact same tenant-scoped naming convention 
+        # as the ingestion pipeline (VectorStorageService).
+        prefix = "raguard"
+        return f"{prefix}_{tenant_id}" if tenant_id else prefix
 
     async def _execute_dense_stage(
         self,
@@ -261,7 +266,7 @@ class RetrievalOrchestrator:
         span_ctx = trace_retrieval("hybrid_rrf", options.top_k, tenant_id=tenant_id)
         span_ctx.__enter__()
         try:
-            collection_name = self._get_collection_name(options)
+            collection_name = self._get_collection_name(options, tenant_id=tenant_id)
 
             # Stage 1: Parallel Dense + Sparse Retrieval (`await asyncio.gather`)
             dense_task = self._execute_dense_stage(
@@ -311,18 +316,16 @@ class RetrievalOrchestrator:
                 total_ms=round(total_ms, 2),
             )
 
-            # Asynchronously log audit history & emit domain event without blocking client response
-            asyncio.create_task(
-                self._log_and_emit(
-                    tenant_id=tenant_id,
-                    correlation_id=correlation_id,
-                    query_text=query_clean,
-                    dense_count=len(dense_candidates),
-                    sparse_count=len(sparse_candidates),
-                    merged_count=len(deduped),
-                    final_top_k=len(final_evidence),
-                    stage_latencies=stage_latencies,
-                )
+            # Keep audit logging inside the request-scoped DB session lifetime.
+            await self._log_and_emit(
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+                query_text=query_clean,
+                dense_count=len(dense_candidates),
+                sparse_count=len(sparse_candidates),
+                merged_count=len(deduped),
+                final_top_k=len(final_evidence),
+                stage_latencies=stage_latencies,
             )
 
             result = RetrievalResultDTO(
@@ -403,17 +406,15 @@ class RetrievalOrchestrator:
             total_ms=round(total_ms, 2),
         )
 
-        asyncio.create_task(
-            self._log_and_emit(
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                query_text=query_clean,
-                dense_count=len(dense_candidates),
-                sparse_count=len(sparse_candidates),
-                merged_count=len(deduped),
-                final_top_k=len(final_reranked),
-                stage_latencies=stage_latencies,
-            )
+        await self._log_and_emit(
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            query_text=query_clean,
+            dense_count=len(dense_candidates),
+            sparse_count=len(sparse_candidates),
+            merged_count=len(deduped),
+            final_top_k=len(final_reranked),
+            stage_latencies=stage_latencies,
         )
 
         response = SearchSandboxResponseDTO(

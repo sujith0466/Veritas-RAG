@@ -3,7 +3,7 @@
 
 ## Completed Tasks
 - Created `scripts/dr/backup_db.sh` and `restore_db.sh` for disaster recovery.
-- Generated `docs/runbooks/DISASTER_RECOVERY.md` and `INCIDENT_RESPONSE.md`.
+- Generated `docs/Runbooks/DISASTER_RECOVERY.md` and `INCIDENT_RESPONSE.md`.
 - Generated placeholders for all other required operational runbooks (Final Improvement 2).
 - Produced `PRODUCTION_SECURITY_CHECKLIST.md` auditing HTTPS, TLS, non-root containers, and DLP configuration.
 

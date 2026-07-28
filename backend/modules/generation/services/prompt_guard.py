@@ -49,12 +49,27 @@ class PromptGuard:
     def sanitize_and_format_evidence(
         self, chunks: list[dict[str, Any]]
     ) -> tuple[str, list[dict[str, Any]]]:
-        """Filter out injection attempts and format evidence in secure XML-like boundaries."""
+        """Filter invalid/injected evidence and format secure XML-like boundaries."""
         safe_chunks: list[dict[str, Any]] = []
         formatted_lines: list[str] = []
 
-        for i, chunk in enumerate(chunks, start=1):
-            content = str(chunk.get("content", "")).replace("\n", " ").strip()
+        for chunk in chunks:
+            if not chunk:
+                continue
+            raw_content = chunk.get("content")
+            if raw_content is None:
+                logger.info(
+                    "Filtering out null evidence chunk before prompt construction",
+                    chunk_id=chunk.get("chunk_id"),
+                )
+                continue
+            content = str(raw_content).replace("\n", " ").strip()
+            if not content:
+                logger.info(
+                    "Filtering out empty evidence chunk before prompt construction",
+                    chunk_id=chunk.get("chunk_id"),
+                )
+                continue
             if self.scan_for_injection(content):
                 logger.warning(
                     "Filtering out suspicious evidence chunk due to prompt injection check",
@@ -62,8 +77,10 @@ class PromptGuard:
                 )
                 continue
             safe_chunks.append(chunk)
+            citation_index = len(safe_chunks)
             formatted_lines.append(
-                f"<evidence_chunk id='{i}'>[{i}] {content}</evidence_chunk>"
+                f"<evidence_chunk id='{citation_index}'>"
+                f"[{citation_index}] {content}</evidence_chunk>"
             )
 
         return "\n".join(formatted_lines), safe_chunks

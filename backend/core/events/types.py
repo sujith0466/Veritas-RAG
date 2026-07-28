@@ -19,6 +19,11 @@ class EventType(StrEnum):
     DOCUMENT_INGESTION_COMPLETED = "document.ingestion_completed"
     DOCUMENT_INGESTION_FAILED = "document.ingestion_failed"
     DOCUMENT_DELETED = "document.deleted"
+    
+    # ── Chunking Pipeline ──────────────────────────────────────────────────────
+    CHUNKING_STARTED = "chunking.started"
+    CHUNKING_COMPLETED = "chunking.completed"
+    CHUNKING_FAILED = "chunking.failed"
 
     # ── Embedding Pipeline ─────────────────────────────────────────────────────
     EMBEDDING_STARTED = "embedding.started"

@@ -18,27 +18,18 @@ import { Shield, Activity, Users, FileText, RefreshCw, AlertTriangle, CheckCircl
 import { dashboardService } from '@/services/dashboardService'
 import type { ExecutiveDashboardDTO } from '@/types'
 import { listContainerVariants, listItemVariants, cardHover } from '@/motion'
-import { useAuthStore } from '@/stores/authStore'
-import { OnboardingWizard } from './OnboardingWizard'
 
 export function DashboardPage() {
   const [data, setData] = useState<ExecutiveDashboardDTO | null>(null)
-  const [isWorkspaceEmpty, setIsWorkspaceEmpty] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
-  const user = useAuthStore(s => s.user)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const [execSummary, kiSummary] = await Promise.all([
-        dashboardService.getExecutiveDashboard(),
-        dashboardService.getKnowledgeIntelligenceSummary()
-      ])
+      const execSummary = await dashboardService.getExecutiveDashboard()
       setData(execSummary)
-      setIsWorkspaceEmpty(kiSummary.total_documents === 0)
     } catch (err) {
       console.error('Failed to load executive dashboard summary:', err)
       setError('Unable to fetch executive dashboard metrics. Please check your connection and try again.')
@@ -81,35 +72,6 @@ export function DashboardPage() {
       color: 'text-danger bg-danger-subtle',
     },
   ]
-
-  if (isWorkspaceEmpty) {
-    if (user?.role === 'admin') {
-      return (
-        <PageTransition>
-          <OnboardingWizard onComplete={loadData} />
-        </PageTransition>
-      )
-    } else {
-      return (
-        <PageTransition>
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 space-y-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Shield className="h-8 w-8 text-primary" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground">Welcome to {user?.workspace_name || 'RAGuard AI'}</h2>
-            <p className="text-muted-foreground max-w-md">
-              Your workspace is currently being set up by an administrator.
-              Once knowledge sources are connected and ingested, your intelligence dashboards will become active.
-            </p>
-            <Button variant="outline" onClick={loadData} className="mt-4">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Check Status
-            </Button>
-          </div>
-        </PageTransition>
-      )
-    }
-  }
 
   return (
     <PageTransition>
@@ -299,7 +261,7 @@ export function DashboardPage() {
                           </div>
                           <div className="bg-background rounded px-2 py-1.5 border border-border/40">
                             <p className="text-[11px] font-medium text-foreground/90 italic truncate" title={alert.query_snippet}>
-                              "{alert.query_snippet}"
+                              &quot;{alert.query_snippet}&quot;
                             </p>
                           </div>
                           <p className="text-[11px] text-muted-foreground leading-snug">

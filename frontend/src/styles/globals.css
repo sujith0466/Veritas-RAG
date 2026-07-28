@@ -9,7 +9,48 @@
 
 @layer base {
   :root {
-    /* ── Dark Theme (Default - Enterprise Minimal) ── */
+    /* ── Light Theme (Default - Enterprise Minimal) ── */
+    --background: 60 20% 98%;           /* #fafaf8 - warm white */
+    --foreground: 222 47% 11%;          /* #0f172a - slate-900 */
+    --surface: 0 0% 100%;               /* #ffffff - white */
+    --surface-elevated: 0 0% 100%;      /* #ffffff */
+    --border: 220 13% 91%;              /* #e5e7eb - gray-200 */
+    --border-subtle: 210 40% 96%;       /* #f1f5f9 - slate-100 */
+    --muted: 210 40% 96%;               /* #f1f5f9 - slate-100 */
+    --muted-foreground: 215 16% 47%;    /* #64748b - slate-500 */
+
+    /* ── Brand Accent: Deep Teal ── */
+    --primary: 175 84% 26%;             /* #0f766e - teal-700 */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 176 69% 22%;       /* #115e59 - teal-800 */
+    --primary-subtle: 175 84% 26% / 0.1;
+
+    /* ── Semantic Colors ── */
+    --success: 161 94% 30%;             /* #059669 - emerald-600 */
+    --success-foreground: 0 0% 100%;
+    --success-subtle: 161 94% 30% / 0.1;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+    --warning-subtle: 38 92% 50% / 0.1;
+    --danger: 346 84% 50%;
+    --danger-foreground: 0 0% 100%;
+    --danger-subtle: 346 84% 50% / 0.1;
+    --info: 221 83% 53%;                /* #2563EB - professional blue */
+    --info-foreground: 0 0% 100%;
+    --info-subtle: 221 83% 53% / 0.1;
+
+    /* ── Radius ── */
+    --radius: 0.5rem;
+
+    /* ── Scrollbar ── */
+    --scrollbar-width: 6px;
+    --scrollbar-track: transparent;
+    --scrollbar-thumb: hsl(214 32% 85%);
+    --scrollbar-thumb-hover: hsl(214 32% 70%);
+  }
+
+  .dark {
+    /* ── Dark Theme (Authenticated Workspace Only) ── */
     --background: 224 71% 4%;           /* #020617 - slate-950 */
     --foreground: 210 40% 98%;          /* #f8fafc - slate-50 */
     --surface: 222 47% 11%;             /* #0f172a - slate-900 */
@@ -19,70 +60,29 @@
     --muted: 215 28% 17%;               /* #1e293b - slate-800 */
     --muted-foreground: 215 20% 65%;    /* #94a3b8 - slate-400 */
 
-    /* ── Brand Accent: Indigo/Violet ── */
-    --primary: 239 84% 67%;             /* #6366f1 - indigo-500 */
-    --primary-foreground: 0 0% 100%;    /* white text */
-    --primary-hover: 239 84% 60%;       /* darker hover */
-    --primary-subtle: 239 84% 67% / 0.15; /* subtle accent */
+    /* ── Brand Accent: Deep Teal ── */
+    --primary: 175 84% 26%;             /* #0f766e - teal-700 */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 176 69% 22%;       /* #115e59 - teal-800 */
+    --primary-subtle: 175 84% 26% / 0.15;
 
     /* ── Semantic Colors ── */
-    --success: 142 71% 45%;             /* emerald-500 */
+    --success: 161 94% 30%;             /* emerald-600 */
     --success-foreground: 0 0% 100%;
-    --success-subtle: 142 71% 45% / 0.15;
+    --success-subtle: 161 94% 30% / 0.15;
     --warning: 38 92% 50%;              /* amber-500 */
     --warning-foreground: 0 0% 10%;
     --warning-subtle: 38 92% 50% / 0.15;
     --danger: 346 87% 61%;              /* rose-500 */
     --danger-foreground: 0 0% 100%;
     --danger-subtle: 346 87% 61% / 0.15;
-    --info: 199 89% 48%;                /* sky-500 */
+    --info: 221 83% 53%;                /* professional blue */
     --info-foreground: 0 0% 100%;
-    --info-subtle: 199 89% 48% / 0.15;
+    --info-subtle: 221 83% 53% / 0.15;
 
-    /* ── Radius ── */
-    --radius: 0.5rem;
-
-    /* ── Scrollbar ── */
-    --scrollbar-width: 6px;
     --scrollbar-track: transparent;
     --scrollbar-thumb: hsl(215 28% 25%);
     --scrollbar-thumb-hover: hsl(215 28% 35%);
-  }
-
-  .light {
-    /* ── Light Theme (Clean, Vercel-like) ── */
-    --background: 0 0% 100%;            /* #ffffff - white */
-    --foreground: 222 47% 11%;          /* #0f172a - slate-900 */
-    --surface: 0 0% 100%;               /* #ffffff - white */
-    --surface-elevated: 0 0% 100%;      /* #ffffff */
-    --border: 214 32% 91%;              /* #e2e8f0 - slate-200 */
-    --border-subtle: 210 40% 96%;       /* #f1f5f9 - slate-100 */
-    --muted: 210 40% 96%;               /* #f1f5f9 - slate-100 */
-    --muted-foreground: 215 16% 47%;    /* #64748b - slate-500 */
-
-    /* ── Brand Accent ── */
-    --primary: 239 84% 60%;             /* #4f46e5 - indigo-600 */
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 239 84% 50%;
-    --primary-subtle: 239 84% 60% / 0.1;
-
-    /* ── Semantic Colors (Light) ── */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 100%;
-    --success-subtle: 142 76% 36% / 0.1;
-    --warning: 32 95% 44%;
-    --warning-foreground: 0 0% 10%;
-    --warning-subtle: 32 95% 44% / 0.1;
-    --danger: 346 84% 50%;
-    --danger-foreground: 0 0% 100%;
-    --danger-subtle: 346 84% 50% / 0.1;
-    --info: 199 89% 40%;
-    --info-foreground: 0 0% 100%;
-    --info-subtle: 199 89% 40% / 0.1;
-
-    --scrollbar-track: transparent;
-    --scrollbar-thumb: hsl(214 32% 85%);
-    --scrollbar-thumb-hover: hsl(214 32% 70%);
   }
 
   /* ── Base Resets ── */
@@ -192,11 +192,11 @@
 /* ── Utility Layer ── */
 @layer utilities {
   .text-gradient-primary {
-    @apply bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-[#0F172A] to-[#0F766E] bg-clip-text text-transparent;
   }
 
   .bg-gradient-primary {
-    background: linear-gradient(135deg, hsl(239 84% 67%), hsl(262 83% 64%));
+    background: linear-gradient(135deg, hsl(175 84% 26%), hsl(222 47% 11%));
   }
 
   .scrollbar-none {

@@ -4,8 +4,10 @@ Provides connection pooling, async session factory (`async_sessionmaker`),
 and health check capabilities for the PostgreSQL database.
 """
 
-from collections.abc import AsyncGenerator
+import asyncio
+import weakref
 from typing import Any
+from collections.abc import AsyncGenerator
 
 import structlog
 from sqlalchemy import text
@@ -16,19 +18,27 @@ from backend.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
-
 class _EngineState:
-    engine: AsyncEngine | None = None
-    sessionmaker: async_sessionmaker[AsyncSession] | None = None
-
+    engines: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+    sessionmakers: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+    fallback_engine: AsyncEngine | None = None
+    fallback_sessionmaker: async_sessionmaker[AsyncSession] | None = None
 
 _state = _EngineState()
 
-
 def get_engine() -> AsyncEngine:
-    """Return the singleton AsyncEngine instance, creating it if needed."""
-    if _state.engine is not None:
-        return _state.engine
+    """Return the AsyncEngine instance, isolated per event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        if loop in _state.engines:
+            return _state.engines[loop]
+    else:
+        if _state.fallback_engine is not None:
+            return _state.fallback_engine
 
     settings = get_settings().database
     url = settings.url
@@ -38,8 +48,13 @@ def get_engine() -> AsyncEngine:
         "pool_pre_ping": True,
     }
 
-    # Only pass pool arguments if using PostgreSQL / asyncpg (not SQLite)
-    if "sqlite" not in url:
+    import sys
+    is_celery = any("celery" in arg for arg in sys.argv)
+    
+    if is_celery:
+        from sqlalchemy.pool import NullPool
+        engine_kwargs["poolclass"] = NullPool
+    elif "sqlite" not in url:
         engine_kwargs.update(
             {
                 "pool_size": settings.pool_size,
@@ -49,24 +64,45 @@ def get_engine() -> AsyncEngine:
             }
         )
 
-    logger.info("Initializing SQLAlchemy AsyncEngine", url=url.split("@")[-1])
-    _state.engine = create_async_engine(url, **engine_kwargs)
-    return _state.engine
+    logger.info("Initializing SQLAlchemy AsyncEngine", url=url.split("@")[-1], loop_id=id(loop) if loop else 0, is_celery=is_celery)
+    engine = create_async_engine(url, **engine_kwargs)
+    
+    if loop is not None:
+        _state.engines[loop] = engine
+    else:
+        _state.fallback_engine = engine
+        
+    return engine
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
-    """Return the singleton async_sessionmaker instance."""
-    if _state.sessionmaker is not None:
-        return _state.sessionmaker
+    """Return the async_sessionmaker isolated per event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        if loop in _state.sessionmakers:
+            return _state.sessionmakers[loop]
+    else:
+        if _state.fallback_sessionmaker is not None:
+            return _state.fallback_sessionmaker
 
     engine = get_engine()
-    _state.sessionmaker = async_sessionmaker(
+    factory = async_sessionmaker(
         bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
         autoflush=False,
     )
-    return _state.sessionmaker
+    
+    if loop is not None:
+        _state.sessionmakers[loop] = factory
+    else:
+        _state.fallback_sessionmaker = factory
+        
+    return factory
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
@@ -76,13 +112,19 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
         except Exception as exc:
-            await session.rollback()
+            try:
+                await session.rollback()
+            except Exception:
+                pass
             logger.error(
                 "Database transaction rolled back due to error", error=str(exc)
             )
             raise
         finally:
-            await session.close()
+            try:
+                await session.close()
+            except Exception:
+                pass
 
 
 async def check_db_health() -> bool:
@@ -98,9 +140,15 @@ async def check_db_health() -> bool:
 
 
 async def close_db() -> None:
-    """Dispose the database engine cleanly during application shutdown."""
-    if _state.engine is not None:
-        logger.info("Disposing SQLAlchemy AsyncEngine")
-        await _state.engine.dispose()
-        _state.engine = None
-        _state.sessionmaker = None
+    """Dispose the database engines cleanly during application shutdown."""
+    for loop, engine in list(_state.engines.items()):
+        logger.info("Disposing SQLAlchemy AsyncEngine", loop_id=id(loop))
+        await engine.dispose()
+    _state.engines.clear()
+    _state.sessionmakers.clear()
+    
+    if _state.fallback_engine:
+        await _state.fallback_engine.dispose()
+        _state.fallback_engine = None
+        _state.fallback_sessionmaker = None
+

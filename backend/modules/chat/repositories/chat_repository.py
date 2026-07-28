@@ -25,6 +25,20 @@ class ChatRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_messages(self, session_id: str, tenant_id: str, user_id: str, limit: int = 50, offset: int = 0) -> List[ChatMessage]:
+        # Verify ownership first
+        await self.get_session(session_id, tenant_id, user_id, include_messages=False)
+        
+        stmt = (
+            select(ChatMessage)
+            .where(ChatMessage.session_id == session_id)
+            .order_by(ChatMessage.created_at.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_session(self, session_id: str, tenant_id: str, user_id: str, include_messages: bool = True) -> ChatSession:
         stmt = select(ChatSession).where(
             ChatSession.id == session_id,

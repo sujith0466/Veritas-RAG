@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Shield, 
@@ -21,9 +21,12 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { documentService } from '@/services/documentService'
 import { chunkService } from '@/services/chunkService'
 import { embeddingService } from '@/services/embeddingService'
+import { dashboardService } from '@/services/dashboardService'
+import { userService } from '@/services/userService'
+import { useAuthStore } from '@/stores/authStore'
 import { useToast } from '@/hooks/useToast'
 import { fadeVariants } from '@/motion'
-import type { UploadResponse } from '@/types'
+import type { UploadResponse, StrategyInfoDTO } from '@/types'
 
 const steps = [
   { id: 'welcome', title: 'Welcome', icon: Shield },
@@ -38,12 +41,68 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [currentStep, setCurrentStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const user = useAuthStore(s => s.user)
+  const updateUser = useAuthStore(s => s.updateUser)
 
   // State
   const [file, setFile] = useState<File | null>(null)
   const [uploadedDoc, setUploadedDoc] = useState<UploadResponse | null>(null)
-  const [chunkStrategy, setChunkStrategy] = useState('semantic')
+  const [chunkStrategy, setChunkStrategy] = useState('recursive')
   const [embeddingModel, setEmbeddingModel] = useState('text-embedding-3-small')
+  const [strategies, setStrategies] = useState<StrategyInfoDTO[]>([])
+  const [strategiesLoading, setStrategiesLoading] = useState(false)
+
+  useEffect(() => {
+    const fetchStrategies = async () => {
+      setStrategiesLoading(true)
+      try {
+        const data = await chunkService.listStrategies()
+        if (data && data.supported) {
+          setStrategies(data.supported)
+          if (data.supported.length > 0 && !data.supported.find(s => s.id === 'recursive')) {
+            setChunkStrategy(data.supported[0].id)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch strategies:', error)
+      } finally {
+        setStrategiesLoading(false)
+      }
+    }
+    fetchStrategies()
+  }, [])
+
+  useEffect(() => {
+    // Poll for workspace state to automatically complete
+    const interval = setInterval(async () => {
+      try {
+        const kiSummary = await dashboardService.getKnowledgeIntelligenceSummary()
+        if (
+          kiSummary.total_documents > 0 &&
+          kiSummary.total_chunks > 0 &&
+          kiSummary.total_embeddings > 0 &&
+          kiSummary.total_vector_points > 0 &&
+          (kiSummary.vector_cluster_status || '').toLowerCase() === 'healthy'
+        ) {
+          clearInterval(interval)
+          
+          try {
+            const updatedSettings = { ...user?.workspace_settings, onboarding_completed: true }
+            await userService.updateWorkspace({ workspace_settings: updatedSettings })
+            updateUser({ workspace_settings: updatedSettings })
+          } catch (e) {
+            console.error('Failed to update onboarding status', e)
+          }
+
+          toast({ title: 'Workspace Ready', message: 'Your workspace has been successfully seeded and is ready.', type: 'success' })
+          onComplete()
+        }
+      } catch (err) {
+        // Ignore errors during polling
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [onComplete, toast, user, updateUser])
 
   const handleNext = async () => {
     try {
@@ -56,22 +115,54 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
         // Run full ingestion
         setIsLoading(true)
         if (uploadedDoc) {
-          await chunkService.processDocument(uploadedDoc.document_id, { strategy: chunkStrategy }, false)
-          await embeddingService.createJob({
-            document_id: uploadedDoc.document_id,
-            document_version_id: uploadedDoc.version_id,
-            provider: 'openai',
-            model_name: embeddingModel
-          })
-          toast({ title: 'Ingestion complete', message: 'Your workspace is now ready.', type: 'success' })
+          try {
+            // Wait for extraction to complete
+            let isReady = false;
+            for (let i = 0; i < 20; i++) {
+              const status = await documentService.getDocumentStatus(uploadedDoc.document_id);
+              if (status.status === 'PROCESSED') {
+                isReady = true;
+                break;
+              }
+              if (status.status === 'FAILED') {
+                throw new Error('Document extraction failed.');
+              }
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            if (!isReady) {
+              throw new Error('Document extraction timed out.');
+            }
+
+            await chunkService.processDocument(uploadedDoc.document_id, { strategy: chunkStrategy }, false)
+            await embeddingService.createJob({
+              document_id: uploadedDoc.document_id,
+              document_version_id: uploadedDoc.version_id,
+              provider: 'openai',
+              model_name: embeddingModel
+            })
+            toast({ title: 'Ingestion complete', message: 'Your workspace is now ready.', type: 'success' })
+          } catch (e: any) {
+            toast({ title: 'Ingestion Error', message: e.message || 'Failed to process document', type: 'error' })
+            setIsLoading(false)
+            return
+          }
         }
+        
+        try {
+          const updatedSettings = { ...user?.workspace_settings, onboarding_completed: true }
+          await userService.updateWorkspace({ workspace_settings: updatedSettings })
+          updateUser({ workspace_settings: updatedSettings })
+        } catch (e) {
+          console.error('Failed to update onboarding status', e)
+        }
+
         setIsLoading(false)
         onComplete()
         return
       }
       setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
-    } catch (error: any) {
-      toast({ title: 'Error', message: error.message || 'An error occurred', type: 'error' })
+    } catch (error: unknown) {
+      toast({ title: 'Error', message: (error as Error).message || 'An error occurred', type: 'error' })
       setIsLoading(false)
     }
   }
@@ -173,9 +264,17 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <Select value={chunkStrategy} onValueChange={setChunkStrategy}>
                     <SelectTrigger><SelectValue placeholder="Select strategy" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="semantic">Semantic (Context-aware)</SelectItem>
-                      <SelectItem value="fixed_size">Fixed Size (500 tokens)</SelectItem>
-                      <SelectItem value="paragraph">Paragraph Boundaries</SelectItem>
+                      {strategiesLoading ? (
+                        <SelectItem value="loading" disabled>Loading strategies...</SelectItem>
+                      ) : strategies.length > 0 ? (
+                        strategies.map((strategy) => (
+                          <SelectItem key={strategy.id} value={strategy.id}>
+                            {strategy.display_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="recursive">Recursive Character (Auto)</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -207,7 +306,26 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <Settings2 className="h-10 w-10 text-primary" />
                 </div>
                 <h2 className="text-2xl font-bold">Ready to Process</h2>
-                <p className="text-muted-foreground">We will now run the ingestion pipeline. This entails parsing, chunking using your selected strategy, embedding, and indexing into Qdrant.</p>
+                <p className="text-muted-foreground mb-8">After clicking Start Processing</p>
+                <div className="flex flex-col items-center justify-center space-y-2 text-sm text-muted-foreground/80 font-medium">
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Validate workspace configuration</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Verify data source connection</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Process uploaded documents</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Intelligent chunking</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Generate embeddings</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Synchronize Vector Database</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Validate Knowledge Index</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="flex items-center"><ChevronRight className="h-4 w-4 mr-2 text-primary" /> Enterprise AI Workspace Ready</div>
+                  <div className="h-4 w-[1px] bg-border/50"></div>
+                  <div className="text-primary mt-2">Automatically redirect to Dashboard</div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

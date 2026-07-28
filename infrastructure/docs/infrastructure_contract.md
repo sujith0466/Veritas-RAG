@@ -88,10 +88,10 @@ To eliminate setup friction, any developer onboarding to the repository must ach
 ### Windows PowerShell / Linux Bash Contract
 ```bash
 # Windows PowerShell
-./infrastructure/scripts/bootstrap.ps1
+./Infrastructure/scripts/bootstrap.ps1
 
 # Linux / macOS / WSL / Git Bash
-make setup   # or ./infrastructure/scripts/bootstrap.sh
+make setup   # or ./Infrastructure/scripts/bootstrap.sh
 ```
 
 **The Bootstrap script guarantees:**

@@ -1,7 +1,13 @@
 import axios from 'axios'
 import { supabaseClient } from '@/services/auth/supabaseClient'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+
+export const getAssetUrl = (path: string | null | undefined) => {
+  if (!path) return null
+  if (path.startsWith('http')) return path
+  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`
+}
 
 export const apiClient = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,

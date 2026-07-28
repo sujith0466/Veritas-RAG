@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException, status
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.auth.context import UserContext
@@ -38,7 +38,7 @@ async def get_executive(
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[ExecutiveDashboardDTO]:
     """Return executive dashboard for the current authenticated user's tenant."""
-    data = await svc.get_executive_dashboard(user.supabase_id)
+    data = await svc.get_executive_dashboard(user.tenant_id)
     return SuccessResponse(data=data, metadata=_meta(request))
 
 
@@ -49,7 +49,7 @@ async def get_knowledge_intelligence(
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[KnowledgeIntelligenceSummaryDTO]:
     """Return knowledge intelligence dashboard for the current tenant."""
-    data = await svc.get_knowledge_intelligence_summary(user.supabase_id)
+    data = await svc.get_knowledge_intelligence_summary(user.tenant_id)
     return SuccessResponse(data=data, metadata=_meta(request))
 
 
@@ -62,6 +62,8 @@ async def get_executive_by_tenant(
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[ExecutiveDashboardDTO]:
     """Return executive dashboard for a specific tenant (admin use)."""
+    if user.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     data = await svc.get_executive_dashboard(tenant_id)
     return SuccessResponse(data=data, metadata=_meta(request))
 
@@ -73,7 +75,7 @@ async def get_governance(
     user: UserContext = Depends(get_current_user),
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[SLAComplianceReportDTO]:
-    data = await svc.get_governance_report(user.supabase_id, window)
+    data = await svc.get_governance_report(user.tenant_id, window)
     return SuccessResponse(data=data, metadata=_meta(request))
 
 
@@ -85,6 +87,8 @@ async def get_governance_by_tenant(
     user: UserContext = Depends(get_current_user),
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[SLAComplianceReportDTO]:
+    if user.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     data = await svc.get_governance_report(tenant_id, window)
     return SuccessResponse(data=data, metadata=_meta(request))
 
@@ -96,7 +100,7 @@ async def get_trends(
     user: UserContext = Depends(get_current_user),
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[list[HallucinationTrendDTO]]:
-    data = await svc.get_trust_trends(user.supabase_id, window)
+    data = await svc.get_trust_trends(user.tenant_id, window)
     return SuccessResponse(data=data, metadata=_meta(request))
 
 
@@ -108,6 +112,8 @@ async def get_trends_by_tenant(
     user: UserContext = Depends(get_current_user),
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[list[HallucinationTrendDTO]]:
+    if user.tenant_id != tenant_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     data = await svc.get_trust_trends(tenant_id, window)
     return SuccessResponse(data=data, metadata=_meta(request))
 

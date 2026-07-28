@@ -101,18 +101,27 @@ class JWTVerifier:
             role_claim = (
                 raw_claims.get("role")
                 or app_metadata.get("role")
-                or user_metadata.get("role")
                 or "viewer"
             )
             tenant_id = (
                 raw_claims.get("tenant_id")
                 or app_metadata.get("tenant_id")
-                or user_metadata.get("tenant_id")
             )
             workspace_name = (
                 raw_claims.get("workspace_name")
                 or app_metadata.get("workspace_name")
-                or user_metadata.get("workspace_name")
+            )
+            full_name = (
+                raw_claims.get("full_name")
+                or app_metadata.get("full_name")
+                or user_metadata.get("full_name")
+                or raw_claims.get("name")
+                or user_metadata.get("name")
+            )
+            organization_name = (
+                raw_claims.get("organization_name")
+                or app_metadata.get("organization_name")
+                or user_metadata.get("organization_name")
             )
 
             return TokenPayload(
@@ -121,6 +130,8 @@ class JWTVerifier:
                 role=str(role_claim),
                 tenant_id=str(tenant_id) if tenant_id else None,
                 workspace_name=str(workspace_name) if workspace_name else None,
+                full_name=str(full_name) if full_name else None,
+                organization_name=str(organization_name) if organization_name else None,
                 exp=int(raw_claims.get("exp", 0)),
                 aud=raw_claims.get("aud"),
                 iss=raw_claims.get("iss"),

@@ -87,28 +87,41 @@ async def _async_sync_vectors_task(
     tenant_id: str,
     collection_name: str | None,
 ) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-    from backend.core.config import get_settings
+    from backend.database.engine import get_session_factory
+    session_factory = get_session_factory()
     
-    settings = get_settings().database
-    engine = create_async_engine(settings.url, pool_pre_ping=True)
-    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    
-    try:
-        async with session_factory() as session:
-            service = VectorStorageService(session=session)
-            upserted = await service.sync_document_vectors(
-                document_id=document_id,
-                document_version_id=document_version_id,
-                tenant_id=tenant_id,
-                collection_name=collection_name,
-            )
-            return {
-                "tenant_id": tenant_id,
-                "document_id": document_id,
-                "document_version_id": document_version_id,
-                "upserted_points": upserted,
-                "status": "COMPLETED",
-            }
-    finally:
-        await engine.dispose()
+    async with session_factory() as session:
+        service = VectorStorageService(session=session)
+        upserted = await service.sync_document_vectors(
+            document_id=document_id,
+            document_version_id=document_version_id,
+            tenant_id=tenant_id,
+            collection_name=collection_name,
+        )
+        await session.commit()
+
+        from backend.core.events.types import EventType
+        from backend.core.events.dispatcher import get_dispatcher
+        from backend.core.events.base import BaseEvent
+        
+        class VectorIndexedEvent(BaseEvent):
+            event_type: EventType = EventType.VECTORS_INDEXED
+            document_id: str
+            tenant_id: str
+            data: dict
+        
+        success_event = VectorIndexedEvent(
+            document_id=document_id,
+            tenant_id=tenant_id,
+            data={"upserted_points": upserted}
+        )
+        dispatcher = get_dispatcher()
+        await dispatcher.publish(success_event)
+        
+        return {
+            "tenant_id": tenant_id,
+            "document_id": document_id,
+            "document_version_id": document_version_id,
+            "upserted_points": upserted,
+            "status": "COMPLETED",
+        }

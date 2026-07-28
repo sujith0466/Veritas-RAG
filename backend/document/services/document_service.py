@@ -56,6 +56,7 @@ class DocumentService:
         tenant_id: str,
         owner_user_id: uuid.UUID | None,
         session: AsyncSession,
+        relative_path: str | None = None,
     ) -> tuple[Document, DocumentVersion, ProcessingJob]:
         """Accept file upload, validate safety/extension, store original artifact, and dispatch background job."""
         # 1. Run preliminary validation (size, sanitization, extension/MIME/magic, virus scan, sha256)
@@ -105,7 +106,8 @@ class DocumentService:
             owner_user_id=owner_user_id,
             filename=validation_result.sanitized_filename,
             original_filename=validation_result.original_filename,
-            status="PENDING",
+            relative_path=relative_path,
+            status="UPLOADED",
             word_count=0,
             page_count=0,
         )
@@ -165,8 +167,11 @@ class DocumentService:
             from backend.document.workers.ingestion import process_document_job
 
             process_document_job.apply_async(args=[str(job.id)], queue="ingestion")
-        except Exception:
+        except Exception as e:
             # If broker dispatch fails, log warning/error without failing the upload record
+            import structlog
+            logger = structlog.get_logger(__name__)
+            logger.error("Failed to dispatch process_document_job", error=str(e), job_id=str(job.id))
             pass
 
         return document, version, job
@@ -181,24 +186,39 @@ class DocumentService:
 
         job = await self.job_repo.get_by_document_id(document_id, session)
 
-        # Map steps/status to progress percentage
-        progress = 0
-        if doc.status == "PROCESSED" or doc.status == "FAILED":
-            progress = 100
-        elif job:
-            step_progress = {
+        # Monotonic progress calculation based on authoritative Document.status
+        status_map = {
+            "UPLOADED": 10,
+            "VALIDATING": 20,
+            "EXTRACTING": 30,
+            "OCR": 40,
+            "MANIFEST_GENERATING": 45,
+            "PROCESSED": 50,
+            "CHUNKING": 65,
+            "EMBEDDING": 80,
+            "VECTOR_SYNC": 90,
+            "READY": 100,
+            "FAILED": 100
+        }
+        
+        progress = status_map.get(doc.status, 15)
+        
+        # If it's still UPLOADED, use job progress if available, but cap it so it never exceeds PROCESSED
+        if doc.status == "UPLOADED" and job:
+            job_step_progress = {
                 "upload": 10,
-                "validation": 25,
-                "extraction": 60,
-                "ocr": 80,
-                "manifest": 90,
+                "validation": 20,
+                "extraction": 30,
+                "ocr": 40,
+                "manifest": 45,
             }
-            progress = step_progress.get(job.current_step.lower(), 15)
+            job_prog = job_step_progress.get(job.current_step.lower(), 10)
+            progress = max(progress, job_prog)
 
         return ProcessingStatusResponse(
             document_id=doc.id,
             status=doc.status,
-            current_step=job.current_step if job else "upload",
+            current_step=job.current_step if job else doc.status.lower(),
             progress_percent=progress,
             retry_count=job.retry_count if job else 0,
             error_code=job.error_code if job else None,
@@ -241,6 +261,7 @@ class DocumentService:
             owner_user_id=doc.owner_user_id,
             filename=doc.filename,
             original_filename=doc.original_filename,
+            relative_path=doc.relative_path,
             status=doc.status,
             latest_version_id=doc.latest_version_id,
             word_count=doc.word_count,

@@ -1,4 +1,4 @@
-# PHASE_7_IMPLEMENTATION_PLAN.md
+# phase-7-implementation-plan.md
 # RAGuard AI — Phase 7: Retry Controller (Production Grade)
 
 **Version**: 1.0.0  

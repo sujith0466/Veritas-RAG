@@ -1,14 +1,20 @@
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { ThemeContext } from '@/contexts/ThemeContext'
 import type { ThemeMode } from '@/types'
-import { storage, STORAGE_KEYS } from '@/utils/storage'
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>(() =>
-    storage.get<ThemeMode>(STORAGE_KEYS.THEME, 'dark'),
-  )
+export interface ThemeProviderProps {
+  children: React.ReactNode
+  initialMode?: ThemeMode
+  onModeChange?: (mode: ThemeMode) => void
+}
 
-  const [resolvedMode, setResolvedMode] = useState<'dark' | 'light'>('dark')
+export function ThemeProvider({ 
+  children, 
+  initialMode = 'light',
+  onModeChange 
+}: ThemeProviderProps) {
+  const [mode, setModeState] = useState<ThemeMode>(initialMode)
+  const [resolvedMode, setResolvedMode] = useState<'dark' | 'light'>('light')
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -36,12 +42,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mode])
 
-  const setMode = (newMode: ThemeMode) => {
-    storage.set(STORAGE_KEYS.THEME, newMode)
+  const setMode = React.useCallback((newMode: ThemeMode) => {
     setModeState(newMode)
-  }
+    if (onModeChange) {
+      onModeChange(newMode)
+    }
+  }, [onModeChange])
 
-  const value = useMemo(() => ({ mode, resolvedMode, setMode }), [mode, resolvedMode])
+  const value = useMemo(() => ({ mode, resolvedMode, setMode }), [mode, resolvedMode, setMode])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

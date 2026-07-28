@@ -7,11 +7,11 @@
 - Defined `SECRET_MANAGEMENT_STRATEGY.md`.
 - Defined `DOMAIN_DNS_TLS_PLANNING.md`.
 - Added `DEPLOYMENT_PLATFORM_ABSTRACTION.md` to ensure infrastructure-agnostic portability.
-- Created the master `PRODUCTION_READINESS_CHECKLIST.md`.
+- Created the master `production-readiness-checklist.md`.
 
 ## Quality Gates Passed
 - **Repository Scan**: Script outputs validated.
-- **Documentation Synced**: Infrastructure docs placed in `docs/infrastructure/`.
+- **Documentation Synced**: Infrastructure docs placed in `docs/Infrastructure/`.
 - **Constraint Check**: No business logic changes, no architecture deviations.
 
 **Status**: OFFICIALLY FROZEN for Milestone 1.

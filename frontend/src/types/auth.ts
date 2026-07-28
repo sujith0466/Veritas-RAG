@@ -15,6 +15,10 @@ export interface UserContext {
   workspace_name: string | null
   full_name: string | null
   is_active: boolean
+  avatar_url?: string | null
+  profile_data?: Record<string, any>
+  preferences?: Record<string, any>
+  workspace_settings?: Record<string, any>
   created_at: string
   updated_at: string
 }

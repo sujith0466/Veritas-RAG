@@ -1,24 +1,19 @@
 ---
-name: Bug Report
-about: Report a bug in RAGuard AI
+name: Bug report
+about: Create a report to help us improve
+title: ''
 labels: bug
+assignees: sujith0466
 ---
 
-## Bug Description
-A clear description of the bug.
+**Describe the bug**
+A clear and concise description of what the bug is.
 
-## Steps to Reproduce
-1. ...
-2. ...
+**To Reproduce**
+Steps to reproduce the behavior.
 
-## Expected Behavior
-What should happen.
+**Expected behavior**
+A clear and concise description of what you expected to happen.
 
-## Actual Behavior
-What actually happens.
-
-## Environment
-- RAGuard Version:
-- Python Version:
-- OS:
-- Docker: Yes/No
+**Screenshots**
+If applicable, add screenshots to help explain your problem.

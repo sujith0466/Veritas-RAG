@@ -47,14 +47,24 @@ class AuthService:
         if user:
             # Non-destructive sync: update ONLY Supabase-owned identity fields if changed.
             # Application-owned fields (role, is_active, tenant_id) are preserved.
+            updates = {}
             if payload.email and user.email != payload.email:
-                logger.info(
-                    "Syncing updated Supabase email for existing user",
-                    user_id=str(user.id),
-                    old_email=user.email,
-                    new_email=payload.email,
-                )
-                user = await self.user_repo.update(user, email=payload.email)
+                updates["email"] = payload.email
+
+            # Idempotently sync missing or changed metadata
+            current_profile = dict(user.profile_data or {})
+            if payload.full_name and current_profile.get("full_name") != payload.full_name:
+                current_profile["full_name"] = payload.full_name
+                updates["profile_data"] = current_profile
+
+            current_ws = dict(user.workspace_settings or {})
+            if payload.organization_name and current_ws.get("organization_name") != payload.organization_name:
+                current_ws["organization_name"] = payload.organization_name
+                updates["workspace_settings"] = current_ws
+
+            if updates:
+                logger.info("Syncing updated metadata for existing user", user_id=str(user.id), updates=list(updates.keys()))
+                user = await self.user_repo.update(user, **updates)
         else:
             # First-time login: create new user with default role
             email = payload.email or f"{payload.sub}@supabase.local"
@@ -72,8 +82,20 @@ class AuthService:
                 is_active=True,
                 tenant_id=payload.tenant_id,
                 workspace_name=payload.workspace_name,
+                profile_data={"full_name": payload.full_name} if payload.full_name else {},
+                workspace_settings={"organization_name": payload.organization_name} if payload.organization_name else {},
             )
 
+            # DEMO MODE Auto-seeding
+            import os
+            import asyncio
+            if os.environ.get("DEMO_MODE", "").lower() == "true" and email == "demoadmin@gmail.com":
+                try:
+                    from backend.core.demo_seeder import run_seed_for_tenant
+                    logger.info("Triggering automatic demo data seeding")
+                    asyncio.create_task(run_seed_for_tenant(user.tenant_id, user.id))
+                except Exception as e:
+                    logger.error("Failed to start demo seeder", error=str(e))
 
         if not user.is_active:
             await log_auth_event(
@@ -83,6 +105,7 @@ class AuthService:
                 user_id=user.id,
                 metadata={"supabase_id": payload.sub},
             )
+            await self.session.commit()
             raise AuthenticationException("User account is disabled")
 
         await log_auth_event(
@@ -92,6 +115,8 @@ class AuthService:
             user_id=user.id,
             metadata={"supabase_id": payload.sub, "role": user.role},
         )
+
+        await self.session.commit()
 
         return UserContext(
             id=user.id,

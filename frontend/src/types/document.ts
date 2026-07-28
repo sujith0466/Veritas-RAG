@@ -50,6 +50,7 @@ export interface DocumentResponse {
   filename: string
   original_filename: string
   status: string
+  relative_path?: string
   latest_version_id?: string
   word_count: number
   page_count: number

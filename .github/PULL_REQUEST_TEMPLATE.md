@@ -1,23 +1,8 @@
-## Summary
-
-Brief description of what this PR does.
-
-## Changes
-
-- [ ] New feature / bug fix / docs / refactor
-- Describe changes in bullet points.
-
-## Testing
-
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
-- [ ] All tests passing (`pytest tests/`)
+## Description
+Briefly describe the changes in this PR.
 
 ## Checklist
-
-- [ ] Code follows project standards
-- [ ] Type hints added
-- [ ] Docstrings added/updated
-- [ ] CHANGELOG.md updated
-- [ ] No hardcoded secrets
-- [ ] No breaking changes
+- [ ] My code follows the enterprise coding standards.
+- [ ] I have updated the documentation accordingly.
+- [ ] My changes generate no new warnings or errors.
+- [ ] I have added tests that prove my fix is effective or that my feature works.

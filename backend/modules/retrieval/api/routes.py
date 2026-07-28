@@ -173,3 +173,51 @@ async def get_history(
     except Exception as exc:
         logger.error("Error retrieving query history", error=str(exc))
         _handle_retrieval_exception(exc)
+
+
+# ── Admin Routes ──────────────────────────────────────────────────────────────
+
+from typing import Any
+from backend.modules.retrieval.api.dependencies import get_sparse_index_manager
+
+@router.post(
+    "/bm25/reindex",
+    response_model=SuccessResponse[dict[str, Any]],
+    status_code=status.HTTP_200_OK,
+    summary="Forcibly clear and rebuild the tenant's BM25 index in the current process",
+)
+async def admin_reindex_bm25(
+    request: Request,
+    tenant_id: str = Depends(resolve_tenant),
+    index_manager: Any = Depends(get_sparse_index_manager),
+) -> SuccessResponse[dict[str, Any]]:
+    try:
+        count = await index_manager.rebuild_index(tenant_id)
+        return SuccessResponse[dict[str, Any]](
+            data={"tenant_id": tenant_id, "indexed_chunks": count, "message": "Index rebuilt successfully"},
+            metadata=_build_metadata(request),
+        )
+    except Exception as exc:
+        logger.error("Error rebuilding BM25 index", error=str(exc))
+        _handle_retrieval_exception(exc)
+
+@router.get(
+    "/bm25/status",
+    response_model=SuccessResponse[dict[str, Any]],
+    status_code=status.HTTP_200_OK,
+    summary="Get the BM25 index status for the current process",
+)
+async def admin_bm25_status(
+    request: Request,
+    tenant_id: str = Depends(resolve_tenant),
+    index_manager: Any = Depends(get_sparse_index_manager),
+) -> SuccessResponse[dict[str, Any]]:
+    try:
+        status_data = index_manager.get_status(tenant_id)
+        return SuccessResponse[dict[str, Any]](
+            data=status_data,
+            metadata=_build_metadata(request),
+        )
+    except Exception as exc:
+        logger.error("Error getting BM25 index status", error=str(exc))
+        _handle_retrieval_exception(exc)

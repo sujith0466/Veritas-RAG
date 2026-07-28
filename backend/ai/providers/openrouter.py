@@ -31,7 +31,7 @@ class OpenRouterProvider(LLMProvider):
         self._settings = settings.openrouter
         self._http_client = http_client
         self._headers = {
-            "Authorization": f"Bearer {self._settings.api_key}",
+            "Authorization": f"Bearer {self._settings.resolved_api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://raguard.ai",
             "X-Title": "RAGuard AI",
@@ -112,6 +112,7 @@ class OpenRouterProvider(LLMProvider):
                             {
                                 "model": model_name,
                                 "error": f"Status {response.status_code}: {error_body}",
+                                "status_code": response.status_code,
                             }
                         )
                         continue
@@ -152,9 +153,11 @@ class OpenRouterProvider(LLMProvider):
                     errors.append({"model": model_name, "error": str(exc)})
 
             logger.error("All OpenRouter models failed", errors=errors)
+            last_status = errors[-1].get("status_code") if errors else None
             raise LLMProviderException(
                 message=f"All OpenRouter models failed: {[e['model'] + ': ' + e['error'] for e in errors]}",
                 detail={"errors": errors, "attempted_models": models},
+                status_code=last_status,
             )
         finally:
             if client_to_close is not None:
@@ -195,6 +198,7 @@ class OpenRouterProvider(LLMProvider):
                                 {
                                     "model": model_name,
                                     "error": f"Status {response.status_code}: {error_body.decode('utf-8', errors='ignore')}",
+                                    "status_code": response.status_code,
                                 }
                             )
                             continue
@@ -247,9 +251,11 @@ class OpenRouterProvider(LLMProvider):
                     errors.append({"model": model_name, "error": str(exc)})
 
             logger.error("All OpenRouter models failed for stream", errors=errors)
+            last_status = errors[-1].get("status_code") if errors else None
             raise LLMProviderException(
                 message=f"All OpenRouter models failed for streaming: {[e['model'] + ': ' + e['error'] for e in errors]}",
                 detail={"errors": errors, "attempted_models": models},
+                status_code=last_status,
             )
         finally:
             if client_to_close is not None:

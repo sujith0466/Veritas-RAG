@@ -49,12 +49,26 @@ def get_retrieval_repository(
     return RetrievalRepository(session)
 
 
+def get_sparse_index_manager() -> "SparseIndexManager":
+    """Inject the SparseIndexManager for BM25 index operations.
+    
+    NOTE: Does NOT take a session dependency — SparseIndexManager creates
+    its own isolated sessions internally to avoid streaming concurrency issues.
+    """
+    from backend.modules.retrieval.services.bm25_manager import SparseIndexManager
+    return SparseIndexManager(sparse_provider=_bm25_provider)
+
 def get_retrieval_orchestrator(
-    session: AsyncSession = Depends(get_db),
     repository: RetrievalRepository = Depends(get_retrieval_repository),
+    index_manager: "SparseIndexManager" = Depends(get_sparse_index_manager)
 ) -> RetrievalOrchestrator:
     """Inject a `RetrievalOrchestrator` configured with shared vector, sparse, reranker providers, and event dispatcher."""
-    embedding_provider = OpenAIEmbeddingProvider()
+    from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
+    from backend.core.config import get_settings
+    
+    settings = get_settings()
+    embedding_provider = LocalEmbeddingProvider(model_name=settings.embeddings.local_model, offline=False)
+    
     return RetrievalOrchestrator(
         embedding_provider=embedding_provider,
         vector_provider=_qdrant_provider,
@@ -62,4 +76,5 @@ def get_retrieval_orchestrator(
         reranker_provider=_reranker_provider,
         repository=repository,
         event_dispatcher=get_dispatcher(),
+        index_manager=index_manager
     )

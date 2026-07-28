@@ -35,6 +35,12 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
     ) -> None:
         self.model_name = model_name
         self._model = model
+        import threading
+        self._lock = threading.Lock()
+        # Bounded concurrency: allows up to 4 concurrent model.predict() executions.
+        # This prevents CPU thrashing/OOMs while dramatically improving P99 queuing latency 
+        # over a strict Lock(1) under heavy concurrent load.
+        self._inference_lock = threading.Semaphore(4)
 
     def _get_model(self) -> Any:
         if self._model is not None:
@@ -43,18 +49,28 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
             raise RerankerTimeoutError(
                 "Local cross-encoder (`sentence_transformers`) is not installed or model unavailable (`RET_003`)."
             )
-        try:
-            self._model = CrossEncoder(self.model_name)
-            return self._model
-        except Exception as exc:
-            raise RerankerTimeoutError(
-                f"Failed to load local cross-encoder model '{self.model_name}': {exc}"
-            ) from exc
+        
+        with self._lock:
+            # Double-check locking
+            if self._model is not None:
+                return self._model
+                
+            try:
+                self._model = CrossEncoder(self.model_name)
+                return self._model
+            except Exception as exc:
+                raise RerankerTimeoutError(
+                    f"Failed to load local cross-encoder model '{self.model_name}': {exc}"
+                ) from exc
 
     def _predict_sync(self, query: str, texts: list[str]) -> list[float]:
         model = self._get_model()
         pairs = [(query, text) for text in texts]
-        scores = model.predict(pairs)
+        
+        # Serialize inference to prevent CPU thrashing/contention under heavy concurrent load
+        with self._inference_lock:
+            scores = model.predict(pairs)
+            
         return [float(s) for s in scores]
 
     async def rerank(

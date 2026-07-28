@@ -8,6 +8,7 @@ filtering (`ADR-M3-001`), and standardized domain error mapping (`VEC_xxx`).
 from typing import Any
 
 import structlog
+import httpx
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http import models as qdrant_models
 
@@ -57,9 +58,15 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
             collection_name=config.collection_name, dimension=config.dimension
         )
         try:
-            exists = await self.client.collection_exists(
-                collection_name=config.collection_name
-            )
+            try:
+                exists = await self.client.collection_exists(
+                    collection_name=config.collection_name
+                )
+            except Exception as e:
+                if "404" in str(e) or "Not Found" in str(e):
+                    exists = False
+                else:
+                    raise
             if exists:
                 log.debug("Target Qdrant collection already exists; verifying status")
                 return True
@@ -97,6 +104,9 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
             )
             return True
         except Exception as exc:
+            if "already exists" in str(exc).lower():
+                log.debug("Collection creation race condition: Collection already exists")
+                return True
             log.error("Failed to ensure Qdrant collection topology", error=str(exc))
             raise QdrantConnectionError(
                 message=f"Failed to verify or create collection '{config.collection_name}': {exc}",
@@ -292,21 +302,33 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 qdrant_models.Filter(must=must_conditions) if must_conditions else None
             )
 
-            # Use search or query_points compatible across AsyncQdrantClient versions
-            results = await self.client.search(
-                collection_name=collection_name,
-                query_vector=query_vector,
-                query_filter=filter_selector,
-                limit=limit,
-                with_payload=True,
-            )
+            payload = {
+                "vector": query_vector,
+                "limit": limit,
+                "with_payload": True,
+            }
+            if filter_selector:
+                payload["filter"] = filter_selector.model_dump(exclude_none=True)
+                
+            qdrant_url = str(self.client._client._host) + ":" + str(self.client._client._port)
+            if not qdrant_url.startswith("http"):
+                qdrant_url = f"http://{qdrant_url}"
+                
+            async with httpx.AsyncClient() as http_client:
+                res = await http_client.post(
+                    f"{qdrant_url}/collections/{collection_name}/points/search",
+                    json=payload
+                )
+                res.raise_for_status()
+                data = res.json()
+                
             candidates: list[dict[str, Any]] = []
-            for hit in results:
+            for hit in data.get("result", []):
                 candidates.append(
                     {
-                        "point_id": str(hit.id),
-                        "score": float(hit.score),
-                        "payload": hit.payload or {},
+                        "point_id": str(hit.get("id")),
+                        "score": float(hit.get("score", 0.0)),
+                        "payload": hit.get("payload", {}),
                     }
                 )
             log.debug(

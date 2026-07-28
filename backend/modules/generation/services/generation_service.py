@@ -100,7 +100,7 @@ class GroundedGenerationService:
             # Extract citations from answer markers
             citations = self.citation_extractor.extract(answer_text, evidence_chunks)
             is_grounded = self.citation_extractor.check_grounding(
-                answer_text, citations
+                answer_text, citations, evidence_chunks
             )
 
             logger.info(

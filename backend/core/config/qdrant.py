@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 class QdrantSettings(BaseSettings):
     """Qdrant client configuration."""
 
-    host: str = Field(default="localhost", alias="QDRANT_HOST")
+    host: str = Field(default="127.0.0.1", alias="QDRANT_HOST")
     port: int = Field(default=6333, alias="QDRANT_PORT")
     grpc_port: int = Field(default=6334, alias="QDRANT_GRPC_PORT")
     url_override: str | None = Field(default=None, alias="QDRANT_URL")

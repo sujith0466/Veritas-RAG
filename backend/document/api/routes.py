@@ -8,7 +8,7 @@ import uuid
 from typing import Any
 
 import structlog
-from fastapi import (APIRouter, Depends, File, Header, HTTPException, Query,
+from fastapi import (APIRouter, Depends, File, Form, Header, HTTPException, Query,
                      Request, UploadFile, status)
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +53,7 @@ def _resolve_tenant_and_owner(
 async def upload_document(
     request: Request,
     file: UploadFile = File(...),
+    relative_path: str | None = Form(default=None),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
@@ -68,6 +69,7 @@ async def upload_document(
         tenant_id=tenant_id,
         owner_user_id=owner_id,
         session=session,
+        relative_path=relative_path,
     )
 
     file_size = getattr(file, "size", 0) or 0

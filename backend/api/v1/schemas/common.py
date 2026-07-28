@@ -95,6 +95,7 @@ class DependencyHealth(BaseModel):
     status: str = Field(description="healthy | unhealthy | unknown")
     latency_ms: float | None = None
     error: str | None = None
+    info: dict[str, Any] | None = None
 
 
 class DetailedHealthResponse(BaseModel):

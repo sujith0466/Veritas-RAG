@@ -81,6 +81,16 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         result = await self.session.execute(stmt)
         return result.scalar_one() or 0
 
+    async def get_tenant_chunks(
+        self, tenant_id: str
+    ) -> Sequence[DocumentChunk]:
+        stmt = select(DocumentChunk).where(
+            DocumentChunk.tenant_id == tenant_id,
+            DocumentChunk.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
     async def get_chunks_by_document(
         self,
         tenant_id: str,

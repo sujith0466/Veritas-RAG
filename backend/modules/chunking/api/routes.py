@@ -21,7 +21,9 @@ from backend.modules.chunking.schemas.chunk import (ChunkCreateRequest,
                                                     ChunkDetailResponse,
                                                     ChunkListResponse,
                                                     ChunkMetricsDTO,
-                                                    StrategyInfoDTO)
+                                                    ChunkResponse,
+                                                    StrategyInfoDTO,
+                                                    StrategyDiscoveryDTO)
 from backend.modules.chunking.schemas.errors import ChunkDomainException
 from backend.modules.chunking.services.chunk_service import ChunkingService
 from backend.modules.chunking.workers.tasks import \
@@ -44,11 +46,11 @@ def _resolve_tenant(user: Any | None, header_tenant: str | None) -> str:
 
 @router.get(
     "/strategies",
-    response_model=SuccessResponse[list[StrategyInfoDTO]],
+    response_model=SuccessResponse[StrategyDiscoveryDTO],
     summary="List available chunking strategies",
 )
-async def list_strategies(request: Request) -> SuccessResponse[list[StrategyInfoDTO]]:
-    """Return all registered chunking strategies with supported MIME types and default parameters (`ADR-005`)."""
+async def list_strategies(request: Request) -> SuccessResponse[StrategyDiscoveryDTO]:
+    """Return all registered chunking strategies categorized by status (`ADR-005`)."""
     service = ChunkingService()
     strategies = service.list_strategies()
     return SuccessResponse(data=strategies, metadata=_build_metadata(request))

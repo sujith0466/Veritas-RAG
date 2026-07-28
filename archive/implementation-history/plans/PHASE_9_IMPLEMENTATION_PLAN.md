@@ -1,4 +1,4 @@
-# PHASE_9_IMPLEMENTATION_PLAN.md
+# phase-9-implementation-plan.md
 # RAGuard AI — Phase 9: Clarification Engine (Production Grade)
 
 **Version**: 1.0.0  

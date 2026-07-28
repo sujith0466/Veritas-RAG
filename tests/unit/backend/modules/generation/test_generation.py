@@ -59,3 +59,58 @@ def test_citation_extractor_flags_ungrounded():
         {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAG is very useful.", "score": 0.9},
     ])
     assert extractor.check_grounding(ungrounded_text, citations) is False
+
+
+def test_evidence_aware_grounding_accepts_supported_citations():
+    extractor = CitationExtractor()
+    evidence = [
+        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations and uses hybrid retrieval.", "score": 0.9},
+    ]
+    text = "RAGuard reduces hallucinations. [1] It uses hybrid retrieval. [1]"
+    citations = extractor.extract(text, evidence)
+
+    assert extractor.check_grounding(text, citations, evidence) is True
+
+
+def test_evidence_aware_grounding_rejects_missing_citations():
+    extractor = CitationExtractor()
+    evidence = [
+        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations.", "score": 0.9},
+    ]
+    text = "RAGuard reduces hallucinations. [1] It uses hybrid retrieval."
+    citations = extractor.extract(text, evidence)
+
+    assert extractor.check_grounding(text, citations, evidence) is False
+
+
+def test_evidence_aware_grounding_rejects_empty_evidence():
+    extractor = CitationExtractor()
+    evidence = [
+        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "", "score": 0.9},
+    ]
+    text = "RAGuard reduces hallucinations. [1]"
+    citations = extractor.extract(text, evidence)
+
+    assert extractor.check_grounding(text, citations, evidence) is False
+
+
+def test_evidence_aware_grounding_rejects_invalid_citation_index():
+    extractor = CitationExtractor()
+    evidence = [
+        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations.", "score": 0.9},
+    ]
+    text = "RAGuard reduces hallucinations. [2]"
+    citations = extractor.extract(text, evidence)
+
+    assert extractor.check_grounding(text, citations, evidence) is False
+
+
+def test_evidence_aware_grounding_rejects_unsupported_claims():
+    extractor = CitationExtractor()
+    evidence = [
+        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations.", "score": 0.9},
+    ]
+    text = "RAGuard guarantees zero latency. [1]"
+    citations = extractor.extract(text, evidence)
+
+    assert extractor.check_grounding(text, citations, evidence) is False

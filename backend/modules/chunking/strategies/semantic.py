@@ -20,13 +20,15 @@ class SemanticChunkSplitterPlaceholder(BaseChunkSplitter):
     @property
     def strategy_info(self) -> StrategyInfoDTO:
         return StrategyInfoDTO(
-            name="semantic",
-            display_name="Semantic Similarity Splitter (Phase 2 M2 Required)",
-            description="Splits text dynamically at points where dense vector cosine similarity drops across adjacent sentences. Requires Phase 2 Milestone 2 Embedding Pipeline.",
+            id="semantic",
+            display_name="Semantic Chunking",
+            description="Context-aware semantic chunking.",
+            status="experimental",
+            coming_in="Phase 2 (Milestone 2)",
+            requires=["Embedding Pipeline"],
             supported_mime_types=["*"],
             default_max_characters=1000,
             default_overlap_characters=0,
-            is_placeholder=True,
         )
 
     def split_text(

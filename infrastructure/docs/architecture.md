@@ -51,13 +51,13 @@ The RAGuard AI infrastructure is designed from day one to operate as a distribut
 
 | Service Name | Docker Image / Build | Port Mappings (Host:Container) | Volume Mounts | Health Check SLA | Role |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **`backend`** | `./infrastructure/docker/Dockerfile.backend` (Target: `dev`) | `8000:8000` | `./backend:/app/backend` (Source code HMR) | `GET /api/v1/health` (Interval: 5s, Retries: 5) | Core ASGI API engine serving domain endpoints & RBAC. |
-| **`frontend`** | `./infrastructure/docker/Dockerfile.frontend` (Target: `dev`) | `5173:5173` | `./frontend:/app/frontend`<br>`anonymous:/app/frontend/node_modules` | `GET /` or `curl localhost:5173` (Interval: 5s) | React 18 + TypeScript + Vite SPA shell. |
+| **`backend`** | `./Infrastructure/docker/Dockerfile.backend` (Target: `dev`) | `8000:8000` | `./backend:/app/backend` (Source code HMR) | `GET /api/v1/health` (Interval: 5s, Retries: 5) | Core ASGI API engine serving domain endpoints & RBAC. |
+| **`frontend`** | `./Infrastructure/docker/Dockerfile.frontend` (Target: `dev`) | `5173:5173` | `./frontend:/app/frontend`<br>`anonymous:/app/frontend/node_modules` | `GET /` or `curl localhost:5173` (Interval: 5s) | React 18 + TypeScript + Vite SPA shell. |
 | **`celery-worker`**| Shared `Dockerfile.backend` | None (Worker only) | `./backend:/app/backend` | `celery -A backend.tasks.celery_app inspect ping` | Background async execution engine connected to Redis broker. |
 | **`postgres`** | `postgres:16-alpine` | `5432:5432` | `postgres-data:/var/lib/postgresql/data` | `pg_isready -U postgres -d raguard` (Interval: 5s) | Relational SQL persistence (users, tenants, audit logs). |
 | **`redis`** | `redis:7-alpine` | `6379:6379` | `redis-data:/data` | `redis-cli ping` expecting `PONG` (Interval: 5s) | In-memory cache (`DB 0`), Celery broker (`DB 1`), result store (`DB 2`). |
 | **`qdrant`** | `qdrant/qdrant:v1.12.0` | `6333:6333`<br>`6334:6334` | `qdrant-data:/qdrant/storage` | `GET http://localhost:6333/readyz` (Interval: 5s) | High-performance vector database for document embeddings. |
-| **`nginx`** | `nginx:alpine` (Optional/Prod) | `80:80` | `./infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro` | `curl -f http://localhost:80` | Reverse proxy load balancer routing `/api/v1` and static assets. |
+| **`nginx`** | `nginx:alpine` (Optional/Prod) | `80:80` | `./Infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro` | `curl -f http://localhost:80` | Reverse proxy load balancer routing `/api/v1` and static assets. |
 
 ---
 
@@ -90,6 +90,6 @@ All core application and database containers reside on a single custom bridge ne
 ## 6. Three-Level Health Orchestration
 
 The service topology enforces fail-safe startup synchronization:
-1. When `./infrastructure/scripts/start.ps1` (`make start`) is executed, Docker Compose launches `postgres`, `redis`, and `qdrant` concurrently.
+1. When `./Infrastructure/scripts/start.ps1` (`make start`) is executed, Docker Compose launches `postgres`, `redis`, and `qdrant` concurrently.
 2. The `backend` container enters a wait loop supervised by Docker Compose until all three data engines report `status: healthy`.
 3. Once `backend` starts Uvicorn and passes its own readiness probe (`GET /api/v1/health/ready`), the `frontend` and `celery-worker` services start, ensuring zero race conditions or connection refusal logs at boot.

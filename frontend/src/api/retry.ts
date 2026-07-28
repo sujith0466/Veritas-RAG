@@ -23,6 +23,7 @@ export async function fetchWithRetry<T>(
   while (attempt <= MAX_RETRIES) {
     try {
       return await request<T>(config, signal)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const isRetryable =
         error.isNetworkError?.() ||

@@ -12,6 +12,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.config import get_settings
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
 from backend.core.events.types import EventType
 from backend.modules.chunking.models.chunk import DocumentChunk
@@ -99,7 +100,8 @@ class VectorStorageService:
         # 3. Determine target collection topology and create/update metadata state
         first_emb = embeddings[0]
         dimension = first_emb.dimension
-        target_col = collection_name or f"raguard_knowledge_{dimension}"
+        settings = get_settings()
+        target_col = collection_name or settings.qdrant.collection_name(tenant_id)
 
         metadata_record = await self.repo.get_or_create_metadata(
             tenant_id=tenant_id,
@@ -143,6 +145,7 @@ class VectorStorageService:
                     "document_id": str(doc_uuid),
                     "document_version_id": str(ver_uuid),
                     "content_hash": emb.content_hash,
+                    "content": getattr(chunk, "content", "") if chunk else "",
                     "strategy_used": (
                         getattr(chunk, "strategy_used", "hierarchical")
                         if chunk

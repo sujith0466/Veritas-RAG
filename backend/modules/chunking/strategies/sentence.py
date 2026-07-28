@@ -21,13 +21,13 @@ class SentenceChunkSplitter(BaseChunkSplitter):
     @property
     def strategy_info(self) -> StrategyInfoDTO:
         return StrategyInfoDTO(
-            name="sentence",
-            display_name="Sentence Boundary Splitter",
-            description="Splits text along grammatical sentence boundaries, combining consecutive sentences up to target character length.",
-            supported_mime_types=["*"],
-            default_max_characters=1000,
-            default_overlap_characters=150,
-            is_placeholder=False,
+            id="sentence",
+            display_name="Sentence Boundaries",
+            description="Splits text at sentence boundaries for fine-grained chunking.",
+            status="supported",
+            supported_mime_types=["text/plain", "*"],
+            default_max_characters=800,
+            default_overlap_characters=100,
         )
 
     def split_text(
@@ -73,13 +73,13 @@ class ParagraphChunkSplitter(BaseChunkSplitter):
     @property
     def strategy_info(self) -> StrategyInfoDTO:
         return StrategyInfoDTO(
-            name="paragraph",
-            display_name="Paragraph Block Splitter",
-            description="Splits strictly on double newline boundaries (`\\n\\n`), preserving paragraph blocks and merging small paragraphs.",
-            supported_mime_types=["*"],
-            default_max_characters=1200,
-            default_overlap_characters=200,
-            is_placeholder=False,
+            id="paragraph",
+            display_name="Paragraph Boundaries",
+            description="Splits text strictly at paragraph boundaries to ensure natural reading chunks.",
+            status="supported",
+            supported_mime_types=["text/plain", "*"],
+            default_max_characters=1500,
+            default_overlap_characters=0,
         )
 
     def split_text(

@@ -71,7 +71,7 @@ User Query
 - Audit logging for every authentication event
 
 **Key Files:**
-- `backend/core/security/jwt.py` — JWT verification (JWKS + HS256/RS256 dual mode)
+- `backend/core/Security/jwt.py` — JWT verification (JWKS + HS256/RS256 dual mode)
 - `backend/core/auth/context.py` — `UserContext`, `TokenPayload`
 - `backend/core/permissions/rbac.py` — `Role` enum and access hierarchy
 - `backend/services/auth/auth_service.py` — User sync and token validation

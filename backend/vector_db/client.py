@@ -15,17 +15,28 @@ from backend.core.config import get_settings
 logger = structlog.get_logger(__name__)
 
 
-class _VectorDbState:
-    client: AsyncQdrantClient | None = None
+import asyncio
+import weakref
 
+class _VectorDbState:
+    clients: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+    fallback_client: AsyncQdrantClient | None = None
 
 _state = _VectorDbState()
 
-
 def get_qdrant_client() -> AsyncQdrantClient:
-    """Return the singleton AsyncQdrantClient instance, initializing it if needed."""
-    if _state.client is not None:
-        return _state.client
+    """Return the AsyncQdrantClient instance for the current event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        if loop in _state.clients:
+            return _state.clients[loop]
+    else:
+        if _state.fallback_client is not None:
+            return _state.fallback_client
 
     settings = get_settings().qdrant
     client_kwargs: dict[str, Any] = {
@@ -37,15 +48,21 @@ def get_qdrant_client() -> AsyncQdrantClient:
     else:
         client_kwargs["host"] = settings.host
         client_kwargs["port"] = settings.port
-        client_kwargs["grpc_port"] = settings.grpc_port
+        
     if settings.api_key:
         client_kwargs["api_key"] = settings.api_key
 
     logger.info(
-        "Initializing AsyncQdrantClient", host=settings.host, port=settings.port
+        "Initializing AsyncQdrantClient", host=settings.host, port=settings.port, loop_id=id(loop) if loop else 0
     )
-    _state.client = AsyncQdrantClient(**client_kwargs)
-    return _state.client
+    client = AsyncQdrantClient(**client_kwargs)
+    
+    if loop is not None:
+        _state.clients[loop] = client
+    else:
+        _state.fallback_client = client
+        
+    return client
 
 
 async def get_vector_db() -> AsyncGenerator[AsyncQdrantClient, None]:
@@ -66,7 +83,11 @@ async def check_vector_db_health() -> bool:
 
 async def close_vector_db() -> None:
     """Close the Qdrant async client cleanly during application shutdown."""
-    if _state.client is not None:
-        logger.info("Closing AsyncQdrantClient")
-        await _state.client.close()
-        _state.client = None
+    for loop, client in list(_state.clients.items()):
+        logger.info("Closing AsyncQdrantClient", loop_id=id(loop))
+        await client.close()
+    _state.clients.clear()
+    
+    if _state.fallback_client:
+        await _state.fallback_client.close()
+        _state.fallback_client = None

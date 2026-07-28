@@ -78,6 +78,7 @@ class DocumentResponse(BaseModel):
     filename: str
     original_filename: str
     status: str
+    relative_path: str | None = None
     latest_version_id: uuid.UUID | None = None
     word_count: int = 0
     page_count: int = 0

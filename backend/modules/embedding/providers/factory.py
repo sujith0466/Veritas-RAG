@@ -20,6 +20,9 @@ logger = structlog.get_logger(__name__)
 # Registry mapping provider codes to provider classes or factories.
 # Concrete provider implementations (OpenAI, Cohere, Local) are registered in Milestone C.
 _PROVIDER_REGISTRY: dict[str, type[BaseEmbeddingProvider] | Any] = {}
+_PROVIDER_INSTANCES: dict[str, BaseEmbeddingProvider] = {}
+import threading
+_FACTORY_LOCK = threading.Lock()
 
 
 def register_provider(
@@ -54,31 +57,40 @@ class EmbeddingProviderFactory:
         """
         # Default to 'openai' if not specified (checked against settings in service layer)
         target_provider = (provider_name or "openai").lower()
+        
+        # Build a unique cache key based on provider configuration
+        cache_key = f"{target_provider}::{model_name}::{api_key}"
 
-        provider_cls = _PROVIDER_REGISTRY.get(target_provider)
-        if not provider_cls:
-            raise EmbeddingDomainException(
-                code=EmbeddingErrorCode.EMB_001,
-                message=f"Embedding provider '{target_provider}' is not registered or supported.",
-                detail={
-                    "requested_provider": target_provider,
-                    "available_providers": list(_PROVIDER_REGISTRY.keys()),
-                },
-            )
+        with _FACTORY_LOCK:
+            if cache_key in _PROVIDER_INSTANCES:
+                return _PROVIDER_INSTANCES[cache_key]
 
-        try:
-            return provider_cls(model_name=model_name, api_key=api_key)
-        except Exception as exc:
-            logger.error(
-                "provider_instantiation_failed",
-                provider=target_provider,
-                error=str(exc),
-            )
-            raise EmbeddingDomainException(
-                code=EmbeddingErrorCode.EMB_005,
-                message=f"Failed to initialize embedding provider '{target_provider}': {exc}",
-                detail={"provider": target_provider, "error": str(exc)},
-            )
+            provider_cls = _PROVIDER_REGISTRY.get(target_provider)
+            if not provider_cls:
+                raise EmbeddingDomainException(
+                    code=EmbeddingErrorCode.EMB_001,
+                    message=f"Embedding provider '{target_provider}' is not registered or supported.",
+                    detail={
+                        "requested_provider": target_provider,
+                        "available_providers": list(_PROVIDER_REGISTRY.keys()),
+                    },
+                )
+
+            try:
+                instance = provider_cls(model_name=model_name, api_key=api_key)
+                _PROVIDER_INSTANCES[cache_key] = instance
+                return instance
+            except Exception as exc:
+                logger.error(
+                    "provider_instantiation_failed",
+                    provider=target_provider,
+                    error=str(exc),
+                )
+                raise EmbeddingDomainException(
+                    code=EmbeddingErrorCode.EMB_005,
+                    message=f"Failed to initialize embedding provider '{target_provider}': {exc}",
+                    detail={"provider": target_provider, "error": str(exc)},
+                )
 
     @classmethod
     def list_available_providers(cls) -> list[ProviderInfoDTO]:

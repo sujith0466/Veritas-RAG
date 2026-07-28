@@ -14,6 +14,9 @@ ALLOWED_EXTENSIONS: set[str] = {
     ".md",
     ".csv",
     ".json",
+    ".html",
+    ".yaml",
+    ".xml",
 }
 
 # Allowed MIME types whitelist
@@ -25,6 +28,10 @@ ALLOWED_MIMES: set[str] = {
     "text/csv",
     "application/csv",
     "application/json",
+    "text/html",
+    "application/x-yaml",
+    "application/xml",
+    "text/xml",
 }
 
 # Extension to expected MIME mappings
@@ -37,6 +44,9 @@ EXTENSION_TO_MIMES: dict[str, set[str]] = {
     ".md": {"text/markdown", "text/plain"},
     ".csv": {"text/csv", "application/csv", "text/plain"},
     ".json": {"application/json", "text/plain"},
+    ".html": {"text/html", "text/plain"},
+    ".yaml": {"application/x-yaml", "text/plain"},
+    ".xml": {"application/xml", "text/xml", "text/plain"},
 }
 
 # Prohibited binary magic headers (Disguised executables protection)

@@ -32,4 +32,4 @@ Thank you for your interest in contributing!
 - [ ] Linting clean.
 - [ ] Documentation updated.
 - [ ] No breaking changes.
-- [ ] CHANGELOG.md updated.
+- [ ] changelog.md updated.

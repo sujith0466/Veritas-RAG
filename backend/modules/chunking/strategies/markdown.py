@@ -21,11 +21,12 @@ class MarkdownChunkSplitter(BaseChunkSplitter):
     @property
     def strategy_info(self) -> StrategyInfoDTO:
         return StrategyInfoDTO(
-            name="markdown",
-            display_name="Markdown Header-Aware Splitter",
-            description="Splits Markdown documents by heading levels (#, ##, ###) and preserves section hierarchy in chunk metadata.",
+            id="markdown",
+            display_name="Markdown Structure",
+            description="Splits markdown text semantically by heading boundaries (H1, H2, etc.) while falling back to recursive character splitting for large sections.",
+            status="supported",
             supported_mime_types=["text/markdown", "text/x-markdown"],
-            default_max_characters=1500,
+            default_max_characters=1000,
             default_overlap_characters=200,
             is_placeholder=False,
         )

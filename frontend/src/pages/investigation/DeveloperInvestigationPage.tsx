@@ -446,7 +446,7 @@ export function DeveloperInvestigationPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-5 text-xs font-bold">
-                        <div className="text-muted-foreground">Confidence: <span className="text-primary font-mono ml-1">{(sandboxTrace.record.confidence_score! * 100).toFixed(1)}%</span></div>
+                        <div className="text-muted-foreground">Confidence: <span className="text-primary font-mono ml-1">{(sandboxTrace.record.confidence_score ?? 0 * 100).toFixed(1)}%</span></div>
                         <div className="text-muted-foreground">Reliability: <span className="text-success font-mono ml-1">{sandboxTrace.record.reliability_score?.toFixed(1)}/100</span></div>
                       </div>
                     </div>

@@ -4,16 +4,17 @@ import { Upload, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-rea
 import { Button, Card, Badge } from '@/components/common'
 import { cn } from '@/utils/cn'
 
-const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.md', '.csv', '.json']
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.md', '.csv', '.json', '.yaml', '.xml', '.sql', '.py', '.js', '.log', '.zip']
 const MAX_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
 
 export interface UploadDropzoneProps {
   onUpload: (file: File, onProgress: (percent: number) => void) => Promise<void>
+  onZipSelect?: (file: File) => void
   isUploading: boolean
   uploadProgress: number
 }
 
-export function UploadDropzone({ onUpload, isUploading, uploadProgress }: UploadDropzoneProps) {
+export function UploadDropzone({ onUpload, onZipSelect, isUploading, uploadProgress }: UploadDropzoneProps) {
   const [isDragging, setIsDragging] = React.useState(false)
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -42,6 +43,11 @@ export function UploadDropzone({ onUpload, isUploading, uploadProgress }: Upload
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        onZipSelect?.(file)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        return
+      }
       if (validateFile(file)) {
         setSelectedFile(file)
       }
@@ -66,6 +72,10 @@ export function UploadDropzone({ onUpload, isUploading, uploadProgress }: Upload
     setIsDragging(false)
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0]
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        onZipSelect?.(file)
+        return
+      }
       if (validateFile(file)) {
         setSelectedFile(file)
       }
@@ -77,6 +87,7 @@ export function UploadDropzone({ onUpload, isUploading, uploadProgress }: Upload
     try {
       await onUpload(selectedFile, () => {})
       setSelectedFile(null)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || 'Upload failed')
     }

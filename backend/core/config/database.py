@@ -9,8 +9,8 @@ class DatabaseSettings(BaseSettings):
 
     url: str = Field(alias="DATABASE_URL")
     alembic_url: str = Field(alias="ALEMBIC_DATABASE_URL")
-    pool_size: int = Field(default=10, alias="DATABASE_POOL_SIZE")
-    max_overflow: int = Field(default=20, alias="DATABASE_MAX_OVERFLOW")
+    pool_size: int = Field(default=5, alias="DATABASE_POOL_SIZE")
+    max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
     pool_timeout: int = Field(default=30, alias="DATABASE_POOL_TIMEOUT")
     pool_recycle: int = Field(default=1800, alias="DATABASE_POOL_RECYCLE")
     echo: bool = Field(default=False, alias="DATABASE_ECHO")

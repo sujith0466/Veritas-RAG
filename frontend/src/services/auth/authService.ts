@@ -1,3 +1,4 @@
+import { apiClient } from '@/api/client'
 import { supabaseClient } from './supabaseClient'
 import { get } from '@/api/wrapper'
 import type { UserContext } from '@/types'
@@ -9,14 +10,14 @@ export const authService = {
       email: data.email,
       password: data.password,
     })
-    if (error) throw new Error(error.message)
+    if (error) throw new Error((error as Error).message)
   },
 
   async register(data: RegisterFormData) {
     // If role is user, tenant_id is the invitation code. 
     // If role is admin, the tenant_id will be set to their own supabase_id during backend sync or they own the workspace.
     // However, the backend sync handles 'tenant_id' and 'workspace_name' from claims.
-    const metadata: Record<string, any> = {
+    const metadata: Record<string, unknown> = {
       full_name: data.fullName,
       role: data.role || 'user',
     }
@@ -35,15 +36,34 @@ export const authService = {
         data: metadata,
       },
     })
-    if (error) throw new Error(error.message)
+    if (error) throw new Error((error as Error).message)
   },
 
   async logout() {
     const { error } = await supabaseClient.auth.signOut()
-    if (error) throw new Error(error.message)
+    if (error) throw new Error((error as Error).message)
   },
 
   async fetchBackendProfile(): Promise<UserContext> {
-    return await get<UserContext>('/auth/me')
+    let authContext: UserContext | null = null
+    for (let i = 0; i < 3; i++) {
+      try {
+        authContext = await get<UserContext>('/auth/me')
+        break
+      } catch (error) {
+        if (i === 2) throw error
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
+    
+    if (!authContext) throw new Error('Failed to fetch user context')
+
+    try {
+      const response = await apiClient.get('/users/me')
+      return { ...authContext, ...response.data }
+    } catch (error) {
+      console.error('Failed to fetch extended user profile:', error)
+      return authContext
+    }
   },
 }

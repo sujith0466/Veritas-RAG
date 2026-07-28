@@ -101,19 +101,30 @@ class ChunkListResponse(BaseModel):
 class StrategyInfoDTO(BaseModel):
     """DTO describing an available chunking strategy and its supported MIME types."""
 
-    name: str = Field(description="Unique strategy identifier code")
+    id: str = Field(description="Unique strategy identifier code")
     display_name: str = Field(description="Human-readable strategy name")
     description: str = Field(
         description="Description of the splitting logic and suitable document types"
     )
+    status: str = Field(description="Status of the strategy: supported, experimental, or disabled")
+    recommended: bool = Field(default=False, description="Whether this is the recommended default strategy")
+    available: bool = Field(default=True, description="Whether this strategy can be selected")
+    coming_in: str | None = Field(default=None, description="Target version/milestone for unavailable strategies")
+    requires: list[str] = Field(default_factory=list, description="Dependencies required to use this strategy")
+    icon: str | None = Field(default=None, description="Optional icon identifier for UI rendering")
+    
+    # Keeping these for backward compatibility or internal use
     supported_mime_types: list[str] = Field(
         description="List of compatible MIME types or ['*']"
     )
     default_max_characters: int = Field(default=1000)
     default_overlap_characters: int = Field(default=200)
-    is_placeholder: bool = Field(
-        default=False, description="True if semantic placeholder waiting for Phase 2 M2"
-    )
+
+class StrategyDiscoveryDTO(BaseModel):
+    """Structured response grouping strategies by their availability status."""
+    supported: list[StrategyInfoDTO]
+    experimental: list[StrategyInfoDTO]
+    disabled: list[StrategyInfoDTO]
 
 
 class ChunkMetricsDTO(BaseModel):

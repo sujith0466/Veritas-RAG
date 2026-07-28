@@ -10,6 +10,9 @@ import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 from backend.document.models import Document, DocumentEventLog, DocumentVersion
 from backend.document.storage import LocalStorageProvider, StorageProvider
@@ -24,7 +27,8 @@ from backend.modules.chunking.schemas.chunk import (ChunkDetailResponse,
                                                     ChunkResponse,
                                                     StrategyInfoDTO)
 from backend.modules.chunking.schemas.errors import (ChunkingExecutionError,
-                                                     ChunkNotFoundException)
+                                                     ChunkNotFoundException,
+                                                     ChunkStrategyNotFound)
 from backend.modules.chunking.strategies import SplitterStrategyFactory
 from backend.modules.chunking.validators import (ChunkProcessingContract,
                                                  ChunkValidator)
@@ -95,13 +99,13 @@ class ChunkingService:
         elif hasattr(document, "filename") and document.filename.endswith(".csv"):
             mime_type = "text/csv"
 
-        splitter = self.factory.get_splitter(
-            strategy_name=strategy_override, mime_type=mime_type
-        )
-        strategy_code = splitter.strategy_info.name
-
-        # 4. Execute text splitting
         try:
+            splitter = self.factory.get_splitter(
+                strategy_name=strategy_override, mime_type=mime_type
+            )
+            strategy_code = splitter.strategy_info.id
+
+            # 4. Execute text splitting
             dtos = splitter.split_text(
                 text=normalized_text,
                 max_characters=max_characters,
@@ -109,13 +113,33 @@ class ChunkingService:
                 base_metadata={
                     "document_id": str(document_id),
                     "version_id": str(version_id),
+                    "relative_path": getattr(document, "relative_path", None),
                 },
             )
+        except ChunkStrategyNotFound as exc:
+            logger.error(
+                "chunk_strategy_not_found",
+                document_id=str(document_id),
+                version_id=str(version_id),
+                requested_strategy=strategy_override or "auto",
+                resolved_strategy=strategy_override or mime_type,
+                tenant_id=tenant_id,
+                error=str(exc)
+            )
+            raise exc
         except Exception as exc:
             if hasattr(exc, "error_code"):
                 raise exc
+            logger.error(
+                "chunk_strategy_execution_error",
+                document_id=str(document_id),
+                version_id=str(version_id),
+                strategy_code=locals().get("strategy_code", "unknown"),
+                tenant_id=tenant_id,
+                error=str(exc)
+            )
             raise ChunkingExecutionError(
-                message=f"Splitting strategy '{strategy_code}' crashed: {exc}"
+                message=f"Splitting strategy execution crashed: {exc}"
             ) from exc
 
         # 5. Validate DTO quotas and rules (`CHK_001`)
@@ -149,15 +173,19 @@ class ChunkingService:
             )
             chunk_entities.append(entity)
 
-        # Establish doubly-linked foreign key pointers
+        # Establish doubly-linked foreign key pointers (only previous for now)
         for i, entity in enumerate(chunk_entities):
             if i > 0:
                 entity.previous_chunk_id = chunk_entities[i - 1].id
-            if i < len(chunk_entities) - 1:
-                entity.next_chunk_id = chunk_entities[i + 1].id
 
         # 8. Batch persist chunks to database
         await repo.batch_create_chunks(chunk_entities)
+
+        # Establish next_chunk_id after initial insert
+        for i, entity in enumerate(chunk_entities):
+            if i < len(chunk_entities) - 1:
+                entity.next_chunk_id = chunk_entities[i + 1].id
+        await session.flush()
 
         # 9. Verify processing contract invariants (`CHK_004`)
         ChunkProcessingContract.verify(chunk_entities)

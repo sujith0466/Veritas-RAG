@@ -7,7 +7,7 @@
 - [x] Archive structure in place
 
 ## Documentation Completeness
-- [x] README.md complete with badges and quick start
+- [x] readme.md complete with badges and quick start
 - [x] PROJECT_OVERVIEW.md
 - [x] SYSTEM_ARCHITECTURE.md
 - [x] HIGH_LEVEL_ARCHITECTURE.md
@@ -25,14 +25,14 @@
 - [x] OBSERVABILITY_GUIDE.md
 - [x] TROUBLESHOOTING_GUIDE.md
 - [x] FAQ.md
-- [x] CHANGELOG.md
-- [x] RELEASE_NOTES.md
-- [x] ROADMAP.md
+- [x] changelog.md
+- [x] release-notes.md
+- [x] roadmap.md
 - [x] LICENSE
-- [x] SECURITY.md
-- [x] SUPPORT.md
-- [x] CONTRIBUTING.md
-- [x] CODE_OF_CONDUCT.md
+- [x] security.md
+- [x] support.md
+- [x] contributing.md
+- [x] code-of-conduct.md
 - [x] GitHub Issue Templates
 - [x] Pull Request Template
 

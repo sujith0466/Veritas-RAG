@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Bot, User as UserIcon, RefreshCw, Copy, Check, Info } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Send, Bot, User as UserIcon, Copy, Check, Info } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { useChatStore, ChatMessage } from '@/stores/chatStore'
-import { api } from '@/utils/api'
-import { PageHeader } from '@/components/common/PageHeader'
+import { supabaseClient } from '@/services/auth/supabaseClient'
+
 import { Badge } from '@/components/common/Badge'
 
 export function AIChatPage() {
@@ -21,27 +20,69 @@ export function AIChatPage() {
 
   useEffect(() => {
     if (sessionId) {
-      fetchSession(sessionId).then(() => {
-        // We will fetch messages or use the ones from session
-      })
+      if (useChatStore.getState().activeSession?.id !== sessionId) {
+        fetchSession(sessionId)
+      }
     } else {
       setMessages([])
+      useChatStore.getState().setActiveSession(null)
     }
-  }, [sessionId])
+  }, [sessionId, fetchSession])
 
   useEffect(() => {
-    if (activeSession?.messages) {
+    if (activeSession?.messages && !isStreaming) {
       setMessages(activeSession.messages)
     }
-  }, [activeSession])
+  }, [activeSession, isStreaming])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isStreaming])
 
+  const [isIndexing, setIsIndexing] = useState(false)
+
+  useEffect(() => {
+    // Check indexing status every 5 seconds if we are indexing, or just once on load
+    const checkStatus = async () => {
+      try {
+        const { documentService } = await import('@/services/documentService')
+        const docs = await documentService.listDocuments(1, 100)
+        const processing = docs.items.some(d => d.status === 'processing' || d.status === 'pending')
+        setIsIndexing(processing)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    checkStatus()
+    const interval = setInterval(checkStatus, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
     if (!input.trim() || isStreaming) return
+
+    if (isIndexing) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          session_id: sessionId || 'temp',
+          role: 'user',
+          message: input.trim(),
+          created_at: new Date().toISOString()
+        },
+        {
+          id: crypto.randomUUID(),
+          session_id: sessionId || 'temp',
+          role: 'assistant',
+          message: "Your enterprise knowledge base is still being prepared. You can begin exploring the workspace now, and AI responses will become available once indexing finishes.",
+          created_at: new Date().toISOString()
+        }
+      ])
+      setInput('')
+      return
+    }
 
     const currentQuery = input.trim()
     setInput('')
@@ -73,11 +114,15 @@ export function AIChatPage() {
     setIsStreaming(true)
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/chat/sessions/${targetSessionId}/stream`, {
+      const { data: sessionData } = await supabaseClient.auth.getSession()
+      const token = sessionData.session?.access_token
+
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      const response = await fetch(`${baseUrl}/api/v1/chat/sessions/${targetSessionId}/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ query: currentQuery })
       })
@@ -284,7 +329,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
             <div className="mt-2 w-full space-y-2">
               <div className="text-xs font-semibold text-muted-foreground px-1">Sources Cited:</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {message.citations.map((cite, idx) => (
+                {(message.citations as { citation_index: number, document_id: string, excerpt: string }[]).map((cite, idx) => (
                   <div key={idx} className="bg-surface border border-border/60 rounded-lg p-2.5 shadow-sm text-xs space-y-1 hover:border-primary/40 transition-colors">
                     <div className="flex items-center gap-1.5 font-medium text-foreground">
                       <span className="bg-primary/10 text-primary px-1 rounded inline-flex items-center justify-center h-4 text-[10px]">[{cite.citation_index}]</span>

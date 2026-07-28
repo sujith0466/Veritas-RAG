@@ -10,9 +10,9 @@ This manifest certifies the final state of the RAGuard AI repository for public 
 
 ## Asset Manifest
 - `mkdocs.yml`: Static site generator configuration.
-- `docs/community/`: Contribution, Code of Conduct, and Security policies.
-- `docs/developer/`: API Quick Start, Architecture Walkthrough, Coding Standards, Onboarding.
-- `docs/showcase/`: Executive One-Pager, Media Kit, Presentation Slides, Demo Script.
+- `docs/Community/`: Contribution, Code of Conduct, and Security policies.
+- `docs/Developer/`: API Quick Start, Architecture Walkthrough, Coding Standards, Onboarding.
+- `docs/Showcase/`: Executive One-Pager, Media Kit, Presentation Slides, Demo Script.
 - `examples/`: Python HTTP client and Postman collection.
 - `datasets/`: Mock JSON payloads for easy local ingestion.
 

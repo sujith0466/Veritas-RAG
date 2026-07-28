@@ -5,7 +5,7 @@ Dynamically registers all 7 strategies (`recursive`, `markdown`, `sentence`, `pa
 exports strategy metadata descriptions (`ADR-005`).
 """
 
-from backend.modules.chunking.schemas.chunk import StrategyInfoDTO
+from backend.modules.chunking.schemas.chunk import StrategyInfoDTO, StrategyDiscoveryDTO
 from backend.modules.chunking.schemas.errors import ChunkStrategyNotFound
 
 from .base import BaseChunkSplitter
@@ -16,6 +16,7 @@ from .recursive import RecursiveChunkSplitter
 from .semantic import SemanticChunkSplitterPlaceholder
 from .sentence import SentenceChunkSplitter
 from .table import TableChunkSplitter
+from .fixed_size import FixedSizeChunkSplitterPlaceholder
 
 
 class SplitterStrategyFactory:
@@ -30,6 +31,7 @@ class SplitterStrategyFactory:
             "table": TableChunkSplitter(),
             "code": CodeChunkSplitter(),
             "semantic": SemanticChunkSplitterPlaceholder(),
+            "fixed_size": FixedSizeChunkSplitterPlaceholder(),
         }
 
     def get_splitter(
@@ -40,11 +42,13 @@ class SplitterStrategyFactory:
             normalized = strategy_name.lower().strip()
             if normalized in self._strategies:
                 return self._strategies[normalized]
+            
+            supported = [s.strategy_info.id for s in self._strategies.values() if s.strategy_info.status == "supported"]
             raise ChunkStrategyNotFound(
-                message=f"Chunking strategy '{strategy_name}' is not registered or supported.",
+                message=f"Chunk strategy '{strategy_name}' is not available in RAGuard AI v1.0.",
                 detail={
                     "requested": strategy_name,
-                    "available": list(self._strategies.keys()),
+                    "supported": supported,
                 },
             )
 
@@ -69,6 +73,23 @@ class SplitterStrategyFactory:
         # Default fallback is recursive character splitting
         return self._strategies["recursive"]
 
-    def list_strategies(self) -> list[StrategyInfoDTO]:
-        """Return canonical metadata descriptions for all registered strategies."""
-        return [splitter.strategy_info for splitter in self._strategies.values()]
+    def list_strategies(self) -> StrategyDiscoveryDTO:
+        """Return canonical metadata grouped by status."""
+        supported = []
+        experimental = []
+        disabled = []
+
+        for splitter in self._strategies.values():
+            info = splitter.strategy_info
+            if info.status == "supported":
+                supported.append(info)
+            elif info.status == "experimental":
+                experimental.append(info)
+            else:
+                disabled.append(info)
+
+        return StrategyDiscoveryDTO(
+            supported=supported,
+            experimental=experimental,
+            disabled=disabled,
+        )

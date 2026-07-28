@@ -3,10 +3,9 @@ import { AuthContext } from '@/contexts/AuthContext'
 import { useAuthStore } from '@/stores/authStore'
 import { supabaseClient } from '@/services/auth/supabaseClient'
 import { authService } from '@/services/auth/authService'
-import { GlobalLoadingOverlay } from '@/components/feedback/GlobalLoadingOverlay'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setStatus, setAuth, clearAuth, status } = useAuthStore()
+  const { setStatus, setAuth, clearAuth } = useAuthStore()
   const initialMount = useRef(true)
 
   useEffect(() => {
@@ -76,7 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider value={null}>
-      {status === 'LOADING' && <GlobalLoadingOverlay message="Authenticating secure session..." />}
       {children}
     </AuthContext.Provider>
   )

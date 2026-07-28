@@ -13,6 +13,14 @@ class LLMManagerSettings(BaseSettings):
     )
     primary_provider: str = Field(default="openrouter", alias="PRIMARY_LLM_PROVIDER")
     fallback_provider: str = Field(default="gemini", alias="FALLBACK_LLM_PROVIDER")
+    
+    max_retries: int = Field(default=3, alias="LLM_MAX_RETRIES")
+    retry_initial_delay: float = Field(default=1.0, alias="LLM_RETRY_INITIAL_DELAY")
+    request_timeout: float = Field(default=30.0, alias="LLM_REQUEST_TIMEOUT")
+    audit_mode: str = Field(default="hash_only", alias="LLM_AUDIT_MODE")
+    audit_retention_days: int = Field(
+        default=30, ge=1, le=3650, alias="LLM_AUDIT_RETENTION_DAYS"
+    )
 
     model_config = {
         "populate_by_name": True,

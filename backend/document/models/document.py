@@ -37,6 +37,7 @@ class Document(BaseModel):
     word_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     page_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     language: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    relative_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     versions: Mapped[list["DocumentVersion"]] = relationship(
         "DocumentVersion", back_populates="document", cascade="all, delete-orphan"

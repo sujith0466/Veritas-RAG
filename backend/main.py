@@ -100,6 +100,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await seed_demo_user()
 
     # NOTE: EventDispatcher is initialized and handlers can be registered here.
+    from backend.modules.retrieval.events.handlers import register_retrieval_event_handlers
+    register_retrieval_event_handlers()
+    
     logger.info("RAGuard AI startup complete ✓")
 
     yield  # Application is running
@@ -154,21 +157,12 @@ def create_app() -> FastAPI:
 
     # ── 4. Register middleware (LIFO — last registered = first executed) ──────
     # Order of execution on request:
-    #   CorrelationID → Observability → SecurityHeaders → CORS → RequestLogging → Route handler
+    #   CORS → CorrelationID → Observability → SecurityHeaders → RequestLogging → Route handler
 
     # Request/response logging (innermost — has access to correlation ID)
     app.add_middleware(
         RequestLoggingMiddleware,
         log_requests=settings.logging.log_requests,
-    )
-
-    # CORS — must be before security headers to handle preflight correctly
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.security.cors_origins,
-        allow_credentials=settings.security.cors_allow_credentials,
-        allow_methods=settings.security.cors_allow_methods,
-        allow_headers=settings.security.cors_allow_headers,
     )
 
     # Security response headers
@@ -180,8 +174,17 @@ def create_app() -> FastAPI:
     # Observability metrics and OpenTelemetry span (runs inside CorrelationID)
     app.add_middleware(ObservabilityMiddleware)
 
-    # Correlation ID (outermost — must run before everything else)
+    # Correlation ID (must run before observability and logging)
     app.add_middleware(CorrelationIDMiddleware)
+
+    # CORS — outermost middleware to handle preflight correctly and never drop headers on 500s
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.security.cors_origins,
+        allow_credentials=settings.security.cors_allow_credentials,
+        allow_methods=settings.security.cors_allow_methods,
+        allow_headers=settings.security.cors_allow_headers,
+    )
 
     # ── 5. Mount API routers ──────────────────────────────────────────────────
     _register_routes(app)

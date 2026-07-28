@@ -79,21 +79,175 @@ async def liveness() -> dict[str, Any]:
     }
 
 
-async def _check_dependencies() -> dict[str, str]:
+async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHealth]:
     """Ping downstream infrastructure dependencies."""
-    from backend.cache.client import check_cache_health
+    from backend.cache.client import check_cache_health, get_redis_client
     from backend.database.engine import check_db_health
-    from backend.vector_db.client import check_vector_db_health
-
+    from backend.vector_db.client import check_vector_db_health, get_qdrant_client
+    from backend.core.config.llm_manager import LLMManagerSettings
+    from backend.tasks.celery_app import celery_app
+    import uuid
+    import asyncio
+    
+    settings = get_settings()
+    
+    deps = {}
+    
+    # 1. PostgreSQL
+    t0 = time.time()
     db_ok = await check_db_health()
-    cache_ok = await check_cache_health()
-    vector_ok = await check_vector_db_health()
+    db_latency = (time.time() - t0) * 1000
+    deps["postgresql"] = DependencyHealth(
+        name="postgresql",
+        status="healthy" if db_ok else "unhealthy",
+        latency_ms=round(db_latency, 2) if db_ok else None,
+        error=None if db_ok else "Database connection failed"
+    )
 
-    return {
-        "postgresql": "healthy" if db_ok else "unhealthy",
-        "redis": "healthy" if cache_ok else "unhealthy",
-        "qdrant": "healthy" if vector_ok else "unhealthy",
-    }
+    # 2. Redis & Queue Health
+    t0 = time.time()
+    cache_ok = await check_cache_health()
+    cache_latency = (time.time() - t0) * 1000
+    
+    redis_info = None
+    if detailed and cache_ok:
+        try:
+            # Audit background queues
+            redis = get_redis_client()
+            # Celery uses lists or sets for queues. We can get lengths.
+            # In Celery, queues are lists named after the queue. Default is 'celery' but we defined 'default', 'ingestion', etc.
+            queue_info = {}
+            for q in ["default", "ingestion", "embeddings", "retrieval", "evaluation", "health", "ai"]:
+                length = await redis.llen(q)
+                if length > 0:
+                    queue_info[q] = length
+            
+            # Simple queue stats
+            redis_info = {
+                "queue_lengths": queue_info,
+            }
+        except Exception as e:
+            logger.error(f"Error fetching redis info: {e}")
+
+    deps["redis"] = DependencyHealth(
+        name="redis",
+        status="healthy" if cache_ok else "unhealthy",
+        latency_ms=round(cache_latency, 2) if cache_ok else None,
+        error=None if cache_ok else "Redis connection failed",
+        info=redis_info
+    )
+
+    # 3. Qdrant
+    t0 = time.time()
+    qdrant_info = None
+    vector_ok = False
+    vector_err = None
+    try:
+        qclient = get_qdrant_client()
+        cols = await qclient.get_collections()
+        vector_ok = True
+        
+        if detailed:
+            # Collection Exists, Collection Count, Access, Search Test
+            col_count = len(cols.collections)
+            # Find the main collection if any
+            test_success = False
+            if col_count > 0:
+                try:
+                    # Simple search test on first collection
+                    await qclient.search(
+                        collection_name=cols.collections[0].name,
+                        query_vector=[0.0] * 384, # dummy vector, might fail if dimension mismatch, so we just use scroll
+                        limit=1
+                    )
+                    test_success = True
+                except Exception:
+                    try:
+                        await qclient.scroll(collection_name=cols.collections[0].name, limit=1)
+                        test_success = True
+                    except Exception:
+                        pass
+            
+            qdrant_info = {
+                "collection_count": col_count,
+                "collections_exist": col_count > 0,
+                "search_test": test_success
+            }
+    except Exception as exc:
+        vector_err = str(exc)
+        logger.warning("Qdrant health check failed", error=str(exc))
+    
+    qdrant_latency = (time.time() - t0) * 1000
+    
+    deps["qdrant"] = DependencyHealth(
+        name="qdrant",
+        status="healthy" if vector_ok else "unhealthy",
+        latency_ms=round(qdrant_latency, 2) if vector_ok else None,
+        error=vector_err,
+        info=qdrant_info
+    )
+
+    # 4. LLM Provider
+    # Lazy import to avoid circular dependencies
+    from backend.ai.factory import create_llm_provider
+    from backend.ai.interfaces.llm_provider import LLMProvider
+    
+    t0 = time.time()
+    llm_info = None
+    llm_ok = False
+    llm_err = None
+    try:
+        # get_llm_provider returns the configured provider
+        llm: LLMProvider = create_llm_provider()
+        llm_ok = await llm.health_check()
+        if detailed:
+            # Get class name as provider name
+            llm_info = {
+                "provider_name": llm.__class__.__name__
+            }
+    except Exception as exc:
+        llm_err = str(exc)
+        
+    llm_latency = (time.time() - t0) * 1000
+    deps["llm_provider"] = DependencyHealth(
+        name="llm_provider",
+        status="healthy" if llm_ok else "unhealthy",
+        latency_ms=round(llm_latency, 2) if llm_ok else None,
+        error=llm_err,
+        info=llm_info
+    )
+
+    # 5. Celery Workers
+    if detailed:
+        t0 = time.time()
+        celery_info = None
+        celery_ok = False
+        try:
+            # Send ping to workers with a small timeout
+            # Celery app.control.ping() is synchronous, so we run in executor
+            loop = asyncio.get_running_loop()
+            ping_res = await loop.run_in_executor(None, lambda: celery_app.control.ping(timeout=1.0))
+            
+            num_active = len(ping_res)
+            celery_ok = num_active > 0
+            
+            celery_info = {
+                "active_workers": num_active,
+                "last_successful_ping": datetime.now(UTC).isoformat() if celery_ok else None,
+                "ping_responses": ping_res
+            }
+        except Exception as exc:
+            pass
+            
+        celery_latency = (time.time() - t0) * 1000
+        deps["celery_workers"] = DependencyHealth(
+            name="celery_workers",
+            status="healthy" if celery_ok else "degraded",  # Not critical for readiness, maybe degraded
+            latency_ms=round(celery_latency, 2),
+            info=celery_info
+        )
+
+    return deps
 
 
 # ── GET /health/ready ──────────────────────────────────────────────────────────
@@ -104,28 +258,32 @@ async def _check_dependencies() -> dict[str, str]:
     summary="Readiness probe",
     description=(
         "Readiness probe. Returns 200 when all required dependencies are available. "
-        "Returns 503 when any required dependency (database, cache) is unavailable. "
+        "Returns 503 when any required dependency (database, cache, qdrant) is unavailable. "
         "A 503 removes this instance from the load balancer rotation."
     ),
 )
 async def readiness() -> JSONResponse:
     """Readiness probe — checks dependency availability."""
     settings = get_settings()
-    dependencies = await _check_dependencies()
+    deps_dict = await _check_dependencies(detailed=False)
 
-    # All dependencies must be healthy (or not_initialized in M1)
-    # In M2, change "not_initialized" checks to real health checks
-    is_ready = all(v in ("healthy", "not_initialized") for v in dependencies.values())
+    # PostgreSQL, Redis, Qdrant must be healthy for readiness
+    required_deps = ["postgresql", "redis", "qdrant"]
+    is_ready = True
+    for req in required_deps:
+        if deps_dict.get(req) and deps_dict[req].status not in ("healthy", "not_initialized"):
+            is_ready = False
+            break
 
     payload = {
         "status": "ready" if is_ready else "not_ready",
         "version": settings.app.version,
         "timestamp": datetime.now(UTC).isoformat(),
-        "dependencies": dependencies,
+        "dependencies": {k: v.status for k, v in deps_dict.items()},
     }
 
     if not is_ready:
-        logger.warning("Readiness check failed", dependencies=dependencies)
+        logger.warning("Readiness check failed", dependencies=payload["dependencies"])
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content=payload,
@@ -151,13 +309,13 @@ async def detailed_health(
 ) -> DetailedHealthResponse:
     """Full dependency breakdown for operator dashboards."""
     settings = get_settings()
-    deps_dict = await _check_dependencies()
-    deps = [DependencyHealth(name=k, status=v) for k, v in deps_dict.items()]
+    deps_dict = await _check_dependencies(detailed=True)
+    deps = list(deps_dict.values())
 
     statuses = {d.status for d in deps}
     if "unhealthy" in statuses:
         overall = "unhealthy"
-    elif "not_initialized" in statuses:
+    elif "degraded" in statuses or "not_initialized" in statuses:
         overall = "degraded"
     else:
         overall = "healthy"

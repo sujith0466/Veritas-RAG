@@ -16,7 +16,7 @@ import {
   Terminal,
   MessageSquare,
   Plus,
-  MoreHorizontal,
+
   Pencil,
   Trash2,
   Pin
@@ -47,28 +47,12 @@ const navigation: NavGroup[] = [
   {
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { name: 'Knowledge', href: '/knowledge', icon: Brain },
-      { name: 'Documents', href: '/documents', icon: FileText },
-    ],
-  },
-  {
-    group: '',
-    items: [
+      { name: 'Knowledge', href: '/knowledge', icon: Brain, adminOnly: true },
+      { name: 'Documents', href: '/documents', icon: FileText, adminOnly: true },
       { name: 'Chunks', href: '/chunks', icon: Layers, adminOnly: true },
       { name: 'Embeddings', href: '/embeddings', icon: Cpu, adminOnly: true },
       { name: 'Vectors', href: '/vectors', icon: Database, adminOnly: true },
-    ],
-  },
-  {
-    group: '',
-    items: [
-      { name: 'AI Chat', href: '/chat', icon: MessageSquare, matchPrefix: true },
-      { name: 'AI Reliability', href: '/analytics', icon: BarChart3 },
-    ],
-  },
-  {
-    group: '',
-    items: [
+      { name: 'AI Reliability', href: '/analytics', icon: BarChart3, adminOnly: true },
       { name: 'System Health', href: '/health', icon: Activity, adminOnly: true },
       { name: 'Diagnostics', href: '/diagnostics', icon: Terminal, adminOnly: true },
     ],
@@ -81,15 +65,14 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const user = useAuthStore((s) => s.user)
   
-  const { sessions, fetchSessions, createSession, updateSession, deleteSession } = useChatStore()
+  const { sessions, fetchSessions, updateSession, deleteSession } = useChatStore()
 
   useEffect(() => {
     fetchSessions()
-  }, [])
+  }, [fetchSessions])
 
-  const handleNewChat = async () => {
-    const session = await createSession()
-    navigate(`/chat/${session.id}`)
+  const handleNewChat = () => {
+    navigate('/chat')
   }
 
   const groupedSessions = useMemo(() => {
@@ -280,6 +263,7 @@ export function Sidebar() {
   )
 }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChatGroup({ title, sessions, location, onDelete, onUpdate }: { title: string, sessions: ChatSession[], location: any, onDelete: any, onUpdate: any }) {
   return (
     <div>
@@ -295,6 +279,7 @@ function ChatGroup({ title, sessions, location, onDelete, onUpdate }: { title: s
   )
 }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ChatItem({ session, location, onDelete, onUpdate }: { session: ChatSession, location: any, onDelete: any, onUpdate: any }) {
   const isActive = location.pathname === `/chat/${session.id}`
   const [isHovered, setIsHovered] = useState(false)

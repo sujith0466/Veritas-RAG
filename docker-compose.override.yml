@@ -17,11 +17,12 @@ services:
       - ./tests:/app/tests
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
+      - app_data:/app/data
 
   worker:
     build:
       target: builder
-    command: watchfiles "celery -A backend.tasks.celery_app worker -l info -Q ingestion,embeddings,retrieval,default" backend
+    command: watchfiles "celery -A backend.tasks.celery_app worker -l info -Q ingestion,embeddings,retrieval,default -c 2" backend
     environment:
       - ENVIRONMENT=development
       - PYTHONPATH=/app
@@ -31,3 +32,5 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./tests:/app/tests
+      - app_data:/app/data
+

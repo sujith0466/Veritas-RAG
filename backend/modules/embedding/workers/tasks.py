@@ -55,22 +55,15 @@ async def _async_process_embedding_task(
     batch_size: int,
     force_reembed: bool,
 ) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-    from backend.core.config import get_settings
+    from backend.database.engine import get_session_factory
+    session_factory = get_session_factory()
     
-    settings = get_settings().database
-    engine = create_async_engine(settings.url, pool_pre_ping=True)
-    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    
-    try:
-        async with session_factory() as session:
-            worker = CeleryEmbeddingWorker(session)
-            return await worker.execute_batch(
-                celery_task=task_instance,
-                job_id=job_id,
-                tenant_id=tenant_id,
-                batch_size=batch_size,
-                force_reembed=force_reembed,
-            )
-    finally:
-        await engine.dispose()
+    async with session_factory() as session:
+        worker = CeleryEmbeddingWorker(session)
+        return await worker.execute_batch(
+            celery_task=task_instance,
+            job_id=job_id,
+            tenant_id=tenant_id,
+            batch_size=batch_size,
+            force_reembed=force_reembed,
+        )

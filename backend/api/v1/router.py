@@ -18,6 +18,14 @@ api_v1_router.include_router(metrics_router)
 # ── Authentication & Identity (`/auth`) ─────────────────────────────────────────
 api_v1_router.include_router(auth_router)
 
+# ── User Profile & Settings (`/users`) ──────────────────────────────────────────
+from .routes.users import router as users_router
+api_v1_router.include_router(users_router)
+
+# ── Storage (`/storage`) ──────────────────────────────────────────
+from .routes.storage import router as storage_router
+api_v1_router.include_router(storage_router)
+
 # ── Document Intelligence Foundation (`/documents`) ────────────────────────────
 api_v1_router.include_router(document_router)
 

@@ -40,12 +40,16 @@ export function ChunksPage() {
 
   const fetchInitialData = React.useCallback(async () => {
     try {
-      const [stratList, docList, metricsSummary] = await Promise.all([
-        chunkService.listStrategies(),
-        documentService.listDocuments(1, 100, 'PROCESSED'),
-        chunkService.getMetrics(),
-      ])
-      setStrategies(stratList || [])
+      const stratList = await chunkService.listStrategies()
+      const docList = await documentService.listDocuments(1, 100, 'PROCESSED')
+      const metricsSummary = await chunkService.getMetrics()
+
+      const allStrategies = stratList ? [
+        ...(stratList.supported || []),
+        ...(stratList.experimental || []),
+        ...(stratList.disabled || [])
+      ] : []
+      setStrategies(allStrategies)
       setDocuments(docList.items || [])
       setMetrics(metricsSummary)
 

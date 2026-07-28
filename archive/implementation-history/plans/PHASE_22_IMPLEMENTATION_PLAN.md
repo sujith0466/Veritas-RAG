@@ -1,7 +1,7 @@
 # Phase 22 Implementation Plan — Enterprise Security, Compliance & Governance (Production Grade)
 
 **Phase Name:** Phase 22 — Enterprise Security, Compliance & Governance  
-**Target Module:** `backend/modules/security/`  
+**Target Module:** `backend/modules/Security/`  
 **Status:** Planning & Architecture Baseline (Approved for Script-Based Implementation)  
 **Author:** RAGuard Principal Architecture & Enterprise QA Team  
 
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-Phase 22 delivers the **Enterprise Security, Compliance & Governance** subsystem (`backend/modules/security/`), finalizing the security posture of the RAGuard platform. This phase implements Data Loss Prevention (DLP), Personal Identifiable Information (PII) masking, role-based access control (RBAC) auditing, and encryption-at-rest key rotation policies. It ensures that RAGuard meets strict regulatory requirements (GDPR, HIPAA, SOC2) by intercepting and redacting sensitive entities *before* they are sent to external LLM providers or persisted in analytics databases.
+Phase 22 delivers the **Enterprise Security, Compliance & Governance** subsystem (`backend/modules/Security/`), finalizing the security posture of the RAGuard platform. This phase implements Data Loss Prevention (DLP), Personal Identifiable Information (PII) masking, role-based access control (RBAC) auditing, and encryption-at-rest key rotation policies. It ensures that RAGuard meets strict regulatory requirements (GDPR, HIPAA, SOC2) by intercepting and redacting sensitive entities *before* they are sent to external LLM providers or persisted in analytics databases.
 
 ---
 
@@ -40,11 +40,11 @@ Phase 22 delivers the **Enterprise Security, Compliance & Governance** subsystem
 
 ## 5. Scope
 
-*   Implementation of `DLPEngine` (`backend/modules/security/services/dlp.py`).
-*   Implementation of `ComplianceAuditor` (`backend/modules/security/services/auditor.py`).
-*   Implementation of `KeyManager` (`backend/modules/security/services/key_manager.py`).
-*   Definition of security DTOs (`backend/modules/security/schemas/security_dto.py`).
-*   Exposition of security compliance reports (`backend/modules/security/api/compliance_routes.py`).
+*   Implementation of `DLPEngine` (`backend/modules/Security/services/dlp.py`).
+*   Implementation of `ComplianceAuditor` (`backend/modules/Security/services/auditor.py`).
+*   Implementation of `KeyManager` (`backend/modules/Security/services/key_manager.py`).
+*   Definition of security DTOs (`backend/modules/Security/schemas/security_dto.py`).
+*   Exposition of security compliance reports (`backend/modules/Security/api/compliance_routes.py`).
 *   Integration tests verifying PII redaction and audit log generation.
 
 ---

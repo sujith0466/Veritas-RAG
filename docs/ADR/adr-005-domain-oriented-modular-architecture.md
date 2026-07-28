@@ -13,7 +13,7 @@ RAGuard AI has 12 distinct AI modules (Query Intelligence, Hybrid Retrieval, Ret
 
 ## Decision
 
-We will organize business capabilities into **domain-oriented modules** under `backend/modules/`, where each module owns its own API routes, schemas, services, repositories, and models. Shared functionality resides in `backend/core/` and `backend/infrastructure/`.
+We will organize business capabilities into **domain-oriented modules** under `backend/modules/`, where each module owns its own API routes, schemas, services, repositories, and models. Shared functionality resides in `backend/core/` and `backend/Infrastructure/`.
 
 ## Module Structure
 

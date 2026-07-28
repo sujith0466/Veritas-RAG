@@ -1,7 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 *.so
 .Python
 build/
@@ -21,6 +21,12 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+pytest.xml
 
 # Virtual Environment
 .env
@@ -33,16 +39,19 @@ env.bak/
 venv.bak/
 !.env.example
 
-# Node / JS
+# Node / JS / React / Vite
 node_modules/
 frontend/node_modules/
 frontend/dist/
 dist/
 build/
+coverage/
 .npm
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.eslintcache
+.stylelintcache
 
 # IDEs and Editors
 .vscode/
@@ -54,28 +63,47 @@ yarn-error.log*
 *.sw?
 .DS_Store
 Thumbs.db
+.directory
+*~
 
 # Logs and Databases
 *.log
+logs/
 *.sqlite
 *.db
+pgdata/
+redis_data/
+qdrant_data/
 
-# AI Agent & Test Temporary Files
+# Temporary and Output Directories
+tmp/
+scratch/
+archive/
+enterprise_demo_dataset/
+enterprise_demo_dataset.zip
+
+# Generated Reports (unless specifically whitelisted)
+*_REPORT.md
+*REPORT*.md
+!FINAL_RELEASE_SUMMARY.md
+!CODE_QUALITY_REPORT.md
+!PRODUCTION_CONFIGURATION_REPORT.md
+!VALIDATION_REPORT.md
+!FINAL_RELEASE_AUDIT.md
+!GENERATION_PROVIDER_ROOT_CAUSE.md
+
+# AI Agent & Workspace Files
 .gemini/
 .antigravity/
-impl_*.py
-harden_docs.py
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-pytest.xml
 
-# Note: Ensure IMPLEMENTATION_BASELINE.md and official reports are NOT ignored.
-!IMPLEMENTATION_BASELINE.md
-!docs/
+# Docker Override
+docker-compose.override.yml
 
-# Stage 1 additions
-*.pyc
-*.pyo
+# Archives and History
+archive/
+archives/
+backup/
+legacy/
+old/
+old_versions/
+history/

@@ -28,4 +28,4 @@ This is the initial GA release. No upgrade path required.
 
 ## Support
 
-See [SUPPORT.md](SUPPORT.md) for enterprise support options.
+See [support.md](support.md) for enterprise support options.

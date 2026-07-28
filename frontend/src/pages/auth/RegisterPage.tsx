@@ -1,94 +1,133 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { PageTransition } from '@/components/layouts'
-import { RegisterForm } from '@/components/auth'
-import { ShieldAlert, User as UserIcon, ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/common/Button'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { RoleSelector, AIAssistant, AdminRegisterForm, UserRegisterForm, WorkspaceLoader, type AIAssistantState } from '@/components/auth'
+import { ArrowLeft } from 'lucide-react'
 
 export function RegisterPage() {
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user' | null>(null)
+  const [searchParams] = useSearchParams()
+  const initialRole = (searchParams.get('role') as 'admin' | 'user' | null) || null
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'user' | null>(initialRole)
+  const [aiState, setAiState] = useState<AIAssistantState>('idle')
+  const [isSuccess, setIsSuccess] = useState(false)
+  const navigate = useNavigate()
 
-  if (!selectedRole) {
-    return (
-      <PageTransition>
-        <div className="space-y-6">
-          <div className="space-y-2 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Create an account</h2>
-            <p className="text-sm text-muted-foreground">
-              Select how you want to join RAGuard AI
-            </p>
-          </div>
+  const handleFocusChange = (field: 'email' | 'password' | 'password_visible' | 'idle') => {
+    if (isSuccess || aiState === 'loading' || aiState === 'error') return
+    if (field === 'email') setAiState('email_focus')
+    else if (field === 'password') setAiState('password_focus')
+    else if (field === 'password_visible') setAiState('password_visible')
+    else setAiState('idle')
+  }
 
-          <div className="grid grid-cols-1 gap-4">
-            <Button 
-              variant="outline" 
-              className="h-24 flex flex-col items-center justify-center space-y-2 border-2 hover:border-primary hover:bg-primary/5 transition-all"
-              onClick={() => setSelectedRole('admin')}
-            >
-              <ShieldAlert className="h-6 w-6 text-primary" />
-              <div className="font-semibold text-lg">Register as Admin</div>
-              <div className="text-xs text-muted-foreground font-normal">Create a new workspace</div>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="h-24 flex flex-col items-center justify-center space-y-2 border-2 hover:border-primary hover:bg-primary/5 transition-all"
-              onClick={() => setSelectedRole('user')}
-            >
-              <UserIcon className="h-6 w-6 text-primary" />
-              <div className="font-semibold text-lg">Register as User</div>
-              <div className="text-xs text-muted-foreground font-normal">Join an existing workspace</div>
-            </Button>
-          </div>
+  const handleError = () => {
+    setAiState('error')
+    setTimeout(() => {
+      setAiState('idle')
+    }, 2000)
+  }
 
-          <div className="text-center text-sm mt-6">
-            <span className="text-muted-foreground">Already have an account? </span>
-            <Link
-              to="/auth/login"
-              className="font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
-            >
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </PageTransition>
-    )
+  const handleSuccess = () => {
+    setAiState('success')
+    setIsSuccess(true)
+  }
+
+  const handleLoaderComplete = () => {
+    navigate('/dashboard')
   }
 
   return (
-    <PageTransition>
-      <div className="space-y-6">
-        <button 
-          onClick={() => setSelectedRole(null)}
-          className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to roles
-        </button>
-
-        <div className="space-y-2 text-center">
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            {selectedRole === 'admin' ? 'Admin Registration' : 'User Registration'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {selectedRole === 'admin' 
-              ? 'Enter your details to create a new workspace'
-              : 'Enter your details and invitation code to join'}
-          </p>
-        </div>
-
-        <RegisterForm role={selectedRole} />
-
-        <div className="text-center text-sm">
-          <span className="text-muted-foreground">Already have an account? </span>
-          <Link
-            to="/auth/login"
-            className="font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
-          >
-            Sign in
-          </Link>
-        </div>
+    <div className="flex flex-col items-center w-full">
+      <div className="mb-8 w-full flex justify-center">
+        <AIAssistant state={aiState} />
       </div>
-    </PageTransition>
+
+      <div className="w-full relative min-h-[550px]">
+        <AnimatePresence mode="wait">
+          {isSuccess ? (
+            <motion.div
+              key="loader"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0"
+            >
+              <WorkspaceLoader onComplete={handleLoaderComplete} />
+            </motion.div>
+          ) : !selectedRole ? (
+            <motion.div
+              key="selector"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="absolute inset-0"
+            >
+              <RoleSelector mode="register" onSelect={setSelectedRole} />
+              
+              <div className="text-center text-sm mt-8">
+                <span className="text-muted-foreground">Already have an account? </span>
+                <Link
+                  to="/auth/login"
+                  className="font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="absolute inset-0"
+            >
+              <button 
+                onClick={() => setSelectedRole(null)}
+                className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back to roles
+              </button>
+              
+              <div className="space-y-2 mb-6">
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                  {selectedRole === 'admin' ? 'Admin Registration' : 'User Registration'}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {selectedRole === 'admin' 
+                    ? 'Enter your details to create a new workspace'
+                    : 'Enter your details and invitation code to join'}
+                </p>
+              </div>
+
+              {selectedRole === 'admin' ? (
+                <AdminRegisterForm 
+                  onFocusChange={handleFocusChange}
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                />
+              ) : (
+                <UserRegisterForm 
+                  onFocusChange={handleFocusChange}
+                  onSuccess={handleSuccess}
+                  onError={handleError}
+                />
+              )}
+
+              <div className="text-center text-sm mt-6">
+                <span className="text-muted-foreground">Already have an account? </span>
+                <Link
+                  to="/auth/login"
+                  className="font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
   )
 }

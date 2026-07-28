@@ -38,4 +38,4 @@ This checklist is the mandatory Go-Live approval document before deploying v1.0.
 ## 7. Compliance & Certification
 - [ ] Stage 1 Release Assets verified
 - [ ] All Runbooks generated and accessible to SRE team
-- [ ] `PRODUCTION_BASELINE_MANIFEST.md` signed and frozen
+- [ ] `production-baseline-manifest.md` signed and frozen

@@ -76,10 +76,10 @@ apiClient.interceptors.response.use(
           if (refreshError || !refreshData.session) throw refreshError
 
           const newToken = refreshData.session.access_token
-          useAuthStore.getState().setAuth(
-            useAuthStore.getState().user!,
-            newToken,
-          )
+          const currentUser = useAuthStore.getState().user;
+          if (currentUser) {
+            useAuthStore.getState().setAuth(currentUser, newToken);
+          }
           processRefreshQueue(newToken)
           originalRequest.headers.Authorization = `Bearer ${newToken}`
           return apiClient(originalRequest)

@@ -61,22 +61,46 @@ class StreamingGroundedGenerationService:
             )
             return
 
-        # Simulate or execute LLM streaming
         if self.llm_provider and hasattr(self.llm_provider, "generate_stream"):
             full_text = ""
             chunk_idx = 0
-            async for delta in self.llm_provider.generate_stream(
-                request.query, evidence_block
-            ):
-                full_text += delta
-                yield StreamingGenerationChunkDTO(
-                    chunk_index=chunk_idx,
-                    text_delta=delta,
-                    is_final=False,
+            try:
+                async for delta in self.llm_provider.generate_stream(
+                    request.query, evidence_block
+                ):
+                    full_text += delta
+                    yield StreamingGenerationChunkDTO(
+                        chunk_index=chunk_idx,
+                        text_delta=delta,
+                        is_final=False,
+                        correlation_id=request.correlation_id,
+                    )
+                    chunk_idx += 1
+                    await asyncio.sleep(0.01)
+            except Exception as exc:
+                logger.error(
+                    "LLM generation failed during stream",
+                    error=str(exc),
                     correlation_id=request.correlation_id,
                 )
-                chunk_idx += 1
-                await asyncio.sleep(0.01)
+                
+                from backend.core.exceptions import LLMProviderException
+                
+                error_msg = "\n[Error: Unable to generate a response right now. Please try again shortly.]"
+                if isinstance(exc, LLMProviderException):
+                    if exc.status_code in (429, 502, 503):
+                        error_msg = "\n[Error: AI service is temporarily busy. Please try again in a few moments.]"
+                    elif exc.status_code in (504,) or "timeout" in str(exc).lower():
+                        error_msg = "\n[Error: The request is taking longer than expected. Retrying automatically...]"
+
+                yield StreamingGenerationChunkDTO(
+                    chunk_index=chunk_idx,
+                    text_delta=error_msg,
+                    is_final=True,
+                    correlation_id=request.correlation_id,
+                    is_fully_grounded=False,
+                )
+                return
         else:
             # Deterministic mock streaming fallback
             parts = []
@@ -107,7 +131,9 @@ class StreamingGroundedGenerationService:
 
         # Final chunk with evaluated citations and grounding status
         citations = self.citation_extractor.extract(full_text, safe_chunks)
-        is_grounded = self.citation_extractor.check_grounding(full_text, citations)
+        is_grounded = self.citation_extractor.check_grounding(
+            full_text, citations, safe_chunks
+        )
 
         yield StreamingGenerationChunkDTO(
             chunk_index=chunk_idx,

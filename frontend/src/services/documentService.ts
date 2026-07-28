@@ -13,9 +13,13 @@ export const documentService = {
   async uploadDocument(
     file: File,
     onProgress?: (percent: number) => void,
+    relativePath?: string,
   ): Promise<UploadResponse> {
     const formData = new FormData()
     formData.append('file', file)
+    if (relativePath) {
+      formData.append('relative_path', relativePath)
+    }
 
     const response = await apiClient.post<SuccessResponse<UploadResponse>>(
       '/documents/upload',

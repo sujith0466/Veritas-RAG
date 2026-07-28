@@ -4,12 +4,12 @@ import type {
   ChunkDetailResponse,
   ChunkListResponse,
   ChunkMetricsDTO,
-  StrategyInfoDTO,
+  StrategyDiscoveryDTO,
 } from '@/types'
 
 export const chunkService = {
-  async listStrategies(): Promise<StrategyInfoDTO[]> {
-    return get<StrategyInfoDTO[]>('/chunks/strategies')
+  async listStrategies(): Promise<StrategyDiscoveryDTO> {
+    return get<StrategyDiscoveryDTO>('/chunks/strategies')
   },
 
   async getMetrics(documentId?: string): Promise<ChunkMetricsDTO> {

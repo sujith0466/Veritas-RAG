@@ -8,6 +8,7 @@ class OpenRouterSettings(BaseSettings):
     """OpenRouter API configuration."""
 
     api_key: str = Field(default="", alias="OPENROUTER_API_KEY", repr=False)
+    openai_api_key_fallback: str = Field(default="", alias="OPENAI_API_KEY", repr=False)
     base_url: str = Field(
         default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL"
     )
@@ -31,6 +32,18 @@ class OpenRouterSettings(BaseSettings):
         "env_file": (".env", ".env.local"),
         "extra": "ignore",
     }
+
+    @property
+    def resolved_api_key(self) -> str:
+        """Resolve API key using OPENROUTER_API_KEY or fallback to OPENAI_API_KEY."""
+        if self.api_key:
+            return self.api_key
+        if self.openai_api_key_fallback and self.openai_api_key_fallback.startswith("sk-or-v1-"):
+            import structlog
+            logger = structlog.get_logger("backend.core.config.openrouter")
+            logger.warning("Using OPENAI_API_KEY for OpenRouter authentication. Please migrate to OPENROUTER_API_KEY in .env")
+            return self.openai_api_key_fallback
+        return ""
 
     @property
     def models(self) -> list[str]:

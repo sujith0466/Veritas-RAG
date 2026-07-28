@@ -1,11 +1,22 @@
 export interface StrategyInfoDTO {
-  name: string
+  id: string
   display_name: string
   description: string
+  status: string
+  recommended: boolean
+  available: boolean
+  coming_in?: string | null
+  requires: string[]
+  icon?: string | null
   supported_mime_types: string[]
   default_max_characters: number
   default_overlap_characters: number
-  is_placeholder: boolean
+}
+
+export interface StrategyDiscoveryDTO {
+  supported: StrategyInfoDTO[]
+  experimental: StrategyInfoDTO[]
+  disabled: StrategyInfoDTO[]
 }
 
 export interface ChunkRelationshipDTO {

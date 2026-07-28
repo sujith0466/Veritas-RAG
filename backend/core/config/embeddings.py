@@ -17,7 +17,7 @@ class EmbeddingSettings(BaseSettings):
         default="embed-multilingual-v3.0", alias="COHERE_EMBEDDING_MODEL"
     )
     local_model: str = Field(
-        default="BAAI/bge-large-en-v1.5", alias="LOCAL_EMBEDDING_MODEL"
+        default="all-MiniLM-L6-v2", alias="LOCAL_EMBEDDING_MODEL"
     )
     batch_size: int = Field(default=100, alias="EMBEDDING_BATCH_SIZE")
 

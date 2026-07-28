@@ -40,6 +40,8 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         self._offline = offline if offline is not None else settings.app.is_testing
         self._st_model: Any | None = None
         self._st_attempted = False
+        import threading
+        self._lock = threading.Lock()
 
     @property
     def dimension(self) -> int:
@@ -57,24 +59,31 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         if self._st_attempted:
             return None
 
-        self._st_attempted = True
-        try:
-            from sentence_transformers import SentenceTransformer
+        with self._lock:
+            # Double-check locking inside the lock
+            if self._st_model is not None:
+                return self._st_model
+            if self._st_attempted:
+                return None
+                
+            self._st_attempted = True
+            try:
+                from sentence_transformers import SentenceTransformer
 
-            self._st_model = SentenceTransformer(self._model)
-            logger.info("local_sentence_transformer_loaded", model=self._model)
-            return self._st_model
-        except ImportError:
-            logger.debug(
-                "sentence_transformers_missing_using_deterministic_simulation",
-                model=self._model,
-            )
-            return None
-        except Exception as exc:
-            logger.warning(
-                "local_model_load_failed_using_deterministic_simulation", error=str(exc)
-            )
-            return None
+                self._st_model = SentenceTransformer(self._model)
+                logger.info("local_sentence_transformer_loaded", model=self._model)
+                return self._st_model
+            except ImportError:
+                logger.debug(
+                    "sentence_transformers_missing_using_deterministic_simulation",
+                    model=self._model,
+                )
+                return None
+            except Exception as exc:
+                logger.warning(
+                    "local_model_load_failed_using_deterministic_simulation", error=str(exc)
+                )
+                return None
 
     def _generate_deterministic_vector(self, text: str) -> list[float]:
         """Generate a deterministic unit-normalized pseudo-vector from text SHA-256 hash."""

@@ -1,6 +1,7 @@
 """Infrastructure exceptions for downstream service failures."""
 
 from http import HTTPStatus
+from typing import Any
 
 from .base import InfrastructureException
 
@@ -63,3 +64,7 @@ class LLMProviderException(ExternalServiceException):
 
     error_code = "EXT_002"
     default_message = "LLM provider request failed"
+
+    def __init__(self, message: str | None = None, detail: dict[str, Any] | None = None, status_code: int | None = None) -> None:
+        super().__init__(message=message, detail=detail)
+        self.status_code = status_code

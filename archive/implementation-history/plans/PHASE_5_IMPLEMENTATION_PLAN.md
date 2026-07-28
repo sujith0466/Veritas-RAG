@@ -1,4 +1,4 @@
-# PHASE_5_IMPLEMENTATION_PLAN.md
+# phase-5-implementation-plan.md
 # RAGuard AI — Phase 5: Hybrid Retrieval Engine (Production Grade)
 
 **Version**: 1.0.0  
@@ -1035,7 +1035,7 @@ graph TD
 
 - `walkthrough.md`: Phase 5 section.
 - `task.md`: Phase 5 milestones.
-- `README.md`: Progress tracker update (6/23 stages).
+- `readme.md`: Progress tracker update (6/23 stages).
 - `docs/ADR/`: ADR-P5-001 (FilterDSL), ADR-P5-002 (Context Compression), ADR-P5-003 (DedupEngine).
 
 ---

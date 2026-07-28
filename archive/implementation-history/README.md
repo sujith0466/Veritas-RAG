@@ -20,4 +20,4 @@ audit, reference, and compliance verification.
 ## Official Release Documentation
 
 Final certification documents remain in:
-  docs/certification/  (root-accessible)
+  docs/Certification/  (root-accessible)
