@@ -6,8 +6,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Replace with your actual supabase url and anon key or read from .env
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://ypzntvkfwidqrfcikuwq.supabase.co")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+if not SUPABASE_URL:
+    raise RuntimeError("SUPABASE_URL is required. Configure it in your environment before running verify_e2e.py.")
+
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 API_URL = "http://localhost:8000"
 
@@ -51,7 +53,11 @@ async def main():
         print("4. Verifying Authentication (demo@gmail.com) ...", end="")
         import jwt
         import time
-        JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "a3495afb-fdc7-4f58-8498-185c3168368f")
+        JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+        if not JWT_SECRET:
+            raise RuntimeError(
+                "SUPABASE_JWT_SECRET is required. Configure it in your environment before running verify_e2e.py."
+            )
         payload = {
             "sub": "00000000-0000-0000-0000-000000000000",
             "email": "demo@gmail.com",
