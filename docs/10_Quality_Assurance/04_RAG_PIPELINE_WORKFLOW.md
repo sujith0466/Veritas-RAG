@@ -6,7 +6,7 @@ This document certifies the core Retrieval-Augmented Generation (RAG) capabiliti
 ## Workflow Phases
 1. **Document Deletion (`/api/v1/documents/{doc_id}`)**: Validated clean state cleanup including all DB chunks, DB embeddings, Qdrant vectors, and document metadata.
 2. **Retrieval Search**: Verified `search_points` executes with correct exact-match payload filters (tenant_id).
-3. **Connection Pooling under Load**: Async SQLAlchemy engine utilizes `QueuePool` allowing for high volume querying without starving the PostgreSQL server connections (`EMAXCONNSESSION`).
+3. **Connection Pooling under Load**: Async SQLAlchemy engine utilizes `QueuePool` on the API layer for high volume querying without starving the PostgreSQL server connections, while Celery workers utilize `NullPool` to bypass pre-fork thread-loop Future attachment issues.
 4. **Qdrant Resilience**: `AsyncQdrantClient` handles multiple connection pools safely separated by their executing asyncio loops, ensuring no cross-thread event loop closure errors under async load.
 
 ## Validation Strategy

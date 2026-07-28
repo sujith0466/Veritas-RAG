@@ -73,13 +73,22 @@ All environment variables across the stack were inspected and validated via `.en
 ---
 
 ## 7. Connection Pool Verification (Runtime)
+
+The application utilizes a **hybrid connection pooling architecture**:
+
+### API Layer
 - **Pool Class**: `AsyncAdaptedQueuePool`
 - **Pool Size**: 10
 - **Max Overflow**: 5
 - **Pool Timeout**: 30
 - **Pool Recycle**: 1800
 - **Pool Pre Ping**: True
-- **Conclusion**: The connection pooling is correctly bounded to 15 concurrent connections total, strictly respecting PgBouncer/Supabase session limitations.
+
+### Celery Worker Layer
+- **Pool Class**: `NullPool`
+- **Reasoning**: Celery uses a pre-fork concurrency model (`asyncio.run()` per task). Connection pools do not serialize safely across forks or event loops. `NullPool` creates a transient connection per task, which is efficiently managed by PgBouncer externally, avoiding `EMAXCONNSESSION` pool exhaustion across workers.
+
+- **Conclusion**: The connection pooling correctly limits the API to 15 concurrent connections while allowing Celery workers to use PgBouncer securely via `NullPool`.
 
 ---
 
