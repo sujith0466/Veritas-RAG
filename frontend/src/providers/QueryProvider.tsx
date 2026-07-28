@@ -10,7 +10,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 1000 * 30, // 30 seconds
-            retry: (failureCount, error) => {
+            retry: (failureCount: number, error: any) => {
               if (error instanceof ApiError) {
                 // Do not retry Auth or Validation errors
                 if (error.isAuthError() || error.isValidationError()) {
