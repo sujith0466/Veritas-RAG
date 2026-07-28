@@ -400,7 +400,7 @@ types-redis==4.6.0.20241004
 types-setuptools==83.0.0.20260716
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-tzdata==2025.2
+tzdata==2026.3
 tzlocal==5.4.3
 uritemplate==4.2.0
 urllib3==2.4.0
