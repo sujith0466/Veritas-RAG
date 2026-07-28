@@ -106,7 +106,7 @@ Phase 4 relies heavily on domain events emitted during Phases 2 & 3:
 - `backend/core/telemetry/opentelemetry_setup.py`
 - `backend/core/telemetry/prometheus_metrics.py`
 - `backend/api/v1/metrics_router.py`
-- `docs/04_Architecture/Phase4/grafana_dashboards/raguard_dashboard.json`
+- `docs/architecture/Phase4/grafana_dashboards/raguard_dashboard.json`
 
 ## 6. Testing Strategy
 - **Unit Tests**: Full coverage for Analytics aggregations, Report Generation logic, and Trace logging.

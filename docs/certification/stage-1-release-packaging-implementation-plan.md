@@ -36,7 +36,7 @@ Stage 1 transforms the fully completed, 24-phase RAGuard AI backend into a polis
 ### Documentation (28 files)
 | # | File | Location |
 |---|------|----------|
-| 1 | `README.md` | `/` (root) |
+| 1 | `readme.md` | `/` (root) |
 | 2 | `PROJECT_OVERVIEW.md` | `/docs/` |
 | 3 | `HIGH_LEVEL_ARCHITECTURE.md` | `/docs/` |
 | 4 | `LOW_LEVEL_ARCHITECTURE.md` | `/docs/` |
@@ -54,14 +54,14 @@ Stage 1 transforms the fully completed, 24-phase RAGuard AI backend into a polis
 | 16 | `OBSERVABILITY_GUIDE.md` | `/docs/` |
 | 17 | `TROUBLESHOOTING_GUIDE.md` | `/docs/` |
 | 18 | `FAQ.md` | `/docs/` |
-| 19 | `CHANGELOG.md` | `/` (root) |
-| 20 | `RELEASE_NOTES.md` | `/` (root) |
-| 21 | `ROADMAP.md` | `/` (root) |
+| 19 | `changelog.md` | `/` (root) |
+| 20 | `release-notes.md` | `/` (root) |
+| 21 | `roadmap.md` | `/` (root) |
 | 22 | `LICENSE` | `/` (root) |
-| 23 | `SECURITY.md` | `/` (root) |
-| 24 | `SUPPORT.md` | `/` (root) |
-| 25 | `CONTRIBUTING.md` | `/` (root) |
-| 26 | `CODE_OF_CONDUCT.md` | `/` (root) |
+| 23 | `security.md` | `/` (root) |
+| 24 | `support.md` | `/` (root) |
+| 25 | `contributing.md` | `/` (root) |
+| 26 | `code-of-conduct.md` | `/` (root) |
 | 27 | `.github/ISSUE_TEMPLATE/` (2 templates) | `.github/` |
 | 28 | `.github/PULL_REQUEST_TEMPLATE.md` | `.github/` |
 
@@ -83,7 +83,7 @@ Stage 1 transforms the fully completed, 24-phase RAGuard AI backend into a polis
 - `.github/workflows/ci.yml` (pytest + ruff + docker build)
 - `.github/workflows/release.yml` (tag-triggered release)
 - `scripts/start.sh`, `scripts/stop.sh`
-- `RELEASE_CHECKLIST.md`
+- `release-checklist.md`
 
 ### Engineering History Archive
 - `archive/implementation-history/scripts/` — all `impl_m*.py` scripts
@@ -144,7 +144,7 @@ Stage 1 transforms the fully completed, 24-phase RAGuard AI backend into a polis
 ### Milestone 4 — Branding & Portfolio Assets
 - Generate project banner, architecture overview, and workflow diagrams (using `generate_image` tool).
 - Write `docs/portfolio/EXECUTIVE_SUMMARY.md` and `TECHNICAL_HIGHLIGHTS.md`.
-- Add version/build/license badges to `README.md`.
+- Add version/build/license badges to `readme.md`.
 
 ### Milestone 5 — Final Validation, Certification & Freeze
 - Run `pytest tests/` (419+ tests must pass).
@@ -152,7 +152,7 @@ Stage 1 transforms the fully completed, 24-phase RAGuard AI backend into a polis
 - Validate all documentation links.
 - Validate `.env.example` completeness against config classes.
 - Generate `FINAL_RELEASE_CERTIFICATION_REPORT.md`.
-- Generate `RELEASE_CHECKLIST.md` (fully signed off).
+- Generate `release-checklist.md` (fully signed off).
 - Git commit, tag `v1.0.0`, and declare Repository Frozen.
 
 ---

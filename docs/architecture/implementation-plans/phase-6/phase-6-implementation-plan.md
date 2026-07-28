@@ -1,4 +1,4 @@
-# PHASE_6_IMPLEMENTATION_PLAN.md
+# phase-6-implementation-plan.md
 # RAGuard AI — Phase 6: Retrieval Reliability & Confidence Engine (Production Grade)
 
 **Version**: 1.0.0  

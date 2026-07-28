@@ -9,7 +9,7 @@ This directory contains the required documentation deliverables for Round-1 of t
 - `Solution-Overview.md`: A high-level overview explaining how RAGuard AI approaches the problem and its proposed solution.
 - `Selected-Problem-Statement.md`: The official problem statement selected for this project.
 - `ROUND1_DELIVERABLES_CHECKLIST.md`: A checklist tracking the completion and submission readiness of Round-1 deliverables.
-- `README.md`: This file, providing an index and status of the deliverables.
+- `readme.md`: This file, providing an index and status of the deliverables.
 
 ## Submission Status
 **Status**: Ready for Round-1 submission backup.

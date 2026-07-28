@@ -118,6 +118,6 @@ make reset      # docker compose down -v && clean data
 ## 7. Next Steps & Architecture Guidance
 
 Now that your local environment is live:
-1. Review `infrastructure/docs/infrastructure_contract.md` to understand our three-tier health checks and container security rules.
-2. Review `infrastructure/docs/environment_guide.md` to understand how `.env.local` overrides default Pydantic settings.
+1. Review `infrastructure/docs/infrastructure-contract.md` to understand our three-tier health checks and container security rules.
+2. Review `infrastructure/docs/environment-guide.md` to understand how `.env.local` overrides default Pydantic settings.
 3. If you encounter port conflicts or volume errors, consult `infrastructure/docs/troubleshooting.md`.
