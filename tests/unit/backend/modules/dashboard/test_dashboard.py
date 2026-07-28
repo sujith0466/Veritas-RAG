@@ -37,11 +37,15 @@ async def test_get_knowledge_intelligence_summary() -> None:
     )
     mock_scan_res.scalars.return_value.all.return_value = [mock_scan]
 
+    mock_doc_res = MagicMock()
+    mock_doc_res.first.return_value = (5, 5, 0)
+    
     mock_session.execute = AsyncMock(side_effect=[
         mock_chunk_res,
         mock_strat_res,
         mock_emb_res,
         mock_scan_res,
+        mock_doc_res,
     ])
 
     service = DashboardService(session=mock_session)
@@ -56,7 +60,7 @@ async def test_get_knowledge_intelligence_summary() -> None:
     assert summary.parity_audit_status == "PARITY_CONFIRMED"
     assert len(summary.recent_health_scans) == 1
     assert len(summary.stage_latencies) == 4
-    assert mock_session.execute.call_count == 4
+    assert mock_session.execute.call_count == 5
 
 
 @pytest.mark.asyncio

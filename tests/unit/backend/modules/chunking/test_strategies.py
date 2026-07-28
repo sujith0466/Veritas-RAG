@@ -108,7 +108,7 @@ class TestChunkingStrategies:
 
     def test_semantic_chunk_splitter_placeholder_raises_m2_error(self) -> None:
         splitter = SemanticChunkSplitterPlaceholder()
-        assert splitter.strategy_info.is_placeholder is True
+        assert splitter.strategy_info.status == "experimental"
         with pytest.raises(ChunkStrategyNotFound) as exc_info:
             splitter.split_text("Some text")
         assert "requires dense embedding vectors from the Milestone 2 Embedding Pipeline" in str(exc_info.value)
@@ -132,6 +132,7 @@ class TestChunkingStrategies:
             factory.get_splitter("unsupported_magic_strategy")
 
         infos = factory.list_strategies()
-        assert len(infos) == 7
-        names = {i.name for i in infos}
-        assert names == {"recursive", "markdown", "sentence", "paragraph", "table", "code", "semantic"}
+        all_infos = infos.supported + infos.experimental + infos.disabled
+        assert len(all_infos) == 8
+        names = {i.id for i in all_infos}
+        assert names == {"recursive", "markdown", "sentence", "paragraph", "table", "code", "semantic", "fixed_size"}

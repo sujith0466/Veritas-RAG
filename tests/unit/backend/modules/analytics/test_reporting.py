@@ -99,7 +99,9 @@ async def test_reporting_endpoints(mock_analytics_service):
     mock_req = MagicMock()
     mock_req.state.correlation_id = "test-corr-id"
     mock_db = AsyncMock()
-    auth = {"role": "analyst"}
+    auth = MagicMock()
+    auth.role = "analyst"
+    auth.tenant_id = "tenant_123"
 
     # 1. Export Report
     export_res = await export_enterprise_report(

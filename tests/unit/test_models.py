@@ -14,7 +14,7 @@ class TestEntityModels:
         assert user.email == "architect@raguard.ai"
         assert user.role == "admin"
         assert user.is_active is True
-        assert repr(user) == f"<User(id={user.id}, email='architect@raguard.ai', role='admin')>"
+        assert repr(user) == f"<User(id={user.id}, email='architect@raguard.ai', role='admin', tenant_id='None')>"
 
         # Verify ORM column default definitions for INSERT
         role_col = User.__table__.columns["role"]

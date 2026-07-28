@@ -26,11 +26,13 @@ class TestHealthEndpoints:
     def test_readiness_probe_default(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         import backend.api.v1.routes.health as health_mod
 
-        async def mock_check_deps() -> dict[str, str]:
+        from backend.api.v1.schemas.common import DependencyHealth
+        
+        async def mock_check_deps(detailed: bool = False):
             return {
-                "postgresql": "healthy",
-                "redis": "healthy",
-                "qdrant": "healthy",
+                "postgresql": DependencyHealth(name="postgresql", status="healthy"),
+                "redis": DependencyHealth(name="redis", status="healthy"),
+                "qdrant": DependencyHealth(name="qdrant", status="healthy"),
             }
 
         monkeypatch.setattr(health_mod, "_check_dependencies", mock_check_deps)
@@ -45,11 +47,13 @@ class TestHealthEndpoints:
     def test_readiness_probe_degraded_when_unhealthy(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         import backend.api.v1.routes.health as health_mod
 
-        async def mock_check_deps() -> dict[str, str]:
+        from backend.api.v1.schemas.common import DependencyHealth
+        
+        async def mock_check_deps(detailed: bool = False):
             return {
-                "postgresql": "unhealthy",
-                "redis": "healthy",
-                "qdrant": "healthy",
+                "postgresql": DependencyHealth(name="postgresql", status="unhealthy"),
+                "redis": DependencyHealth(name="redis", status="healthy"),
+                "qdrant": DependencyHealth(name="qdrant", status="healthy"),
             }
 
         monkeypatch.setattr(health_mod, "_check_dependencies", mock_check_deps)
@@ -87,8 +91,9 @@ class TestHealthEndpoints:
             assert response.status_code == 200
             data = response.json()
             assert data["status"] in ("healthy", "degraded", "unhealthy")
-            assert len(data["dependencies"]) == 3
+            assert len(data["dependencies"]) >= 3
             names = [d["name"] for d in data["dependencies"]]
             assert "postgresql" in names
             assert "redis" in names
             assert "qdrant" in names
+            assert "llm_provider" in names

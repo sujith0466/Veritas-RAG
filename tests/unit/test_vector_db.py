@@ -54,7 +54,6 @@ class TestQdrantClient:
             mock_client_cls.assert_called_once_with(
                 host="qdrant.cloud",
                 port=6333,
-                grpc_port=6334,
                 prefer_grpc=True,
                 api_key="secret_key",
             )

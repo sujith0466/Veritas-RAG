@@ -204,8 +204,12 @@ async def test_auth_service_idempotent_sync_first_login():
         mock_create.assert_called_once_with(
             supabase_user_id="new-supabase-id",
             email="newuser@raguard.ai",
-            role="engineer",
+            role=Role.ENGINEER.value,
             is_active=True,
+            tenant_id=None,
+            workspace_name=None,
+            profile_data={},
+            workspace_settings={},
         )
         mock_audit.assert_called_once()
 

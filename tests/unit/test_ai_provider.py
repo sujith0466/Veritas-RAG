@@ -189,20 +189,23 @@ class TestOpenRouterProvider:
         mock_http = MagicMock(spec=AsyncClient)
         mock_response = MagicMock(spec=Response)
         mock_response.status_code = 200
+        
+        provider = OpenRouterProvider(http_client=mock_http)
+        expected_model = provider._settings.models[0]
+        
         mock_response.json.return_value = {
-            "model": "anthropic/claude-3.5-sonnet",
+            "model": expected_model,
             "choices": [{"message": {"content": "OpenRouter summary output"}}],
             "usage": {"prompt_tokens": 12, "completion_tokens": 25},
         }
         mock_http.post.return_value = mock_response
 
-        provider = OpenRouterProvider(http_client=mock_http)
         resp = await provider.generate(LLMRequest(prompt="Summarize"))
 
         assert resp.content == "OpenRouter summary output"
         assert resp.input_tokens == 12
         assert resp.output_tokens == 25
-        assert resp.model_used == "anthropic/claude-3.5-sonnet"
+        assert resp.model_used == expected_model
 
     @pytest.mark.asyncio
     async def test_generate_api_error_raises(self) -> None:

@@ -79,7 +79,7 @@ class TestDatabaseSettings:
 @pytest.mark.unit
 class TestRedisSettings:
     def test_url_properties(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("REDIS_URL", raising=False)
+        monkeypatch.setenv("REDIS_URL", "")
         monkeypatch.setenv("REDIS_HOST", "redis.local")
         monkeypatch.setenv("REDIS_PORT", "6380")
         monkeypatch.setenv("REDIS_PASSWORD", "secretpass")

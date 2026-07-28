@@ -33,6 +33,7 @@ class UserPreferencesSchema(BaseModel):
 class WorkspaceSettingsSchema(BaseModel):
     retention_policy: Optional[str] = Field(default=None, max_length=50)
     data_region: Optional[str] = Field(default=None, max_length=50)
+    onboarding_completed: Optional[bool] = Field(default=None)
 
     model_config = {"extra": "forbid"}
 
