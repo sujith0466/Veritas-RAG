@@ -1,4 +1,5 @@
 import { Database, Search, ShieldCheck, Building2, CheckCircle2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { SectionHeading } from '@/components/landing/SectionHeading'
 import { GlassCard } from '@/components/landing/GlassCard'
 import { Stagger } from '@/components/motion/Stagger'
@@ -47,9 +48,13 @@ export function CoreFeatures() {
           {FEATURE_CATEGORIES.map((category) => (
             <FadeUp key={category.title} yOffset={20}>
               <GlassCard padding="lg" interactive className="h-full flex flex-col bg-surface/50 backdrop-blur-xl border-white/10 shadow-glass">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 text-primary">
+                <motion.div
+                  className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 text-primary"
+                  whileHover={{ scale: 1.08 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
                   <category.icon className="w-6 h-6" />
-                </div>
+                </motion.div>
                 
                 <h3 className="text-xl font-bold text-foreground mb-3">{category.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-8 flex-1">

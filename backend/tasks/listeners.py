@@ -9,6 +9,7 @@ from backend.document.models.event_log import DocumentEventLog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from backend.core.config import get_settings
+from backend.document.models.status import DocumentStatus
 
 logger = structlog.get_logger(__name__)
 
@@ -37,7 +38,7 @@ async def handle_document_processed(event) -> None:
             version_id = str(doc.latest_version_id)
             
             # Update state to CHUNKING
-            doc.status = "CHUNKING"
+            doc.status = DocumentStatus.CHUNKING
             await session.commit()
             
             logger.info("Dispatching chunking task", document_id=document_id)
@@ -68,7 +69,7 @@ async def handle_chunking_completed(event) -> None:
             if not doc:
                 return
                 
-            doc.status = "EMBEDDING"
+            doc.status = DocumentStatus.EMBEDDING
             await session.commit()
             
             from backend.modules.embedding.repositories.embedding_repository import EmbeddingRepository
@@ -113,7 +114,7 @@ async def handle_embedding_completed(event) -> None:
             if not doc:
                 return
                 
-            doc.status = "VECTOR_SYNC"
+            doc.status = DocumentStatus.VECTOR_SYNC
             await session.commit()
             
             sync_vectors_to_qdrant_task.apply_async(
@@ -142,7 +143,7 @@ async def handle_vector_sync_completed(event) -> None:
             if not doc:
                 return
                 
-            doc.status = "READY"
+            doc.status = DocumentStatus.READY
             await session.commit()
             logger.info("Document is now READY for RAG", document_id=str(doc.id))
     except Exception as e:
@@ -157,3 +158,4 @@ def register_pipeline_listeners() -> None:
     dispatcher.subscribe(EventType.EMBEDDING_COMPLETED, handle_embedding_completed)
     dispatcher.subscribe(EventType.VECTORS_INDEXED, handle_vector_sync_completed)
     logger.info("RAG Pipeline Orchestrator event listeners registered.")
+

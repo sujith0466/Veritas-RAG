@@ -108,9 +108,13 @@ class RankedEvidenceDTO(BaseModel):
     rrf_score: float = Field(
         ..., description="Reciprocal Rank Fusion merged score (`ADR-M4-001`)."
     )
-    rerank_score: float | None = Field(
+    raw_rerank_score: float | None = Field(
         default=None,
-        description="Cross-encoder semantic reranker score (`None` if bypassed).",
+        description="Raw cross-encoder output score or logit (`None` if bypassed).",
+    )
+    normalized_relevance_score: float | None = Field(
+        default=None,
+        description="Provider-independent probability bounded [0,1] (`None` if bypassed).",
     )
     final_rank: int = Field(
         ..., ge=1, description="Final 1-indexed ordering after reranking."

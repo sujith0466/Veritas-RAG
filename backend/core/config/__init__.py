@@ -23,6 +23,8 @@ from .logging import LoggingSettings
 from .openrouter import OpenRouterSettings
 from .qdrant import QdrantSettings
 from .redis import RedisSettings
+from .retrieval import RetrievalSettings
+from .startup import StartupSettings
 from .security import SecuritySettings
 from .supabase import SupabaseSettings
 
@@ -48,6 +50,8 @@ class Settings:
         self.logging = LoggingSettings()
         self.features = FeatureFlagSettings()
         self.embeddings = EmbeddingSettings()
+        self.retrieval = RetrievalSettings()
+        self.startup = StartupSettings()
 
     @property
     def is_development(self) -> bool:
@@ -82,6 +86,7 @@ __all__ = [
     "OpenRouterSettings",
     "QdrantSettings",
     "RedisSettings",
+    "RetrievalSettings",
     "SecuritySettings",
     "ServerSettings",
     "Settings",

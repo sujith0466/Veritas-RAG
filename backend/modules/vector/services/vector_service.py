@@ -1,3 +1,4 @@
+from backend.document.models.status import DocumentStatus
 """Vector Storage Foundation Service (`VectorStorageService`).
 
 Orchestrates multi-tenant collection creation, exact payload index setup (`ADR-M3-001`),
@@ -264,7 +265,7 @@ class VectorStorageService:
                 .distinct()
             )
             cols = (await self.session.execute(stmt)).scalars().all()
-            col_list = list(cols) if cols else ["raguard_knowledge_1536"]
+            col_list = list(cols) if cols else [get_settings().qdrant.collection_name(tenant_id)]
 
         total_ops = 0
         for col in col_list:

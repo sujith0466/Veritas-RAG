@@ -58,13 +58,16 @@ export function DocumentList({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PROCESSED':
-        return <Badge variant="success">PROCESSED</Badge>
+      case 'READY':
+        return <Badge variant="success">{status}</Badge>
       case 'VALIDATING':
       case 'EXTRACTING':
       case 'RETRYING':
         return <Badge variant="warning" className="animate-pulse">{status}</Badge>
       case 'FAILED':
         return <Badge variant="destructive">FAILED</Badge>
+      case 'UPLOADED':
+      case 'PENDING':
       default:
         return <Badge variant="subtle">{status}</Badge>
     }

@@ -31,6 +31,7 @@ import { AnimatePresence } from 'framer-motion'
 import { MarketingThemeProvider } from '@/providers/MarketingThemeProvider'
 
 import { PostAuthenticationRouteResolver } from '@/components/auth/PostAuthenticationRouteResolver'
+import { BackendUnavailableBanner } from '@/components/auth'
 import { Outlet, useLocation } from 'react-router-dom'
 
 // ─── Route Guards ─────────────────────────────────────────────────────────────
@@ -39,6 +40,15 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   const status = useAuthStore((s) => s.status)
   const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
   const user = useAuthStore((s) => s.user)
+  const error = useAuthStore((s) => s.error)
+
+  if (status === 'ERROR') {
+    if (error?.code === 'BACKEND_UNAVAILABLE') {
+      return <BackendUnavailableBanner />
+    }
+    // For other generic/fatal errors where the user should log in again:
+    return <Navigate to="/auth/login" replace />
+  }
 
   if (status === 'LOADING') {
     return null
@@ -152,9 +162,14 @@ export const router = createBrowserRouter([
 // Helper component for AnimatePresence support across layout boundaries
 function OutletWithAnimation() {
   const location = useLocation()
+  
+  // Group chat routes under a single key to prevent unmounting during chat session navigation
+  // This prevents the chat streaming state from being destroyed when navigating from /chat to /chat/:id
+  const animationKey = location.pathname.startsWith('/chat') ? '/chat' : location.pathname
+
   return (
     <AnimatePresence mode="wait">
-      <Outlet key={location.pathname} />
+      <Outlet key={animationKey} />
     </AnimatePresence>
   )
 }

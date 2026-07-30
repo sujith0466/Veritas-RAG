@@ -105,7 +105,7 @@ class StreamingGroundedGenerationService:
             # Deterministic mock streaming fallback
             parts = []
             for i, chunk in enumerate(safe_chunks[:3], start=1):
-                content = chunk.get("content", "")
+                content = chunk.content or ""
                 period_pos = content.find(". ")
                 sentence = (
                     content[: period_pos + 1]

@@ -32,8 +32,18 @@ export interface TokenPayload {
   iat: number
 }
 
+export type AuthOperationalErrorCode = 'BACKEND_UNAVAILABLE' | 'PROFILE_SYNC_FAILED' | 'SERVICE_UNAVAILABLE'
+
+export interface AuthError {
+  code: AuthOperationalErrorCode
+  message: string
+  retryable: boolean
+  timestamp: number
+}
+
 export interface AuthState {
   status: AuthStatus
   user: UserContext | null
   token: string | null
+  error?: AuthError
 }

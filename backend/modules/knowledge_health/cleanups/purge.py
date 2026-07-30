@@ -1,3 +1,4 @@
+from backend.document.models.status import DocumentStatus
 """Two-Phase Transactional Purge Orchestrator (`ADR-M6-001`, `PurgeOrchestrator`).
 
 Ensures safe, atomic cleanup across PostgreSQL (`documents`, `document_chunks`) and
@@ -55,7 +56,7 @@ class PurgeOrchestrator:
         doc = (await self.session.execute(stmt)).scalar_one_or_none()
 
         if doc:
-            doc.status = "DELETED"
+            doc.status = DocumentStatus.DELETED
             doc.is_deleted = True
             await self.session.flush()
 

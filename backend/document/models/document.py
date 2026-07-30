@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.document.models.storage_object import StorageObject
+from backend.document.models.status import DocumentStatus
 from backend.models.base import BaseModel
 
 
@@ -29,7 +30,7 @@ class Document(BaseModel):
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(
-        String(50), index=True, default="PENDING", nullable=False
+        String(50), index=True, default=DocumentStatus.PENDING, nullable=False
     )
     latest_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True

@@ -78,6 +78,9 @@ qdrant_data/
 # Temporary and Output Directories
 tmp/
 scratch/
+test-results/
+playwright-report/
+playwright/.cache/
 archive/
 enterprise_demo_dataset/
 enterprise_demo_dataset.zip

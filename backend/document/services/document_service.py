@@ -1,3 +1,4 @@
+from backend.document.models.status import DocumentStatus
 """Document Domain Service (`DocumentService`).
 
 Orchestrates synchronous file upload processing, validation screening, physical artifact storage,
@@ -107,7 +108,7 @@ class DocumentService:
             filename=validation_result.sanitized_filename,
             original_filename=validation_result.original_filename,
             relative_path=relative_path,
-            status="UPLOADED",
+            status=DocumentStatus.UPLOADED,
             word_count=0,
             page_count=0,
         )
@@ -129,7 +130,7 @@ class DocumentService:
         job = ProcessingJob(
             document_id=document.id,
             version_id=version.id,
-            status="PENDING",
+            status=DocumentStatus.PENDING,
             current_step="upload",
             retry_count=0,
             max_retries=3,
@@ -204,7 +205,7 @@ class DocumentService:
         progress = status_map.get(doc.status, 15)
         
         # If it's still UPLOADED, use job progress if available, but cap it so it never exceeds PROCESSED
-        if doc.status == "UPLOADED" and job:
+        if doc.status == DocumentStatus.UPLOADED and job:
             job_step_progress = {
                 "upload": 10,
                 "validation": 20,
@@ -239,7 +240,7 @@ class DocumentService:
         versions_dto = [DocumentVersionDTO.model_validate(v) for v in doc.versions]
 
         manifest_dto: DocumentManifestDTO | None = None
-        if doc.status == "PROCESSED" and doc.versions:
+        if doc.status == DocumentStatus.PROCESSED and doc.versions:
             latest_version = max(doc.versions, key=lambda v: v.version_number)
             manifest_key = get_versioned_path(
                 tenant_id=doc.tenant_id,

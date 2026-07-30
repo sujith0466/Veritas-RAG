@@ -22,7 +22,7 @@ export function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
+      setScrolled(window.scrollY > 70)
       
       // Update active section
       const sections = ['platform', 'security', 'features', 'architecture']
@@ -76,7 +76,7 @@ export function Navbar() {
       className={cn(
         "fixed top-0 inset-x-0 z-50 transition-all duration-500",
         scrolled 
-          ? "bg-background/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] py-3" 
+          ? "bg-background/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_40px_rgba(0,0,0,0.15)] py-3" 
           : "bg-transparent py-6 border-b border-transparent"
       )}
     >

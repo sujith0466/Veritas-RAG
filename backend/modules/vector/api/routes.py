@@ -1,3 +1,4 @@
+from backend.core.config import get_settings
 """Vector Storage Foundation REST API routes (`/api/v1/vectors`).
 
 Provides endpoints for triggering asynchronous batch vector synchronization (`POST /sync/{version_id}`),
@@ -54,7 +55,7 @@ async def sync_document_vectors(
 ) -> SuccessResponse[VectorIndexMetadataDTO]:
     """Queue background Celery task to sync staged `ChunkEmbedding` arrays to Qdrant points (`ADR-M3-001`)."""
     try:
-        target_col = request_dto.collection_name or "raguard_knowledge_1536"
+        target_col = request_dto.collection_name or get_settings().qdrant.collection_name(tenant_id)
         metadata = await repo.get_or_create_metadata(
             tenant_id=tenant_id,
             document_id=request_dto.document_id,

@@ -1,3 +1,4 @@
+from backend.document.models.status import DocumentStatus
 """Upload endpoint response and session schemas."""
 
 import uuid
@@ -12,7 +13,7 @@ class UploadResponse(BaseModel):
     document_id: uuid.UUID = Field(description="Unique document aggregate ID")
     version_id: uuid.UUID = Field(description="Version record ID")
     job_id: uuid.UUID = Field(description="Background processing job tracking ID")
-    status: str = Field(default="PENDING", description="Initial processing status")
+    status: str = Field(default=DocumentStatus.PENDING, description="Initial processing status")
     filename: str = Field(description="Sanitized storage filename")
     original_filename: str = Field(description="Original user-provided filename")
     file_size_bytes: int = Field(description="File size in bytes")

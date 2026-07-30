@@ -1,0 +1,2 @@
+This is a test document uploaded by Playwright E2E automation.
+It contains some basic knowledge about RAGuard Enterprise QA validation.

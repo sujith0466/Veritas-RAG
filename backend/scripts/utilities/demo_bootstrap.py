@@ -14,6 +14,8 @@ from pathlib import Path
 
 import httpx
 
+from backend.core.config import get_settings
+
 # The Enterprise Data to ingest
 DOCUMENTS = {
     "hr_policy.txt": (
@@ -227,7 +229,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
                         emb_status = "PENDING"
                         emb_attempts = 0
                         while emb_status not in ("COMPLETED", "FAILED") and emb_attempts < 30:
-                            e_resp = await client.get(f"/api/v1/embeddings/jobs/{job_id}", headers=headers)
+                            e_resp = await client.get(f"/api/v1/embeddings/jobs/{job_id}", headers=headers, timeout=120.0)
                             if e_resp.status_code == 200:
                                 emb_status = e_resp.json()["data"]["status"]
                             await asyncio.sleep(2)
@@ -245,7 +247,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
                     print(f"Triggering vector sync for {doc_id}...")
                     sync_payload = {
                         "document_id": doc_id,
-                        "collection_name": "raguard_knowledge_1024"
+                        "collection_name": get_settings().qdrant.collection_name(tenant_id)
                     }
                     resp = await client.post(f"/api/v1/vectors/sync/{version_id}", headers=headers, json=sync_payload)
                     if resp.status_code == 202:

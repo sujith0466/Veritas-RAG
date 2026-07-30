@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Minus } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { SectionHeading } from '@/components/landing/SectionHeading'
 import { FadeUp } from '@/components/motion/FadeUp'
 import { Stagger } from '@/components/motion/Stagger'
@@ -60,9 +60,13 @@ export function FAQ() {
                     className="w-full flex items-center justify-between p-6 text-left focus:outline-none focus-visible:bg-surface-elevated transition-colors"
                   >
                     <span className="font-medium text-foreground">{faq.question}</span>
-                    <span className="text-muted-foreground shrink-0 ml-4">
-                      {isOpen ? <Minus className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-                    </span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.3, ease: 'easeOut' }}
+                      className="text-muted-foreground shrink-0 ml-4 flex items-center justify-center"
+                    >
+                      <ChevronDown className="w-5 h-5" />
+                    </motion.span>
                   </button>
                   
                   <AnimatePresence initial={false}>

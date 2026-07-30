@@ -1,3 +1,4 @@
+from backend.document.models.status import DocumentStatus
 """Celery Ingestion Worker (`process_document_job`).
 
 Runs asynchronous document ingestion tasks on the dedicated `ingestion` queue.
@@ -121,7 +122,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
 
             # ── Stage 1: Validation ──────────────────────────────────────────────
             t0 = time.perf_counter()
-            doc.status = "VALIDATING"
+            doc.status = DocumentStatus.VALIDATING
             job.current_step = "validation"
             job.status = "VALIDATING"
             await session.commit()
@@ -161,7 +162,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
 
             # ── Stage 2: Extraction ──────────────────────────────────────────────
             t1 = time.perf_counter()
-            doc.status = "EXTRACTING"
+            doc.status = DocumentStatus.EXTRACTING
             job.current_step = "extraction"
             job.status = "EXTRACTING"
             await session.commit()
@@ -211,7 +212,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             # ── Stage 3: OCR Fallback (if required) ──────────────────────────────
             if extracted.needs_ocr:
                 t2 = time.perf_counter()
-                doc.status = "OCR"
+                doc.status = DocumentStatus.OCR
                 job.current_step = "ocr"
                 await session.commit()
 
@@ -280,7 +281,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             await session.commit()
 
             # ── Stage 5: Canonical Manifest Generation ───────────────────────────
-            doc.status = "MANIFEST_GENERATING"
+            doc.status = DocumentStatus.MANIFEST_GENERATING
             job.current_step = "manifest"
             await session.commit()
 
@@ -320,7 +321,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             # ── Stage 6: Contract Verification & Final Transition ────────────────
             await DocumentProcessingContract.verify(doc, version, storage)
 
-            doc.status = "PROCESSED"
+            doc.status = DocumentStatus.PROCESSED
             doc.word_count = extracted.word_count
             doc.page_count = extracted.page_count
             doc.language = extracted.language
@@ -424,7 +425,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
                 job.completed_at = datetime.now(UTC)
 
                 if doc:
-                    doc.status = "FAILED"
+                    doc.status = DocumentStatus.FAILED
                     fail_payload = create_domain_event(
                         event_type=EVENT_DOCUMENT_FAILED,
                         tenant_id=doc.tenant_id,

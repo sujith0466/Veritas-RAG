@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { supabaseClient } from '@/services/auth/supabaseClient'
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
 
 export const getAssetUrl = (path: string | null | undefined) => {
   if (!path) return null

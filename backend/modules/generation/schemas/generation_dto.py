@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
+
 
 class CitationDTO(BaseModel):
     citation_index: int = Field(
@@ -8,6 +10,8 @@ class CitationDTO(BaseModel):
     )
     chunk_id: str = Field(..., description="The source chunk ID")
     document_id: str = Field(..., description="The source document ID")
+    source_name: str | None = Field(None, description="Human-readable filename or source")
+    document_name: str | None = Field(None, description="Human-readable document name")
     excerpt: str = Field(
         ..., description="Verbatim excerpt from the chunk that supports the cited claim"
     )
@@ -79,8 +83,8 @@ class GenerationRequestDTOv2(BaseModel):
     """Phase 10 enriched generation request with tenant, streaming, and guardrail options."""
 
     query: str = Field(..., min_length=1, max_length=2000)
-    evidence_chunks: list[dict] = Field(
-        ..., description="List of retrieved evidence chunks"
+    evidence_chunks: list[RankedEvidenceDTO] = Field(
+        ..., description="List of retrieved canonical evidence chunks"
     )
     correlation_id: str = Field(..., description="Tracing ID")
     tenant_id: str = Field(..., description="Tenant namespace ID")

@@ -6,6 +6,7 @@ deduplication (`ADR-M4-002`), and cross-encoder reranking (`ADR-002`) with stage
 """
 
 import asyncio
+import math
 import time
 from typing import Any
 from uuid import UUID, uuid4
@@ -40,7 +41,6 @@ class RetrievalOrchestrator:
         repository: Any | None = None,
         event_dispatcher: Any | None = None,
         index_manager: Any | None = None,
-        collection_prefix: str = "raguard_knowledge",
     ) -> None:
         self.embedding_provider = embedding_provider
         self.vector_provider = vector_provider
@@ -49,7 +49,6 @@ class RetrievalOrchestrator:
         self.repository = repository
         self.event_dispatcher = event_dispatcher
         self.index_manager = index_manager
-        self.collection_prefix = collection_prefix
 
     def _get_collection_name(self, options: SearchRequestDTO, tenant_id: str = None) -> str:
         if (
@@ -68,8 +67,10 @@ class RetrievalOrchestrator:
         
         # FIX: Ensure we use the exact same tenant-scoped naming convention 
         # as the ingestion pipeline (VectorStorageService).
-        prefix = "raguard"
-        return f"{prefix}_{tenant_id}" if tenant_id else prefix
+        from backend.core.config import get_settings
+        if tenant_id:
+            return get_settings().qdrant.collection_name(tenant_id)
+        return get_settings().qdrant.collection_prefix
 
     async def _execute_dense_stage(
         self,
@@ -129,6 +130,9 @@ class RetrievalOrchestrator:
                 except ValueError:
                     ver_uuid = doc_uuid
 
+                metadata_keys = set(payload.keys()) - {"tenant_id", "content", "chunk_id", "document_id", "document_version_id", "score"}
+                metadata_dict = {k: payload[k] for k in metadata_keys}
+                
                 candidate = CandidatePointDTO(
                     chunk_id=chunk_uuid,
                     document_id=doc_uuid,
@@ -138,7 +142,7 @@ class RetrievalOrchestrator:
                     score=round(float(hit.get("score", 0.0)), 6),
                     source="dense",
                     rank=idx,
-                    metadata=payload.get("metadata", {}),
+                    metadata=metadata_dict,
                 )
                 candidates.append(candidate)
 
@@ -305,6 +309,17 @@ class RetrievalOrchestrator:
                 candidates=rerank_input,
                 top_k=options.top_k,
             )
+            
+            # Centralized Provider-Independent Score Normalization Layer
+            for candidate in final_evidence:
+                score = candidate.raw_rerank_score
+                if score is not None:
+                    # Apply sigmoid to convert cross-encoder logits ([-10, 10]) into probabilities ([0, 1])
+                    candidate.normalized_relevance_score = round(1.0 / (1.0 + math.exp(-score)), 6)
+                else:
+                    # Fallback to RRF score if reranking was bypassed
+                    candidate.normalized_relevance_score = candidate.rrf_score
+                    
             rerank_ms = (time.perf_counter() - rerank_start) * 1000.0
 
             total_ms = (time.perf_counter() - total_start) * 1000.0
@@ -395,6 +410,15 @@ class RetrievalOrchestrator:
             candidates=rerank_input,
             top_k=options.top_k,
         )
+        
+        # Centralized Provider-Independent Score Normalization Layer
+        for candidate in final_reranked:
+            score = candidate.raw_rerank_score
+            if score is not None:
+                candidate.normalized_relevance_score = round(1.0 / (1.0 + math.exp(-score)), 6)
+            else:
+                candidate.normalized_relevance_score = candidate.rrf_score
+                
         rerank_ms = (time.perf_counter() - rerank_start) * 1000.0
 
         total_ms = (time.perf_counter() - total_start) * 1000.0

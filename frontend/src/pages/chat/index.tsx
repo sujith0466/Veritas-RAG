@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Send, Bot, User as UserIcon, Copy, Check, Info } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -12,13 +12,17 @@ import { Badge } from '@/components/common/Badge'
 export function AIChatPage() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { activeSession, fetchSession, createSession } = useChatStore()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Guard to prevent store sync from overwriting local optimistic state after stream completes
+  const hasOptimisticContent = useRef(false)
 
   useEffect(() => {
+    hasOptimisticContent.current = false
     if (sessionId) {
       if (useChatStore.getState().activeSession?.id !== sessionId) {
         fetchSession(sessionId)
@@ -30,7 +34,7 @@ export function AIChatPage() {
   }, [sessionId, fetchSession])
 
   useEffect(() => {
-    if (activeSession?.messages && !isStreaming) {
+    if (activeSession?.messages && !isStreaming && !hasOptimisticContent.current) {
       setMessages(activeSession.messages)
     }
   }, [activeSession, isStreaming])
@@ -39,61 +43,7 @@ export function AIChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isStreaming])
 
-  const [isIndexing, setIsIndexing] = useState(false)
-
-  useEffect(() => {
-    // Check indexing status every 5 seconds if we are indexing, or just once on load
-    const checkStatus = async () => {
-      try {
-        const { documentService } = await import('@/services/documentService')
-        const docs = await documentService.listDocuments(1, 100)
-        const processing = docs.items.some(d => d.status === 'processing' || d.status === 'pending')
-        setIsIndexing(processing)
-      } catch (e) {
-        console.error(e)
-      }
-    }
-    checkStatus()
-    const interval = setInterval(checkStatus, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!input.trim() || isStreaming) return
-
-    if (isIndexing) {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          session_id: sessionId || 'temp',
-          role: 'user',
-          message: input.trim(),
-          created_at: new Date().toISOString()
-        },
-        {
-          id: crypto.randomUUID(),
-          session_id: sessionId || 'temp',
-          role: 'assistant',
-          message: "Your enterprise knowledge base is still being prepared. You can begin exploring the workspace now, and AI responses will become available once indexing finishes.",
-          created_at: new Date().toISOString()
-        }
-      ])
-      setInput('')
-      return
-    }
-
-    const currentQuery = input.trim()
-    setInput('')
-    
-    let targetSessionId = sessionId
-    if (!targetSessionId) {
-      const newSession = await createSession()
-      targetSessionId = newSession.id
-      navigate(`/chat/${newSession.id}`, { replace: true })
-    }
-
+  const executeStream = async (targetSessionId: string, currentQuery: string) => {
     const tempUserMessage: ChatMessage = {
       id: crypto.randomUUID(),
       session_id: targetSessionId,
@@ -110,6 +60,7 @@ export function AIChatPage() {
       created_at: new Date().toISOString()
     }
 
+    hasOptimisticContent.current = true
     setMessages(prev => [...prev, tempUserMessage, tempAssistantMessage])
     setIsStreaming(true)
 
@@ -188,6 +139,72 @@ export function AIChatPage() {
     } finally {
       setIsStreaming(false)
     }
+  }
+
+  useEffect(() => {
+    if (sessionId && location.state?.initialQuery) {
+      const query = location.state.initialQuery
+      // Clear the state so we don't re-trigger on refresh
+      navigate(location.pathname, { replace: true, state: {} })
+      executeStream(sessionId, query)
+    }
+  }, [sessionId, location.state, navigate])
+
+  const [isIndexing, setIsIndexing] = useState(false)
+
+  useEffect(() => {
+    // Check indexing status every 5 seconds if we are indexing, or just once on load
+    const checkStatus = async () => {
+      try {
+        const { documentService } = await import('@/services/documentService')
+        const docs = await documentService.listDocuments(1, 100)
+        const processing = docs.items.some(d => d.status === 'processing' || d.status === 'pending')
+        setIsIndexing(processing)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    checkStatus()
+    const interval = setInterval(checkStatus, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!input.trim() || isStreaming) return
+
+    if (isIndexing) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          session_id: sessionId || 'temp',
+          role: 'user',
+          message: input.trim(),
+          created_at: new Date().toISOString()
+        },
+        {
+          id: crypto.randomUUID(),
+          session_id: sessionId || 'temp',
+          role: 'assistant',
+          message: "Your enterprise knowledge base is still being prepared. You can begin exploring the workspace now, and AI responses will become available once indexing finishes.",
+          created_at: new Date().toISOString()
+        }
+      ])
+      setInput('')
+      return
+    }
+
+    const currentQuery = input.trim()
+    setInput('')
+    
+    if (!sessionId) {
+      const newSession = await createSession()
+      navigate(`/chat/${newSession.id}`, { replace: true, state: { initialQuery: currentQuery } })
+      return
+    }
+
+    await executeStream(sessionId, currentQuery)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

@@ -29,7 +29,8 @@ from backend.modules.vector.providers.qdrant_provider import \
 # Global provider instances for connection reuse across HTTP requests
 _qdrant_provider = QdrantVectorDBProvider()
 _bm25_provider = BM25SparseSearchProvider()
-_reranker_provider = LocalCrossEncoderProvider()
+# Reranker provider is instantiated lazily or per-request since it depends on settings
+
 
 
 def resolve_tenant(
@@ -58,6 +59,8 @@ def get_sparse_index_manager() -> "SparseIndexManager":
     from backend.modules.retrieval.services.bm25_manager import SparseIndexManager
     return SparseIndexManager(sparse_provider=_bm25_provider)
 
+_reranker_provider_instance = None
+
 def get_retrieval_orchestrator(
     repository: RetrievalRepository = Depends(get_retrieval_repository),
     index_manager: "SparseIndexManager" = Depends(get_sparse_index_manager)
@@ -66,14 +69,19 @@ def get_retrieval_orchestrator(
     from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
     from backend.core.config import get_settings
     
+    global _reranker_provider_instance
     settings = get_settings()
+    
+    if _reranker_provider_instance is None:
+        _reranker_provider_instance = LocalCrossEncoderProvider(model_name=settings.retrieval.reranker_model)
+        
     embedding_provider = LocalEmbeddingProvider(model_name=settings.embeddings.local_model, offline=False)
     
     return RetrievalOrchestrator(
         embedding_provider=embedding_provider,
         vector_provider=_qdrant_provider,
         sparse_provider=_bm25_provider,
-        reranker_provider=_reranker_provider,
+        reranker_provider=_reranker_provider_instance,
         repository=repository,
         event_dispatcher=get_dispatcher(),
         index_manager=index_manager

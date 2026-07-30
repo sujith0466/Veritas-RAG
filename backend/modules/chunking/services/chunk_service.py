@@ -1,3 +1,4 @@
+from backend.document.models.status import DocumentStatus
 """Chunking Domain Service (`ChunkingService`).
 
 Orchestrates strategy selection, text splitting, quota validation, doubly-linked graph linking,
@@ -191,7 +192,7 @@ class ChunkingService:
         ChunkProcessingContract.verify(chunk_entities)
 
         # 10. Update Document status to CHUNKED and emit domain event
-        document.status = "CHUNKED"
+        document.status = DocumentStatus.CHUNKED
         duration_ms = (time.perf_counter() - start_time) * 1000.0
 
         event_payload = create_chunk_event(

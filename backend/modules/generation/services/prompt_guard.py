@@ -3,7 +3,6 @@
 Protects grounded generation against prompt injections hidden inside retrieved
 evidence chunks or queries, and formats evidence blocks securely.
 """
-
 import re
 from typing import Any
 
@@ -11,6 +10,7 @@ from structlog import get_logger
 
 from backend.modules.generation.schemas.generation_dto import \
     PromptGuardrailConfigDTO
+from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 
 logger = get_logger(__name__)
 
@@ -47,33 +47,33 @@ class PromptGuard:
         return False
 
     def sanitize_and_format_evidence(
-        self, chunks: list[dict[str, Any]]
-    ) -> tuple[str, list[dict[str, Any]]]:
+        self, chunks: list[RankedEvidenceDTO]
+    ) -> tuple[str, list[RankedEvidenceDTO]]:
         """Filter invalid/injected evidence and format secure XML-like boundaries."""
-        safe_chunks: list[dict[str, Any]] = []
+        safe_chunks: list[RankedEvidenceDTO] = []
         formatted_lines: list[str] = []
 
         for chunk in chunks:
             if not chunk:
                 continue
-            raw_content = chunk.get("content")
-            if raw_content is None:
+            raw_content = chunk.content
+            if not raw_content:
                 logger.info(
-                    "Filtering out null evidence chunk before prompt construction",
-                    chunk_id=chunk.get("chunk_id"),
+                    "Filtering out empty evidence chunk before prompt construction",
+                    chunk_id=str(chunk.chunk_id),
                 )
                 continue
             content = str(raw_content).replace("\n", " ").strip()
             if not content:
                 logger.info(
                     "Filtering out empty evidence chunk before prompt construction",
-                    chunk_id=chunk.get("chunk_id"),
+                    chunk_id=str(chunk.chunk_id),
                 )
                 continue
             if self.scan_for_injection(content):
                 logger.warning(
                     "Filtering out suspicious evidence chunk due to prompt injection check",
-                    chunk_id=chunk.get("chunk_id"),
+                    chunk_id=str(chunk.chunk_id),
                 )
                 continue
             safe_chunks.append(chunk)

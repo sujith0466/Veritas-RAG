@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 def compute_chat_reliability_score(
     *,
     answer_text: str,
-    evidence_chunks: list[dict],
+    evidence_chunks: list[Any],
     citations: list[dict],
     is_grounded: bool,
     retrieval_result: Any = None,
@@ -30,7 +30,7 @@ def compute_chat_reliability_score(
         return 0.0
 
     non_empty_evidence = [
-        chunk for chunk in evidence_chunks if str(chunk.get("content") or "").strip()
+        chunk for chunk in evidence_chunks if str(getattr(chunk, "content", "") or "").strip()
     ]
     evidence_completeness = (
         len(non_empty_evidence) / len(evidence_chunks) if evidence_chunks else 0.0
@@ -62,7 +62,7 @@ def compute_chat_reliability_score(
 
 
 def _citation_validity(
-    answer_text: str, citations: list[dict], evidence_chunks: list[dict]
+    answer_text: str, citations: list[dict], evidence_chunks: list[Any]
 ) -> float:
     marker_indices = [int(marker) for marker in re.findall(r"\[(\d+)\]", answer_text)]
     if not marker_indices:
@@ -78,7 +78,7 @@ def _citation_validity(
         if (
             citation
             and 0 <= chunk_pos < len(evidence_chunks)
-            and str(evidence_chunks[chunk_pos].get("content") or "").strip()
+            and str(getattr(evidence_chunks[chunk_pos], "content", "") or "").strip()
             and str(citation.get("excerpt") or "").strip()
         ):
             valid_count += 1
@@ -107,7 +107,7 @@ def _context_coverage(answer_text: str) -> float:
     return cited / total if total else 1.0
 
 
-def _retrieval_quality(evidence_chunks: list[dict], retrieval_result: Any) -> float:
+def _retrieval_quality(evidence_chunks: list[Any], retrieval_result: Any) -> float:
     if not evidence_chunks:
         return 0.0
     if retrieval_result is None:
@@ -166,20 +166,46 @@ class ChatOrchestrator:
         
         # 1.5 Check if knowledge base is still processing
         from backend.document.models.document import Document
+        from backend.document.models.status import DocumentStatus
         from sqlalchemy import select
         
-        processing_statuses = ["UPLOADED", "PENDING", "INGESTING", "INGESTED", "CHUNKING", "CHUNKED", "EMBEDDING", "EMBEDDED", "VECTOR_SYNC"]
+        processing_statuses = [
+            DocumentStatus.UPLOADED, 
+            DocumentStatus.PENDING, 
+            DocumentStatus.VALIDATING,
+            DocumentStatus.EXTRACTING,
+            DocumentStatus.OCR,
+            DocumentStatus.MANIFEST_GENERATING,
+            DocumentStatus.PROCESSED,
+            DocumentStatus.CHUNKING, 
+            DocumentStatus.CHUNKED, 
+            DocumentStatus.EMBEDDING, 
+            DocumentStatus.EMBEDDED, 
+            DocumentStatus.VECTOR_SYNC
+        ]
         
         async with session_maker() as session:
-            result = await session.execute(
+            # Check for any READY documents
+            ready_result = await session.execute(
                 select(Document).where(
                     Document.tenant_id == tenant_id,
-                    Document.status.in_(processing_statuses)
+                    Document.status == DocumentStatus.READY
                 ).limit(1)
             )
-            processing_doc = result.scalar_one_or_none()
+            has_ready_doc = ready_result.scalar_one_or_none() is not None
             
-            if processing_doc:
+            # If no READY documents exist, check if we are still processing others
+            has_processing_doc = False
+            if not has_ready_doc:
+                proc_result = await session.execute(
+                    select(Document).where(
+                        Document.tenant_id == tenant_id,
+                        Document.status.in_(processing_statuses)
+                    ).limit(1)
+                )
+                has_processing_doc = proc_result.scalar_one_or_none() is not None
+            
+            if not has_ready_doc and has_processing_doc:
                 msg = "Your knowledge base is currently being prepared. Document processing is still in progress."
                 
                 # Stream the message
@@ -211,6 +237,8 @@ class ChatOrchestrator:
                 return
 
 
+
+
         # 2. Retrieve Evidence (Hybrid Search)
         search_request = SearchRequestDTO(
             query=query,
@@ -227,16 +255,10 @@ class ChatOrchestrator:
                 correlation_id=correlation_id
             )
             
-            # Map retrieval results to generation evidence format
-            evidence_chunks = [
-                {
-                    "chunk_id": str(c.chunk_id),
-                    "document_id": str(c.document_id),
-                    "content": c.content,
-                    "score": c.rerank_score if c.rerank_score is not None else c.rrf_score
-                }
-                for c in retrieval_result.final_evidence
-            ]
+            # Use the canonical DTOs directly to preserve metadata
+            evidence_chunks = retrieval_result.final_evidence if retrieval_result.final_evidence else []
+
+
         except Exception as e:
             logger.error("Chat retrieval failed", error=str(e))
             import traceback
@@ -256,14 +278,26 @@ class ChatOrchestrator:
         final_citations = []
         is_grounded = False
         
-        async for chunk in self.streaming_generation.generate_stream(gen_request):
-            if chunk.text_delta:
-                full_assistant_text += chunk.text_delta
-            if chunk.is_final:
-                final_citations = [c.model_dump() for c in chunk.citations_delta]
-                is_grounded = chunk.is_fully_grounded
-                
-            yield f"data: {chunk.model_dump_json()}\n\n"
+
+        
+        try:
+            chunk_count = 0
+            async for chunk in self.streaming_generation.generate_stream(gen_request):
+                chunk_count += 1
+                if chunk.text_delta:
+                    full_assistant_text += chunk.text_delta
+
+                if chunk.is_final:
+                    final_citations = [c.model_dump() for c in chunk.citations_delta]
+                    is_grounded = chunk.is_fully_grounded
+                    
+                yield f"data: {chunk.model_dump_json()}\n\n"
+
+
+        except Exception as e:
+
+            raise
+
 
         reliability_score = compute_chat_reliability_score(
             answer_text=full_assistant_text,
@@ -291,6 +325,7 @@ class ChatOrchestrator:
                     }
                 )
             )
+
 
         duration_seconds = time.perf_counter() - started_at
         outcome = "SUCCESS" if is_grounded else "UNGROUNDED"

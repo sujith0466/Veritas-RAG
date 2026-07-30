@@ -81,7 +81,7 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
             return []
 
         if len(candidates) <= 1:
-            candidates[0].rerank_score = candidates[0].rrf_score
+            candidates[0].raw_rerank_score = candidates[0].rrf_score
             candidates[0].final_rank = 1
             return candidates[:top_k]
 
@@ -99,7 +99,7 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
 
         scored_candidates: list[tuple[RankedEvidenceDTO, float]] = []
         for candidate, score in zip(candidates, scores, strict=True):
-            candidate.rerank_score = round(float(score), 6)
+            candidate.raw_rerank_score = round(float(score), 6)
             scored_candidates.append((candidate, float(score)))
 
         # Sort descending by cross-encoder score

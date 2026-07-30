@@ -1,4 +1,4 @@
-export type { UserContext, Role, AuthStatus, AuthState, TokenPayload } from './auth'
+export type { UserContext, Role, AuthStatus, AuthState, TokenPayload, AuthError, AuthOperationalErrorCode } from './auth'
 export type { SuccessResponse, ErrorResponse, ApiResponse, ErrorDetail, ResponseMetadata, PaginationMeta, PaginatedResponse } from './api'
 export { ApiError } from './api'
 export type { ThemeMode, ThemeState } from './theme'

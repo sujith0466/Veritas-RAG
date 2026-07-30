@@ -1,0 +1,19 @@
+from enum import Enum
+
+class DocumentStatus(str, Enum):
+    """Canonical document lifecycle statuses."""
+    UPLOADED = "UPLOADED"
+    VALIDATING = "VALIDATING"
+    EXTRACTING = "EXTRACTING"
+    OCR = "OCR"
+    MANIFEST_GENERATING = "MANIFEST_GENERATING"
+    PROCESSED = "PROCESSED"
+    CHUNKING = "CHUNKING"
+    CHUNKED = "CHUNKED"
+    EMBEDDING = "EMBEDDING"
+    EMBEDDED = "EMBEDDED"
+    VECTOR_SYNC = "VECTOR_SYNC"
+    READY = "READY"
+    FAILED = "FAILED"
+    PENDING = "PENDING"
+    DELETED = "DELETED"

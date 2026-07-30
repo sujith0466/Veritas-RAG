@@ -59,7 +59,8 @@ class JWTVerifier:
         """
         settings = get_settings()
         try:
-            if self._jwk_client:
+            headers = jwt.get_unverified_header(token)
+            if self._jwk_client and headers.get("kid"):
                 try:
                     signing_key = self._jwk_client.get_signing_key_from_jwt(token)
                     key: Any = signing_key.key
@@ -71,6 +72,8 @@ class JWTVerifier:
                     key = settings.supabase.jwt_secret
                     algorithms = [settings.supabase.jwt_algorithm, "HS256"]
             else:
+                if self._jwk_client and not headers.get("kid"):
+                    logger.debug("Token lacks 'kid' header; skipping JWKS lookup and using secret")
                 key = settings.supabase.jwt_secret
                 algorithms = [settings.supabase.jwt_algorithm, "HS256"]
 

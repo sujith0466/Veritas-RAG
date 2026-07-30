@@ -14,7 +14,15 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --grep @smoke",
+    "test:e2e:auth": "playwright test --grep @auth",
+    "test:e2e:knowledge": "playwright test --grep @knowledge",
+    "test:e2e:chat": "playwright test --grep @chat",
+    "test:e2e:retrieval": "playwright test --grep @retrieval",
+    "test:e2e:network": "playwright test --grep @network",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:matrix": "node tests/e2e/generate-matrix.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

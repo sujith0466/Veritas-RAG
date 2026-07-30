@@ -1,6 +1,7 @@
 """Dashboard service aggregating metrics across Knowledge, Vector, and Analytics domains."""
 
 from __future__ import annotations
+from backend.document.models.status import DocumentStatus
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -129,8 +130,8 @@ class DashboardService:
         # 6. Real Document Metrics
         doc_query = select(
             func.count(Document.id),
-            func.sum(case((Document.status == "PROCESSED", 1), else_=0)),
-            func.sum(case((Document.status == "FAILED", 1), else_=0)),
+            func.sum(case((Document.status == DocumentStatus.READY, 1), else_=0)),
+            func.sum(case((Document.status == DocumentStatus.FAILED, 1), else_=0)),
         ).where(Document.tenant_id == tenant_id)
         doc_result = await self._session.execute(doc_query)
         total_docs, processed_docs, failed_docs = doc_result.first() or (0, 0, 0)

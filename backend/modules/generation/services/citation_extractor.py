@@ -1,6 +1,9 @@
 import re
 
+from typing import Any
+
 from backend.modules.generation.schemas.generation_dto import CitationDTO
+from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 
 _STOPWORDS = {
     "a",
@@ -43,13 +46,13 @@ class CitationExtractor:
     """
 
     def extract(
-        self, answer_text: str, evidence_chunks: list[dict]
+        self, answer_text: str, evidence_chunks: list[RankedEvidenceDTO]
     ) -> list[CitationDTO]:
         """Build an ordered CitationDTO list from the answer's inline markers.
 
         Args:
             answer_text: The generated answer containing [N] citation markers.
-            evidence_chunks: Ordered list of dicts with keys: chunk_id, document_id, content.
+            evidence_chunks: Ordered list of canonical evidence chunk objects.
 
         Returns:
             An ordered list of CitationDTO objects (1-indexed to match [N] markers).
@@ -67,15 +70,20 @@ class CitationExtractor:
 
             chunk = evidence_chunks[chunk_pos]
             # Use first 200 chars of content as the supporting excerpt
-            excerpt = chunk.get("content", "")[:200].strip()
+            excerpt = chunk.content[:200].strip()
+
+            source_name = chunk.metadata.get("source_name") or chunk.metadata.get("filename")
+            document_name = chunk.metadata.get("document_name")
 
             citations.append(
                 CitationDTO(
                     citation_index=idx,
-                    chunk_id=chunk.get("chunk_id", f"chunk_{idx}"),
-                    document_id=chunk.get("document_id", "unknown"),
+                    chunk_id=str(chunk.chunk_id),
+                    document_id=str(chunk.document_id),
+                    source_name=source_name,
+                    document_name=document_name,
                     excerpt=excerpt,
-                    relevance_score=chunk.get("score", 1.0),
+                    relevance_score=chunk.normalized_relevance_score if chunk.normalized_relevance_score is not None else 1.0,
                 )
             )
 
@@ -85,7 +93,7 @@ class CitationExtractor:
         self,
         answer_text: str,
         citations: list[CitationDTO],
-        evidence_chunks: list[dict] | None = None,
+        evidence_chunks: list[RankedEvidenceDTO] | None = None,
     ) -> bool:
         """Return True if every meaningful sentence in the answer is followed by or contains
         at least one citation marker [N].
@@ -136,7 +144,7 @@ class CitationExtractor:
         sentence: str,
         marker_indices: list[int],
         citations: list[CitationDTO],
-        evidence_chunks: list[dict],
+        evidence_chunks: list[RankedEvidenceDTO],
     ) -> bool:
         citation_indices = {citation.citation_index for citation in citations}
         has_supporting_evidence = False
@@ -148,8 +156,8 @@ class CitationExtractor:
             if chunk_pos < 0 or chunk_pos >= len(evidence_chunks):
                 return False
 
-            content = evidence_chunks[chunk_pos].get("content")
-            if content is None or not str(content).strip():
+            content = evidence_chunks[chunk_pos].content
+            if not str(content).strip():
                 return False
             if self._evidence_supports_claim(sentence, str(content)):
                 has_supporting_evidence = True

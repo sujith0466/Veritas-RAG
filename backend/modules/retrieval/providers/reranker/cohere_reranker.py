@@ -49,7 +49,7 @@ class CohereRerankerProvider(BaseRerankerProvider):
 
         # If <= 1 candidate, just re-index rank and return directly without making API call
         if len(candidates) <= 1:
-            candidates[0].rerank_score = candidates[0].rrf_score
+            candidates[0].raw_rerank_score = candidates[0].rrf_score
             candidates[0].final_rank = 1
             return candidates[:top_k]
 
@@ -76,7 +76,7 @@ class CohereRerankerProvider(BaseRerankerProvider):
         # Response contains results ordered by relevance
         for idx, result in enumerate(response.results, start=1):
             original_candidate = candidates[result.index]
-            original_candidate.rerank_score = round(float(result.relevance_score), 6)
+            original_candidate.raw_rerank_score = round(float(result.relevance_score), 6)
             original_candidate.final_rank = idx
             reranked_results.append(original_candidate)
 

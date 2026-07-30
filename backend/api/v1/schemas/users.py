@@ -13,7 +13,7 @@ class ProfileDataSchema(BaseModel):
     location: Optional[str] = Field(default=None, max_length=255)
     workspace_name: Optional[str] = Field(default=None, max_length=255)
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
 
 class AISettingsSchema(BaseModel):
@@ -21,13 +21,13 @@ class AISettingsSchema(BaseModel):
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
     system_prompt: Optional[str] = Field(default=None, max_length=10000)
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
 
 class UserPreferencesSchema(BaseModel):
     ai: Optional[AISettingsSchema] = None
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
 
 class WorkspaceSettingsSchema(BaseModel):
@@ -35,26 +35,26 @@ class WorkspaceSettingsSchema(BaseModel):
     data_region: Optional[str] = Field(default=None, max_length=50)
     onboarding_completed: Optional[bool] = Field(default=None)
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
 
 class UserProfileUpdate(BaseModel):
     username: Optional[str] = Field(default=None, max_length=150)
     profile_data: Optional[ProfileDataSchema] = None
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
 
 class UserPreferencesUpdate(BaseModel):
     preferences: UserPreferencesSchema
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
 
 class UserWorkspaceUpdate(BaseModel):
     workspace_settings: WorkspaceSettingsSchema
 
-    model_config = {"extra": "forbid"}
+    model_config = {"extra": "ignore"}
 
 
 class UserResponse(BaseModel):

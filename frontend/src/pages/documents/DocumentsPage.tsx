@@ -118,12 +118,17 @@ export function DocumentsPage() {
   }
 
   const handleDelete = async (docId: string) => {
-    await documentService.deleteDocument(docId)
-    if (activeStatus?.document_id === docId) {
-      setActiveStatus(null)
-      setIsPolling(false)
+    try {
+      await documentService.deleteDocument(docId)
+      if (activeStatus?.document_id === docId) {
+        setActiveStatus(null)
+        setIsPolling(false)
+      }
+      await fetchDocuments()
+    } catch (err) {
+      console.error('Failed to delete document:', err)
+      // Optional: add toast error here if available
     }
-    fetchDocuments()
   }
 
   const filterOptions = [

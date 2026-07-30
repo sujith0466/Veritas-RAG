@@ -1,3 +1,4 @@
+from backend.document.models.status import DocumentStatus
 """Embedding Service Layer (`EmbeddingService`).
 
 Orchestrates asynchronous vectorization, tenant quota verification, batch segmentation,

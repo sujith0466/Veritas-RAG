@@ -1,3 +1,4 @@
+from backend.core.config import get_settings
 """Integrity Auditor (`IntegrityAuditor`).
 
 Verifies 1:1 count parity between active PostgreSQL DocumentChunks and indexed Qdrant vector points,
@@ -60,7 +61,7 @@ class IntegrityAuditor:
             .distinct()
         )
         cols = (await self.session.execute(meta_stmt)).scalars().all()
-        collection_names = list(cols) if cols else ["raguard_knowledge_1536"]
+        collection_names = list(cols) if cols else [get_settings().qdrant.collection_name(tenant_id)]
 
         qdrant_count = 0
         for col in collection_names:

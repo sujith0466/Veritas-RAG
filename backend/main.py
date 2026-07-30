@@ -86,6 +86,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     get_redis_pool()
     get_qdrant_client()
 
+    # ── VALIDATE STARTUP CONTRACTS ──────────────────────────────────────────────
+    from backend.core.startup_validator import run_startup_validation
+    await run_startup_validation()
+
     logger.info(
         "Feature flags",
         retry_engine=settings.features.enable_retry_engine,

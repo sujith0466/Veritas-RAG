@@ -5,25 +5,28 @@ import { supabaseClient } from '@/services/auth/supabaseClient'
 import { authService } from '@/services/auth/authService'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setStatus, setAuth, clearAuth } = useAuthStore()
+  const { setStatus, setAuth, clearAuth, setErrorAuth } = useAuthStore()
   const initialMount = useRef(true)
 
   useEffect(() => {
     let mounted = true
 
     async function initializeAuth() {
+      let session = null
       try {
         if (initialMount.current) {
           setStatus('LOADING')
           initialMount.current = false
         }
 
-        const { data: { session }, error } = await supabaseClient.auth.getSession()
+        const { data: { session: s }, error } = await supabaseClient.auth.getSession()
 
-        if (error || !session) {
+        if (error || !s) {
           if (mounted) clearAuth()
           return
         }
+        
+        session = s
 
         // We have a Supabase session, now strictly sync with backend
         const userContext = await authService.fetchBackendProfile()
@@ -33,7 +36,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         if (mounted) {
-          clearAuth()
+          if (session) {
+            setErrorAuth(session.access_token, {
+              code: 'BACKEND_UNAVAILABLE',
+              message: 'Failed to synchronize profile with backend.',
+              retryable: true,
+              timestamp: Date.now()
+            })
+          } else {
+            clearAuth()
+          }
         }
       }
     }
@@ -61,7 +73,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userContext = await authService.fetchBackendProfile()
             setAuth(userContext, session.access_token)
           } catch {
-            clearAuth()
+            setErrorAuth(session.access_token, {
+              code: 'BACKEND_UNAVAILABLE',
+              message: 'Failed to synchronize profile with backend.',
+              retryable: true,
+              timestamp: Date.now()
+            })
           }
         }
       }

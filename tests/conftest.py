@@ -16,6 +16,7 @@ import pytest
 
 # ─── Environment: force testing mode before any imports ────────────────────────
 os.environ["APP_ENVIRONMENT"] = "testing"
+os.environ["VALIDATE_INFRASTRUCTURE"] = "false"
 os.environ["APP_DEBUG"] = "true"
 os.environ["APP_SECRET_KEY"] = "test-secret-key-32-characters-ok!"
 os.environ["APP_NAME"] = "RAGuard AI Test"
