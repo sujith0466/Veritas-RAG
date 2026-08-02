@@ -1,4 +1,5 @@
 import pytest
+
 from backend.modules.generation.schemas.generation_dto import GenerationRequestDTO
 from backend.modules.generation.services.citation_extractor import CitationExtractor
 from backend.modules.generation.services.generation_service import GroundedGenerationService

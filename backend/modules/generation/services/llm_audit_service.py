@@ -1,8 +1,7 @@
 """LLM Audit Service for securely logging telemetry."""
 
-import hashlib
-import json
 from datetime import datetime
+import hashlib
 from typing import Any
 
 from backend.core.config import get_settings
@@ -38,7 +37,7 @@ class LLMAuditService:
         """Process and asynchronously store telemetry without blocking chat."""
         settings = get_settings()
         audit_mode = getattr(settings.llm, "audit_mode", "hash_only")
-        
+
         # 1. Always hash the prompt for exact matching/clustering
         full_prompt = f"{system_prompt_text or ''}\n{prompt_text}"
         prompt_hash = hashlib.sha256(full_prompt.encode("utf-8")).hexdigest()

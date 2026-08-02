@@ -10,8 +10,11 @@ from typing import Any
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    EntityResolutionDTO, RewriteRequestDTOv2, RewriteResultDTO,
-    RewriteStrategy)
+    EntityResolutionDTO,
+    RewriteRequestDTOv2,
+    RewriteResultDTO,
+    RewriteStrategy,
+)
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)

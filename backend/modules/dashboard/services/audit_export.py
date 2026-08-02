@@ -1,7 +1,9 @@
 import hashlib
 
 from backend.modules.dashboard.schemas.dashboard_dto import (
-    AuditExportBundleDTO, AuditExportRequestDTO)
+    AuditExportBundleDTO,
+    AuditExportRequestDTO,
+)
 
 
 class AuditExportService:

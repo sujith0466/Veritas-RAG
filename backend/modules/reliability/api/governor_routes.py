@@ -1,7 +1,10 @@
 from fastapi import APIRouter
 
 from backend.modules.reliability.schemas.reliability_dto import (
-    HealingActionDTO, SelfHealingPolicyDTO, SelfHealingPolicyUpdateDTO)
+    HealingActionDTO,
+    SelfHealingPolicyDTO,
+    SelfHealingPolicyUpdateDTO,
+)
 
 router = APIRouter(prefix="/reliability/v1/governor", tags=["Governor"])
 

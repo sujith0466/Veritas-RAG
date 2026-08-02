@@ -8,10 +8,10 @@ from typing import Any
 
 from backend.cache.client import get_redis_client
 from backend.cache.keys import CacheKeyBuilder
-from backend.core.exceptions.infrastructure import InfrastructureError
+from backend.core.exceptions.infrastructure import InfrastructureException
 
 
-class RateLimitExceeded(InfrastructureError):
+class RateLimitExceeded(InfrastructureException):
     """Raised when a rate limit is exceeded."""
     pass
 
@@ -50,14 +50,14 @@ class RateLimiter:
         """
         key = CacheKeyBuilder.build(tenant, domain, f"ratelimit:{action}", entity_id)
         client = get_redis_client()
-        
+
         current = await client.eval(cls._LUA_FIXED_WINDOW, 1, key, window_seconds)
-        
+
         remaining = max(0, limit - current)
-        
+
         if current > limit:
             raise RateLimitExceeded(f"Rate limit exceeded for {action}")
-            
+
         return {
             "current": current,
             "limit": limit,

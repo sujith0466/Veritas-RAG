@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
@@ -8,7 +8,7 @@ def main():
     print("Starting Milestone 17.4 Implementation (Tests)...")
     os.makedirs("tests/unit/backend/modules/alerts", exist_ok=True)
     os.makedirs("tests/integration", exist_ok=True)
-    
+
     # 1. test_rule_engine.py
     with open("tests/unit/backend/modules/alerts/test_rule_engine.py", "w") as f:
         f.write("""import pytest
@@ -81,7 +81,7 @@ async def test_webhook_channel():
 """)
 
     print("Created test files.")
-    
+
     print("Running tests...")
     result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/backend/modules/alerts"], capture_output=True, text=True)
     print(result.stdout)

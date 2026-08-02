@@ -4,11 +4,11 @@ Tracks active refresh token families and device sessions.
 """
 
 import datetime
+import uuid
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-import uuid
 from backend.models.base import BaseModel
 from backend.models.entities.user import User
 

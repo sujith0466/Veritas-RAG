@@ -3,8 +3,7 @@ import hmac
 import json
 
 from backend.modules.alerts.channels.base import BaseNotificationChannel
-from backend.modules.alerts.schemas.alert_dto import (AlertPayloadDTO,
-                                                      ChannelConfigDTO)
+from backend.modules.alerts.schemas.alert_dto import AlertPayloadDTO, ChannelConfigDTO
 
 
 class WebhookChannel(BaseNotificationChannel):

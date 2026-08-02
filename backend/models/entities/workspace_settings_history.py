@@ -1,4 +1,5 @@
 import uuid
+
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,7 +9,7 @@ from backend.models.base import BaseModel
 
 class WorkspaceSettingsHistory(BaseModel):
     """Immutable point-in-time snapshot of workspace settings for auditing and rollback."""
-    
+
     __tablename__ = "workspace_settings_history"
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(

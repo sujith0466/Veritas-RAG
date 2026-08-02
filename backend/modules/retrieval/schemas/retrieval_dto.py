@@ -10,8 +10,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.modules.retrieval.schemas.filter_dsl import (
-    CompressionOptionsDTO, FilterDSL)
+from backend.modules.retrieval.schemas.filter_dsl import CompressionOptionsDTO, FilterDSL
 
 
 class SearchRequestDTO(BaseModel):

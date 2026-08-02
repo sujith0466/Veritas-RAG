@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 def main():
     print("Starting Milestone 14.4 Implementation (Tests)...")
     os.makedirs("tests/unit/backend/modules/health", exist_ok=True)
-    
+
     # 1. test_redundancy_detector.py
     t_redundancy_path = "tests/unit/backend/modules/health/test_redundancy_detector.py"
     with open(t_redundancy_path, "w") as f:
@@ -114,7 +114,7 @@ async def test_health_task():
 """)
 
     print("Created test files.")
-    
+
     print("Running tests...")
     result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/backend/modules/health"], capture_output=True, text=True)
     print(result.stdout)

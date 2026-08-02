@@ -5,18 +5,18 @@ Dynamically registers all 7 strategies (`recursive`, `markdown`, `sentence`, `pa
 exports strategy metadata descriptions (`ADR-005`).
 """
 
-from backend.modules.chunking.schemas.chunk import StrategyInfoDTO, StrategyDiscoveryDTO
+from backend.modules.chunking.schemas.chunk import StrategyDiscoveryDTO
 from backend.modules.chunking.schemas.errors import ChunkStrategyNotFound
 
 from .base import BaseChunkSplitter
 from .code import CodeChunkSplitter
+from .fixed_size import FixedSizeChunkSplitterPlaceholder
 from .markdown import MarkdownChunkSplitter
 from .paragraph import ParagraphChunkSplitter
 from .recursive import RecursiveChunkSplitter
 from .semantic import SemanticChunkSplitterPlaceholder
 from .sentence import SentenceChunkSplitter
 from .table import TableChunkSplitter
-from .fixed_size import FixedSizeChunkSplitterPlaceholder
 
 
 class SplitterStrategyFactory:
@@ -42,7 +42,7 @@ class SplitterStrategyFactory:
             normalized = strategy_name.lower().strip()
             if normalized in self._strategies:
                 return self._strategies[normalized]
-            
+
             supported = [s.strategy_info.id for s in self._strategies.values() if s.strategy_info.status == "supported"]
             raise ChunkStrategyNotFound(
                 message=f"Chunk strategy '{strategy_name}' is not available in RAGuard AI v1.0.",

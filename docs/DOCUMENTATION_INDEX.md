@@ -15,15 +15,17 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
 ### Epic Architecture Specifications
 - **Epic 1:** [Infrastructure Contract](../infrastructure/docs/infrastructure_contract.md) | [Docker Guide](../infrastructure/docs/docker_guide.md)
 - **Epic 2:** [Authentication & Identity Architecture](archive/epic2/README.md)
-- **Epic 3:**
-  - F3.1 Create Workspace Architecture
-  - F3.2 Update Workspace Architecture
-  - F3.3 Archive/Restore Architecture
-  - F3.4 Suspend Workspace Architecture
-  - F3.5 Soft Delete / Hard Delete Architecture
-  - F3.6 Workspace Settings Architecture
-  - F3.7 Workspace Branding Architecture
-  - F3.8 Feature Flags Architecture
+- **Epic 3:** [Workspace Governance Architecture](archive/epic3/README.md)
+- **Epic 4:**
+  - F4.1 Workspace Invitation Architecture
+  - F4.2 Invitation Acceptance Architecture
+  - F4.3 Workspace Membership Architecture
+  - F4.4 RBAC Permission Architecture
+  - F4.5 Role Assignment Architecture
+  - F4.6 Member Removal Architecture
+  - F4.7 User Profile Architecture
+  - F4.8 Domain Verification Architecture
+  - F4.9 SSO Configuration Architecture
 
 ---
 
@@ -32,6 +34,7 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
 - [Epic 1 Archive (Foundations)](archive/epic1/README.md)
 - [Epic 2 Archive (Authentication)](archive/epic2/README.md)
 - [Epic 3 Archive (Workspace & Governance)](archive/epic3/README.md)
+- [Epic 4 Archive (User & Role Management)](archive/epic4/README.md)
 - [Implementation Artifacts Archive](archive/implementation/README.md)
 - [Validation & Certification Archive](archive/validation/README.md)
 - [Temporary & Diagnostic Notes](archive/temporary/README.md)
@@ -40,7 +43,7 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
 
 ## 🧪 Testing & Validation Reports
 
-- [Wave 3 Final QA Report](Reports/wave-3-final-qa-report.md)
+- [Wave 4 Final QA Report](Reports/wave-4-final-qa-report.md)
 - [End-to-End Validation Report](Reports/e2e-validation-report.md)
 - [Cross-Phase Integration Report](Reports/cross-phase-integration-report.md)
 - [Performance Validation Report](Reports/performance-validation-report.md)

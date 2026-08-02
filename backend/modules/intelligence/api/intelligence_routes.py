@@ -1,7 +1,10 @@
 from fastapi import APIRouter
 
 from backend.modules.intelligence.schemas.intelligence_dto import (
-    FeedbackEventDTO, IntelligenceInsightDTO, OptimizationRecommendationDTO)
+    FeedbackEventDTO,
+    IntelligenceInsightDTO,
+    OptimizationRecommendationDTO,
+)
 
 router = APIRouter(prefix="/intelligence/v1", tags=["Intelligence"])
 

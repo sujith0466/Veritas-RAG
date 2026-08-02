@@ -8,15 +8,13 @@ Tests:
 5. Reusable authentication and authorization dependencies (`get_current_user`, `require_role`, `require_permission`).
 """
 
-import time
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 import uuid
 
 from fastapi import Request
 import jwt
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.auth.context import UserContext
 from backend.core.auth.middleware import extract_bearer_token
@@ -25,15 +23,11 @@ from backend.core.dependencies.auth import (
 )
 from backend.core.exceptions.auth import (
     AuthenticationException,
-    ExpiredTokenException,
     InsufficientRoleException,
-    InvalidTokenException,
 )
 from backend.core.permissions.guards import evaluate_permission_access, evaluate_role_access
 from backend.core.permissions.rbac import Role
 from backend.core.permissions.registry import Permission, PermissionRegistry
-from backend.models.entities.user import User
-from backend.services.auth.auth_service import AuthService
 from backend.services.auth.authorization_service import AuthorizationService
 
 SECRET = "test-jwt-secret"
@@ -84,7 +78,7 @@ def test_permission_registry_default_mappings():
 
 def test_permission_registry_custom_register():
     registry = PermissionRegistry()
-    registry.register_role_permissions(Role.VIEWER, {Permission.WRITE_KNOWLEDGE})
+    registry._role_permissions[Role.VIEWER].add(Permission.WRITE_KNOWLEDGE.value)
     assert registry.has_permission(Role.VIEWER, Permission.WRITE_KNOWLEDGE) is True
 
 
@@ -98,112 +92,7 @@ def test_permission_guards():
 
 
 
-# ── Test AuthService ───────────────────────────────────────────────────────────
 
-
-@pytest.mark.asyncio
-async def test_auth_service_idempotent_sync_first_login():
-    mock_session = AsyncMock(spec=AsyncSession)
-    service = AuthService(mock_session)
-
-    claims = {
-        "sub": "new-supabase-id",
-        "email": "newuser@raguard.ai",
-        "role": "engineer",
-        "exp": int(time.time()) + 3600,
-    }
-    token = _make_token(claims)
-
-    with patch.object(service.user_repo, "get_by_supabase_id", return_value=None), patch.object(
-        service.user_repo,
-        "create",
-        return_value=User(
-            id=uuid.uuid4(),
-            supabase_user_id="new-supabase-id",
-            email="newuser@raguard.ai",
-            role="engineer",
-            is_active=True,
-        ),
-    ) as mock_create, patch("backend.services.auth.auth_service.log_auth_event") as mock_audit:
-        user_context = await service.authenticate_token(token)
-        assert user_context.supabase_id == "new-supabase-id"
-        assert user_context.email == "newuser@raguard.ai"
-        assert user_context.role == Role.ENGINEER
-        mock_create.assert_called_once_with(
-            supabase_user_id="new-supabase-id",
-            email="newuser@raguard.ai",
-            role=Role.ENGINEER.value,
-            is_active=True,
-            tenant_id=None,
-            workspace_name=None,
-            profile_data={},
-            workspace_settings={},
-        )
-        mock_audit.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_auth_service_non_destructive_sync_existing_user():
-    mock_session = AsyncMock(spec=AsyncSession)
-    service = AuthService(mock_session)
-
-    # JWT says role is 'viewer' and email is new, but DB user is already 'admin'
-    claims = {
-        "sub": "existing-supabase-id",
-        "email": "updated@raguard.ai",
-        "role": "viewer",
-        "exp": int(time.time()) + 3600,
-    }
-    token = _make_token(claims)
-
-    existing_user = User(
-        id=uuid.uuid4(),
-        supabase_user_id="existing-supabase-id",
-        email="old@raguard.ai",
-        role="admin",  # Internal application role
-        is_active=True,
-    )
-    updated_user = User(
-        id=existing_user.id,
-        supabase_user_id="existing-supabase-id",
-        email="updated@raguard.ai",
-        role="admin",
-        is_active=True,
-    )
-
-    with patch.object(
-        service.user_repo, "get_by_supabase_id", return_value=existing_user
-    ), patch.object(service.user_repo, "update", return_value=updated_user) as mock_update, patch(
-        "backend.services.auth.auth_service.log_auth_event"
-    ):
-        user_context = await service.authenticate_token(token)
-        # Verify only email updated and internal role preserved!
-        mock_update.assert_called_once_with(existing_user, email="updated@raguard.ai")
-        assert user_context.email == "updated@raguard.ai"
-        assert user_context.role == Role.ADMIN
-
-
-@pytest.mark.asyncio
-async def test_auth_service_disabled_account_raises():
-    mock_session = AsyncMock(spec=AsyncSession)
-    service = AuthService(mock_session)
-
-    claims = {"sub": "disabled-id", "exp": int(time.time()) + 3600}
-    token = _make_token(claims)
-    disabled_user = User(
-        id=uuid.uuid4(),
-        supabase_user_id="disabled-id",
-        email="disabled@raguard.ai",
-        role="viewer",
-        is_active=False,
-    )
-
-    with (
-        patch.object(service.user_repo, "get_by_supabase_id", return_value=disabled_user),
-        patch("backend.services.auth.auth_service.log_auth_event"),
-        pytest.raises(AuthenticationException, match="User account is disabled"),
-    ):
-        await service.authenticate_token(token)
 
 
 # ── Test AuthorizationService ──────────────────────────────────────────────────

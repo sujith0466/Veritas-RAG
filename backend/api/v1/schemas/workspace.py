@@ -40,6 +40,7 @@ class RestoreWorkspaceRequest(BaseModel):
 
 import enum
 
+
 class SuspensionReasonCode(str, enum.Enum):
     BILLING = "BILLING"
     SECURITY = "SECURITY"

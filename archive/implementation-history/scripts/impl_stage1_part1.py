@@ -3,11 +3,11 @@ Stage 1 - Milestone 1: Repository Cleanup & Archival
 Archives intermediate implementation artifacts while preserving
 final certification documents in their natural locations.
 """
+import glob
 import io
-import sys
 import os
 import shutil
-import glob
+import sys
 
 # Fix Windows console encoding
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -141,7 +141,7 @@ def ensure_gitignore():
     gitignore_path = os.path.join(BASE, ".gitignore")
     existing = ""
     if os.path.exists(gitignore_path):
-        with open(gitignore_path, "r") as f:
+        with open(gitignore_path) as f:
             existing = f.read()
 
     additions = []

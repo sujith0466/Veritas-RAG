@@ -1,9 +1,12 @@
 """Dashboard schema package exports."""
 
-from .dashboard_dto import (ExecutiveDashboardActivityDTO,
-                            ExecutiveDashboardAlertDTO, ExecutiveDashboardDTO,
+from .dashboard_dto import (
+                            ExecutiveDashboardActivityDTO,
+                            ExecutiveDashboardAlertDTO,
+                            ExecutiveDashboardDTO,
                             KnowledgeIntelligenceSummaryDTO,
-                            KnowledgeStageMetric)
+                            KnowledgeStageMetric,
+)
 
 __all__ = [
     "ExecutiveDashboardActivityDTO",

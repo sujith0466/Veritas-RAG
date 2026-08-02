@@ -4,8 +4,8 @@ Stores high-dimensional dense vector arrays (`JSONB`) generated from `DocumentCh
 alongside content hashes (`content_hash`) to enable zero-call idempotency checks (`ADR-M2-001`, `ADR-M2-002`).
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID

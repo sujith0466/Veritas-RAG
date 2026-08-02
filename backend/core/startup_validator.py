@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import sys
-import structlog
-from typing import Any
+
 from sqlalchemy import text
+import structlog
+
 from backend.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
@@ -14,21 +16,21 @@ class StartupValidator:
     async def validate(self) -> None:
         """Run all startup validations. Abort application on failure."""
         logger.info("Starting configuration and dependency validation phase")
-        
+
         try:
             self.validate_configuration()
-            
+
             # Skip infrastructure network validation if explicitly disabled via configuration
             if self.settings.startup.validate_infrastructure:
                 await self.validate_infrastructure()
             else:
                 logger.info("Skipping infrastructure validation per configuration flag")
-            
+
             logger.info("All startup validations passed successfully")
         except Exception as e:
             logger.critical("STARTUP VALIDATION FAILED", error=str(e))
             sys.exit(1)
-            
+
     def validate_configuration(self) -> None:
         """Layer 1: Configuration validation. No network I/O."""
         self._validate_environment()
@@ -51,7 +53,7 @@ class StartupValidator:
             self._fail("Missing qdrant.host configuration")
         if not self.settings.embeddings.default_provider:
             self._fail("Missing embeddings.default_provider configuration")
-        
+
         self._pass("Environment Configuration")
 
     async def _validate_database(self) -> None:
@@ -69,7 +71,7 @@ class StartupValidator:
         """Verify Redis connectivity if enabled in deployment."""
         if not self.settings.redis.url:
             return  # Not configured/required
-            
+
         from backend.cache.client import get_redis_client
         try:
             redis = get_redis_client()
@@ -93,7 +95,7 @@ class StartupValidator:
         """Verify embedding configuration."""
         if not self.settings.embeddings.openai_model:
             self._fail("Missing embeddings.openai_model configuration")
-        
+
         self._pass(f"Embedding configuration validated (model={self.settings.embeddings.openai_model})")
 
     def _validate_consistency(self) -> None:
@@ -105,12 +107,12 @@ class StartupValidator:
                 self._fail("QdrantSettings.collection_name returned empty string")
         except Exception as e:
             self._fail(f"Collection naming function is missing or invalid: {e}")
-            
+
         self._pass("Configuration contracts and consistency validated")
 
     def _pass(self, message: str) -> None:
         logger.info(f"[PASS] {message}")
-        
+
     def _fail(self, message: str) -> None:
         logger.error(f"[FAIL] {message}")
         raise ValueError(message)

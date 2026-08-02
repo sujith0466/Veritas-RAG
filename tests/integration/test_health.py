@@ -25,9 +25,8 @@ class TestHealthEndpoints:
 
     def test_readiness_probe_default(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         import backend.api.v1.routes.health as health_mod
-
         from backend.api.v1.schemas.common import DependencyHealth
-        
+
         async def mock_check_deps(detailed: bool = False):
             return {
                 "postgresql": DependencyHealth(name="postgresql", status="healthy"),
@@ -46,9 +45,8 @@ class TestHealthEndpoints:
 
     def test_readiness_probe_degraded_when_unhealthy(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         import backend.api.v1.routes.health as health_mod
-
         from backend.api.v1.schemas.common import DependencyHealth
-        
+
         async def mock_check_deps(detailed: bool = False):
             return {
                 "postgresql": DependencyHealth(name="postgresql", status="unhealthy"),
@@ -66,27 +64,30 @@ class TestHealthEndpoints:
         assert response.status_code == 401
         assert response.json()["error"]["code"] == "AUTH_001"
 
-    def test_detailed_health_admin(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_detailed_health_admin(self, client: TestClient) -> None:
         from unittest.mock import patch
         import uuid
 
         from backend.core.auth.context import UserContext
         from backend.core.permissions.rbac import Role
 
+        user_uuid = uuid.uuid4()
         mock_user = UserContext(
-            id=uuid.uuid4(),
-            supabase_id="sup-admin",
+            id=user_uuid,
+            supabase_id=str(user_uuid),
             email="admin@raguard.ai",
             role=Role.ADMIN,
             is_active=True,
         )
+        mock_payload = __import__("backend.core.auth.context").core.auth.context.TokenPayload(sub=str(user_uuid), email="admin@raguard.ai", role="admin", exp=int(__import__("time").time())+3600)
+
         with patch(
-            "backend.services.auth.auth_service.AuthService.authenticate_token",
+            "backend.core.dependencies.auth.get_current_user",
             return_value=mock_user,
-        ):
+        ), patch("backend.core.security.jwt.JWTService.verify_token", new_callable=__import__("unittest.mock").mock.AsyncMock, return_value=mock_payload):
             response = client.get(
                 "/api/v1/health/detailed",
-                headers={"Authorization": "Bearer valid.admin.token"},
+                headers={"Authorization": "Bearer admin.token"},
             )
             assert response.status_code == 200
             data = response.json()

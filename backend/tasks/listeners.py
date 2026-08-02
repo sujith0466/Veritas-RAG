@@ -1,14 +1,12 @@
 """Event listeners for robust RAG pipeline orchestration."""
 
-import structlog
 import uuid
-from backend.core.events.types import EventType
+
+import structlog
+
 from backend.core.events.dispatcher import get_dispatcher
+from backend.core.events.types import EventType
 from backend.document.events import EVENT_DOCUMENT_PROCESSED
-from backend.document.models.event_log import DocumentEventLog
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from backend.core.config import get_settings
 from backend.document.models.status import DocumentStatus
 
 logger = structlog.get_logger(__name__)
@@ -17,11 +15,10 @@ async def handle_document_processed(event) -> None:
     """Trigger chunking when ingestion is complete."""
     logger.info("Pipeline Orchestrator: Received DocumentProcessed event, triggering chunking", event_id=event.event_id)
     try:
-        from backend.modules.chunking.workers.tasks import process_document_chunking_task
-        
         from backend.database.engine import get_session_factory
+        from backend.modules.chunking.workers.tasks import process_document_chunking_task
         session_factory = get_session_factory()
-        
+
         async with session_factory() as session:
             from backend.document.models.document import Document
             doc_id = event.data.get("document_id") or getattr(event, "document_id", None)
@@ -32,18 +29,18 @@ async def handle_document_processed(event) -> None:
             if not doc:
                 logger.error("Document not found in db", doc_id=doc_id)
                 return
-                
+
             tenant_id = doc.tenant_id
             document_id = str(doc.id)
             version_id = str(doc.latest_version_id)
-            
+
             # Update state to CHUNKING
             doc.status = DocumentStatus.CHUNKING
             await session.commit()
-            
+
             logger.info("Dispatching chunking task", document_id=document_id)
             process_document_chunking_task.apply_async(
-                args=[tenant_id, document_id, version_id], 
+                args=[tenant_id, document_id, version_id],
                 queue="ingestion"
             )
     except Exception as e:
@@ -54,12 +51,11 @@ async def handle_chunking_completed(event) -> None:
     """Trigger embedding when chunking is complete."""
     logger.info("Pipeline Orchestrator: Received ChunkingCompleted event, triggering embeddings", event_id=event.event_id)
     try:
-        from backend.modules.embedding.workers.tasks import process_embedding_batch_task
-        from backend.modules.embedding.services.embedding_service import EmbeddingService
-        
         from backend.database.engine import get_session_factory
+        from backend.modules.embedding.services.embedding_service import EmbeddingService
+        from backend.modules.embedding.workers.tasks import process_embedding_batch_task
         session_factory = get_session_factory()
-        
+
         async with session_factory() as session:
             from backend.document.models.document import Document
             doc_id = event.data.get("document_id") or getattr(event, "document_id", None)
@@ -68,11 +64,13 @@ async def handle_chunking_completed(event) -> None:
             doc = await session.get(Document, uuid.UUID(str(doc_id)))
             if not doc:
                 return
-                
+
             doc.status = DocumentStatus.EMBEDDING
             await session.commit()
-            
-            from backend.modules.embedding.repositories.embedding_repository import EmbeddingRepository
+
+            from backend.modules.embedding.repositories.embedding_repository import (
+                EmbeddingRepository,
+            )
             repo = EmbeddingRepository(session)
             emb_service = EmbeddingService(repository=repo)
             job = await emb_service.initiate_embedding_job(
@@ -84,7 +82,7 @@ async def handle_chunking_completed(event) -> None:
                 force_reembed=False
             )
             await session.commit()
-            
+
             process_embedding_batch_task.apply_async(
                 args=[str(job.id), doc.tenant_id, 100, False],
                 queue="embeddings"
@@ -97,11 +95,10 @@ async def handle_embedding_completed(event) -> None:
     """Trigger vector sync when embeddings are complete."""
     logger.info("Pipeline Orchestrator: Received EmbeddingCompleted event, triggering vector sync", event_id=event.event_id)
     try:
-        from backend.modules.vector.workers.tasks import sync_vectors_to_qdrant_task
-        
         from backend.database.engine import get_session_factory
+        from backend.modules.vector.workers.tasks import sync_vectors_to_qdrant_task
         session_factory = get_session_factory()
-        
+
         async with session_factory() as session:
             from backend.document.models.document import Document
             if hasattr(event, "payload") and event.payload:
@@ -113,10 +110,10 @@ async def handle_embedding_completed(event) -> None:
             doc = await session.get(Document, uuid.UUID(str(doc_id)))
             if not doc:
                 return
-                
+
             doc.status = DocumentStatus.VECTOR_SYNC
             await session.commit()
-            
+
             sync_vectors_to_qdrant_task.apply_async(
                 args=[str(doc.id), str(doc.latest_version_id), doc.tenant_id],
                 queue="ingestion"
@@ -130,7 +127,7 @@ async def handle_vector_sync_completed(event) -> None:
     try:
         from backend.database.engine import get_session_factory
         session_factory = get_session_factory()
-        
+
         async with session_factory() as session:
             from backend.document.models.document import Document
             if hasattr(event, "payload") and event.payload:
@@ -142,7 +139,7 @@ async def handle_vector_sync_completed(event) -> None:
             doc = await session.get(Document, uuid.UUID(str(doc_id)))
             if not doc:
                 return
-                
+
             doc.status = DocumentStatus.READY
             await session.commit()
             logger.info("Document is now READY for RAG", document_id=str(doc.id))

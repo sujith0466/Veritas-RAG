@@ -22,13 +22,13 @@ class CacheManager:
         """Retrieve and deserialize a value from the cache."""
         key = CacheKeyBuilder.build(tenant, domain, entity, entity_id)
         client = get_redis_client()
-        
+
         try:
             value = await client.get(key)
             if value is None:
                 RedisMetrics.record_miss()
                 return None
-                
+
             RedisMetrics.record_hit()
             return CacheSerializer.deserialize(value)
         except Exception as e:
@@ -49,7 +49,7 @@ class CacheManager:
         key = CacheKeyBuilder.build(tenant, domain, entity, entity_id)
         serialized_value = CacheSerializer.serialize(value)
         client = get_redis_client()
-        
+
         try:
             await client.setex(key, int(ttl.value), serialized_value)
         except Exception as e:
@@ -63,7 +63,7 @@ class CacheManager:
         """Delete a key from the cache."""
         key = CacheKeyBuilder.build(tenant, domain, entity, entity_id)
         client = get_redis_client()
-        
+
         try:
             await client.delete(key)
         except Exception as e:

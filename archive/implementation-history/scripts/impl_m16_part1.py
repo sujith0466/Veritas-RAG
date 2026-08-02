@@ -9,11 +9,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 16.1 Implementation...")
-    
+
     os.makedirs("backend/modules/dashboard/schemas", exist_ok=True)
     os.makedirs("backend/modules/dashboard/services", exist_ok=True)
     os.makedirs("backend/modules/dashboard/api", exist_ok=True)
-    
+
     # 1. schemas/errors.py
     errors_path = "backend/modules/dashboard/schemas/errors.py"
     with open(errors_path, "w") as f:
@@ -29,7 +29,7 @@ class DashboardDomainException(RAGuardException):
     def __init__(self, message: str, error_code: str, detail: dict | None = None):
         super().__init__(message=message, error_code=error_code, detail=detail)
 """)
-    
+
     # 2. schemas/dashboard_dto.py
     dto_path = "backend/modules/dashboard/schemas/dashboard_dto.py"
     with open(dto_path, "w") as f:

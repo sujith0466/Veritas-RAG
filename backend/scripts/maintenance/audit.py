@@ -1,13 +1,15 @@
 import asyncio
-from sqlalchemy import select, func
-from qdrant_client import AsyncQdrantClient
 
-from backend.database.engine import get_session_factory
+from qdrant_client import AsyncQdrantClient
+from sqlalchemy import func, select
+
 from backend.core.config import get_settings
-from backend.models.entities.user import User
+from backend.database.engine import get_session_factory
 from backend.document.models import Document
+from backend.models.entities.user import User
 from backend.modules.chunking.models import DocumentChunk
 from backend.modules.embedding.models import ChunkEmbedding
+
 
 async def run_audit():
     print("=== PHASE 3: Document Verification ===")
@@ -16,7 +18,7 @@ async def run_audit():
         doc_count = (await session.execute(select(func.count()).select_from(Document))).scalar()
         chunk_count = (await session.execute(select(func.count()).select_from(DocumentChunk))).scalar()
         embed_count = (await session.execute(select(func.count()).select_from(ChunkEmbedding))).scalar()
-        
+
         print(f"Documents: {doc_count}")
         print(f"Chunks: {chunk_count}")
         print(f"Embeddings: {embed_count}")
@@ -42,9 +44,9 @@ async def run_audit():
         print(f"Qdrant Error: {e}")
 
     print("\n=== PHASE 5 & 6: Retrieval Debug ===")
-    from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
     from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
-    
+    from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
+
     # We need a tenant_id. Let's get demoadmin tenant_id
     async with session_maker() as session:
         admin = (await session.execute(select(User).where(User.email == "demoadmin@gmail.com"))).scalar_one_or_none()
@@ -52,10 +54,10 @@ async def run_audit():
             print("No admin user found.")
             return
         tenant_id = admin.tenant_id
-        
+
     orchestrator = RetrievalOrchestrator()
     search_req = SearchRequestDTO(query="What is our PTO policy?", top_k=5, rerank=True, semantic_weight=0.7)
-    
+
     try:
         res = await orchestrator.execute_hybrid_search(search_req, tenant_id=tenant_id, correlation_id="test")
         print(f"Retrieval found {len(res.top_candidates)} chunks.")

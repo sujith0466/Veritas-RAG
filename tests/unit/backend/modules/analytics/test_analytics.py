@@ -1,6 +1,6 @@
 """Unit tests for Query Analytics & Reliability Intelligence (`Phase 4 Milestone 1`)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -136,8 +136,8 @@ async def test_invalid_date_range_raises_exception() -> None:
         await service.get_success_rate(
             AnalyticsFilterDTO(
                 tenant_id="tenant_1",
-                start_time=datetime(2026, 7, 20, tzinfo=timezone.utc),
-                end_time=datetime(2026, 7, 10, tzinfo=timezone.utc),
+                start_time=datetime(2026, 7, 20, tzinfo=UTC),
+                end_time=datetime(2026, 7, 10, tzinfo=UTC),
             )
         )
 
@@ -157,7 +157,7 @@ async def test_get_query_trace_detail() -> None:
         is_safe_to_serve=True,
     )
     mock_record.id = uuid4()
-    mock_record.created_at = datetime.now(timezone.utc)
+    mock_record.created_at = datetime.now(UTC)
     mock_session.scalar = AsyncMock(return_value=mock_record)
 
     repo = AnalyticsRepository(session=mock_session)
@@ -189,7 +189,7 @@ async def test_execute_query_sandbox() -> None:
         is_safe_to_serve=True,
     )
     mock_record.id = uuid4()
-    mock_record.created_at = datetime.now(timezone.utc)
+    mock_record.created_at = datetime.now(UTC)
     mock_session.scalar = AsyncMock(return_value=mock_record)
 
     repo = AnalyticsRepository(session=mock_session)

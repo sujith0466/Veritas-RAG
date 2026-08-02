@@ -8,11 +8,8 @@ from typing import Any
 
 import structlog
 
-from backend.database.engine import get_session_factory
-from backend.modules.reliability.circuit_breaker.engine import \
-    CircuitBreakerEngine
-from backend.modules.reliability.repositories.reliability_repository import \
-    ReliabilityRepository
+from backend.modules.reliability.circuit_breaker.engine import CircuitBreakerEngine
+from backend.modules.reliability.repositories.reliability_repository import ReliabilityRepository
 from backend.tasks.celery_app import celery_app
 
 logger = structlog.get_logger(__name__)
@@ -25,13 +22,14 @@ def aggregate_sla_metrics_task(self: Any, tenant_id: str) -> dict[str, Any]:
 
 
 async def _async_aggregate_sla_metrics(tenant_id: str) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     from backend.core.config import get_settings
-    
+
     settings = get_settings().database
     engine = create_async_engine(settings.url, pool_pre_ping=True)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    
+
     try:
         async with session_factory() as session:
             repo = ReliabilityRepository(session)

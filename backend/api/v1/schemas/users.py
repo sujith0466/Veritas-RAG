@@ -1,46 +1,53 @@
-from typing import Optional, Dict, Any
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
 class ProfileDataSchema(BaseModel):
-    bio: Optional[str] = Field(default=None, max_length=1000)
-    organization: Optional[str] = Field(default=None, max_length=255)
-    phone: Optional[str] = Field(default=None, max_length=50)
-    department: Optional[str] = Field(default=None, max_length=255)
-    designation: Optional[str] = Field(default=None, max_length=255)
-    website: Optional[str] = Field(default=None, max_length=255)
-    timezone: Optional[str] = Field(default=None, max_length=100)
-    location: Optional[str] = Field(default=None, max_length=255)
-    workspace_name: Optional[str] = Field(default=None, max_length=255)
+    bio: str | None = Field(default=None, max_length=1000)
+    organization: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+    department: str | None = Field(default=None, max_length=255)
+    designation: str | None = Field(default=None, max_length=255)
+    website: str | None = Field(default=None, max_length=255)
+    timezone: str | None = Field(default=None, max_length=100)
+    location: str | None = Field(default=None, max_length=255)
+    workspace_name: str | None = Field(default=None, max_length=255)
 
     model_config = {"extra": "ignore"}
 
 
 class AISettingsSchema(BaseModel):
-    default_model: Optional[str] = Field(default=None, max_length=100)
-    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
-    system_prompt: Optional[str] = Field(default=None, max_length=10000)
+    default_model: str | None = Field(default=None, max_length=100)
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    system_prompt: str | None = Field(default=None, max_length=10000)
 
     model_config = {"extra": "ignore"}
 
 
 class UserPreferencesSchema(BaseModel):
-    ai: Optional[AISettingsSchema] = None
+    ai: AISettingsSchema | None = None
 
     model_config = {"extra": "ignore"}
 
 
 class WorkspaceSettingsSchema(BaseModel):
-    retention_policy: Optional[str] = Field(default=None, max_length=50)
-    data_region: Optional[str] = Field(default=None, max_length=50)
-    onboarding_completed: Optional[bool] = Field(default=None)
+    retention_policy: str | None = Field(default=None, max_length=50)
+    data_region: str | None = Field(default=None, max_length=50)
+    onboarding_completed: bool | None = Field(default=None)
 
     model_config = {"extra": "ignore"}
 
 
 class UserProfileUpdate(BaseModel):
-    username: Optional[str] = Field(default=None, max_length=150)
-    profile_data: Optional[ProfileDataSchema] = None
+    username: str | None = Field(default=None, max_length=150)
+    display_name: str | None = Field(default=None, max_length=255)
+    timezone: str | None = Field(default=None, max_length=50)
+    language: str | None = Field(default=None, max_length=20)
+    theme_preference: str | None = Field(default=None, max_length=20)
+    version: int | None = Field(default=None, description="Expected version for optimistic locking")
+
+    profile_data: ProfileDataSchema | None = None
 
     model_config = {"extra": "ignore"}
 
@@ -60,13 +67,21 @@ class UserWorkspaceUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: str
-    username: Optional[str]
-    avatar_url: Optional[str]
+    username: str | None
+    display_name: str | None = None
+    avatar_url: str | None
     role: str
     is_active: bool
-    profile_data: Optional[Dict[str, Any]]
-    preferences: Optional[Dict[str, Any]]
-    workspace_settings: Optional[Dict[str, Any]]
+
+    # F4.7 fields
+    timezone: str = "UTC"
+    language: str = "en-US"
+    theme_preference: str = "system"
+    version: int = 1
+
+    profile_data: dict[str, Any] | None
+    preferences: dict[str, Any] | None
+    workspace_settings: dict[str, Any] | None
 
     class Config:
         from_attributes = True

@@ -6,16 +6,17 @@ each request in an OpenTelemetry span with correlation ID propagation.
 
 import time
 
-import structlog
-from starlette.middleware.base import (BaseHTTPMiddleware,
-                                       RequestResponseEndpoint)
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
+import structlog
 
-from backend.observability.metrics import (HTTP_REQUESTS_ACTIVE,
-                                           record_error_metric,
-                                           record_http_request)
+from backend.observability.metrics import (
+    HTTP_REQUESTS_ACTIVE,
+    record_error_metric,
+    record_http_request,
+)
 from backend.observability.tracing import get_tracer
 
 logger = structlog.get_logger(__name__)

@@ -1,16 +1,19 @@
 import uuid
-from typing import List
-from fastapi import APIRouter, Depends, status, Request
+
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import StreamingResponse
 
-from backend.api.v1.schemas.common import SuccessResponse, ResponseMetadata
-from backend.core.dependencies.auth import get_current_user
+from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.auth.context import UserContext
-from backend.modules.chat.schemas.chat_dto import (
-    ChatSessionDTO, ChatSessionCreateDTO, ChatSessionUpdateDTO, ChatRequestDTO
-)
+from backend.core.dependencies.auth import get_current_user
+from backend.modules.chat.api.dependencies import get_chat_orchestrator, get_chat_repository
 from backend.modules.chat.repositories.chat_repository import ChatRepository
-from backend.modules.chat.api.dependencies import get_chat_repository, get_chat_orchestrator
+from backend.modules.chat.schemas.chat_dto import (
+    ChatRequestDTO,
+    ChatSessionCreateDTO,
+    ChatSessionDTO,
+    ChatSessionUpdateDTO,
+)
 from backend.modules.chat.services.chat_orchestrator import ChatOrchestrator
 
 router = APIRouter(prefix="/chat", tags=["AI Chat"])
@@ -19,14 +22,14 @@ def _build_metadata(request: Request) -> ResponseMetadata:
     req_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
     return ResponseMetadata(request_id=req_id)
 
-@router.get("/sessions", response_model=SuccessResponse[List[ChatSessionDTO]])
+@router.get("/sessions", response_model=SuccessResponse[list[ChatSessionDTO]])
 async def list_sessions(
     request: Request,
     repo: ChatRepository = Depends(get_chat_repository),
     user: UserContext = Depends(get_current_user)
 ):
     sessions = await repo.list_sessions(tenant_id=user.tenant_id, user_id=str(user.id))
-    return SuccessResponse[List[ChatSessionDTO]](
+    return SuccessResponse[list[ChatSessionDTO]](
         data=[ChatSessionDTO.model_validate(s) for s in sessions],
         metadata=_build_metadata(request)
     )
@@ -59,7 +62,8 @@ async def get_session(
 
 from backend.modules.chat.schemas.chat_dto import ChatMessageDTO
 
-@router.get("/sessions/{session_id}/messages", response_model=SuccessResponse[List[ChatMessageDTO]])
+
+@router.get("/sessions/{session_id}/messages", response_model=SuccessResponse[list[ChatMessageDTO]])
 async def list_messages(
     session_id: str,
     request: Request,
@@ -69,13 +73,13 @@ async def list_messages(
     user: UserContext = Depends(get_current_user)
 ):
     messages = await repo.list_messages(
-        session_id=session_id, 
-        tenant_id=user.tenant_id, 
+        session_id=session_id,
+        tenant_id=user.tenant_id,
         user_id=str(user.id),
         limit=limit,
         offset=offset
     )
-    return SuccessResponse[List[ChatMessageDTO]](
+    return SuccessResponse[list[ChatMessageDTO]](
         data=[ChatMessageDTO.model_validate(m) for m in messages],
         metadata=_build_metadata(request)
     )
@@ -111,7 +115,7 @@ async def stream_chat(
     user: UserContext = Depends(get_current_user)
 ):
     correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
-    
+
     return StreamingResponse(
         orchestrator.stream_chat(
             session_id=session_id,

@@ -1,7 +1,6 @@
 import re
 
-from backend.modules.reflection.schemas.reflection_dto import \
-    ClaimValidationResultDTO
+from backend.modules.reflection.schemas.reflection_dto import ClaimValidationResultDTO
 
 
 class LogicalConsistencyReviewer:

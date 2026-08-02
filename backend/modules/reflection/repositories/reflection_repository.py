@@ -2,8 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.reflection.models.reflection_log import ReflectionLogORM
-from backend.modules.reflection.schemas.reflection_dto import \
-    ReflectionResultDTOv2
+from backend.modules.reflection.schemas.reflection_dto import ReflectionResultDTOv2
 
 
 class ReflectionRepository:

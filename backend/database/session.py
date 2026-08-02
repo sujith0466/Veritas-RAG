@@ -3,9 +3,9 @@
 Provides context managers for isolated RLS database access.
 """
 
-import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+import uuid
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,9 +21,9 @@ async def rls_session(tenant_id: str | uuid.UUID) -> AsyncGenerator[AsyncSession
     Since `SET LOCAL` is transaction-scoped, it automatically resets on commit/rollback.
     """
     factory = get_session_factory()
-    
+
     tenant_str = str(tenant_id)
-    
+
     async with factory() as session:
         try:
             # Enforce RLS context at the transaction level

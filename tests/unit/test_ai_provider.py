@@ -189,10 +189,10 @@ class TestOpenRouterProvider:
         mock_http = MagicMock(spec=AsyncClient)
         mock_response = MagicMock(spec=Response)
         mock_response.status_code = 200
-        
+
         provider = OpenRouterProvider(http_client=mock_http)
         expected_model = provider._settings.models[0]
-        
+
         mock_response.json.return_value = {
             "model": expected_model,
             "choices": [{"message": {"content": "OpenRouter summary output"}}],

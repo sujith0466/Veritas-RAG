@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 22.3 Implementation...")
-    
+
     # 1. middleware.py
     with open("backend/modules/security/middleware.py", "w") as f:
         f.write("""from backend.modules.security.services.dlp import DLPEngine

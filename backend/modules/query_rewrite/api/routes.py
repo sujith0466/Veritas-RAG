@@ -2,10 +2,8 @@
 
 from fastapi import APIRouter
 
-from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2, RewriteResultDTO)
-from backend.modules.query_rewrite.services.rewrite_orchestrator import \
-    RewriteOrchestrator
+from backend.modules.query_rewrite.schemas.rewrite_dto import RewriteRequestDTOv2, RewriteResultDTO
+from backend.modules.query_rewrite.services.rewrite_orchestrator import RewriteOrchestrator
 
 router = APIRouter()
 _orchestrator = RewriteOrchestrator()
@@ -46,17 +44,16 @@ from typing import Optional
 
 from fastapi import HTTPException
 
-from backend.modules.query_rewrite.schemas.errors import \
-    ClarificationGenerationFailed
+from backend.modules.query_rewrite.schemas.errors import ClarificationGenerationFailed
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    ClarificationQuestionDTO, ClarificationResumeRequestDTO,
-    ClarificationStateDTO, ClarifiedQueryDTO)
-from backend.modules.query_rewrite.services.clarification_engine import \
-    ClarificationEngine
-from backend.modules.query_rewrite.strategies.decomposition import \
-    DecompositionRewriter
-from backend.modules.query_rewrite.strategies.disambiguation import \
-    DisambiguationRewriter
+    ClarificationQuestionDTO,
+    ClarificationResumeRequestDTO,
+    ClarificationStateDTO,
+    ClarifiedQueryDTO,
+)
+from backend.modules.query_rewrite.services.clarification_engine import ClarificationEngine
+from backend.modules.query_rewrite.strategies.decomposition import DecompositionRewriter
+from backend.modules.query_rewrite.strategies.disambiguation import DisambiguationRewriter
 from backend.modules.query_rewrite.strategies.hyde import HyDERewriter
 
 # Global instance for Phase 9 clarification endpoints

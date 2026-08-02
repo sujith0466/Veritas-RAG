@@ -6,16 +6,16 @@ for distributed caching, rate limiting, and session state.
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from redis.asyncio import ConnectionPool, Redis
 from redis.exceptions import ConnectionError, TimeoutError
+import structlog
 
 from backend.cache.metrics import RedisMetrics
 from backend.core.config import get_settings
 from backend.core.utils.retry import with_retry
-import time
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -72,14 +72,14 @@ async def check_cache_health() -> dict[str, Any]:
     start = time.perf_counter()
     status = "healthy"
     error = None
-    
+
     try:
         # Wrap ping with retry to evaluate transient connectivity
         @with_retry(max_retries=2, base_delay=0.1, exceptions=(ConnectionError, TimeoutError))
         async def _ping():
             client = get_redis_client()
             return await client.ping()
-            
+
         result = await _ping()
         if result is not True and str(result) != "PONG":
             status = "unhealthy"
@@ -88,10 +88,10 @@ async def check_cache_health() -> dict[str, Any]:
         logger.warning("Redis health check failed", error=str(exc))
         status = "unhealthy"
         error = str(exc)
-        
+
     latency_ms = (time.perf_counter() - start) * 1000
     stats = RedisMetrics.get_stats()
-    
+
     return {
         "status": status,
         "latency_ms": round(latency_ms, 2),

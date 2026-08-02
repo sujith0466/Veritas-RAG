@@ -12,8 +12,7 @@ from typing import Any
 import structlog
 
 from backend.core.config import get_settings
-from backend.modules.embedding.providers.base import (BaseEmbeddingProvider,
-                                                      EmbeddingBatchResult)
+from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
 from backend.modules.embedding.schemas.errors import InvalidInputError
 
 logger = structlog.get_logger(__name__)
@@ -65,7 +64,7 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
                 return self._st_model
             if self._st_attempted:
                 return None
-                
+
             self._st_attempted = True
             try:
                 from sentence_transformers import SentenceTransformer

@@ -6,27 +6,33 @@ and retrieving authenticated user profiles (`/me`).
 
 import uuid
 
-from fastapi import APIRouter, Depends, Request, Response, Cookie, HTTPException
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
 from backend.api.v1.schemas.auth import (
-    AuthStatusResponse, LoginRequest, LoginResponse, UserContext,
-    ForgotPasswordRequest, ResetPasswordRequest, VerifyOTPRequest,
-    ResetPasswordOTPRequest, ChangePasswordRequest
+    AuthStatusResponse,
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    ResetPasswordOTPRequest,
+    ResetPasswordRequest,
+    UserContext,
+    VerifyOTPRequest,
 )
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.api.v1.schemas.registration import RegistrationRequest, RegistrationResponse
 from backend.api.v1.schemas.verification import ResendVerificationRequest
-from backend.core.database.session import get_db
 from backend.core.dependencies.auth import get_current_user, get_optional_user
+from backend.core.dependencies.database import get_db
 from backend.services.auth.auth_service import AuthService
 from backend.services.auth.email_verification_service import EmailVerificationService
-from backend.services.auth.registration_service import RegistrationService
 from backend.services.auth.password_reset_service import PasswordResetService
-from backend.services.email.provider import get_email_provider
+from backend.services.auth.registration_service import RegistrationService
 from backend.services.auth.sso_service import get_sso_provider
+from backend.services.email.provider import get_email_provider
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -182,7 +188,7 @@ async def forgot_password(
     """Request a password reset email."""
     service = PasswordResetService(db)
     await service.generate_and_send_reset_token(payload.email)
-    
+
     return SuccessResponse(
         success=True,
         data={"message": "If that email exists, a password reset link has been sent."},
@@ -203,7 +209,7 @@ async def reset_password(
     """Reset password using a token."""
     service = PasswordResetService(db)
     await service.reset_password(payload.token, payload.new_password)
-    
+
     return SuccessResponse(
         success=True,
         data={"message": "Password successfully reset. You can now log in."},
@@ -224,7 +230,7 @@ async def request_password_otp(
     """Request a password reset OTP via email."""
     service = PasswordResetService(db)
     await service.request_otp(payload.email)
-    
+
     return SuccessResponse(
         success=True,
         data={"message": "If that email exists, an OTP has been sent."},
@@ -245,7 +251,7 @@ async def verify_password_otp(
     """Verify an OTP."""
     service = PasswordResetService(db)
     await service.verify_otp(payload.email, payload.otp)
-    
+
     return SuccessResponse(
         success=True,
         data={"message": "OTP verified successfully."},
@@ -266,7 +272,7 @@ async def reset_password_with_otp(
     """Reset password using an OTP."""
     service = PasswordResetService(db)
     await service.reset_password_with_otp(payload.email, payload.otp, payload.new_password)
-    
+
     return SuccessResponse(
         success=True,
         data={"message": "Password successfully reset. You can now log in."},
@@ -406,7 +412,7 @@ async def sso_callback(
 ) -> RedirectResponse:
     """Handle OIDC callback and redirect to frontend."""
     import os
-    
+
     sso_service = get_sso_provider(provider)
     profile = await sso_service.exchange_code(code, state)
 
@@ -433,6 +439,6 @@ async def sso_callback(
         samesite="strict",
         path="/api/v1/auth/refresh"
     )
-    
+
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
     return RedirectResponse(url=f"{frontend_url}/auth/callback#access_token={access_token}")

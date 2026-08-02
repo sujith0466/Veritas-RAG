@@ -36,7 +36,7 @@ class RedisMetrics:
     def record_reconnect(cls) -> None:
         """Record a connection pool reconnect event."""
         cls._reconnects += 1
-        
+
     @classmethod
     def get_stats(cls) -> dict[str, int]:
         """Return current metric counters."""

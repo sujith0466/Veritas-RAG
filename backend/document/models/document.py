@@ -3,15 +3,15 @@
 Represents the core document aggregate root and its immutable content revisions.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.document.models.storage_object import StorageObject
 from backend.document.models.status import DocumentStatus
+from backend.document.models.storage_object import StorageObject
 from backend.models.base import BaseModel
 
 

@@ -1,6 +1,5 @@
 """Unit tests for Document Domain Exception Hierarchy & Taxonomy (`ADR-005`, `Refinement 7`)."""
 
-import pytest
 
 from backend.document.schemas.errors import (
     DocumentDomainException,

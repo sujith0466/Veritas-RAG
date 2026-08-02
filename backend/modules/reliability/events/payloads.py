@@ -5,8 +5,8 @@ and circuit breaker trips (`retrieval.circuit_breaker_tripped`), bridging cleanl
 and `EventDispatcher` (`ADR-005`).
 """
 
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from pydantic import BaseModel, Field
 

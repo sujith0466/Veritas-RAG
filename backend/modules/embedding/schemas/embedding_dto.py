@@ -4,12 +4,11 @@ Provides validation and serialization models across REST API requests/responses,
 job tracking progress detail, provider registry information, and tenant KPI metrics.
 """
 
-import uuid
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
-from pydantic import (AliasChoices, BaseModel, ConfigDict, Field,
-                      field_validator)
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 
 class EmbeddingProcessRequestDTO(BaseModel):

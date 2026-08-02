@@ -10,8 +10,7 @@ import enum
 from typing import Any
 import uuid
 
-from pydantic import BaseModel, Field, HttpUrl, validator
-
+from pydantic import BaseModel, Field, validator
 
 # ── 1. Category Models ─────────────────────────────────────────────────────────
 

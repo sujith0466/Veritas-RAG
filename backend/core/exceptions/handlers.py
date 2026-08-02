@@ -5,15 +5,15 @@ JSON error response envelope. All error responses follow the ErrorResponse schem
 so clients have a single parsing contract regardless of error type.
 """
 
-import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any
+import uuid
 
-import structlog
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+import structlog
 
 from .auth import AuthenticationException, AuthorizationException
 from .base import InfrastructureException, RAGuardException

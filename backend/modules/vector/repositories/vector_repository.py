@@ -4,13 +4,13 @@ Provides asynchronous CRUD access, status transitions, and tenant point summarie
 for `VectorIndexMetadata` entities inside PostgreSQL (`ADR-M3-001`).
 """
 
-import uuid
 from collections.abc import Sequence
 from typing import Any
+import uuid
 
-import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 from backend.repositories.base import BaseRepository

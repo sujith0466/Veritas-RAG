@@ -1,6 +1,7 @@
 """Unit tests for database infrastructure and SQLAlchemy 2.x async engine."""
 
-from collections.abc import AsyncGenerator, Generator
+import asyncio
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,8 +16,6 @@ from backend.database.engine import (
 )
 from backend.database.init_db import init_db
 
-
-import asyncio
 
 @pytest.fixture(autouse=True)
 def reset_db_singletons() -> Generator[None, None, None]:

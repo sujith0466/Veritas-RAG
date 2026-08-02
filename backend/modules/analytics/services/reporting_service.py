@@ -1,24 +1,34 @@
 """Enterprise Reporting Service generating ReportLab PDFs for SLA Compliance & Reliability Audits."""
 
+from datetime import UTC, datetime
 import io
 import sys
 import time
 import uuid
-from datetime import UTC, datetime
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
-from reportlab.platypus import (HRFlowable, KeepTogether, Paragraph,
-                                SimpleDocTemplate, Spacer, Table, TableStyle)
+from reportlab.platypus import (
+    HRFlowable,
+    KeepTogether,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.analytics.schemas.analytics_dto import AnalyticsFilterDTO
 from backend.modules.analytics.schemas.reporting_dto import (
-    ReportExportRequestDTO, ReportFormat, ReportMetadataDTO, ReportType)
-from backend.modules.analytics.services.analytics_service import \
-    QueryAnalyticsService
+    ReportExportRequestDTO,
+    ReportFormat,
+    ReportMetadataDTO,
+    ReportType,
+)
+from backend.modules.analytics.services.analytics_service import QueryAnalyticsService
 from backend.observability.metrics import record_stage_duration
 from backend.observability.tracing import trace_reporting
 

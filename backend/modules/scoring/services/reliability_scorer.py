@@ -1,7 +1,5 @@
-from backend.modules.confidence.schemas.confidence_dto import \
-    ConfidenceResultDTO
-from backend.modules.reflection.schemas.reflection_dto import \
-    ReflectionResultDTO
+from backend.modules.confidence.schemas.confidence_dto import ConfidenceResultDTO
+from backend.modules.reflection.schemas.reflection_dto import ReflectionResultDTO
 from backend.modules.retry.schemas.retry_dto import RetryContextDTO
 from backend.modules.scoring.schemas.scoring_dto import ReliabilityScoreDTO
 

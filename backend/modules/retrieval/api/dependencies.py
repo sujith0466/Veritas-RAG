@@ -13,18 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
 from backend.core.events.dispatcher import get_dispatcher
-from backend.modules.embedding.providers.openai_provider import \
-    OpenAIEmbeddingProvider
-from backend.modules.retrieval.providers.reranker.local_reranker import \
-    LocalCrossEncoderProvider
-from backend.modules.retrieval.providers.sparse.bm25_provider import \
-    BM25SparseSearchProvider
-from backend.modules.retrieval.repositories.retrieval_repository import \
-    RetrievalRepository
-from backend.modules.retrieval.services.retrieval_service import \
-    RetrievalOrchestrator
-from backend.modules.vector.providers.qdrant_provider import \
-    QdrantVectorDBProvider
+from backend.modules.retrieval.providers.reranker.local_reranker import LocalCrossEncoderProvider
+from backend.modules.retrieval.providers.sparse.bm25_provider import BM25SparseSearchProvider
+from backend.modules.retrieval.repositories.retrieval_repository import RetrievalRepository
+from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
+from backend.modules.vector.providers.qdrant_provider import QdrantVectorDBProvider
 
 # Global provider instances for connection reuse across HTTP requests
 _qdrant_provider = QdrantVectorDBProvider()
@@ -66,17 +59,17 @@ def get_retrieval_orchestrator(
     index_manager: "SparseIndexManager" = Depends(get_sparse_index_manager)
 ) -> RetrievalOrchestrator:
     """Inject a `RetrievalOrchestrator` configured with shared vector, sparse, reranker providers, and event dispatcher."""
-    from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
     from backend.core.config import get_settings
-    
+    from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
+
     global _reranker_provider_instance
     settings = get_settings()
-    
+
     if _reranker_provider_instance is None:
         _reranker_provider_instance = LocalCrossEncoderProvider(model_name=settings.retrieval.reranker_model)
-        
+
     embedding_provider = LocalEmbeddingProvider(model_name=settings.embeddings.local_model, offline=False)
-    
+
     return RetrievalOrchestrator(
         embedding_provider=embedding_provider,
         vector_provider=_qdrant_provider,

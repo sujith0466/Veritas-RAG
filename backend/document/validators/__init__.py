@@ -1,8 +1,7 @@
 """Validators package export."""
 
 from .duplicates import check_duplicate_content
-from .mime_magic import (ALLOWED_EXTENSIONS, ALLOWED_MIMES,
-                         validate_extension_and_mime)
+from .mime_magic import ALLOWED_EXTENSIONS, ALLOWED_MIMES, validate_extension_and_mime
 from .pipeline import ValidationPipeline, ValidationResult
 from .sanitization import sanitize_filename
 from .size import DEFAULT_MAX_FILE_SIZE_BYTES, validate_size

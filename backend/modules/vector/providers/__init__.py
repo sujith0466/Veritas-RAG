@@ -2,8 +2,7 @@
 
 from backend.modules.vector.providers.base import BaseVectorDBProvider
 from backend.modules.vector.providers.factory import VectorProviderFactory
-from backend.modules.vector.providers.qdrant_provider import \
-    QdrantVectorDBProvider
+from backend.modules.vector.providers.qdrant_provider import QdrantVectorDBProvider
 
 __all__ = [
     "BaseVectorDBProvider",

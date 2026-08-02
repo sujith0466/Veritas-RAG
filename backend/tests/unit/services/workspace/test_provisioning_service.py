@@ -1,9 +1,10 @@
+from unittest.mock import AsyncMock
 import uuid
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from backend.models.entities.workspace import ProvisioningStatus, WorkspaceStatus
 from backend.services.workspace.provisioning_service import WorkspaceProvisioningService
-from backend.models.entities.workspace import WorkspaceStatus, ProvisioningStatus
 
 
 @pytest.fixture
@@ -42,7 +43,7 @@ def service(mock_workspace_repo, mock_workspace_settings_repo, mock_workspace_me
 @pytest.mark.asyncio
 async def test_provision_workspace_success(service, mock_session, mock_workspace_repo):
     owner_id = uuid.uuid4()
-    
+
     workspace = await service.provision_workspace(
         session=mock_session,
         name="Test Corp",
@@ -55,7 +56,7 @@ async def test_provision_workspace_success(service, mock_session, mock_workspace
     assert workspace.name == "Test Corp"
     assert workspace.status == WorkspaceStatus.ACTIVE.value
     assert workspace.provisioning_status == ProvisioningStatus.READY.value
-    
+
     # Check DB session interactions
     assert mock_session.add.call_count == 4  # Workspace, Settings, Member, AuditLog
     assert mock_session.flush.call_count == 2
@@ -65,10 +66,10 @@ async def test_provision_workspace_success(service, mock_session, mock_workspace
 @pytest.mark.asyncio
 async def test_provision_workspace_slug_collision(service, mock_session, mock_workspace_repo):
     owner_id = uuid.uuid4()
-    
+
     # Force collision once
     mock_workspace_repo.exists_by_slug.side_effect = [True, False]
-    
+
     workspace = await service.provision_workspace(
         session=mock_session,
         name="Collision Corp",

@@ -9,12 +9,11 @@ Logs every incoming request and its response with:
 
 import time
 
-import structlog
-from starlette.middleware.base import (BaseHTTPMiddleware,
-                                       RequestResponseEndpoint)
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
+import structlog
 
 logger = structlog.get_logger(__name__)
 

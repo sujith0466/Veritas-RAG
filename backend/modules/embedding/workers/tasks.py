@@ -5,14 +5,13 @@ Invokes `CeleryEmbeddingWorker` to handle session management, progress state, an
 """
 
 import asyncio
-import uuid
 from typing import Any
+import uuid
 
 import structlog
 
 from backend.database.engine import get_session_factory
-from backend.modules.embedding.workers.embedding_worker import \
-    CeleryEmbeddingWorker
+from backend.modules.embedding.workers.embedding_worker import CeleryEmbeddingWorker
 from backend.tasks.celery_app import celery_app
 
 logger = structlog.get_logger(__name__)
@@ -55,9 +54,8 @@ async def _async_process_embedding_task(
     batch_size: int,
     force_reembed: bool,
 ) -> dict[str, Any]:
-    from backend.database.engine import get_session_factory
     session_factory = get_session_factory()
-    
+
     async with session_factory() as session:
         worker = CeleryEmbeddingWorker(session)
         return await worker.execute_batch(

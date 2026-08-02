@@ -5,8 +5,7 @@ Integration hook for `pytesseract` and system tesseract binary.
 
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 from .base import OCREngine, OCRResult
 
@@ -22,8 +21,8 @@ class TesseractOCREngine(OCREngine):
         try:
             import io
 
-            import pytesseract
             from PIL import Image
+            import pytesseract
 
             current_pos = stream.tell()
             stream.seek(0)

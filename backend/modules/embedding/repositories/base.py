@@ -5,10 +5,10 @@ vector staging (`ChunkEmbedding`), idempotency hash queries (`filter_existing_co
 and tenant quota/metrics aggregation across multi-tenant boundaries (`ADR-005`).
 """
 
-import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Any
+import uuid
 
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.embedding.models.embedding_job import EmbeddingJob

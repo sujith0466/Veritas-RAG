@@ -1,4 +1,5 @@
 from backend.core.config import get_settings
+
 """Vector Storage Foundation REST API routes (`/api/v1/vectors`).
 
 Provides endpoints for triggering asynchronous batch vector synchronization (`POST /sync/{version_id}`),
@@ -8,25 +9,28 @@ and collection health (`GET /health`, `GET /collections`), and purging document 
 
 import uuid
 
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.database import get_db
-from backend.modules.vector.api.dependencies import (get_vector_repository,
-                                                     get_vector_service,
-                                                     resolve_tenant)
+from backend.modules.vector.api.dependencies import (
+    get_vector_repository,
+    get_vector_service,
+    resolve_tenant,
+)
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
-from backend.modules.vector.repositories.vector_repository import \
-    VectorMetadataRepository
+from backend.modules.vector.repositories.vector_repository import VectorMetadataRepository
 from backend.modules.vector.schemas.errors import VectorDomainException
-from backend.modules.vector.schemas.payload import (CollectionDetailDTO,
-                                                    PurgeSummaryDTO,
-                                                    QdrantClusterHealthDTO,
-                                                    VectorIndexMetadataDTO,
-                                                    VectorSyncRequestDTO)
+from backend.modules.vector.schemas.payload import (
+    CollectionDetailDTO,
+    PurgeSummaryDTO,
+    QdrantClusterHealthDTO,
+    VectorIndexMetadataDTO,
+    VectorSyncRequestDTO,
+)
 from backend.modules.vector.services.vector_service import VectorStorageService
 from backend.modules.vector.workers.tasks import sync_vectors_to_qdrant_task
 

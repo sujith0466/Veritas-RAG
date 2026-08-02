@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 20.3 Implementation...")
-    
+
     # 1. region_router.py
     with open("backend/core/resilience/region_router.py", "w") as f:
         f.write("""class RegionRouter:

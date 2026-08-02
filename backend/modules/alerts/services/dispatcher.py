@@ -3,8 +3,7 @@ from backend.modules.alerts.channels.pagerduty_channel import PagerDutyChannel
 from backend.modules.alerts.channels.slack_channel import SlackChannel
 from backend.modules.alerts.channels.webhook_channel import WebhookChannel
 from backend.modules.alerts.models.alert_rule import AlertRuleORM
-from backend.modules.alerts.schemas.alert_dto import (AlertPayloadDTO,
-                                                      ChannelConfigDTO)
+from backend.modules.alerts.schemas.alert_dto import AlertPayloadDTO, ChannelConfigDTO
 
 
 class AlertDispatcher:

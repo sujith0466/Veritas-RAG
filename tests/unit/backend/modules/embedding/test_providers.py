@@ -6,6 +6,7 @@ and `EmbeddingManager` batch segmentation, factory resolution, and exact error t
 
 from http import HTTPStatus
 from typing import Any
+
 import httpx
 import pytest
 
@@ -16,7 +17,6 @@ from backend.modules.embedding.providers.local_provider import LocalEmbeddingPro
 from backend.modules.embedding.providers.manager import EmbeddingManager
 from backend.modules.embedding.providers.openai_provider import OpenAIEmbeddingProvider
 from backend.modules.embedding.schemas.errors import (
-    InvalidInputError,
     ProviderAuthenticationError,
     ProviderTimeoutError,
     RateLimitExceededError,

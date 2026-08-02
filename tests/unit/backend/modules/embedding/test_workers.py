@@ -4,14 +4,17 @@ Verifies `CeleryEmbeddingWorker` session orchestration, jittered exponential bac
 Celery state update callbacks (`update_state`), and exact retry boundary differentiation (`RECOVERABLE` vs `FATAL`).
 """
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 import uuid
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.embedding.models.embedding_job import EmbeddingJob
-from backend.modules.embedding.schemas.errors import ProviderAuthenticationError, ProviderTimeoutError
+from backend.modules.embedding.schemas.errors import (
+    ProviderAuthenticationError,
+    ProviderTimeoutError,
+)
 from backend.modules.embedding.workers.embedding_worker import CeleryEmbeddingWorker
 
 

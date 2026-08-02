@@ -12,7 +12,6 @@ from backend.models.entities.feature_flag import (
     FlagType,
 )
 
-
 # ── Request Schemas ──────────────────────────────────────────────────────────
 
 class FeatureFlagCreateRequest(BaseModel):

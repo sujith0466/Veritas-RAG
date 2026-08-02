@@ -1,17 +1,23 @@
-import pytest
 from unittest.mock import AsyncMock
-from backend.modules.validation.services.validation_engine import ValidationEngine
-from backend.modules.validation.services.nli_engine import NLIValidationEngine
+
+import pytest
+
+from backend.modules.generation.schemas.generation_dto import CitationDTO, GroundedAnswerDTO
 from backend.modules.validation.providers.cross_encoder_provider import MockCrossEncoderProvider
-from backend.modules.validation.schemas.validation_dto import ValidationRequestDTO, EntailmentVerdict
-from backend.modules.generation.schemas.generation_dto import GroundedAnswerDTO, CitationDTO
+from backend.modules.validation.schemas.validation_dto import (
+    EntailmentVerdict,
+    ValidationRequestDTO,
+)
+from backend.modules.validation.services.nli_engine import NLIValidationEngine
+from backend.modules.validation.services.validation_engine import ValidationEngine
+
 
 @pytest.mark.asyncio
 async def test_validation_engine_success():
     mock_repo = AsyncMock()
     nli_engine = NLIValidationEngine(MockCrossEncoderProvider())
     engine = ValidationEngine(repository=mock_repo, nli_engine=nli_engine)
-    
+
     request = ValidationRequestDTO(
         grounded_answer=GroundedAnswerDTO(
             answer_text="The sky is blue [1].",
@@ -23,9 +29,9 @@ async def test_validation_engine_success():
         correlation_id="corr-1",
         tenant_id="tenant-1"
     )
-    
+
     result = await engine.validate(request)
-    
+
     assert result.overall_verdict == EntailmentVerdict.ENTAILED
     assert result.is_valid is True
     assert result.entailment_ratio == 1.0

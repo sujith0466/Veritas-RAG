@@ -1,17 +1,16 @@
 import re
-import uuid
 import secrets
-from typing import Optional
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.entities.workspace import Workspace, ProvisioningStatus, WorkspaceStatus
-from backend.models.entities.workspace_settings import WorkspaceSettings
-from backend.models.entities.workspace_member import WorkspaceMember
 from backend.models.entities.audit_log import AuditLog
+from backend.models.entities.workspace import ProvisioningStatus, Workspace, WorkspaceStatus
+from backend.models.entities.workspace_member import WorkspaceMember
+from backend.models.entities.workspace_settings import WorkspaceSettings
 from backend.repositories.workspace import WorkspaceRepository
-from backend.repositories.workspace_settings import WorkspaceSettingsRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
+from backend.repositories.workspace_settings import WorkspaceSettingsRepository
 
 
 class WorkspaceProvisioningService:
@@ -33,23 +32,32 @@ class WorkspaceProvisioningService:
 
         slug = base_slug
         collision = await self.workspace_repo.exists_by_slug(slug)
-        
+
         # In case of collision, append random short suffix
         while collision:
             suffix = secrets.token_hex(2)
             slug = f"{base_slug}-{suffix}"
             collision = await self.workspace_repo.exists_by_slug(slug)
-            
+
         return slug
 
     async def provision_workspace(
-        self, session: AsyncSession, name: str, description: Optional[str], owner_user_id: uuid.UUID
+        self,
+        session: AsyncSession,
+        name: str,
+        description: str | None = None,
+        owner_user_id: uuid.UUID | None = None,
+        user_id: uuid.UUID | None = None,
     ) -> Workspace:
         """Provisions a new workspace with all associated resources."""
-        
+        effective_owner_id = owner_user_id or user_id
+        if not effective_owner_id:
+            raise ValueError("Either owner_user_id or user_id must be provided")
+
         # 1. Generate unique deterministic slug
         slug = await self._generate_slug(name)
-        
+
+
         # Generate the UUID proactively to use it in prefixes
         workspace_id = uuid.uuid4()
         storage_prefix = f"workspace/{workspace_id}/"
@@ -77,7 +85,7 @@ class WorkspaceProvisioningService:
 
         member = WorkspaceMember(
             workspace_id=workspace_id,
-            user_id=owner_user_id,
+            user_id=effective_owner_id,
             role="OWNER"
         )
         session.add(member)
@@ -94,7 +102,7 @@ class WorkspaceProvisioningService:
 
         # Flush to get records safely written
         await session.flush()
-        
+
         # Move to PROVISIONING state
         workspace.provisioning_status = ProvisioningStatus.PROVISIONING.value
         await session.flush()
@@ -104,13 +112,19 @@ class WorkspaceProvisioningService:
             # Prepare Object Storage prefix (logical allocation only)
             # Prepare Qdrant tenant isolation (logical allocation only)
             # In F3.1 this is logical; no physical calls fail here.
-            
+
             # If everything succeeded:
             workspace.provisioning_status = ProvisioningStatus.READY.value
         except Exception:
             # If external provisioning failed:
             workspace.provisioning_status = ProvisioningStatus.FAILED.value
             raise
-        
+
+        # Commit phase 1
         await session.commit()
+        await session.refresh(workspace)
+
         return workspace
+
+    # Alias for create_workspace
+    create_workspace = provision_workspace

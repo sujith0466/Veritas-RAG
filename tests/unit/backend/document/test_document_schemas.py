@@ -1,17 +1,12 @@
 """Unit tests for Document Domain DTOs & Schemas (`ADR-005`)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import uuid
-
-import pytest
-from pydantic import ValidationError
 
 from backend.document.schemas.document import (
     DocumentDetailResponse,
-    DocumentListResponse,
     DocumentManifestDTO,
     DocumentResponse,
-    DocumentVersionDTO,
     StageMetricDTO,
 )
 
@@ -48,7 +43,7 @@ class TestDocumentSchemas:
             page_count=12,
             word_count=3400,
             language="en",
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
         assert manifest.manifest_version == "1.0.0"
         assert manifest.document_id == doc_id
@@ -60,7 +55,7 @@ class TestDocumentSchemas:
         """Verify DocumentResponse and DocumentDetailResponse structures."""
         doc_id = uuid.uuid4()
         ver_id = uuid.uuid4()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         response = DocumentResponse(
             id=doc_id,

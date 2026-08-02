@@ -1,6 +1,6 @@
 """Unit tests for Dashboard & Knowledge Intelligence (`Phase 4 Milestone 3`)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -14,7 +14,7 @@ from backend.modules.knowledge_health.models.health_scan import HealthScanJob
 @pytest.mark.asyncio
 async def test_get_knowledge_intelligence_summary() -> None:
     mock_session = MagicMock()
-    
+
     # Mocking execute calls sequentially: chunk count/avg, strategy group, embedding count/model, health scans
     mock_chunk_res = MagicMock()
     mock_chunk_res.first.return_value = (45, 128.5)
@@ -39,7 +39,7 @@ async def test_get_knowledge_intelligence_summary() -> None:
 
     mock_doc_res = MagicMock()
     mock_doc_res.first.return_value = (5, 5, 0)
-    
+
     mock_session.execute = AsyncMock(side_effect=[
         mock_chunk_res,
         mock_strat_res,
@@ -89,7 +89,7 @@ async def test_get_executive_dashboard() -> None:
         reliability_score=40.0,
         retry_attempts=1,
     )
-    mock_rec1.created_at = datetime.now(timezone.utc)
+    mock_rec1.created_at = datetime.now(UTC)
 
     mock_activity_res = MagicMock()
     mock_activity_res.scalars.return_value.all.return_value = [mock_rec1]

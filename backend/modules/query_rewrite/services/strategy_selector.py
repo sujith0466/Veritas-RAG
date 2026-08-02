@@ -6,8 +6,7 @@ from ConfidenceResultDTOv2 or explicit hints from Phase 7 RetryDecision.
 
 from structlog import get_logger
 
-from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2, RewriteStrategy)
+from backend.modules.query_rewrite.schemas.rewrite_dto import RewriteRequestDTOv2, RewriteStrategy
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)

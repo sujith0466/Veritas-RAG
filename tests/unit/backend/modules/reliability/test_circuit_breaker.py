@@ -5,9 +5,9 @@ and administrative force-reset operations using an in-memory Redis test double.
 """
 
 import time
-from typing import Any
-from unittest.mock import AsyncMock
+
 import pytest
+
 from backend.modules.reliability.circuit_breaker.engine import CircuitBreakerEngine
 from backend.modules.reliability.circuit_breaker.states import CircuitState
 

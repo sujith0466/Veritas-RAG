@@ -3,8 +3,7 @@
 import os
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 # Supported extensions whitelist
 ALLOWED_EXTENSIONS: set[str] = {

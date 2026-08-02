@@ -5,14 +5,14 @@ emergency kill switches, version snapshots, and point-in-time rollbacks.
 """
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 import time
 from typing import Any
 import uuid
 
-import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.events.dispatcher import get_dispatcher
 from backend.models.entities.audit_log import AuditLog
@@ -43,8 +43,6 @@ from backend.services.feature_flag.events import (
     FeatureFlagUpdatedEvent,
 )
 from backend.services.workspace.management_service import (
-    WorkspaceConflictError,
-    WorkspaceNotFoundError,
     WorkspaceUnauthorizedError,
 )
 
@@ -221,7 +219,7 @@ class FeatureFlagManagementService:
             flag.target_environments = target_environments
 
         flag.version += 1
-        flag.updated_at = datetime.now(timezone.utc)
+        flag.updated_at = datetime.now(UTC)
         await session.flush()
 
         # Snapshot history
@@ -265,7 +263,7 @@ class FeatureFlagManagementService:
         old_snapshot = flag.to_dict()
         flag.is_killswitch_active = is_active
         flag.version += 1
-        flag.updated_at = datetime.now(timezone.utc)
+        flag.updated_at = datetime.now(UTC)
         await session.flush()
 
         # Snapshot history
@@ -338,7 +336,7 @@ class FeatureFlagManagementService:
             rule.targeting_conditions_json = targeting_conditions or []
             rule.custom_variant_json = custom_variant or {}
             rule.version += 1
-            rule.updated_at = datetime.now(timezone.utc)
+            rule.updated_at = datetime.now(UTC)
             await session.flush()
         else:
             rule = await self.rule_repo.create(

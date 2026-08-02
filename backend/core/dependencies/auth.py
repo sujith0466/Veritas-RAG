@@ -6,17 +6,17 @@ authentication verification, and role/permission enforcement.
 
 from collections.abc import Callable, Coroutine
 from typing import Any
-import uuid
 
 from fastapi import Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.database import get_db
-from backend.core.exceptions.auth import AuthenticationException
+from backend.core.exceptions.auth import AuthenticationException, InsufficientRoleException
 from backend.core.permissions.rbac import Role
 from backend.models.entities.user import User
+
 
 async def get_optional_user(
     request: Request,
@@ -79,11 +79,11 @@ def require_workspace() -> Callable[..., Coroutine[Any, Any, UserContext]]:
         return user_context
     return _workspace_guard
 
-def require_role(*roles: Role) -> Callable[..., Coroutine[Any, Any, UserContext]]:
+def require_role(*roles: Role | str) -> Callable[..., Coroutine[Any, Any, UserContext]]:
     """Return a dependency requiring the authenticated user to possess one of the roles.
 
     Args:
-        *roles: One or more allowed Role enums.
+        *roles: One or more allowed Role enums or string names.
 
     Returns:
         FastAPI dependency function enforcing the role check.
@@ -91,7 +91,31 @@ def require_role(*roles: Role) -> Callable[..., Coroutine[Any, Any, UserContext]
     async def _role_guard(
         user_context: UserContext = Depends(get_current_user),
     ) -> UserContext:
-        if user_context.role not in roles:
-            raise AuthenticationException("Insufficient permissions")
+        user_role = Role.from_str(user_context.role) if isinstance(user_context.role, str) else user_context.role
+        allowed = [Role.from_str(r) if isinstance(r, str) else r for r in roles]
+        if user_role not in allowed and user_role != Role.PLATFORM_ADMIN:
+            raise InsufficientRoleException("Insufficient permissions")
         return user_context
     return _role_guard
+
+
+from backend.core.permissions.registry import Permission, get_permission_registry
+
+
+def require_permission(
+    *permissions: Permission | str,
+) -> Callable[..., Coroutine[Any, Any, UserContext]]:
+    """Return a dependency requiring the user to possess at least one of the specified permissions."""
+    async def _permission_guard(
+        user_context: UserContext = Depends(get_current_user),
+    ) -> UserContext:
+        registry = get_permission_registry()
+        user_role = Role.from_str(user_context.role) if isinstance(user_context.role, str) else user_context.role
+        has_access = any(
+            registry.has_permission(user_role, p, is_suspended=False)
+            for p in permissions
+        )
+        if not has_access:
+            raise InsufficientRoleException(f"Insufficient permissions. Required: {[str(p) for p in permissions]}")
+        return user_context
+    return _permission_guard

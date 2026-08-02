@@ -5,8 +5,7 @@ Extracts UTF-8 / ASCII content from `.txt`, `.md`, `.csv`, `.json` files.
 
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 

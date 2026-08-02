@@ -9,10 +9,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 11.3 Implementation...")
-    
+
     # 1. Update reflection_engine.py
     engine_path = "backend/modules/reflection/services/reflection_engine.py"
-    with open(engine_path, "r") as f:
+    with open(engine_path) as f:
         engine_content = f.read()
 
     if "reflect_async" not in engine_content:
@@ -125,12 +125,12 @@ class ReflectionEngineV2:
         print("Updated reflection_engine.py with async multi-pass orchestration")
     else:
         print("reflection_engine.py already updated")
-        
+
     # 2. Update claim_validator.py to support async
     cv_path = "backend/modules/reflection/services/claim_validator.py"
-    with open(cv_path, "r") as f:
+    with open(cv_path) as f:
         cv_content = f.read()
-        
+
     if "validate_claims_async" not in cv_content:
         new_cv = """
     async def validate_claims_async(self, extracted_claims: list[tuple[str, int | None]], citations: list[str]) -> list[ClaimValidationResultDTO]:
@@ -147,7 +147,7 @@ class ReflectionEngineV2:
     if not os.path.exists(api_init):
         with open(api_init, "w") as f:
             f.write('"""Reflection API routes."""\n')
-            
+
     routes_path = "backend/modules/reflection/api/routes.py"
     if not os.path.exists(routes_path):
         with open(routes_path, "w") as f:

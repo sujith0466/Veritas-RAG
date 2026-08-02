@@ -14,15 +14,21 @@ from uuid import UUID, uuid4
 from structlog import get_logger
 
 from backend.modules.embedding.providers.base import BaseEmbeddingProvider
-from backend.modules.retrieval.providers.reranker.base import \
-    BaseRerankerProvider
-from backend.modules.retrieval.providers.sparse.base import \
-    BaseSparseSearchProvider
+from backend.modules.retrieval.providers.reranker.base import BaseRerankerProvider
+from backend.modules.retrieval.providers.sparse.base import BaseSparseSearchProvider
 from backend.modules.retrieval.schemas.errors import (
-    InvalidQueryError, SparseIndexNotFoundError, VectorStoreUnavailableError)
+    InvalidQueryError,
+    SparseIndexNotFoundError,
+    VectorStoreUnavailableError,
+)
 from backend.modules.retrieval.schemas.retrieval_dto import (
-    CandidatePointDTO, RetrievalQueryLogDTO, RetrievalResultDTO,
-    RetrievalStageBreakdownDTO, SearchRequestDTO, SearchSandboxResponseDTO)
+    CandidatePointDTO,
+    RetrievalQueryLogDTO,
+    RetrievalResultDTO,
+    RetrievalStageBreakdownDTO,
+    SearchRequestDTO,
+    SearchSandboxResponseDTO,
+)
 from backend.modules.retrieval.services.fusion import FusionEngine
 from backend.modules.vector.providers.base import BaseVectorDBProvider
 
@@ -64,8 +70,8 @@ class RetrievalOrchestrator:
             and options.filters.get("collection_name")
         ):
             return str(options.filters["collection_name"])
-        
-        # FIX: Ensure we use the exact same tenant-scoped naming convention 
+
+        # FIX: Ensure we use the exact same tenant-scoped naming convention
         # as the ingestion pipeline (VectorStorageService).
         from backend.core.config import get_settings
         if tenant_id:
@@ -132,7 +138,7 @@ class RetrievalOrchestrator:
 
                 metadata_keys = set(payload.keys()) - {"tenant_id", "content", "chunk_id", "document_id", "document_version_id", "score"}
                 metadata_dict = {k: payload[k] for k in metadata_keys}
-                
+
                 candidate = CandidatePointDTO(
                     chunk_id=chunk_uuid,
                     document_id=doc_uuid,
@@ -223,7 +229,9 @@ class RetrievalOrchestrator:
         if self.event_dispatcher:
             try:
                 from backend.modules.retrieval.events.payloads import (
-                    QueryRetrievedPayload, RetrievalDomainEvent)
+                    QueryRetrievedPayload,
+                    RetrievalDomainEvent,
+                )
 
                 payload = QueryRetrievedPayload(
                     event_id=str(uuid4()),
@@ -309,7 +317,7 @@ class RetrievalOrchestrator:
                 candidates=rerank_input,
                 top_k=options.top_k,
             )
-            
+
             # Centralized Provider-Independent Score Normalization Layer
             for candidate in final_evidence:
                 score = candidate.raw_rerank_score
@@ -319,7 +327,7 @@ class RetrievalOrchestrator:
                 else:
                     # Fallback to RRF score if reranking was bypassed
                     candidate.normalized_relevance_score = candidate.rrf_score
-                    
+
             rerank_ms = (time.perf_counter() - rerank_start) * 1000.0
 
             total_ms = (time.perf_counter() - total_start) * 1000.0
@@ -410,7 +418,7 @@ class RetrievalOrchestrator:
             candidates=rerank_input,
             top_k=options.top_k,
         )
-        
+
         # Centralized Provider-Independent Score Normalization Layer
         for candidate in final_reranked:
             score = candidate.raw_rerank_score
@@ -418,7 +426,7 @@ class RetrievalOrchestrator:
                 candidate.normalized_relevance_score = round(1.0 / (1.0 + math.exp(-score)), 6)
             else:
                 candidate.normalized_relevance_score = candidate.rrf_score
-                
+
         rerank_ms = (time.perf_counter() - rerank_start) * 1000.0
 
         total_ms = (time.perf_counter() - total_start) * 1000.0

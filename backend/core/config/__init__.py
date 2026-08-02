@@ -24,8 +24,8 @@ from .openrouter import OpenRouterSettings
 from .qdrant import QdrantSettings
 from .redis import RedisSettings
 from .retrieval import RetrievalSettings
-from .startup import StartupSettings
 from .security import SecuritySettings
+from .startup import StartupSettings
 from .supabase import SupabaseSettings
 
 

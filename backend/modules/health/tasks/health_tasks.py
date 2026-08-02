@@ -1,11 +1,8 @@
-from backend.modules.health.repositories.health_repository import \
-    HealthRepository
+from backend.modules.health.repositories.health_repository import HealthRepository
 from backend.modules.health.schemas.health_dto import HealthReportDTO
-from backend.modules.health.services.contradiction_detector import \
-    ContradictionDetector
+from backend.modules.health.services.contradiction_detector import ContradictionDetector
 from backend.modules.health.services.optimizer import KnowledgeOptimizer
-from backend.modules.health.services.redundancy_detector import \
-    RedundancyDetector
+from backend.modules.health.services.redundancy_detector import RedundancyDetector
 
 
 class HealthAnalysisTask:

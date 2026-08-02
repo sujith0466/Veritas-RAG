@@ -5,29 +5,27 @@ paginated chunk exploration with doubly-linked neighbors (`GET /document/{id}`),
 chunk detail views (`GET /{id}`), metrics summary (`GET /metrics`), and purge (`DELETE /document/{id}`).
 """
 
-import uuid
 from typing import Any
+import uuid
 
-import structlog
-from fastapi import (APIRouter, Depends, Header, HTTPException, Query, Request,
-                     status)
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
 from backend.document.repositories import DocumentRepository
-from backend.modules.chunking.schemas.chunk import (ChunkCreateRequest,
-                                                    ChunkDetailResponse,
-                                                    ChunkListResponse,
-                                                    ChunkMetricsDTO,
-                                                    ChunkResponse,
-                                                    StrategyInfoDTO,
-                                                    StrategyDiscoveryDTO)
+from backend.modules.chunking.schemas.chunk import (
+    ChunkCreateRequest,
+    ChunkDetailResponse,
+    ChunkListResponse,
+    ChunkMetricsDTO,
+    StrategyDiscoveryDTO,
+)
 from backend.modules.chunking.schemas.errors import ChunkDomainException
 from backend.modules.chunking.services.chunk_service import ChunkingService
-from backend.modules.chunking.workers.tasks import \
-    process_document_chunking_task
+from backend.modules.chunking.workers.tasks import process_document_chunking_task
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/chunks", tags=["Chunking Foundation"])

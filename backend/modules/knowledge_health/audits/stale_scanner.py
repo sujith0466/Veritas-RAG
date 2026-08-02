@@ -6,19 +6,19 @@ and orchestrates shadow re-indexing (`ADR-M6-002`).
 
 import uuid
 
-import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
 from backend.core.events.types import EventType
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.knowledge_health.events.payloads import (
-    KnowledgeDriftDetectedPayload, KnowledgeHealthDomainEvent)
-from backend.modules.knowledge_health.models.stale_record import \
-    StaleEmbeddingRecord
-from backend.modules.knowledge_health.repositories.health_repository import \
-    HealthRepository
+    KnowledgeDriftDetectedPayload,
+    KnowledgeHealthDomainEvent,
+)
+from backend.modules.knowledge_health.models.stale_record import StaleEmbeddingRecord
+from backend.modules.knowledge_health.repositories.health_repository import HealthRepository
 
 logger = structlog.get_logger(__name__)
 

@@ -5,8 +5,7 @@ Executes primary OCR engine with seamless fallback to secondary engine upon erro
 
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 from .base import OCREngine, OCRResult
 from .docling import DoclingOCREngine

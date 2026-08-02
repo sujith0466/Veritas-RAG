@@ -117,4 +117,124 @@ class WorkspaceBrandingUpdatedEvent(BaseEvent):
     details: dict[str, Any] | None = None
 
 
+# ── Epic 4: Workspace Invitations ──────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class WorkspaceInvitationCreatedEvent(BaseEvent):
+    """Event emitted when a workspace invitation is created and sent."""
+    event_type: EventType = EventType.WORKSPACE_INVITATION_CREATED
+    workspace_id: str = ""
+    invitation_id: str = ""
+    invited_by_user_id: str = ""
+    email: str = ""
+    role: str = ""
+    expires_at: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceInvitationResentEvent(BaseEvent):
+    """Event emitted when a workspace invitation is resent with rotated token."""
+    event_type: EventType = EventType.WORKSPACE_INVITATION_RESENT
+    workspace_id: str = ""
+    invitation_id: str = ""
+    actor_id: str = ""
+    email: str = ""
+    resend_count: int = 0
+    expires_at: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceInvitationRevokedEvent(BaseEvent):
+    """Event emitted when a workspace invitation is revoked."""
+    event_type: EventType = EventType.WORKSPACE_INVITATION_REVOKED
+    workspace_id: str = ""
+    invitation_id: str = ""
+    actor_id: str = ""
+    email: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceInvitationExpiredEvent(BaseEvent):
+    """Event emitted when a workspace invitation expires."""
+    event_type: EventType = EventType.WORKSPACE_INVITATION_EXPIRED
+    workspace_id: str = ""
+    invitation_id: str = ""
+    email: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceInvitationAcceptedEvent(BaseEvent):
+    """Event emitted when a workspace invitation is successfully accepted."""
+    event_type: EventType = EventType.WORKSPACE_INVITATION_ACCEPTED
+    workspace_id: str = ""
+    invitation_id: str = ""
+    member_id: str = ""
+    user_id: str = ""
+    email: str = ""
+    role: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceInvitationAcceptFailedEvent(BaseEvent):
+    """Event emitted when an invitation acceptance fails due to security or state errors."""
+    event_type: EventType = EventType.WORKSPACE_INVITATION_ACCEPT_FAILED
+    workspace_id: str = ""
+    token_hash: str = ""
+    user_id: str = ""
+    reason: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceMemberRoleUpdatedEvent(BaseEvent):
+    """Event emitted when a workspace member's role is updated."""
+    event_type: EventType = EventType.WORKSPACE_MEMBER_ROLE_UPDATED
+    workspace_id: str = ""
+    member_id: str = ""
+    user_id: str = ""
+    actor_id: str = ""
+    old_role: str = ""
+    new_role: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceMemberSuspendedEvent(BaseEvent):
+    """Event emitted when a workspace member is suspended."""
+    event_type: EventType = EventType.WORKSPACE_MEMBER_SUSPENDED
+    workspace_id: str = ""
+    member_id: str = ""
+    user_id: str = ""
+    actor_id: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceMemberRestoredEvent(BaseEvent):
+    """Event emitted when a workspace member is restored from suspension."""
+    event_type: EventType = EventType.WORKSPACE_MEMBER_RESTORED
+    workspace_id: str = ""
+    member_id: str = ""
+    user_id: str = ""
+    actor_id: str = ""
+    details: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class WorkspaceMemberRemovedEvent(BaseEvent):
+    """Event emitted when a workspace member is soft removed."""
+    event_type: EventType = EventType.WORKSPACE_MEMBER_REMOVED
+    workspace_id: str = ""
+    member_id: str = ""
+    user_id: str = ""
+    actor_id: str = ""
+    details: dict[str, Any] | None = None
+
+
+
 

@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 17.2 Implementation...")
-    
+
     # 1. slack_channel.py
     with open("backend/modules/alerts/channels/slack_channel.py", "w") as f:
         f.write("""from backend.modules.alerts.channels.base import BaseNotificationChannel

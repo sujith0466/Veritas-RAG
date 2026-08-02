@@ -1,6 +1,6 @@
 """Unit tests for F3.5 Workspace Soft Delete, Restore, and Hard Delete."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
@@ -15,7 +15,6 @@ from backend.services.workspace.management_service import (
     WorkspaceConflictError,
     WorkspaceInvalidStateError,
     WorkspaceManagementService,
-    WorkspaceNotFoundError,
     WorkspaceUnauthorizedError,
 )
 from backend.services.workspace.retention_worker import WorkspaceRetentionWorker
@@ -54,7 +53,7 @@ def service(workspace_repo, member_repo):
 async def test_soft_delete_workspace_owner_success(service, workspace_repo, member_repo, mock_session):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ws = Workspace(
         id=ws_id,
         name="Acme Corp",
@@ -93,7 +92,7 @@ async def test_soft_delete_workspace_owner_success(service, workspace_repo, memb
 async def test_soft_delete_workspace_admin_forbidden(service, workspace_repo, member_repo, mock_session):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ws = Workspace(
         id=ws_id,
         name="Acme Corp",
@@ -124,7 +123,7 @@ async def test_soft_delete_workspace_admin_forbidden(service, workspace_repo, me
 async def test_soft_delete_name_mismatch(service, workspace_repo, member_repo, mock_session):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ws = Workspace(
         id=ws_id,
         name="Acme Corp",
@@ -155,7 +154,7 @@ async def test_soft_delete_name_mismatch(service, workspace_repo, member_repo, m
 async def test_soft_delete_concurrency_conflict(service, workspace_repo, member_repo, mock_session):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stale_time = now - timedelta(minutes=5)
     ws = Workspace(
         id=ws_id,
@@ -187,7 +186,7 @@ async def test_soft_delete_concurrency_conflict(service, workspace_repo, member_
 async def test_restore_deleted_workspace_success(service, workspace_repo, member_repo, mock_session):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     future_purge = now + timedelta(days=25)
     ws = Workspace(
         id=ws_id,
@@ -227,7 +226,7 @@ async def test_restore_deleted_workspace_success(service, workspace_repo, member
 async def test_restore_deleted_workspace_expired_window(service, workspace_repo, member_repo, mock_session):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     past_purge = now - timedelta(days=1)
     ws = Workspace(
         id=ws_id,
@@ -289,7 +288,7 @@ async def test_hard_delete_workspace_success(service, workspace_repo, mock_sessi
 async def test_retention_worker_run(service, mock_session):
     worker = WorkspaceRetentionWorker(service)
     ws_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     ws = Workspace(
         id=ws_id,
         name="Expired Corp",

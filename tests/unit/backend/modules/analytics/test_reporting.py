@@ -1,22 +1,26 @@
 """Unit tests for Enterprise Reporting Center (`ReportingService` & endpoints)."""
 
 import json
-import pytest
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from backend.modules.analytics.api.routes import (
+    download_generated_report,
+    export_enterprise_report,
+    list_generated_reports,
+)
 from backend.modules.analytics.schemas.analytics_dto import (
-    SuccessRateDTO,
-    LatencyAnalyticsDTO,
     ConfidenceAnalyticsDTO,
+    LatencyAnalyticsDTO,
+    SuccessRateDTO,
 )
 from backend.modules.analytics.schemas.reporting_dto import (
     ReportExportRequestDTO,
-    ReportType,
     ReportFormat,
+    ReportType,
 )
 from backend.modules.analytics.services.reporting_service import ReportingService
-from backend.modules.analytics.api.routes import export_enterprise_report, list_generated_reports, download_generated_report
 
 
 @pytest.fixture
@@ -59,10 +63,10 @@ async def test_generate_sla_compliance_pdf(mock_analytics_service):
         include_anomalies=True,
         format=ReportFormat.PDF,
     )
-    
+
     mock_db = AsyncMock()
     pdf_bytes, metadata = await service.generate_report(request, mock_db)
-    
+
     assert len(pdf_bytes) > 500
     assert pdf_bytes.startswith(b"%PDF-")
     assert metadata.report_type == "sla_compliance"
@@ -79,10 +83,10 @@ async def test_generate_reliability_audit_json(mock_analytics_service):
         report_type=ReportType.RELIABILITY_AUDIT,
         format=ReportFormat.JSON,
     )
-    
+
     mock_db = AsyncMock()
     json_bytes, metadata = await service.generate_report(request, mock_db)
-    
+
     data = json.loads(json_bytes.decode("utf-8"))
     assert data["report_type"] == "reliability_audit"
     assert data["metrics"]["hallucination_rate"] == 1.2

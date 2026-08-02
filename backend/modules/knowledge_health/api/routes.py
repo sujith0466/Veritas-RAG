@@ -3,17 +3,20 @@
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
-import structlog
 from fastapi import APIRouter, Depends, Header, Query, Request, status
+import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
-from backend.modules.knowledge_health.api.dependencies import (
-    AdminAuth, get_health_orchestrator)
+from backend.modules.knowledge_health.api.dependencies import AdminAuth, get_health_orchestrator
 from backend.modules.knowledge_health.schemas.health_dto import (
-    HealthScanJobDTO, HealthScanRequestDTO, MigrationJobDTO,
-    ModelRotationRequestDTO, ParityAuditDTO, PurgeSummaryDTO)
-from backend.modules.knowledge_health.services.health_service import \
-    KnowledgeHealthOrchestrator
+    HealthScanJobDTO,
+    HealthScanRequestDTO,
+    MigrationJobDTO,
+    ModelRotationRequestDTO,
+    ParityAuditDTO,
+    PurgeSummaryDTO,
+)
+from backend.modules.knowledge_health.services.health_service import KnowledgeHealthOrchestrator
 
 logger = structlog.get_logger(__name__)
 

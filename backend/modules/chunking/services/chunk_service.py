@@ -1,4 +1,5 @@
 from backend.document.models.status import DocumentStatus
+
 """Chunking Domain Service (`ChunkingService`).
 
 Orchestrates strategy selection, text splitting, quota validation, doubly-linked graph linking,
@@ -17,22 +18,23 @@ logger = structlog.get_logger(__name__)
 
 from backend.document.models import Document, DocumentEventLog, DocumentVersion
 from backend.document.storage import LocalStorageProvider, StorageProvider
-from backend.modules.chunking.events import (EVENT_DOCUMENT_CHUNKED,
-                                             create_chunk_event)
+from backend.modules.chunking.events import EVENT_DOCUMENT_CHUNKED, create_chunk_event
 from backend.modules.chunking.models.chunk import DocumentChunk
-from backend.modules.chunking.repositories.chunk_repository import \
-    DocumentChunkRepository
-from backend.modules.chunking.schemas.chunk import (ChunkDetailResponse,
-                                                    ChunkListResponse,
-                                                    ChunkMetricsDTO,
-                                                    ChunkResponse,
-                                                    StrategyInfoDTO)
-from backend.modules.chunking.schemas.errors import (ChunkingExecutionError,
-                                                     ChunkNotFoundException,
-                                                     ChunkStrategyNotFound)
+from backend.modules.chunking.repositories.chunk_repository import DocumentChunkRepository
+from backend.modules.chunking.schemas.chunk import (
+    ChunkDetailResponse,
+    ChunkListResponse,
+    ChunkMetricsDTO,
+    ChunkResponse,
+    StrategyInfoDTO,
+)
+from backend.modules.chunking.schemas.errors import (
+    ChunkingExecutionError,
+    ChunkNotFoundException,
+    ChunkStrategyNotFound,
+)
 from backend.modules.chunking.strategies import SplitterStrategyFactory
-from backend.modules.chunking.validators import (ChunkProcessingContract,
-                                                 ChunkValidator)
+from backend.modules.chunking.validators import ChunkProcessingContract, ChunkValidator
 
 
 class ChunkingService:

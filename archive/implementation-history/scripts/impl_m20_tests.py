@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
@@ -10,7 +10,7 @@ def main():
     os.makedirs("tests/unit/backend/core/resilience", exist_ok=True)
     os.makedirs("tests/benchmarks", exist_ok=True)
     os.makedirs("tests/chaos", exist_ok=True)
-    
+
     # 1. test_injector.py
     with open("tests/unit/backend/core/chaos/test_injector.py", "w") as f:
         f.write("""import pytest
@@ -74,7 +74,7 @@ async def test_chaos_pipeline():
 """)
 
     print("Created test files.")
-    
+
     print("Running tests...")
     result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/backend/core/chaos/test_injector.py", "tests/unit/backend/core/resilience/test_failover.py", "tests/benchmarks/test_load_concurrency.py", "tests/chaos/test_fault_injection_pipeline.py"], capture_output=True, text=True)
     print(result.stdout)

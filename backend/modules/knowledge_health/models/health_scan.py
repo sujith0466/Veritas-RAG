@@ -1,7 +1,7 @@
 """ORM entity representing scheduled or manual health scan audit jobs (`health_scan_jobs`)."""
 
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID

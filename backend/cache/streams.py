@@ -31,12 +31,12 @@ class StreamManager:
             The generated message ID.
         """
         stream_key = CacheKeyBuilder.build(tenant, domain, "stream", stream_name)
-        
+
         # Serialize payload values to string
         serialized_payload = {
             k: CacheSerializer.serialize(v) for k, v in payload.items()
         }
-        
+
         client = get_redis_client()
         return await client.xadd(stream_key, serialized_payload, maxlen=max_len, approximate=True)
 
@@ -59,23 +59,23 @@ class StreamManager:
         """
         stream_key = CacheKeyBuilder.build(tenant, domain, "stream", stream_name)
         client = get_redis_client()
-        
+
         streams = {stream_key: last_id}
         result = await client.xread(streams, count=count, block=block)
-        
+
         parsed_messages = []
         if not result:
             return parsed_messages
-            
+
         # result format: [[b'stream_name', [(b'message_id', {b'key': b'value'})]]]
         for stream_data in result:
             if stream_data[0].decode("utf-8") == stream_key:
                 messages = stream_data[1]
                 for msg_id, raw_payload in messages:
                     decoded_payload = {
-                        k.decode("utf-8"): CacheSerializer.deserialize(v) 
+                        k.decode("utf-8"): CacheSerializer.deserialize(v)
                         for k, v in raw_payload.items()
                     }
                     parsed_messages.append((msg_id.decode("utf-8"), decoded_payload))
-                    
+
         return parsed_messages

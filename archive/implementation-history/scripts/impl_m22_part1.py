@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 22.1 Implementation...")
-    
+
     dirs = [
         "backend/modules/security/schemas",
         "backend/modules/security/services",

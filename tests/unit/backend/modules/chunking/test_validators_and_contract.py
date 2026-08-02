@@ -1,11 +1,15 @@
 """Unit tests for ChunkValidator and ChunkProcessingContract (`ADR-005`)."""
 
 import uuid
+
 import pytest
 
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.chunking.schemas.chunk import ChunkDTO
-from backend.modules.chunking.schemas.errors import ChunkContractViolationError, ChunkValidationError
+from backend.modules.chunking.schemas.errors import (
+    ChunkContractViolationError,
+    ChunkValidationError,
+)
 from backend.modules.chunking.validators import ChunkProcessingContract, ChunkValidator
 
 

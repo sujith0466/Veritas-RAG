@@ -1,14 +1,12 @@
 """Unit tests for Phase 2 Milestone 4 (Hybrid Retrieval Engine) - Milestone A: Sparse Indexing & RRF Fusion."""
 
-import uuid
-from typing import Any
 from unittest.mock import MagicMock
+import uuid
 
 import pytest
 
 from backend.modules.retrieval.providers.sparse.bm25_provider import (
     BM25SparseSearchProvider,
-    tokenize,
 )
 from backend.modules.retrieval.schemas.errors import (
     ErrorSeverity,

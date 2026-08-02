@@ -9,13 +9,12 @@ from __future__ import annotations
 import time
 from typing import Any
 
-import structlog
 from redis.asyncio import Redis
+import structlog
 
 from backend.cache.client import get_redis_client
 from backend.modules.reliability.circuit_breaker.states import CircuitState
-from backend.modules.reliability.schemas.reliability_dto import \
-    CircuitBreakerStateDTO
+from backend.modules.reliability.schemas.reliability_dto import CircuitBreakerStateDTO
 
 logger = structlog.get_logger(__name__)
 

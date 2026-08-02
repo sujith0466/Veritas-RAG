@@ -5,10 +5,10 @@ infrastructure connections (Redis, PostgreSQL, Qdrant, OpenRouter, etc.).
 """
 
 import asyncio
+from collections.abc import Callable
 import functools
 import logging
-from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ def with_retry(
                         f"Retrying in {delay}s. Error: {exc}"
                     )
                     await asyncio.sleep(delay)
-                    
+
                     # Exponential backoff
                     delay = min(delay * 2, max_delay)
 

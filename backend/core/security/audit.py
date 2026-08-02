@@ -3,14 +3,13 @@
 Provides non-blocking helpers to record security decisions into the audit_logs table.
 """
 
-import uuid
 from typing import Any
+import uuid
 
-import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
-from backend.repositories.implementations.audit_log_repository import \
-    AuditLogRepository
+from backend.repositories.implementations.audit_log_repository import AuditLogRepository
 
 logger = structlog.get_logger(__name__)
 

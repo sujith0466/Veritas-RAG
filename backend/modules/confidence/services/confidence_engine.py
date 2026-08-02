@@ -1,23 +1,27 @@
 import logging
 
 from backend.modules.confidence.schemas.confidence_dto import (
-    ConfidenceAction, ConfidenceEvalRequestDTO, ConfidenceResultDTO,
-    ContradictionReportDTO, CoverageMetricsDTO, FreshnessReportDTO)
-from backend.modules.confidence.services.contradiction_detector import \
-    ContradictionDetector
-from backend.modules.confidence.services.coverage_analyzer import \
-    CoverageAnalyzer
-from backend.modules.confidence.services.freshness_scorer import \
-    FreshnessScorer
+    ConfidenceAction,
+    ConfidenceEvalRequestDTO,
+    ConfidenceResultDTO,
+    ContradictionReportDTO,
+    CoverageMetricsDTO,
+    FreshnessReportDTO,
+)
+from backend.modules.confidence.services.contradiction_detector import ContradictionDetector
+from backend.modules.confidence.services.coverage_analyzer import CoverageAnalyzer
+from backend.modules.confidence.services.freshness_scorer import FreshnessScorer
 
 logger = logging.getLogger(__name__)
 
 
 import time
 
-from backend.observability.metrics import (HALLUCINATION_DETECTIONS_TOTAL,
-                                           record_confidence_metric,
-                                           record_stage_duration)
+from backend.observability.metrics import (
+    HALLUCINATION_DETECTIONS_TOTAL,
+    record_confidence_metric,
+    record_stage_duration,
+)
 from backend.observability.tracing import trace_confidence_evaluation
 
 

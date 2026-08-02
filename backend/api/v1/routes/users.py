@@ -1,19 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.dependencies.database import get_db
-from backend.core.dependencies.auth import get_current_user
-from backend.core.auth.context import UserContext
-from backend.models.entities.user import User
 from backend.api.v1.schemas.users import (
-    UserResponse,
-    UserProfileUpdate,
     UserPreferencesUpdate,
+    UserProfileUpdate,
+    UserResponse,
     UserWorkspaceUpdate,
 )
+from backend.core.auth.context import UserContext
+from backend.core.dependencies.auth import get_current_user
+from backend.core.dependencies.database import get_db
 from backend.core.dependencies.storage import get_current_storage_provider
+from backend.core.dependencies.user import get_user_profile_service
 from backend.document.storage.base import StorageProvider
+from backend.models.entities.user import User
+from backend.services.user.profile_service import (
+    ProfileUpdateConflictError,
+    UsernameTakenError,
+    UserProfileService,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -21,66 +27,38 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("/me", response_model=UserResponse)
 async def get_my_profile(
     current_user: UserContext = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    profile_service: UserProfileService = Depends(get_user_profile_service),
 ):
     """Get the current authenticated user's full profile and settings."""
-    stmt = select(User).where(User.id == current_user.id)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Ensure ID is string for response schema
-    user_dict = {
-        "id": str(user.id),
-        "email": user.email,
-        "username": user.username,
-        "avatar_url": user.avatar_url,
-        "role": user.role,
-        "is_active": user.is_active,
-        "profile_data": user.profile_data or {},
-        "preferences": user.preferences or {},
-        "workspace_settings": user.workspace_settings or {},
-    }
-    return user_dict
+    user = await profile_service.get_profile(current_user.user_id)
+    return user
 
 
 @router.patch("/me/profile", response_model=UserResponse)
 async def update_my_profile(
     update_data: UserProfileUpdate,
+    if_match: int | None = Header(None, alias="If-Match", description="Expected current version of the profile for optimistic locking"),
     current_user: UserContext = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    profile_service: UserProfileService = Depends(get_user_profile_service),
 ):
     """Update user profile information."""
-    stmt = select(User).where(User.id == current_user.id)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        if if_match is None:
+            # Backward compatibility: skip optimistic locking check if header not provided
+            current = await profile_service.get_profile(current_user.user_id)
+            if_match = current.version
 
-    if update_data.username is not None:
-        user.username = update_data.username
-    if update_data.profile_data is not None:
-        # Merge dicts
-        current_data = user.profile_data or {}
-        current_data.update(update_data.profile_data.model_dump(exclude_unset=True))
-        user.profile_data = current_data
+        updated_user = await profile_service.update_profile(
+            user_id=current_user.user_id,
+            update_data=update_data,
+            expected_version=if_match,
+        )
+        return updated_user
+    except ProfileUpdateConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except UsernameTakenError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
-    await db.commit()
-    await db.refresh(user)
-
-    user_dict = {
-        "id": str(user.id),
-        "email": user.email,
-        "username": user.username,
-        "avatar_url": user.avatar_url,
-        "role": user.role,
-        "is_active": user.is_active,
-        "profile_data": user.profile_data or {},
-        "preferences": user.preferences or {},
-        "workspace_settings": user.workspace_settings or {},
-    }
-    return user_dict
 
 
 @router.patch("/me/preferences", response_model=UserResponse)
@@ -190,7 +168,7 @@ async def upload_avatar(
     ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
     object_key = f"avatars/{current_user.id}/{uuid.uuid4().hex}.{ext}"
     await storage.save_stream(file.file, object_key)
-    
+
     url = await storage.get_uri(object_key)
     user.avatar_url = url
 

@@ -1,13 +1,16 @@
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
+
+from backend.modules.scoring.schemas.scoring_dto import ScoringInputsDTO, ScoringRequestDTO
 from backend.modules.scoring.services.scoring_engine import ScoringEngine
-from backend.modules.scoring.schemas.scoring_dto import ScoringRequestDTO, ScoringInputsDTO
+
 
 @pytest.mark.asyncio
 async def test_scoring_engine_success():
     mock_repo = AsyncMock()
     engine = ScoringEngine(repository=mock_repo)
-    
+
     request = ScoringRequestDTO(
         correlation_id="corr-1",
         tenant_id="tenant-1",
@@ -20,9 +23,9 @@ async def test_scoring_engine_success():
             invalid_citation_count=0
         )
     )
-    
+
     result = await engine.calculate_score(request)
-    
+
     assert result.final_score == 100.0
     assert result.base_score == 100.0
     assert result.penalty_deduction == 0.0

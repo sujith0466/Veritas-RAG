@@ -1,7 +1,7 @@
 """Document Chunk Repository (`DocumentChunkRepository`)."""
 
-import uuid
 from collections.abc import Sequence
+import uuid
 
 import sqlalchemy as sa
 from sqlalchemy import delete, func, select

@@ -4,23 +4,20 @@ Verifies base interfaces, exact domain error taxonomy, Pydantic v2 DTO validatio
 provider factory catalog and placeholder behavior, and configuration loading.
 """
 
-from datetime import UTC, datetime
 from http import HTTPStatus
 import uuid
-import pytest
+
 from pydantic import ValidationError
+import pytest
 
 from backend.core.config import get_settings
 from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
 from backend.modules.embedding.providers.factory import EmbeddingProviderFactory, register_provider
 from backend.modules.embedding.schemas.embedding_dto import (
     EmbeddingJobDTO,
-    EmbeddingMetricsDTO,
     EmbeddingProcessRequestDTO,
-    ProviderInfoDTO,
 )
 from backend.modules.embedding.schemas.errors import (
-    ERROR_SEVERITY_MAP,
     EmbeddingDomainException,
     EmbeddingErrorCode,
     ErrorSeverity,
@@ -164,7 +161,7 @@ def test_embedding_configuration_loading(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("EMBEDDING_BATCH_SIZE", "100")
     monkeypatch.setenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
     get_settings.cache_clear()
-    
+
     settings = get_settings()
     assert hasattr(settings, "embeddings")
     assert settings.embeddings.default_provider == "openai"

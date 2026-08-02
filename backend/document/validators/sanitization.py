@@ -3,8 +3,7 @@
 import os
 import re
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 # Characters prohibited in clean basenames
 ILLEGAL_FILENAME_CHARS = re.compile(r'[\x00-\x1f\x7f/\?\\:\*"<>\|]')

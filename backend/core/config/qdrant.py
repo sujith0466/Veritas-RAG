@@ -14,7 +14,7 @@ class QdrantSettings(BaseSettings):
     api_key: str = Field(default="", alias="QDRANT_API_KEY")
     prefer_grpc: bool = Field(default=False, alias="QDRANT_PREFER_GRPC")
     collection_prefix: str = Field(default="raguard", alias="QDRANT_COLLECTION_PREFIX")
-    
+
     # Telemetry and Resilience
     retry_attempts: int = Field(default=3, alias="QDRANT_RETRY_ATTEMPTS")
     retry_backoff_max: float = Field(default=10.0, alias="QDRANT_RETRY_BACKOFF_MAX")
@@ -26,4 +26,7 @@ class QdrantSettings(BaseSettings):
         "env_file": (".env", ".env.local"),
         "extra": "ignore",
     }
+
+    def collection_name(self, tenant_id: str) -> str:
+        return f"{self.collection_prefix}_{tenant_id}"
 

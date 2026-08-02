@@ -8,8 +8,7 @@ from typing import Any
 
 from structlog import get_logger
 
-from backend.modules.retrieval.providers.reranker.base import \
-    BaseRerankerProvider
+from backend.modules.retrieval.providers.reranker.base import BaseRerankerProvider
 from backend.modules.retrieval.schemas.errors import RerankerTimeoutError
 from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 

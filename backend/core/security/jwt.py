@@ -73,7 +73,6 @@ class JWTService:
         access_token = jwt.encode(access_claims, self.private_key, algorithm=self.algorithm)
 
         # We don't sign refresh tokens as JWTs necessarily, they can be opaque URL-safe strings.
-        import hashlib
         import secrets
         raw_refresh_token = secrets.token_urlsafe(64)
         family_id = str(uuid.uuid4())
@@ -95,6 +94,9 @@ class JWTService:
             )
 
             jti = raw_claims.get("jti")
+            sub = str(raw_claims.get("sub"))
+            workspace_id = str(raw_claims.get("workspace_id", ""))
+
             if not jti:
                 raise InvalidTokenException("Token lacks required 'jti' claim")
 
@@ -105,12 +107,19 @@ class JWTService:
                     logger.warning("Revoked token usage", jti=jti)
                     raise InvalidTokenException("Token has been revoked")
 
+                # Check workspace-level session invalidation (F4.5, F4.6)
+                if workspace_id:
+                    invalid_before = await self.redis.get(f"auth:user:{sub}:workspace:{workspace_id}:invalid_before")
+                    if invalid_before and int(raw_claims.get("iat", 0)) < int(invalid_before):
+                        logger.warning("Revoked token usage (workspace permissions changed)", sub=sub, workspace=workspace_id)
+                        raise InvalidTokenException("Token revoked due to workspace permission changes")
+
             return TokenPayload(
-                sub=str(raw_claims.get("sub")),
+                sub=sub,
                 email=None,  # We don't necessarily encode email in access token to keep it small
                 role=str(raw_claims.get("role", "user")),
                 tenant_id=None,
-                workspace_name=str(raw_claims.get("workspace_id")),
+                workspace_name=workspace_id if workspace_id else "None",
                 full_name=None,
                 organization_name=None,
                 exp=int(raw_claims.get("exp", 0)),
@@ -137,6 +146,22 @@ class JWTService:
         if ttl > 0:
             await self.redis.setex(f"auth:blocklist:{jti}", ttl, "revoked")
             logger.info("Token blocklisted", jti=jti, ttl=ttl)
+
+    async def revoke_user_workspace_tokens(self, user_id: str, workspace_id: str) -> None:
+        """Revokes all active tokens for a user in a specific workspace.
+        
+        This satisfies F4.5 and F4.6 active session invalidation.
+        Sets an invalid_before timestamp in Redis that tokens must be issued after.
+        """
+        if not self.redis:
+            return
+
+        now = int(time.time())
+        key = f"auth:user:{user_id}:workspace:{workspace_id}:invalid_before"
+        # 15 minutes TTL because access tokens live for 15 mins.
+        # After 15 mins, any old token is naturally expired anyway.
+        await self.redis.setex(key, 15 * 60, str(now))
+        logger.info("Workspace tokens revoked", user_id=user_id, workspace_id=workspace_id, invalid_before=now)
 
 def get_jwt_service() -> JWTService:
     """Return an instance of the JWTService."""

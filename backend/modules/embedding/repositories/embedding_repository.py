@@ -5,9 +5,9 @@ bulk vector staging (`chunk_embeddings`), zero-call idempotency hash filtering,
 and multi-tenant namespace isolation (`ADR-005`, `ADR-M2-001`).
 """
 
-import uuid
 from collections.abc import Sequence
 from typing import Any
+import uuid
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession

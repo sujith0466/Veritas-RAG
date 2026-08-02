@@ -3,20 +3,20 @@
 Implements the provider abstraction and Google OIDC.
 """
 
-import os
-import json
 import base64
 import hashlib
+import json
+import os
 import secrets
-from typing import Protocol, Any
+from typing import Any, Protocol
 from urllib.parse import urlencode
 
 import httpx
-import structlog
 import jwt
+import structlog
 
-from backend.core.exceptions.auth import AuthenticationException
 from backend.cache.client import get_redis_client
+from backend.core.exceptions.auth import AuthenticationException
 
 logger = structlog.get_logger(__name__)
 
@@ -61,7 +61,7 @@ class GoogleOIDCProvider:
         """Generate the authorization URL including state and PKCE."""
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
-        
+
         # PKCE
         code_verifier = secrets.token_urlsafe(64)
         code_challenge = base64.urlsafe_b64encode(
@@ -104,9 +104,9 @@ class GoogleOIDCProvider:
         session_data_json = await self.redis.get(f"oidc:state:{state}")
         if not session_data_json:
             raise AuthenticationException("Invalid or expired state parameter.")
-        
+
         await self.redis.delete(f"oidc:state:{state}")
-        
+
         session_data = json.loads(session_data_json)
         nonce = session_data["nonce"]
         code_verifier = session_data["code_verifier"]
@@ -127,21 +127,21 @@ class GoogleOIDCProvider:
                 },
                 headers={"Accept": "application/json"}
             )
-            
+
             if token_response.status_code != 200:
                 logger.error("OIDC token exchange failed", error=token_response.text)
                 raise AuthenticationException("Failed to exchange authorization code.")
-                
+
             tokens = token_response.json()
             id_token = tokens.get("id_token")
-            
+
             if not id_token:
                 raise AuthenticationException("No ID token returned from provider.")
 
             # Validate ID token (fetch JWKS)
             jwks_response = await client.get(config["jwks_uri"])
             jwks = jwks_response.json()
-            
+
             public_keys = {}
             for jwk in jwks["keys"]:
                 kid = jwk["kid"]
@@ -166,11 +166,11 @@ class GoogleOIDCProvider:
             except jwt.InvalidTokenError as e:
                 logger.warning("ID token validation failed", error=str(e))
                 raise AuthenticationException("Invalid ID token.")
-                
+
             # Validate nonce
             if payload.get("nonce") != nonce:
                 raise AuthenticationException("Invalid nonce.")
-                
+
             # Validate email_verified
             if not payload.get("email_verified"):
                 raise AuthenticationException("Email not verified by provider.")

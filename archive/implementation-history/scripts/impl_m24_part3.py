@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 24.3 Implementation...")
-    
+
     # 1. registry.py
     with open("backend/modules/marketplace/services/registry.py", "w") as f:
         f.write("""from backend.modules.marketplace.schemas.marketplace_dto import AppBundleDTO

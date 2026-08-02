@@ -1,5 +1,7 @@
 import pytest
+
 from backend.modules.health.services.redundancy_detector import RedundancyDetector
+
 
 @pytest.mark.asyncio
 async def test_detect_redundancy():
@@ -9,7 +11,7 @@ async def test_detect_redundancy():
         {"id": "doc2", "content": "The quick brown fox jumps over the lazy dog."},
         {"id": "doc3", "content": "A completely different document here."}
     ]
-    
+
     issues = await detector.detect(documents)
     assert len(issues) == 1
     assert issues[0].document_id == "doc1"

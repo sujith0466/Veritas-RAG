@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
@@ -8,7 +8,7 @@ def main():
     print("Starting Milestone 18.4 Implementation (Tests)...")
     os.makedirs("tests/unit/backend/modules/reliability", exist_ok=True)
     os.makedirs("tests/integration", exist_ok=True)
-    
+
     # 1. test_tuner.py
     with open("tests/unit/backend/modules/reliability/test_tuner.py", "w") as f:
         f.write("""import pytest
@@ -68,7 +68,7 @@ async def test_governor():
 """)
 
     print("Created test files.")
-    
+
     print("Running tests...")
     result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/backend/modules/reliability/test_tuner.py", "tests/unit/backend/modules/reliability/test_model_rotation.py", "tests/unit/backend/modules/reliability/test_governor.py"], capture_output=True, text=True)
     print(result.stdout)

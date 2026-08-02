@@ -1,8 +1,7 @@
 import hashlib
 import json
 
-from backend.modules.marketplace.schemas.marketplace_dto import (
-    AppBundleDTO, BundleInstallStatusDTO)
+from backend.modules.marketplace.schemas.marketplace_dto import AppBundleDTO, BundleInstallStatusDTO
 
 
 class BundleService:

@@ -1,26 +1,28 @@
 """Dashboard service aggregating metrics across Knowledge, Vector, and Analytics domains."""
 
 from __future__ import annotations
-from backend.document.models.status import DocumentStatus
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-import structlog
-from sqlalchemy import func, select, case
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
-from backend.modules.analytics.models.query_analytics import \
-    QueryAnalyticsRecord
+from backend.document.models.document import Document
+from backend.document.models.status import DocumentStatus
+from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.dashboard.schemas.dashboard_dto import (
-    ExecutiveDashboardActivityDTO, ExecutiveDashboardAlertDTO,
-    ExecutiveDashboardDTO, KnowledgeIntelligenceSummaryDTO,
-    KnowledgeStageMetric)
+    ExecutiveDashboardActivityDTO,
+    ExecutiveDashboardAlertDTO,
+    ExecutiveDashboardDTO,
+    KnowledgeIntelligenceSummaryDTO,
+    KnowledgeStageMetric,
+)
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
-from backend.document.models.document import Document
 
 logger = structlog.get_logger(__name__)
 
@@ -273,9 +275,10 @@ class DashboardService:
         self, tenant_id: str, window: str
     ) -> SLAComplianceReportDTO:
         from backend.modules.dashboard.schemas.dashboard_dto import (
-            SLAComplianceReportDTO, TrustDistributionDTO)
-        from backend.modules.dashboard.services.cache_service import \
-            RedisDashboardCache
+            SLAComplianceReportDTO,
+            TrustDistributionDTO,
+        )
+        from backend.modules.dashboard.services.cache_service import RedisDashboardCache
 
         cache = getattr(self, "cache", RedisDashboardCache())
         cache_key = f"gov:{tenant_id}:{window}"
@@ -297,8 +300,7 @@ class DashboardService:
     async def get_trust_trends(
         self, tenant_id: str, window: str
     ) -> list[HallucinationTrendDTO]:
-        from backend.modules.dashboard.schemas.dashboard_dto import \
-            HallucinationTrendDTO
+        from backend.modules.dashboard.schemas.dashboard_dto import HallucinationTrendDTO
 
         return [
             HallucinationTrendDTO(

@@ -3,7 +3,10 @@
 from abc import ABC, abstractmethod
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2, RewriteResultDTO, RewriteStrategy)
+    RewriteRequestDTOv2,
+    RewriteResultDTO,
+    RewriteStrategy,
+)
 
 
 class BaseRewriteStrategy(ABC):

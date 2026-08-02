@@ -1,16 +1,15 @@
 """Unit tests for Phase 8 Query Rewrite strategies and orchestration."""
 
-import pytest
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
     RewriteRequestDTOv2,
     RewriteStrategy,
 )
-from backend.modules.query_rewrite.strategies.hyde import HyDEStrategy
-from backend.modules.query_rewrite.strategies.expansion import QueryExpansionStrategy
+from backend.modules.query_rewrite.services.rewrite_orchestrator import RewriteOrchestrator
+from backend.modules.query_rewrite.services.strategy_selector import StrategySelector
 from backend.modules.query_rewrite.strategies.decomposition import QueryDecompositionStrategy
 from backend.modules.query_rewrite.strategies.entity_recovery import MissingEntityRecoveryStrategy
-from backend.modules.query_rewrite.services.strategy_selector import StrategySelector
-from backend.modules.query_rewrite.services.rewrite_orchestrator import RewriteOrchestrator
+from backend.modules.query_rewrite.strategies.expansion import QueryExpansionStrategy
+from backend.modules.query_rewrite.strategies.hyde import HyDEStrategy
 
 
 def test_hyde_strategy_fallback():

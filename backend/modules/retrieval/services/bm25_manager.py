@@ -8,6 +8,7 @@ AsyncSession. It creates its own isolated sessions via get_session_factory()
 to avoid asyncpg "another operation is in progress" errors during streaming.
 """
 from typing import Any
+
 from structlog import get_logger
 
 from backend.modules.retrieval.providers.sparse.base import BaseSparseSearchProvider

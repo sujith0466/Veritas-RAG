@@ -1,4 +1,5 @@
 from backend.core.config import get_settings
+
 """Integrity Auditor (`IntegrityAuditor`).
 
 Verifies 1:1 count parity between active PostgreSQL DocumentChunks and indexed Qdrant vector points,
@@ -7,15 +8,17 @@ detecting drift and emitting telemetry (`ADR-M6-001`).
 
 from datetime import UTC, datetime
 
-import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
 from backend.core.events.types import EventType
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.knowledge_health.events.payloads import (
-    KnowledgeDriftDetectedPayload, KnowledgeHealthDomainEvent)
+    KnowledgeDriftDetectedPayload,
+    KnowledgeHealthDomainEvent,
+)
 from backend.modules.knowledge_health.schemas.health_dto import ParityAuditDTO
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 from backend.modules.vector.providers.base import BaseVectorDBProvider

@@ -5,24 +5,27 @@ INT8 scalar quantization support (`ADR-M3-002`), exact payload indexing for mult
 filtering (`ADR-M3-001`), and standardized domain error mapping (`VEC_xxx`).
 """
 
+import time
 from typing import Any
 
-import structlog
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http import models as qdrant_models
-import time
-
-from backend.vector_db.metrics import QdrantMetrics
+import structlog
 
 from backend.modules.vector.providers.base import BaseVectorDBProvider
-from backend.modules.vector.schemas.errors import (CollectionNotFoundError,
-                                                   DimensionMismatchError,
-                                                   InvalidPayloadSchemaError,
-                                                   QdrantConnectionError)
-from backend.modules.vector.schemas.payload import (CollectionConfigDTO,
-                                                    CollectionSummaryDTO,
-                                                    VectorPointDTO)
+from backend.modules.vector.schemas.errors import (
+    CollectionNotFoundError,
+    DimensionMismatchError,
+    InvalidPayloadSchemaError,
+    QdrantConnectionError,
+)
+from backend.modules.vector.schemas.payload import (
+    CollectionConfigDTO,
+    CollectionSummaryDTO,
+    VectorPointDTO,
+)
 from backend.vector_db.client import get_qdrant_client
+from backend.vector_db.metrics import QdrantMetrics
 
 logger = structlog.get_logger(__name__)
 
@@ -177,7 +180,7 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
             )
             latency_ms = (time.perf_counter() - start) * 1000
             QdrantMetrics.record_upsert(latency_ms)
-            
+
             log.debug("Successfully upserted point batch into Qdrant")
             return len(points)
         except Exception as exc:
@@ -320,7 +323,7 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
             )
             latency_ms = (time.perf_counter() - start) * 1000
             QdrantMetrics.record_search(latency_ms)
-                
+
             candidates: list[dict[str, Any]] = []
             for hit in results:
                 candidates.append(

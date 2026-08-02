@@ -8,12 +8,12 @@ import time
 
 import structlog
 
-from backend.modules.reliability.schemas.errors import \
-    FallbackProviderUnavailableError
+from backend.modules.reliability.schemas.errors import FallbackProviderUnavailableError
 from backend.modules.reliability.schemas.reliability_dto import (
-    ReliableCandidateDTO, ReliableRetrievalResultDTO)
-from backend.modules.retrieval.providers.sparse.bm25_provider import \
-    BM25SparseSearchProvider
+    ReliableCandidateDTO,
+    ReliableRetrievalResultDTO,
+)
+from backend.modules.retrieval.providers.sparse.bm25_provider import BM25SparseSearchProvider
 from backend.modules.retrieval.schemas.errors import SparseIndexNotFoundError
 
 logger = structlog.get_logger(__name__)

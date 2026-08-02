@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +11,7 @@ class WorkspaceSettingsRepository(BaseRepository[WorkspaceSettings]):
     def __init__(self, session: AsyncSession):
         super().__init__(session, WorkspaceSettings)
 
-    async def get_by_workspace_id(self, workspace_id: uuid.UUID) -> Optional[WorkspaceSettings]:
+    async def get_by_workspace_id(self, workspace_id: uuid.UUID) -> WorkspaceSettings | None:
         stmt = select(self.model_class).where(
             self.model_class.workspace_id == workspace_id,
             self.model_class.is_deleted == False
@@ -19,7 +19,7 @@ class WorkspaceSettingsRepository(BaseRepository[WorkspaceSettings]):
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def get_by_workspace_id_for_update(self, workspace_id: uuid.UUID) -> Optional[WorkspaceSettings]:
+    async def get_by_workspace_id_for_update(self, workspace_id: uuid.UUID) -> WorkspaceSettings | None:
         stmt = select(self.model_class).where(
             self.model_class.workspace_id == workspace_id,
             self.model_class.is_deleted == False

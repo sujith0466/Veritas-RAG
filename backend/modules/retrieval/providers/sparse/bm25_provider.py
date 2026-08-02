@@ -5,16 +5,15 @@ memory-bounded LRU tenant caching (`max_tenants=500`), and tokenized term freque
 matching to satisfy exact term recall requirements.
 """
 
+from collections import Counter, OrderedDict
 import math
 import re
-from collections import Counter, OrderedDict
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from structlog import get_logger
 
-from backend.modules.retrieval.providers.sparse.base import \
-    BaseSparseSearchProvider
+from backend.modules.retrieval.providers.sparse.base import BaseSparseSearchProvider
 from backend.modules.retrieval.schemas.errors import SparseIndexNotFoundError
 from backend.modules.retrieval.schemas.retrieval_dto import CandidatePointDTO
 

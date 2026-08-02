@@ -1,6 +1,7 @@
 import pytest
-from backend.modules.generation.schemas.generation_dto import GroundedAnswerDTO, CitationDTO
-from backend.modules.reflection.schemas.reflection_dto import ReflectionRequestDTO, ClaimVerdict
+
+from backend.modules.generation.schemas.generation_dto import CitationDTO, GroundedAnswerDTO
+from backend.modules.reflection.schemas.reflection_dto import ClaimVerdict, ReflectionRequestDTO
 from backend.modules.reflection.services.claim_validator import ClaimValidator
 from backend.modules.reflection.services.reflection_engine import ReflectionEngine
 

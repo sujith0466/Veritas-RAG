@@ -7,15 +7,18 @@ Supports full stateful clarification pauses and resumes (`Phase 9`).
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    ClarificationQuestionDTO, ClarificationResumeRequestDTO,
-    ClarificationStateDTO, ClarifiedQueryDTO, RewriteRequestDTO,
-    RewriteRequestDTOv2)
-from backend.modules.query_rewrite.services.clarification_state_manager import \
-    ClarificationStateManager
-from backend.modules.query_rewrite.strategies.decomposition import \
-    DecompositionRewriter
-from backend.modules.query_rewrite.strategies.disambiguation import \
-    DisambiguationRewriter
+    ClarificationQuestionDTO,
+    ClarificationResumeRequestDTO,
+    ClarificationStateDTO,
+    ClarifiedQueryDTO,
+    RewriteRequestDTO,
+    RewriteRequestDTOv2,
+)
+from backend.modules.query_rewrite.services.clarification_state_manager import (
+    ClarificationStateManager,
+)
+from backend.modules.query_rewrite.strategies.decomposition import DecompositionRewriter
+from backend.modules.query_rewrite.strategies.disambiguation import DisambiguationRewriter
 from backend.modules.query_rewrite.strategies.hyde import HyDERewriter
 
 logger = get_logger(__name__)

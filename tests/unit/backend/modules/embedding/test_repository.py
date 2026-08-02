@@ -6,6 +6,7 @@ CRUD operations, multi-tenant isolation, and zero-call idempotency engine.
 
 from unittest.mock import AsyncMock, MagicMock
 import uuid
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -189,7 +190,7 @@ class TestEmbeddingRepository:
 
     async def test_get_tenant_metrics(self) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
-        
+
         # Mocks for active_jobs, completed_jobs, failed_jobs, total_tokens, total_vectors, provider_distribution
         res_active = MagicMock()
         res_active.scalar.return_value = 1

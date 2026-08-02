@@ -1,10 +1,7 @@
-from backend.modules.evaluation.repositories.evaluation_repository import \
-    EvaluationRepository
-from backend.modules.evaluation.schemas.evaluation_dto import \
-    EvaluationResultDTO
+from backend.modules.evaluation.repositories.evaluation_repository import EvaluationRepository
+from backend.modules.evaluation.schemas.evaluation_dto import EvaluationResultDTO
 from backend.modules.evaluation.services.batch_evaluator import BatchEvaluator
-from backend.modules.evaluation.services.dataset_manager import \
-    GoldenDatasetManager
+from backend.modules.evaluation.services.dataset_manager import GoldenDatasetManager
 
 
 class ContinuousLearningEngine:

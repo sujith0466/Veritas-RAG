@@ -3,8 +3,8 @@
 Records security and operational actions across the platform for traceability and compliance.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy import JSON, String
 from sqlalchemy.dialects.postgresql import UUID

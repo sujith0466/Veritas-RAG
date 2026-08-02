@@ -1,5 +1,5 @@
-import pytest
 from backend.modules.intelligence.services.advisor import IndexAdvisor
+
 
 def test_index_advisor():
     advisor = IndexAdvisor()

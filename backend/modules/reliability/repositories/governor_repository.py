@@ -1,10 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.modules.reliability.models.healing_action_log import \
-    HealingActionLogORM
-from backend.modules.reliability.models.self_healing_policy import \
-    SelfHealingPolicyORM
+from backend.modules.reliability.models.healing_action_log import HealingActionLogORM
+from backend.modules.reliability.models.self_healing_policy import SelfHealingPolicyORM
 
 
 class GovernorRepository:

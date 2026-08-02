@@ -1,8 +1,8 @@
-import os
 import json
+import os
 import random
+
 from faker import Faker
-from datetime import datetime, timedelta
 
 fake = Faker()
 Faker.seed(1337)
@@ -16,14 +16,14 @@ except ImportError:
 
 try:
     from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
     HAS_REPORTLAB = True
 except ImportError:
     HAS_REPORTLAB = False
 
 DEPARTMENTS = [
-    'hr', 'engineering', 'it', 'security', 'product', 
+    'hr', 'engineering', 'it', 'security', 'product',
     'finance', 'legal', 'customer_support', 'sales', 'marketing'
 ]
 
@@ -162,20 +162,20 @@ for d in DEPARTMENTS: os.makedirs(os.path.join(out_dir, d), exist_ok=True)
 for i in range(120):
     dept = random.choice(DEPARTMENTS)
     fmt = get_format()
-    
+
     # Generate content
     if dept in TEMPLATES:
         content_text = TEMPLATES[dept]()
     else:
         content_text = generate_generic_template(dept)
-        
+
     lines = content_text.split('\n')
     title = lines[0] if lines else f"{dept.capitalize()} Document {i}"
     paragraphs = lines[1:]
-    
+
     slug = title.lower().replace(' ', '_').replace('/', '_').replace('-', '_').replace(':', '')[:30] + '_' + str(i)
     path = os.path.join(out_dir, dept, f'{slug}.{fmt}')
-    
+
     if fmt == 'pdf':
         doc = SimpleDocTemplate(path, pagesize=letter)
         story = [Paragraph(title, getSampleStyleSheet()['Heading1'])]
@@ -187,7 +187,7 @@ for i in range(120):
     elif fmt == 'docx':
         doc = Document()
         doc.add_heading(title, 0)
-        for p in paragraphs: 
+        for p in paragraphs:
             if p.strip(): doc.add_paragraph(p)
         doc.save(path)
     elif fmt == 'json':

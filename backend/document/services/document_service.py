@@ -1,4 +1,5 @@
 from backend.document.models.status import DocumentStatus
+
 """Document Domain Service (`DocumentService`).
 
 Orchestrates synchronous file upload processing, validation screening, physical artifact storage,
@@ -6,28 +7,35 @@ database entity persistence, event emitting, and asynchronous Celery worker task
 """
 
 import math
-import uuid
 from typing import BinaryIO
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.document.events import (EVENT_DOCUMENT_UPLOADED,
-                                     create_domain_event)
-from backend.document.models import (Document, DocumentEventLog,
-                                     DocumentVersion, ProcessingJob,
-                                     StorageObject)
-from backend.document.repositories import (DocumentEventRepository,
-                                           DocumentRepository, JobRepository,
-                                           StorageObjectRepository)
-from backend.document.schemas import (DocumentDetailResponse,
-                                      DocumentListResponse,
-                                      DocumentManifestDTO, DocumentResponse,
-                                      DocumentVersionDTO,
-                                      ProcessingStatusResponse)
-from backend.document.storage import (LocalStorageProvider, StorageProvider,
-                                      get_versioned_path)
-from backend.document.validators import (ValidationPipeline,
-                                         check_duplicate_content)
+from backend.document.events import EVENT_DOCUMENT_UPLOADED, create_domain_event
+from backend.document.models import (
+    Document,
+    DocumentEventLog,
+    DocumentVersion,
+    ProcessingJob,
+    StorageObject,
+)
+from backend.document.repositories import (
+    DocumentEventRepository,
+    DocumentRepository,
+    JobRepository,
+    StorageObjectRepository,
+)
+from backend.document.schemas import (
+    DocumentDetailResponse,
+    DocumentListResponse,
+    DocumentManifestDTO,
+    DocumentResponse,
+    DocumentVersionDTO,
+    ProcessingStatusResponse,
+)
+from backend.document.storage import LocalStorageProvider, StorageProvider, get_versioned_path
+from backend.document.validators import ValidationPipeline, check_duplicate_content
 
 
 class DocumentService:
@@ -201,9 +209,9 @@ class DocumentService:
             "READY": 100,
             "FAILED": 100
         }
-        
+
         progress = status_map.get(doc.status, 15)
-        
+
         # If it's still UPLOADED, use job progress if available, but cap it so it never exceeds PROCESSED
         if doc.status == DocumentStatus.UPLOADED and job:
             job_step_progress = {

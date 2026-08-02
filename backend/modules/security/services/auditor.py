@@ -1,6 +1,6 @@
+from datetime import datetime
 import json
 import logging
-from datetime import datetime
 
 from backend.modules.security.schemas.security_dto import AuditEventDTO
 

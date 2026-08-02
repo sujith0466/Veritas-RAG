@@ -3,16 +3,15 @@
 Provides concrete SQLAlchemy queries for Audit Log entry querying and storage.
 """
 
-import uuid
 from collections.abc import Sequence
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.entities.audit_log import AuditLog
 from backend.repositories.base import BaseRepository
-from backend.repositories.interfaces.audit_log_repository import \
-    IAuditLogRepository
+from backend.repositories.interfaces.audit_log_repository import IAuditLogRepository
 
 
 class AuditLogRepository(BaseRepository[AuditLog], IAuditLogRepository):

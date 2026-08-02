@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
-from backend.modules.analytics.schemas.analytics_dto import (
-    TenantQuotaDTO, TenantQuotaUpdateDTO)
+from backend.modules.analytics.schemas.analytics_dto import TenantQuotaDTO, TenantQuotaUpdateDTO
 
 router = APIRouter(prefix="/analytics/v1/quotas", tags=["Quota"])
 

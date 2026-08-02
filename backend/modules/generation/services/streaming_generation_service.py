@@ -11,9 +11,10 @@ from typing import Any
 from structlog import get_logger
 
 from backend.modules.generation.schemas.generation_dto import (
-    GenerationRequestDTOv2, StreamingGenerationChunkDTO)
-from backend.modules.generation.services.citation_extractor import \
-    CitationExtractor
+    GenerationRequestDTOv2,
+    StreamingGenerationChunkDTO,
+)
+from backend.modules.generation.services.citation_extractor import CitationExtractor
 from backend.modules.generation.services.prompt_guard import PromptGuard
 
 logger = get_logger(__name__)
@@ -83,9 +84,9 @@ class StreamingGroundedGenerationService:
                     error=str(exc),
                     correlation_id=request.correlation_id,
                 )
-                
+
                 from backend.core.exceptions import LLMProviderException
-                
+
                 error_msg = "\n[Error: Unable to generate a response right now. Please try again shortly.]"
                 if isinstance(exc, LLMProviderException):
                     if exc.status_code in (429, 502, 503):

@@ -1,8 +1,8 @@
 """Pydantic v2 DTOs for Chunking & Document Processing (`ADR-005`)."""
 
-import uuid
 from datetime import datetime
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -112,7 +112,7 @@ class StrategyInfoDTO(BaseModel):
     coming_in: str | None = Field(default=None, description="Target version/milestone for unavailable strategies")
     requires: list[str] = Field(default_factory=list, description="Dependencies required to use this strategy")
     icon: str | None = Field(default=None, description="Optional icon identifier for UI rendering")
-    
+
     # Keeping these for backward compatibility or internal use
     supported_mime_types: list[str] = Field(
         description="List of compatible MIME types or ['*']"

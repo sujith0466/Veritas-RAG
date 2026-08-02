@@ -1,17 +1,19 @@
-from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class ChatMessageDTO(BaseModel):
     id: str
     session_id: str
     role: str
     message: str
-    citations: Optional[List[Dict[str, Any]]] = None
-    reliability_score: Optional[float] = None
-    metadata_json: Optional[Dict[str, Any]] = None
+    citations: list[dict[str, Any]] | None = None
+    reliability_score: float | None = None
+    metadata_json: dict[str, Any] | None = None
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 class ChatSessionDTO(BaseModel):
@@ -23,24 +25,24 @@ class ChatSessionDTO(BaseModel):
     archived: bool
     created_at: datetime
     updated_at: datetime
-    messages: Optional[List[ChatMessageDTO]] = []
-    
+    messages: list[ChatMessageDTO] | None = []
+
     model_config = ConfigDict(from_attributes=True)
 
 class ChatSessionCreateDTO(BaseModel):
-    title: Optional[str] = Field(default="New Chat")
+    title: str | None = Field(default="New Chat")
 
 class ChatSessionUpdateDTO(BaseModel):
-    title: Optional[str] = None
-    pinned: Optional[bool] = None
-    archived: Optional[bool] = None
+    title: str | None = None
+    pinned: bool | None = None
+    archived: bool | None = None
 
 class ChatMessageCreateDTO(BaseModel):
     role: str
     message: str
-    citations: Optional[List[Dict[str, Any]]] = None
-    reliability_score: Optional[float] = None
-    metadata_json: Optional[Dict[str, Any]] = None
+    citations: list[dict[str, Any]] | None = None
+    reliability_score: float | None = None
+    metadata_json: dict[str, Any] | None = None
 
 class ChatRequestDTO(BaseModel):
     query: str = Field(..., description="The user's chat message")

@@ -1,7 +1,6 @@
 import re
 
-from backend.modules.health.schemas.health_dto import (DocumentIssueDTO,
-                                                       IssueType)
+from backend.modules.health.schemas.health_dto import DocumentIssueDTO, IssueType
 
 
 class RedundancyDetector:

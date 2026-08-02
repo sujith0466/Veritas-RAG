@@ -6,17 +6,15 @@ and emits `DocumentChunked` domain events with exponential backoff retry for `RE
 """
 
 import asyncio
-import uuid
 from typing import Any
+import uuid
 
 import structlog
 
 from backend.database.engine import get_session_factory
 from backend.document.models import DocumentEventLog
-from backend.modules.chunking.events import (EVENT_CHUNKING_FAILED,
-                                             create_chunk_event)
-from backend.modules.chunking.schemas.errors import (ErrorSeverity,
-                                                     get_error_severity)
+from backend.modules.chunking.events import EVENT_CHUNKING_FAILED, create_chunk_event
+from backend.modules.chunking.schemas.errors import ErrorSeverity, get_error_severity
 from backend.modules.chunking.services.chunk_service import ChunkingService
 from backend.tasks.celery_app import celery_app
 
@@ -68,9 +66,8 @@ async def _async_process_chunking(
     max_characters: int,
     overlap_characters: int,
 ) -> dict[str, Any]:
-    from backend.database.engine import get_session_factory
     session_factory = get_session_factory()
-    
+
     service = ChunkingService()
 
     async with session_factory() as session:
@@ -86,9 +83,9 @@ async def _async_process_chunking(
             )
             await session.commit()
             # Emit and persist CHUNKING_COMPLETED event
-            from backend.core.events.types import EventType
             from backend.core.events.dispatcher import get_dispatcher
-            
+            from backend.core.events.types import EventType
+
             success_event = create_chunk_event(
                     event_type=EventType.CHUNKING_COMPLETED,
                     tenant_id=tenant_id,
@@ -96,7 +93,7 @@ async def _async_process_chunking(
                     document_version_id=version_id,
                     data={"chunk_count": len(chunks), "duration_ms": duration_ms}
             )
-            
+
             event_log = DocumentEventLog(
                     document_id=document_id,
                     event_type=EventType.CHUNKING_COMPLETED,
@@ -105,11 +102,11 @@ async def _async_process_chunking(
             )
             session.add(event_log)
             await session.commit()
-            
+
             # Publish event in process to trigger next pipeline stage
             dispatcher = get_dispatcher()
             await dispatcher.publish(success_event)
-            
+
             logger.info(
                     "chunking_task_completed",
                     tenant_id=tenant_id,

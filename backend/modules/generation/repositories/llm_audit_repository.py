@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from backend.modules.generation.models.llm_audit import LLMAuditRecord
 

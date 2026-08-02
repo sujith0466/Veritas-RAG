@@ -1,8 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.validation.models.validation_log import ValidationLogORM
-from backend.modules.validation.schemas.validation_dto import \
-    ValidationResultDTO
+from backend.modules.validation.schemas.validation_dto import ValidationResultDTO
 
 
 class ValidationRepository:

@@ -1,7 +1,9 @@
 import pytest
+
 from backend.modules.alerts.channels.slack_channel import SlackChannel
 from backend.modules.alerts.channels.webhook_channel import WebhookChannel
 from backend.modules.alerts.schemas.alert_dto import AlertPayloadDTO, ChannelConfigDTO
+
 
 @pytest.mark.asyncio
 async def test_slack_channel():

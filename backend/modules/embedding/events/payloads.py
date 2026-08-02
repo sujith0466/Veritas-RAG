@@ -4,10 +4,10 @@ Enforces versioned domain event payloads (`schema_version: "1.0.0"`) across job 
 batch progress, completion, and failure (`ADR-M2-003`), bridging cleanly with `BaseEvent` / `EventDispatcher`.
 """
 
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 

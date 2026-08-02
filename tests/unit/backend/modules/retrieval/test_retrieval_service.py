@@ -1,8 +1,7 @@
 """Unit tests for Phase 2 Milestone 4 (Hybrid Retrieval Engine) - Phase 2: Rerankers & Orchestrator."""
 
-import asyncio
-import uuid
 from unittest.mock import AsyncMock, MagicMock
+import uuid
 
 import pytest
 

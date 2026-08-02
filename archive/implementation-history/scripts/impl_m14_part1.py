@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 14.1 Implementation...")
-    
+
     # Create directories
     os.makedirs("backend/modules/health/schemas", exist_ok=True)
     os.makedirs("backend/modules/health/models", exist_ok=True)
@@ -17,7 +17,7 @@ def main():
     os.makedirs("backend/modules/health/services", exist_ok=True)
     os.makedirs("backend/modules/health/tasks", exist_ok=True)
     os.makedirs("backend/modules/health/api", exist_ok=True)
-    
+
     # 1. Create errors.py
     errors_path = "backend/modules/health/schemas/errors.py"
     if not os.path.exists(errors_path):

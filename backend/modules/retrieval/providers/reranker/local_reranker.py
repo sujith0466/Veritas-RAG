@@ -9,8 +9,7 @@ from typing import Any
 
 from structlog import get_logger
 
-from backend.modules.retrieval.providers.reranker.base import \
-    BaseRerankerProvider
+from backend.modules.retrieval.providers.reranker.base import BaseRerankerProvider
 from backend.modules.retrieval.schemas.errors import RerankerTimeoutError
 from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 
@@ -38,7 +37,7 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
         import threading
         self._lock = threading.Lock()
         # Bounded concurrency: allows up to 4 concurrent model.predict() executions.
-        # This prevents CPU thrashing/OOMs while dramatically improving P99 queuing latency 
+        # This prevents CPU thrashing/OOMs while dramatically improving P99 queuing latency
         # over a strict Lock(1) under heavy concurrent load.
         self._inference_lock = threading.Semaphore(4)
 
@@ -49,12 +48,12 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
             raise RerankerTimeoutError(
                 "Local cross-encoder (`sentence_transformers`) is not installed or model unavailable (`RET_003`)."
             )
-        
+
         with self._lock:
             # Double-check locking
             if self._model is not None:
                 return self._model
-                
+
             try:
                 self._model = CrossEncoder(self.model_name)
                 return self._model
@@ -66,11 +65,11 @@ class LocalCrossEncoderProvider(BaseRerankerProvider):
     def _predict_sync(self, query: str, texts: list[str]) -> list[float]:
         model = self._get_model()
         pairs = [(query, text) for text in texts]
-        
+
         # Serialize inference to prevent CPU thrashing/contention under heavy concurrent load
         with self._inference_lock:
             scores = model.predict(pairs)
-            
+
         return [float(s) for s in scores]
 
     async def rerank(

@@ -1,18 +1,22 @@
 """Unit tests for Phase 9 Clarification Engine & State Manager."""
 
-import pytest
 import time
+
+import pytest
+
+from backend.modules.query_rewrite.schemas.errors import ClarificationGenerationFailed
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2,
     ClarificationResumeRequestDTO,
     ClarificationStatus,
+    RewriteRequestDTOv2,
 )
-from backend.modules.query_rewrite.services.clarification_state_manager import ClarificationStateManager
 from backend.modules.query_rewrite.services.clarification_engine import ClarificationEngine
+from backend.modules.query_rewrite.services.clarification_state_manager import (
+    ClarificationStateManager,
+)
 from backend.modules.query_rewrite.strategies.decomposition import DecompositionRewriter
-from backend.modules.query_rewrite.strategies.hyde import HyDERewriter
 from backend.modules.query_rewrite.strategies.disambiguation import DisambiguationRewriter
-from backend.modules.query_rewrite.schemas.errors import ClarificationGenerationFailed
+from backend.modules.query_rewrite.strategies.hyde import HyDERewriter
 
 
 @pytest.fixture

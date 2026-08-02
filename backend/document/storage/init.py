@@ -4,8 +4,8 @@ Idempotent provisioning of buckets, versioning, and WORM Object Lock policies.
 """
 
 import aioboto3
-import botocore.exceptions
 from botocore.config import Config
+import botocore.exceptions
 
 from backend.document.storage.utils import BucketNameBuilder
 
@@ -35,7 +35,7 @@ async def _ensure_bucket(client, bucket_name: str, region: str, object_lock_enab
         kwargs = {"Bucket": bucket_name, "ObjectLockEnabledForBucket": object_lock_enabled_for_bucket}
         if region != "us-east-1":
             kwargs["CreateBucketConfiguration"] = {"LocationConstraint": region}
-            
+
         await client.create_bucket(**kwargs)
     except botocore.exceptions.ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "")

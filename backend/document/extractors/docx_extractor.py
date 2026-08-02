@@ -4,12 +4,11 @@ Extracts paragraphs and tables from `.docx` documents using `python-docx` or nat
 """
 
 import io
+from typing import BinaryIO
 import xml.etree.ElementTree as ET
 import zipfile
-from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 

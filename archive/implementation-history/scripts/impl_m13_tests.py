@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 def main():
     print("Starting Milestone 13.4 Implementation (Tests)...")
     os.makedirs("tests/unit/backend/modules/scoring", exist_ok=True)
-    
+
     # 1. test_base_scorer.py
     t_scorer_path = "tests/unit/backend/modules/scoring/test_base_scorer.py"
     with open(t_scorer_path, "w") as f:
@@ -96,7 +96,7 @@ async def test_scoring_engine_success():
 """)
 
     print("Created test files.")
-    
+
     print("Running tests...")
     result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/backend/modules/scoring"], capture_output=True, text=True)
     print(result.stdout)

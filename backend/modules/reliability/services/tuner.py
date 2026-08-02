@@ -1,5 +1,4 @@
-from backend.modules.reliability.schemas.reliability_dto import \
-    ParameterOverrideDTO
+from backend.modules.reliability.schemas.reliability_dto import ParameterOverrideDTO
 
 
 class AdaptiveParameterTuner:

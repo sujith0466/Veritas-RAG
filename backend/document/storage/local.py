@@ -9,8 +9,7 @@ import os
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 from backend.document.utils.hashing import calculate_sha256
 
 from .base import StorageObjectDTO, StorageProvider

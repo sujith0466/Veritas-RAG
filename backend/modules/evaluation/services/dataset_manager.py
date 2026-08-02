@@ -1,7 +1,5 @@
-from backend.modules.evaluation.repositories.evaluation_repository import \
-    EvaluationRepository
-from backend.modules.evaluation.schemas.errors import (
-    EvaluationDomainException, EvaluationErrorCode)
+from backend.modules.evaluation.repositories.evaluation_repository import EvaluationRepository
+from backend.modules.evaluation.schemas.errors import EvaluationDomainException, EvaluationErrorCode
 from backend.modules.evaluation.schemas.evaluation_dto import DatasetCreateDTO
 
 

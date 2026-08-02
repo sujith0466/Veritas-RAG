@@ -1,6 +1,5 @@
 """Unit tests for Phase 2 Milestone 4 (Hybrid Retrieval Engine) - Phase 3: Repository, Domain Events & Celery Workers."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
@@ -8,7 +7,6 @@ import pytest
 
 from backend.core.events.types import EventType
 from backend.modules.retrieval.events.payloads import (
-    QueryRetrievedPayload,
     RetrievalDomainEvent,
     create_query_retrieved_payload,
 )
@@ -19,12 +17,9 @@ from backend.modules.retrieval.repositories.retrieval_repository import (
 from backend.modules.retrieval.schemas.errors import (
     ErrorSeverity,
     RerankerTimeoutError,
-    RetrievalErrorCode,
 )
 from backend.modules.retrieval.schemas.retrieval_dto import (
-    RetrievalMetricsDTO,
     RetrievalQueryLogDTO,
-    RetrievalStageBreakdownDTO,
 )
 from backend.modules.retrieval.workers.tasks import (
     _async_execute_batch_search,

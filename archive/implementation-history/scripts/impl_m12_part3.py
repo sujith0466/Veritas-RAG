@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 12.3 Implementation...")
-    
+
     # 1. validation_engine.py
     engine_path = "backend/modules/validation/services/validation_engine.py"
     if not os.path.exists(engine_path):

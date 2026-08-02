@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
@@ -12,7 +12,7 @@ def main():
     print("Starting Milestone 16.4 Implementation (Tests)...")
     os.makedirs("tests/unit/backend/modules/dashboard", exist_ok=True)
     os.makedirs("tests/integration", exist_ok=True)
-    
+
     # 1. test_cache_service.py
     t_cache_path = "tests/unit/backend/modules/dashboard/test_cache_service.py"
     with open(t_cache_path, "w") as f:
@@ -81,7 +81,7 @@ async def test_live_broadcaster():
 """)
 
     print("Created test files.")
-    
+
     print("Running tests...")
     result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/backend/modules/dashboard"], capture_output=True, text=True)
     print(result.stdout)

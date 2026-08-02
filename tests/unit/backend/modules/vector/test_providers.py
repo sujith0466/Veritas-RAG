@@ -5,20 +5,18 @@ payload index creation, error taxonomy mapping (`VEC_001` to `VEC_005`), and `Ve
 """
 
 from unittest.mock import AsyncMock, MagicMock
-import uuid
+
 import pytest
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http import models as qdrant_models
 
 from backend.modules.vector.providers import (
-    BaseVectorDBProvider,
     QdrantVectorDBProvider,
     VectorProviderFactory,
 )
 from backend.modules.vector.schemas import (
     CollectionConfigDTO,
     CollectionNotFoundError,
-    CollectionSummaryDTO,
     DimensionMismatchError,
     InvalidPayloadSchemaError,
     QdrantConnectionError,

@@ -10,8 +10,7 @@ from uuid import UUID
 from structlog import get_logger
 
 from backend.modules.retrieval.providers.sparse.bm25_provider import tokenize
-from backend.modules.retrieval.schemas.retrieval_dto import (CandidatePointDTO,
-                                                             RankedEvidenceDTO)
+from backend.modules.retrieval.schemas.retrieval_dto import CandidatePointDTO, RankedEvidenceDTO
 
 logger = get_logger(__name__)
 

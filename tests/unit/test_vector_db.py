@@ -1,6 +1,7 @@
 """Unit tests for Qdrant vector database async client and health checks."""
 
-from collections.abc import AsyncGenerator, Generator
+import asyncio
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,8 +14,6 @@ from backend.vector_db.client import (
     get_vector_db,
 )
 
-
-import asyncio
 
 @pytest.fixture(autouse=True)
 def reset_vector_db_singletons() -> Generator[None, None, None]:

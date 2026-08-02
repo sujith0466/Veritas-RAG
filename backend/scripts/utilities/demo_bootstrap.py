@@ -9,8 +9,6 @@ import argparse
 import asyncio
 import os
 import sys
-import uuid
-from pathlib import Path
 
 import httpx
 
@@ -47,7 +45,7 @@ DOCUMENTS = {
 
 async def bootstrap(force: bool, seed_only: bool, verify: bool):
     print("🚀 Starting RAGuard AI Demo Bootstrap...")
-    
+
     supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
     supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
@@ -62,7 +60,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
         "Authorization": f"Bearer {supabase_service_key}",
         "Content-Type": "application/json",
     }
-    
+
     anon_headers = {
         "apikey": supabase_anon_key,
         "Authorization": f"Bearer {supabase_anon_key}",
@@ -74,7 +72,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
         {"email": "demoadmin@gmail.com", "password": "ChangeMe123!", "role": "admin", "tenant": "demo-tenant-1"},
         {"email": "demo@gmail.com", "password": "ChangeMe123!", "role": "viewer", "tenant": "demo-tenant-1"}
     ]
-    
+
     jwts = {}
 
     if not seed_only:
@@ -83,7 +81,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
             for acc in accounts:
                 email = acc["email"]
                 print(f"Checking {email}...")
-                
+
                 # Check if exists
                 exists = False
                 resp = await client.get(f"{supabase_url}/auth/v1/admin/users", headers=admin_headers)
@@ -91,7 +89,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
                     users = resp.json().get("users", [])
                     if any(u.get("email") == email for u in users):
                         exists = True
-                
+
                 if exists:
                     print(f"ℹ️ {email} already exists in Supabase, reusing.")
                 else:
@@ -106,8 +104,8 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
                         }
                     }
                     create_resp = await client.post(
-                        f"{supabase_url}/auth/v1/admin/users", 
-                        headers=admin_headers, 
+                        f"{supabase_url}/auth/v1/admin/users",
+                        headers=admin_headers,
                         json=create_payload
                     )
                     if create_resp.status_code in (200, 201):
@@ -117,7 +115,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
                     else:
                         print(f"❌ Failed to create {email}: {create_resp.text}")
                         sys.exit(1)
-                        
+
                 # Sign in to get JWT
                 auth_resp = await client.post(
                     f"{supabase_url}/auth/v1/token?grant_type=password",
@@ -160,7 +158,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
 
     admin_token = jwts["demoadmin@gmail.com"]
     headers = {"Authorization": f"Bearer {admin_token}"}
-    
+
     async with httpx.AsyncClient(base_url=api_url, timeout=30.0) as client:
         # Check existing documents to avoid duplicates unless --force
         existing_docs = []
@@ -168,13 +166,13 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
             resp = await client.get("/api/v1/documents", headers=headers)
             if resp.status_code == 200:
                 existing_docs = [d["filename"] for d in resp.json()["data"]["items"]]
-        
+
         uploaded_ids = []
         for filename, content in DOCUMENTS.items():
             if filename in existing_docs and not force:
                 print(f"ℹ️ Skipping {filename} (already exists). Use --force to upload anyway.")
                 continue
-                
+
             print(f"Uploading {filename}...")
             files = {'file': (filename, content.encode('utf-8'), 'text/plain')}
             resp = await client.post("/api/v1/documents/upload", headers=headers, files=files)
@@ -197,7 +195,7 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
                         status = resp.json()["data"]["status"]
                     await asyncio.sleep(2)
                     attempts += 1
-                
+
                 if status == "PROCESSED":
                     print(f"✅ Document {doc_id} processed successfully.")
 
@@ -287,5 +285,5 @@ if __name__ == "__main__":
     parser.add_argument("--seed-only", action="store_true", help="Skip user creation, only seed documents")
     parser.add_argument("--verify", action="store_true", help="Run extra verification queries")
     args = parser.parse_args()
-    
+
     asyncio.run(bootstrap(args.force, args.seed_only, args.verify))

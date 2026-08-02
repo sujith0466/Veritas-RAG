@@ -4,11 +4,12 @@ Maps OIDC provider identities (like Google) to local RAGuard user accounts.
 """
 
 import datetime
-from sqlalchemy import String, DateTime, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import JSONB
-
 import uuid
+
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from backend.models.base import BaseModel
 from backend.models.entities.user import User
 

@@ -2,8 +2,7 @@
 
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 # Default maximum upload size: 50 MB
 DEFAULT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024

@@ -12,10 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
 from backend.core.events.dispatcher import get_dispatcher
-from backend.modules.embedding.repositories.embedding_repository import \
-    EmbeddingRepository
-from backend.modules.embedding.services.embedding_service import \
-    EmbeddingService
+from backend.modules.embedding.repositories.embedding_repository import EmbeddingRepository
+from backend.modules.embedding.services.embedding_service import EmbeddingService
 
 
 def get_embedding_repository(

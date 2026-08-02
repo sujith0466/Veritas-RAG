@@ -1,27 +1,27 @@
 """Integration tests for F3.7 Branding and F3.8 Feature Flag API routes."""
 
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 import uuid
-import pytest
+
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from backend.api.v1.routes.feature_flags import (
+    router as feature_flags_router,
+)
+from backend.api.v1.routes.feature_flags import (
+    workspace_ff_router as workspace_feature_flags_router,
+)
+from backend.api.v1.routes.workspaces import router as workspaces_router
 from backend.core.auth.context import UserContext
-from backend.core.permissions.rbac import Role
 from backend.core.dependencies.auth import get_current_user
 from backend.core.dependencies.database import (
     get_feature_flag_evaluation_service,
-    get_feature_flag_management_service,
     get_feature_flag_repository,
     get_workspace_settings_service,
 )
-from fastapi import FastAPI
-from backend.api.v1.routes.workspaces import router as workspaces_router
-from backend.api.v1.routes.feature_flags import (
-    router as feature_flags_router,
-    workspace_ff_router as workspace_feature_flags_router,
-)
-
-from datetime import datetime, timezone
+from backend.core.permissions.rbac import Role
 from backend.models.entities.feature_flag import FeatureFlag
 from backend.services.feature_flag.evaluation_service import EvaluationResult
 
@@ -57,16 +57,12 @@ def get_mock_regular_user():
 
 from backend.core.dependencies.database import (
     get_db,
-    get_feature_flag_evaluation_service,
-    get_feature_flag_management_service,
-    get_feature_flag_repository,
-    get_workspace_settings_service,
 )
 
 
 def test_list_feature_flags_endpoint():
     mock_repo = AsyncMock()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_flag = FeatureFlag(
         id=uuid.uuid4(),
         key="fast_embeddings",
@@ -110,7 +106,7 @@ def test_evaluate_workspace_flag_endpoint():
         variant={},
         reason="GLOBAL_DEFAULT",
         tier_served="L1_MEMORY",
-        evaluated_at=datetime.now(timezone.utc),
+        evaluated_at=datetime.now(UTC),
     )
 
     app.dependency_overrides[get_current_user] = get_mock_admin_user
@@ -132,7 +128,7 @@ def test_evaluate_workspace_flag_endpoint():
 def test_get_workspace_branding_endpoint():
     workspace_id = uuid.uuid4()
     mock_settings_service = AsyncMock()
-    
+
     mock_settings_service.get_resolved_branding.return_value = {
         "workspace_id": workspace_id,
         "branding": {

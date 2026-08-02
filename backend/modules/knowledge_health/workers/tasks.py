@@ -9,10 +9,8 @@ from uuid import UUID
 
 import structlog
 
-from backend.database.engine import get_session_factory
 from backend.modules.knowledge_health.schemas.health_dto import ScanType
-from backend.modules.knowledge_health.services.health_service import \
-    KnowledgeHealthOrchestrator
+from backend.modules.knowledge_health.services.health_service import KnowledgeHealthOrchestrator
 from backend.tasks.celery_app import celery_app
 
 logger = structlog.get_logger(__name__)
@@ -25,13 +23,14 @@ def run_scheduled_orphan_sweep_task(self: Any, tenant_id: str) -> dict[str, Any]
 
 
 async def _async_run_orphan_sweep(tenant_id: str) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     from backend.core.config import get_settings
-    
+
     settings = get_settings().database
     engine = create_async_engine(settings.url, pool_pre_ping=True)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    
+
     try:
         async with session_factory() as session:
             service = KnowledgeHealthOrchestrator(session)
@@ -55,13 +54,14 @@ def run_scheduled_parity_audit_task(self: Any, tenant_id: str) -> dict[str, Any]
 
 
 async def _async_run_parity_audit(tenant_id: str) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     from backend.core.config import get_settings
-    
+
     settings = get_settings().database
     engine = create_async_engine(settings.url, pool_pre_ping=True)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    
+
     try:
         async with session_factory() as session:
             service = KnowledgeHealthOrchestrator(session)
@@ -87,13 +87,14 @@ def execute_hard_purge_task(
 
 
 async def _async_execute_hard_purge(document_id: str, tenant_id: str) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     from backend.core.config import get_settings
-    
+
     settings = get_settings().database
     engine = create_async_engine(settings.url, pool_pre_ping=True)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    
+
     try:
         async with session_factory() as session:
             service = KnowledgeHealthOrchestrator(session)

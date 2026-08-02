@@ -1,28 +1,30 @@
-from backend.document.models.status import DocumentStatus
 """Embedding Service Layer (`EmbeddingService`).
 
 Orchestrates asynchronous vectorization, tenant quota verification, batch segmentation,
 idempotency filtering, and versioned domain event publishing (`ADR-M2-001`, `ADR-M2-003`).
 """
 
-import uuid
 from collections.abc import Sequence
 from typing import Any
+import uuid
 
 import structlog
 
 from backend.core.events.dispatcher import EventDispatcher
 from backend.core.events.types import EventType
 from backend.modules.embedding.events.payloads import (
-    EVENT_EMBEDDING_COMPLETED, EVENT_EMBEDDING_FAILED,
-    EVENT_EMBEDDING_PROGRESS, EVENT_EMBEDDING_STARTED, EmbeddingDomainEvent,
-    create_embedding_event)
+    EVENT_EMBEDDING_COMPLETED,
+    EVENT_EMBEDDING_FAILED,
+    EVENT_EMBEDDING_PROGRESS,
+    EVENT_EMBEDDING_STARTED,
+    EmbeddingDomainEvent,
+    create_embedding_event,
+)
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.embedding.models.embedding_job import EmbeddingJob
 from backend.modules.embedding.providers.manager import EmbeddingManager
 from backend.modules.embedding.repositories.base import IEmbeddingRepository
-from backend.modules.embedding.schemas.errors import (InvalidInputError,
-                                                      TokenQuotaExceededError)
+from backend.modules.embedding.schemas.errors import InvalidInputError, TokenQuotaExceededError
 
 logger = structlog.get_logger(__name__)
 

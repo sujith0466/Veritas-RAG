@@ -4,11 +4,10 @@ Tracks synchronization health, status transitions (`PENDING`, `PROCESSING`, `COM
 and point counts for document version embeddings inside self-hosted Qdrant collections (`ADR-M3-001`).
 """
 
-import uuid
 from typing import Any
+import uuid
 
-from sqlalchemy import (ForeignKey, Index, Integer, String, Text,
-                        UniqueConstraint)
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 

@@ -5,14 +5,14 @@ version snapshots (WorkspaceSettingsHistory), Redis read-through caching, and de
 """
 
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime
 import hashlib
 import json
-from typing import Any, Optional
+from typing import Any
 import uuid
 
-import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.workspace_settings import (
     WorkspaceSettingsPayload,

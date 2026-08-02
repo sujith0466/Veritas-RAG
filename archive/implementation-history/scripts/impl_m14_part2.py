@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 14.2 Implementation...")
-    
+
     # 1. redundancy_detector.py
     redundancy_path = "backend/modules/health/services/redundancy_detector.py"
     if not os.path.exists(redundancy_path):

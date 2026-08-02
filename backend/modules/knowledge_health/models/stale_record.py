@@ -1,7 +1,7 @@
 """ORM entity representing chunks requiring re-vectorization after model rotations (`stale_embedding_records`)."""
 
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID

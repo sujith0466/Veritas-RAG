@@ -1,10 +1,12 @@
 """Domain event payloads for Knowledge Health & Lifecycle Management."""
 
-from .payloads import (KnowledgeDriftDetectedPayload,
+from .payloads import (
+                       KnowledgeDriftDetectedPayload,
                        KnowledgeHealthDomainEvent,
                        KnowledgeHealthScanCompletedPayload,
                        KnowledgeHealthScanStartedPayload,
-                       OrphanChunksPurgedPayload)
+                       OrphanChunksPurgedPayload,
+)
 
 __all__ = [
     "KnowledgeHealthDomainEvent",

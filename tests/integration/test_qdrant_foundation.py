@@ -3,8 +3,8 @@
 Tests CollectionNameBuilder, QdrantMetrics, and QdrantProvider abstraction.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 import pytest
 
@@ -35,14 +35,14 @@ async def test_qdrant_metrics_singleton():
     QdrantMetrics._upserts = 0
     QdrantMetrics._upsert_latency = 0.0
     QdrantMetrics._collection_creations = 0
-    
+
     QdrantMetrics.record_collection_creation()
     QdrantMetrics.record_upsert(10.0)
     QdrantMetrics.record_upsert(20.0)
     QdrantMetrics.record_search(5.0)
 
     stats = QdrantMetrics.get_stats()
-    
+
     assert stats["collection_creations"] == 1
     assert stats["upserts"] == 2
     assert stats["avg_upsert_latency_ms"] == 15.0
@@ -56,10 +56,10 @@ async def test_qdrant_provider_interface(mocker: Any):
     # We mock the underlying AsyncQdrantClient to avoid needing a live Qdrant instance
     mock_client = mocker.AsyncMock()
     provider = QdrantVectorDBProvider(client=mock_client)
-    
+
     tenant_id = str(uuid.uuid4())
     collection_name = CollectionNameBuilder.build(tenant_id)
-    
+
     # 1. Ensure Collection
     config = CollectionConfigDTO(
         collection_name=collection_name,
@@ -67,20 +67,25 @@ async def test_qdrant_provider_interface(mocker: Any):
         distance_metric="Cosine",
         scalar_quantization=True
     )
-    
+
     mock_client.collection_exists.return_value = False
     await provider.ensure_collection(config)
     mock_client.create_collection.assert_called_once()
-    
+
     # 2. Upsert Points
     point = VectorPointDTO(
         point_id=uuid.uuid4(),
         vector=[0.1] * 384,
-        payload={"tenant_id": tenant_id, "document_id": "doc1"}
+        payload={
+            "tenant_id": tenant_id,
+            "document_id": "doc1",
+            "document_version_id": "v1",
+            "content_hash": "abc"
+        }
     )
     await provider.upsert_points(collection_name, [point])
     mock_client.upsert.assert_called_once()
-    
+
     # 3. Search Points
     # Mock search return value
     mock_hit = mocker.MagicMock()
@@ -88,14 +93,14 @@ async def test_qdrant_provider_interface(mocker: Any):
     mock_hit.score = 0.95
     mock_hit.payload = {"tenant_id": tenant_id}
     mock_client.search.return_value = [mock_hit]
-    
+
     results = await provider.search_points(
         collection_name=collection_name,
         query_vector=[0.1] * 384,
         filter_conditions={"document_id": "doc1"},
         limit=5
     )
-    
+
     mock_client.search.assert_called_once()
     assert len(results) == 1
     assert results[0]["score"] == 0.95

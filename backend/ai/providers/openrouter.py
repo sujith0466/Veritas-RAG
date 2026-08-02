@@ -4,15 +4,14 @@ Implements the LLMProvider interface for OpenRouter (supporting Anthropic, OpenA
 Groq, Mistral, and other models via unified API).
 """
 
-import json
 from collections.abc import AsyncIterator
+import json
 from typing import Any
 
 import httpx
 import structlog
 
-from backend.ai.interfaces.llm_provider import (LLMProvider, LLMRequest,
-                                                LLMResponse)
+from backend.ai.interfaces.llm_provider import LLMProvider, LLMRequest, LLMResponse
 from backend.core.config import get_settings
 from backend.core.exceptions import LLMProviderException
 

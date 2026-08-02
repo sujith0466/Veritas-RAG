@@ -4,8 +4,8 @@ Represents the core chunking domain entities with doubly-linked sequential navig
 hierarchical parent/child links, stable content hashes, and structured metadata.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID

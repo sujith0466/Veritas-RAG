@@ -1,6 +1,6 @@
 """Unit tests for RuleEngine — Phase 7."""
 
-from backend.modules.retry.schemas.retry_dto import RetryReason, RetryAction
+from backend.modules.retry.schemas.retry_dto import RetryAction, RetryReason
 from backend.modules.retry.services.rule_engine import RuleEngine
 
 

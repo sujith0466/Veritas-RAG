@@ -2,8 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from backend.modules.reliability.schemas.reliability_dto import \
-    ReliableRetrievalResultDTO
+from backend.modules.reliability.schemas.reliability_dto import ReliableRetrievalResultDTO
 
 
 class ConfidenceAction(StrEnum):

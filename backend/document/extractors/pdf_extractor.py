@@ -8,8 +8,7 @@ sets `needs_ocr = True` to trigger OCR fallback (`EXTRACT_002`).
 import io
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 

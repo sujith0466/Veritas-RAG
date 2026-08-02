@@ -4,27 +4,36 @@ from datetime import datetime
 from typing import Annotated
 from uuid import uuid4
 
-import structlog
-from fastapi import (APIRouter, Depends, Header, Query, Request, Response,
-                     status)
+from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.database import get_db as get_db_session
-from backend.modules.analytics.api.dependencies import (AnalyticsAuth,
-                                                        get_analytics_service,
-                                                        get_reporting_service)
+from backend.modules.analytics.api.dependencies import (
+    AnalyticsAuth,
+    get_analytics_service,
+    get_reporting_service,
+)
 from backend.modules.analytics.schemas.analytics_dto import (
-    AnalyticsFilterDTO, ConfidenceAnalyticsDTO, LatencyAnalyticsDTO,
-    QueryHistoryListDTO, QuerySandboxRequestDTO, QuerySandboxResponseDTO,
-    QueryTraceDetailDTO, QueryTrendsDTO, ReliabilityHistoryDTO,
-    SearchAnalyticsDTO, SuccessRateDTO)
+    AnalyticsFilterDTO,
+    ConfidenceAnalyticsDTO,
+    LatencyAnalyticsDTO,
+    QueryHistoryListDTO,
+    QuerySandboxRequestDTO,
+    QuerySandboxResponseDTO,
+    QueryTraceDetailDTO,
+    QueryTrendsDTO,
+    ReliabilityHistoryDTO,
+    SearchAnalyticsDTO,
+    SuccessRateDTO,
+)
 from backend.modules.analytics.schemas.reporting_dto import (
-    ReportExportRequestDTO, ReportMetadataDTO)
-from backend.modules.analytics.services.analytics_service import \
-    QueryAnalyticsService
-from backend.modules.analytics.services.reporting_service import \
-    ReportingService
+    ReportExportRequestDTO,
+    ReportMetadataDTO,
+)
+from backend.modules.analytics.services.analytics_service import QueryAnalyticsService
+from backend.modules.analytics.services.reporting_service import ReportingService
 
 logger = structlog.get_logger(__name__)
 

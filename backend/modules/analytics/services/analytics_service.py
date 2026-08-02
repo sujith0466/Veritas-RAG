@@ -9,18 +9,27 @@ from uuid import UUID
 
 import structlog
 
-from backend.modules.analytics.models.query_analytics import \
-    QueryAnalyticsRecord
-from backend.modules.analytics.repositories.analytics_repository import \
-    AnalyticsRepository
+from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
+from backend.modules.analytics.repositories.analytics_repository import AnalyticsRepository
 from backend.modules.analytics.schemas.analytics_dto import (
-    AnalyticsFilterDTO, ConfidenceAnalyticsDTO, ConfidenceSignalTraceDTO,
-    LatencyAnalyticsDTO, QueryHistoryItemDTO, QueryHistoryListDTO,
-    QuerySandboxRequestDTO, QuerySandboxResponseDTO, QueryTraceDetailDTO,
-    QueryTrendsDTO, ReliabilityHistoryDTO, RetrievalCandidateTraceDTO,
-    SearchAnalyticsDTO, SelfCorrectionTraceDTO, StageTraceDTO, SuccessRateDTO)
-from backend.modules.analytics.schemas.errors import (InvalidDateRange,
-                                                      RecordNotFound)
+    AnalyticsFilterDTO,
+    ConfidenceAnalyticsDTO,
+    ConfidenceSignalTraceDTO,
+    LatencyAnalyticsDTO,
+    QueryHistoryItemDTO,
+    QueryHistoryListDTO,
+    QuerySandboxRequestDTO,
+    QuerySandboxResponseDTO,
+    QueryTraceDetailDTO,
+    QueryTrendsDTO,
+    ReliabilityHistoryDTO,
+    RetrievalCandidateTraceDTO,
+    SearchAnalyticsDTO,
+    SelfCorrectionTraceDTO,
+    StageTraceDTO,
+    SuccessRateDTO,
+)
+from backend.modules.analytics.schemas.errors import InvalidDateRange, RecordNotFound
 
 logger = structlog.get_logger(__name__)
 

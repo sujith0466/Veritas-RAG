@@ -1,8 +1,8 @@
 import structlog
 
-from backend.core.events.types import EventType
-from backend.core.events.dispatcher import get_dispatcher
 from backend.core.events.base import BaseEvent
+from backend.core.events.dispatcher import get_dispatcher
+from backend.core.events.types import EventType
 
 logger = structlog.get_logger(__name__)
 
@@ -11,11 +11,11 @@ async def handle_document_changed(event: BaseEvent) -> None:
     tenant_id = getattr(event, "tenant_id", None)
     if not tenant_id and hasattr(event, "payload"):
         tenant_id = getattr(event.payload, "tenant_id", None)
-        
+
     if not tenant_id:
         logger.warning("No tenant_id in event; cannot invalidate BM25 index", event_type=event.event_type)
         return
-        
+
     from backend.modules.retrieval.api.dependencies import _bm25_provider
     from backend.modules.retrieval.services.bm25_manager import SparseIndexManager
     manager = SparseIndexManager(sparse_provider=_bm25_provider)

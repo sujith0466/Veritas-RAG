@@ -7,8 +7,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
-from backend.modules.knowledge_health.models.stale_record import \
-    StaleEmbeddingRecord
+from backend.modules.knowledge_health.models.stale_record import StaleEmbeddingRecord
 
 
 class HealthRepository:

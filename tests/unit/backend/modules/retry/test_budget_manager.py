@@ -1,5 +1,6 @@
 """Unit tests for RetryBudgetManager."""
 import pytest
+
 from backend.modules.retry.services.budget_manager import RetryBudgetManager
 
 

@@ -1,20 +1,24 @@
 import pytest
-from backend.modules.scoring.schemas.scoring_dto import GatewayRequestDTO, GatewayOutcome
-from backend.modules.scoring.services.reliability_scorer import ReliabilityScorer
-from backend.modules.scoring.services.execution_gateway import ExecutionGateway
+
 from backend.modules.confidence.services.confidence_engine import ConfidenceEngine
-from backend.modules.confidence.services.coverage_analyzer import CoverageAnalyzer
 from backend.modules.confidence.services.contradiction_detector import ContradictionDetector
+from backend.modules.confidence.services.coverage_analyzer import CoverageAnalyzer
 from backend.modules.confidence.services.freshness_scorer import FreshnessScorer
-from backend.modules.query_rewrite.services.clarification_engine import ClarificationEngine
-from backend.modules.query_rewrite.strategies.decomposition import DecompositionRewriter
-from backend.modules.query_rewrite.strategies.hyde import HyDERewriter
-from backend.modules.query_rewrite.strategies.disambiguation import DisambiguationRewriter
 from backend.modules.generation.services.citation_extractor import CitationExtractor
 from backend.modules.generation.services.generation_service import GroundedGenerationService
+from backend.modules.query_rewrite.services.clarification_engine import ClarificationEngine
+from backend.modules.query_rewrite.strategies.decomposition import DecompositionRewriter
+from backend.modules.query_rewrite.strategies.disambiguation import DisambiguationRewriter
+from backend.modules.query_rewrite.strategies.hyde import HyDERewriter
 from backend.modules.reflection.services.claim_validator import ClaimValidator
 from backend.modules.reflection.services.reflection_engine import ReflectionEngine
-from backend.modules.reliability.schemas.reliability_dto import ReliableCandidateDTO, ReliableRetrievalResultDTO
+from backend.modules.reliability.schemas.reliability_dto import (
+    ReliableCandidateDTO,
+    ReliableRetrievalResultDTO,
+)
+from backend.modules.scoring.schemas.scoring_dto import GatewayOutcome, GatewayRequestDTO
+from backend.modules.scoring.services.execution_gateway import ExecutionGateway
+from backend.modules.scoring.services.reliability_scorer import ReliabilityScorer
 
 
 @pytest.fixture
@@ -115,9 +119,13 @@ def test_gateway_low_evidence_aborts(gateway):
 
 def test_reliability_scorer_computes_correctly():
     from backend.modules.confidence.schemas.confidence_dto import (
-        ConfidenceResultDTO, ConfidenceAction, CoverageMetricsDTO, ContradictionReportDTO, FreshnessReportDTO
+        ConfidenceAction,
+        ConfidenceResultDTO,
+        ContradictionReportDTO,
+        CoverageMetricsDTO,
+        FreshnessReportDTO,
     )
-    from backend.modules.reflection.schemas.reflection_dto import ReflectionResultDTO, ClaimVerdict
+    from backend.modules.reflection.schemas.reflection_dto import ClaimVerdict, ReflectionResultDTO
     from backend.modules.retry.schemas.retry_dto import RetryContextDTO
 
     scorer = ReliabilityScorer()

@@ -1,8 +1,7 @@
 import re
 
 from backend.modules.generation.schemas.generation_dto import CitationDTO
-from backend.modules.reflection.schemas.reflection_dto import (
-    ClaimValidationResultDTO, ClaimVerdict)
+from backend.modules.reflection.schemas.reflection_dto import ClaimValidationResultDTO, ClaimVerdict
 
 
 class ClaimValidator:

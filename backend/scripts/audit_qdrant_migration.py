@@ -1,10 +1,7 @@
 import asyncio
-import json
-import uuid
-from typing import Any, Dict, List, Set
 from collections import defaultdict
+
 import structlog
-from qdrant_client import AsyncQdrantClient
 
 from backend.core.config import get_settings
 from backend.vector_db.client import get_qdrant_client
@@ -29,11 +26,11 @@ def classify_collection(coll_name: str) -> str:
     name_lower = coll_name.lower()
     if "test" in name_lower:
         return CollectionClass.TEST
-    elif "knowledge_" in name_lower or coll_name == "default_tenant_chunks":
+    if "knowledge_" in name_lower or coll_name == "default_tenant_chunks":
         return CollectionClass.LEGACY
-    elif "default_tenant" in name_lower:
+    if "default_tenant" in name_lower:
         return CollectionClass.DEFAULT
-    elif coll_name.startswith("raguard_tenant_") or coll_name.startswith("raguard_"):
+    if coll_name.startswith("raguard_tenant_") or coll_name.startswith("raguard_"):
         return CollectionClass.PROD
     return CollectionClass.UNKNOWN
 
@@ -43,10 +40,10 @@ async def run_audit():
     print("          PHASE 2.5 — QDRANT MIGRATION AUDIT              ")
     print("==========================================================")
     print("[INFO] Operating in strict READ-ONLY diagnostic mode.")
-    
+
     settings = get_settings()
     client = get_qdrant_client()
-    
+
     try:
         collections_response = await client.get_collections()
         collections = [c.name for c in collections_response.collections]
@@ -57,7 +54,7 @@ async def run_audit():
         return
 
     print(f"\n1. Existing Collections: {len(collections)}")
-    
+
     classifications = defaultdict(list)
     for c in collections:
         cls = classify_collection(c)
@@ -70,7 +67,7 @@ async def run_audit():
             print(f"      - {c}")
 
     all_tenant_ids = set()
-    
+
     # Store issues as tuples (collection_name, message)
     issues_by_severity = {
         Severity.CRITICAL: [],
@@ -79,7 +76,7 @@ async def run_audit():
         Severity.LOW: [],
         Severity.INFO: []
     }
-    
+
     for coll_name in collections:
         try:
             coll_info = await client.get_collection(coll_name)
@@ -87,23 +84,23 @@ async def run_audit():
         except Exception as e:
             issues_by_severity[Severity.CRITICAL].append((coll_name, f"Could not read collection {coll_name}: {e}"))
             continue
-            
+
         print(f"\nAnalyzing Collection: {coll_name} ({vector_count} vectors)")
-        
+
         if vector_count == 0:
             issues_by_severity[Severity.LOW].append((coll_name, f"Collection '{coll_name}' is empty."))
             continue
-            
+
         offset = None
-        
+
         vectors_missing_tenant = 0
         tenant_ids_in_coll = set()
         duplicate_vectors = 0
         invalid_payloads = 0
         dimension_set = set()
-        
+
         seen_ids = set()
-        
+
         while True:
             records, next_page_offset = await client.scroll(
                 collection_name=coll_name,
@@ -112,7 +109,7 @@ async def run_audit():
                 with_payload=True,
                 with_vectors=True
             )
-            
+
             for record in records:
                 tenant_id = record.payload.get("tenant_id") if record.payload else None
                 if not tenant_id:
@@ -120,50 +117,47 @@ async def run_audit():
                 else:
                     tenant_ids_in_coll.add(str(tenant_id))
                     all_tenant_ids.add(str(tenant_id))
-                    
+
                 if record.id in seen_ids:
                     duplicate_vectors += 1
                 seen_ids.add(record.id)
-                
-                if not isinstance(record.payload, dict):
+
+                if not isinstance(record.payload, dict) or ("document_id" not in record.payload and "chunk_index" not in record.payload):
                     invalid_payloads += 1
-                else:
-                    if "document_id" not in record.payload and "chunk_index" not in record.payload:
-                        invalid_payloads += 1
-                    
+
                 if record.vector:
                     if isinstance(record.vector, dict):
                         for vec_name, vec_val in record.vector.items():
                             dimension_set.add(len(vec_val))
                     else:
                         dimension_set.add(len(record.vector))
-                        
+
             if next_page_offset is None:
                 break
             offset = next_page_offset
-            
+
         print(f"   - Vector count: {vector_count}")
         print(f"   - Tenant IDs discovered: {len(tenant_ids_in_coll)} {list(tenant_ids_in_coll)[:5]}")
         print(f"   - Vectors missing tenant_id: {vectors_missing_tenant}")
         print(f"   - Duplicate vector entries: {duplicate_vectors}")
         print(f"   - Invalid payloads: {invalid_payloads}")
         print(f"   - Embedding dimensions: {list(dimension_set)}")
-        
+
         if vectors_missing_tenant > 0:
             issues_by_severity[Severity.CRITICAL].append((coll_name, f"Collection '{coll_name}' has {vectors_missing_tenant} vectors missing 'tenant_id'"))
-        
+
         if invalid_payloads > 0:
             issues_by_severity[Severity.CRITICAL].append((coll_name, f"Collection '{coll_name}' has {invalid_payloads} corrupted or invalid payloads"))
-            
+
         if len(dimension_set) > 1:
             issues_by_severity[Severity.HIGH].append((coll_name, f"Collection '{coll_name}' has mixed embedding dimensions: {list(dimension_set)}"))
-            
+
         if len(tenant_ids_in_coll) == 0 and vectors_missing_tenant > 0:
             issues_by_severity[Severity.HIGH].append((coll_name, f"Collection '{coll_name}' has unknown ownership (no tenant IDs found)"))
-            
+
         if classify_collection(coll_name) == CollectionClass.LEGACY:
             issues_by_severity[Severity.MEDIUM].append((coll_name, f"Collection '{coll_name}' uses legacy naming conventions"))
-            
+
         if duplicate_vectors > 0:
             issues_by_severity[Severity.LOW].append((coll_name, f"Collection '{coll_name}' has {duplicate_vectors} duplicate vectors"))
 
@@ -174,7 +168,7 @@ async def run_audit():
     print("\n==========================================================")
     print("                 MIGRATION AUDIT ISSUES                   ")
     print("==========================================================")
-    
+
     for severity in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW, Severity.INFO]:
         issues = issues_by_severity[severity]
         print(f"\n[{severity}] ({len(issues)} findings)")
@@ -184,10 +178,10 @@ async def run_audit():
     print("\n==========================================================")
     print("                 EXCLUDED COLLECTIONS                     ")
     print("==========================================================")
-    
+
     excluded_classes = [CollectionClass.LEGACY, CollectionClass.TEST, CollectionClass.UNKNOWN]
     has_excluded = False
-    
+
     for cls in excluded_classes:
         for c in classifications[cls]:
             has_excluded = True
@@ -209,7 +203,7 @@ async def run_audit():
     print("\n==========================================================")
     print("                 MIGRATION SCOPE SUMMARY                  ")
     print("==========================================================")
-    
+
     print(f"\nProduction Collections:\n{len(classifications.get(CollectionClass.PROD, []))}")
     print(f"\nDefault Collections:\n{len(classifications.get(CollectionClass.DEFAULT, []))}")
     print(f"\nLegacy Collections:\n{len(classifications.get(CollectionClass.LEGACY, []))}")
@@ -217,12 +211,12 @@ async def run_audit():
     print(f"\nUnknown Collections:\n{len(classifications.get(CollectionClass.UNKNOWN, []))}")
 
     print("\n==========================================================")
-    
+
     production_scoped_classes = {CollectionClass.PROD, CollectionClass.DEFAULT}
-    
+
     has_prod_critical = False
     has_any_critical = False
-    
+
     for coll_name, msg in issues_by_severity[Severity.CRITICAL]:
         has_any_critical = True
         if coll_name and classify_collection(coll_name) in production_scoped_classes:
@@ -233,13 +227,13 @@ async def run_audit():
 
     print(f"\nProduction Migration Ready:\n{prod_ready}")
     print(f"\nFull Server Migration Ready:\n{full_ready}")
-    
+
     if has_any_critical:
         print("\nBlocking Issues:")
         for coll_name, msg in issues_by_severity[Severity.CRITICAL]:
             scope = "PRODUCTION" if coll_name and classify_collection(coll_name) in production_scoped_classes else "EXCLUDED"
             print(f"   - [BLOCKER - {scope}] {msg}")
-            
+
     print("\n==========================================================")
 
 if __name__ == "__main__":

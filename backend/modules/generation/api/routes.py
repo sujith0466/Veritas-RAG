@@ -4,14 +4,16 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from backend.modules.generation.schemas.generation_dto import (
-    GenerationRequestDTO, GenerationRequestDTOv2, GroundedAnswerDTO)
-from backend.modules.generation.services.citation_extractor import \
-    CitationExtractor
-from backend.modules.generation.services.generation_service import \
-    GroundedGenerationService
+    GenerationRequestDTO,
+    GenerationRequestDTOv2,
+    GroundedAnswerDTO,
+)
+from backend.modules.generation.services.citation_extractor import CitationExtractor
+from backend.modules.generation.services.generation_service import GroundedGenerationService
 from backend.modules.generation.services.prompt_guard import PromptGuard
-from backend.modules.generation.services.streaming_generation_service import \
-    StreamingGroundedGenerationService
+from backend.modules.generation.services.streaming_generation_service import (
+    StreamingGroundedGenerationService,
+)
 
 router = APIRouter()
 _extractor = CitationExtractor()

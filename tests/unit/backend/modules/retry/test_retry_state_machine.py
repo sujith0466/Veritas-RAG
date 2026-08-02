@@ -1,8 +1,9 @@
 import pytest
-from backend.modules.retry.services.state_machine import RetryStateMachine
-from backend.modules.retry.schemas.retry_dto import RetryState
-from backend.modules.retry.schemas.errors import MaxRetriesExceeded, NonMonotonicImprovement
+
 from backend.modules.confidence.schemas.confidence_dto import ConfidenceAction
+from backend.modules.retry.schemas.errors import MaxRetriesExceeded, NonMonotonicImprovement
+from backend.modules.retry.schemas.retry_dto import RetryState
+from backend.modules.retry.services.state_machine import RetryStateMachine
 
 
 def test_retry_machine_proceed_on_first_attempt():

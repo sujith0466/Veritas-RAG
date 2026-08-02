@@ -1,13 +1,15 @@
 """Unit tests for Phase 10 Grounded Answer Generation, Prompt Guard, and Streaming."""
 
 import pytest
+
 from backend.modules.generation.schemas.generation_dto import (
     GenerationRequestDTOv2,
-    PromptGuardrailConfigDTO,
 )
-from backend.modules.generation.services.prompt_guard import PromptGuard
 from backend.modules.generation.services.citation_extractor import CitationExtractor
-from backend.modules.generation.services.streaming_generation_service import StreamingGroundedGenerationService
+from backend.modules.generation.services.prompt_guard import PromptGuard
+from backend.modules.generation.services.streaming_generation_service import (
+    StreamingGroundedGenerationService,
+)
 
 
 def test_prompt_guard_injection_detection():

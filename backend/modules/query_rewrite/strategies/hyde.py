@@ -9,7 +9,10 @@ from typing import Any
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2, RewriteResultDTO, RewriteStrategy)
+    RewriteRequestDTOv2,
+    RewriteResultDTO,
+    RewriteStrategy,
+)
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)
@@ -87,8 +90,7 @@ class HyDERewriter(HyDEStrategy):
     """Backward-compatible alias for Phase 3 HyDERewriter."""
 
     def rewrite(self, query: str) -> object:  # type: ignore[override]
-        from backend.modules.query_rewrite.schemas.rewrite_dto import \
-            HyDEResponseDTO
+        from backend.modules.query_rewrite.schemas.rewrite_dto import HyDEResponseDTO
 
         doc = self._generate_hypothetical_doc(query)
         return HyDEResponseDTO(

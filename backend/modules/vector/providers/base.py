@@ -7,9 +7,11 @@ allowing clean testing mocks and future extensibility while enforcing multi-tena
 from abc import ABC, abstractmethod
 from typing import Any
 
-from backend.modules.vector.schemas.payload import (CollectionConfigDTO,
-                                                    CollectionSummaryDTO,
-                                                    VectorPointDTO)
+from backend.modules.vector.schemas.payload import (
+    CollectionConfigDTO,
+    CollectionSummaryDTO,
+    VectorPointDTO,
+)
 
 
 class BaseVectorDBProvider(ABC):

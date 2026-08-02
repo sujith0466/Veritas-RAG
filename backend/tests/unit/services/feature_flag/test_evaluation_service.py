@@ -1,11 +1,12 @@
 """Unit tests for Feature Flag Evaluation Engine (7-step resolution pipeline)."""
 
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 import uuid
+
 import pytest
 
-from backend.models.entities.feature_flag import FeatureFlag, FlagLifecycleState
+from backend.models.entities.feature_flag import FeatureFlag
 from backend.models.entities.feature_flag_workspace_rule import FeatureFlagWorkspaceRule
 from backend.services.feature_flag.evaluation_service import (
     EvaluationContext,
@@ -22,8 +23,8 @@ def test_murmur3_rollout_deterministic():
     entity_id_2 = "user-456"
 
     # Same input produces identical hash
-    hash1 = _murmur3_32_seedless(f"{flag_key}:{entity_id_1}".encode("utf-8"))
-    hash2 = _murmur3_32_seedless(f"{flag_key}:{entity_id_1}".encode("utf-8"))
+    hash1 = _murmur3_32_seedless(f"{flag_key}:{entity_id_1}".encode())
+    hash2 = _murmur3_32_seedless(f"{flag_key}:{entity_id_1}".encode())
     assert hash1 == hash2
 
     # 100% rollout is always True, 0% is always False
@@ -219,7 +220,7 @@ async def test_evaluation_date_window():
 
     flag_id = uuid.uuid4()
     workspace_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Future window -> should fail
     mock_flag = FeatureFlag(

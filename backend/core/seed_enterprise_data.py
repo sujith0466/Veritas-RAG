@@ -1,21 +1,16 @@
 import asyncio
-import uuid
-import structlog
 import hashlib
-from datetime import datetime, timezone
-import json
+import uuid
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.config import get_settings
 from backend.database.engine import get_session_factory
-from backend.models.entities.user import User
-from backend.models.entities.audit_log import AuditLog
 from backend.document.models import Document, DocumentVersion
+from backend.models.entities.user import User
 from backend.modules.chunking.models import DocumentChunk
 from backend.modules.embedding.models import ChunkEmbedding
-
 
 logger = structlog.get_logger(__name__)
 
@@ -49,20 +44,20 @@ DOCUMENTS = [
 
 async def seed_data():
     logger.info("Starting enterprise data seed process")
-    
+
     session_maker = get_session_factory()
     async with session_maker() as session:
         # Find demo admin
         stmt = select(User).where(User.email == "demoadmin@gmail.com")
         result = await session.execute(stmt)
         admin_user = result.scalar_one_or_none()
-        
+
         if not admin_user:
             logger.error("Admin user not found. Please register demoadmin@gmail.com via the UI first.")
             return
-            
+
         tenant_id = admin_user.tenant_id
-        
+
         # Check if already seeded to prevent duplicates
         stmt = select(Document).where(Document.title == "Employee Handbook 2026")
         existing = await session.execute(stmt)
@@ -73,7 +68,7 @@ async def seed_data():
         for doc_data in DOCUMENTS:
             doc_id = str(uuid.uuid4())
             version_id = str(uuid.uuid4())
-            
+
             # Create Document
             doc = Document(
                 id=doc_id,
@@ -83,7 +78,7 @@ async def seed_data():
                 status="processed",
                 metadata_json=doc_data["metadata"]
             )
-            
+
             # Create Document Version
             doc_version = DocumentVersion(
                 id=version_id,
@@ -97,11 +92,11 @@ async def seed_data():
                 hash=hashlib.sha256(doc_data["content"].encode()).hexdigest(),
                 processing_error=None
             )
-            
+
             chunk_id = str(uuid.uuid4())
             doc_data["_chunk_id"] = chunk_id
             doc_data["_doc_id"] = doc_id
-            
+
             chunk = DocumentChunk(
                 id=chunk_id,
                 document_id=doc_id,
@@ -112,12 +107,12 @@ async def seed_data():
                 token_count=len(doc_data["content"].split()),
                 metadata_json=doc_data["metadata"]
             )
-            
+
             # Mock Embedding
             embedding_id = str(uuid.uuid4())
             vector = [0.0] * 384  # Dummy vector just to have the DB record
             vector[0] = 0.5 # Give it some non-zero magnitude
-            
+
             embedding = ChunkEmbedding(
                 id=embedding_id,
                 chunk_id=chunk_id,
@@ -127,26 +122,26 @@ async def seed_data():
                 vector_dimension=384,
                 is_active=True
             )
-            
+
             session.add_all([doc, doc_version, chunk, embedding])
-            
+
             # Upsert into Qdrant
             # Actually, let's use the standard retrieval service logic, or manually upsert to qdrant.
             try:
-                # Need real vectors for search to work. 
+                # Need real vectors for search to work.
                 # Let's generate a quick embedding using sentence-transformers if available,
                 # or just insert dummy vectors (hybrid search might still find via BM25).
                 pass
             except Exception as e:
                 logger.error("Qdrant index failed", error=str(e))
-                
+
         # Also let's seed Qdrant with valid vectors so hybrid search works!
         try:
             from qdrant_client import QdrantClient
             from qdrant_client.models import PointStruct
-            
+
             client = QdrantClient(host=get_settings().qdrant_host, port=get_settings().qdrant_port)
-            
+
             points = []
             for doc_data in DOCUMENTS:
                 chunk_id = doc_data["_chunk_id"] # I need to store chunk_id on doc_data during creation
@@ -163,7 +158,7 @@ async def seed_data():
                         }
                     )
                 )
-                
+
             client.upsert(
                 collection_name="chunks",
                 points=points
@@ -173,7 +168,7 @@ async def seed_data():
             logger.error("Failed to seed Qdrant", error=str(e))
 
         await session.commit()
-        
+
         logger.info("Successfully seeded enterprise data")
 
 if __name__ == "__main__":

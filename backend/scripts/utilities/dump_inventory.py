@@ -1,9 +1,12 @@
 import asyncio
+
+from sqlalchemy import func, select
+
 from backend.database.engine import get_session_factory
-from backend.models.entities.user import User
 from backend.document.models.document import Document
+from backend.models.entities.user import User
 from backend.modules.chunking.models.chunk import DocumentChunk
-from sqlalchemy import select, func
+
 
 async def dump():
     factory = get_session_factory()
@@ -13,11 +16,11 @@ async def dump():
         print('--- USERS ---')
         for u in users:
             print(f"Name: {getattr(u, 'name', 'N/A')} | Email: {u.email} | Role: {u.role} | Dept: {getattr(u, 'department', 'N/A')} | Title: {getattr(u, 'job_title', 'N/A')}")
-        
+
         docs = await session.execute(select(Document).where(Document.tenant_id == 'default_tenant'))
         docs = docs.scalars().all()
         print(f'\n--- DOCUMENTS (Total: {len(docs)}) ---')
-        
+
         for d in docs:
             chunks = await session.execute(select(func.count(DocumentChunk.id)).where(DocumentChunk.document_id == d.id))
             chunk_count = chunks.scalar()

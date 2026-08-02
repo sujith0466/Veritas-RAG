@@ -8,16 +8,11 @@ from typing import Any
 
 import structlog
 
-from backend.modules.embedding.providers.base import (BaseEmbeddingProvider,
-                                                      EmbeddingBatchResult)
-from backend.modules.embedding.providers.cohere_provider import \
-    CohereEmbeddingProvider
-from backend.modules.embedding.providers.factory import (
-    EmbeddingProviderFactory, register_provider)
-from backend.modules.embedding.providers.local_provider import \
-    LocalEmbeddingProvider
-from backend.modules.embedding.providers.openai_provider import \
-    OpenAIEmbeddingProvider
+from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
+from backend.modules.embedding.providers.cohere_provider import CohereEmbeddingProvider
+from backend.modules.embedding.providers.factory import EmbeddingProviderFactory, register_provider
+from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
+from backend.modules.embedding.providers.openai_provider import OpenAIEmbeddingProvider
 from backend.modules.embedding.schemas.errors import InvalidInputError
 
 logger = structlog.get_logger(__name__)

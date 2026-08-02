@@ -1,9 +1,10 @@
 import logging
 
 from backend.modules.generation.schemas.generation_dto import (
-    GenerationRequestDTO, GroundedAnswerDTO)
-from backend.modules.generation.services.citation_extractor import \
-    CitationExtractor
+    GenerationRequestDTO,
+    GroundedAnswerDTO,
+)
+from backend.modules.generation.services.citation_extractor import CitationExtractor
 
 logger = logging.getLogger(__name__)
 

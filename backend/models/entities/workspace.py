@@ -1,6 +1,7 @@
 import datetime
 import enum
 import uuid
+
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -26,7 +27,7 @@ class ProvisioningStatus(str, enum.Enum):
 
 class Workspace(BaseModel):
     """The core multi-tenant boundary entity."""
-    
+
     __tablename__ = "workspaces"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -35,7 +36,7 @@ class Workspace(BaseModel):
     status: Mapped[str] = mapped_column(String(50), default=WorkspaceStatus.ACTIVE.value, nullable=False)
     provisioning_status: Mapped[str] = mapped_column(String(50), default=ProvisioningStatus.PENDING.value, nullable=False)
     suspended_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    
+
     # Soft Deletion & Retention
     deleted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     purge_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

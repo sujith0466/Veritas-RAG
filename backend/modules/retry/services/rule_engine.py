@@ -1,7 +1,6 @@
 """Rule Engine — Phase 7. Maps error reasons to retry actions using priority ordering."""
 
-from backend.modules.retry.schemas.retry_dto import (RetryAction, RetryReason,
-                                                     RetryRuleDTO)
+from backend.modules.retry.schemas.retry_dto import RetryAction, RetryReason, RetryRuleDTO
 
 
 class RuleEngine:

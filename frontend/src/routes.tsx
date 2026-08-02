@@ -28,6 +28,8 @@ import { AIChatPage } from '@/pages/chat'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { CreateWorkspace } from '@/pages/workspace/CreateWorkspace'
 import { EditWorkspace } from '@/pages/workspace/EditWorkspace'
+import { AcceptInvitationPage } from '@/pages/workspace/AcceptInvitationPage'
+import { WorkspaceMembersPage } from '@/pages/workspace/WorkspaceMembersPage'
 import { useAuthStore } from '@/stores/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { MarketingThemeProvider } from '@/providers/MarketingThemeProvider'
@@ -156,10 +158,16 @@ export const router = createBrowserRouter([
               
               // Workspace Management
               { path: 'workspaces/new', element: <CreateWorkspace /> },
-              { path: 'w/:slug/edit', element: <EditWorkspace /> }
+              { path: 'w/:slug/edit', element: <EditWorkspace /> },
+              { path: 'workspaces/:workspaceId/members', element: <WorkspaceMembersPage /> },
+              { path: 'w/:workspaceId/members', element: <WorkspaceMembersPage /> },
             ],
           }
         ],
+      },
+      {
+        path: '/invitations/accept',
+        element: <AcceptInvitationPage />,
       },
       {
         path: '*',

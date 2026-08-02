@@ -1,12 +1,9 @@
 import os
 
-from backend.modules.scoring.repositories.scoring_repository import \
-    ScoringRepository
-from backend.modules.scoring.schemas.scoring_dto import (ReliabilityScoreDTOv2,
-                                                         ScoringRequestDTO)
+from backend.modules.scoring.repositories.scoring_repository import ScoringRepository
+from backend.modules.scoring.schemas.scoring_dto import ReliabilityScoreDTOv2, ScoringRequestDTO
 from backend.modules.scoring.services.base_scorer import BaseReliabilityScorer
-from backend.modules.scoring.services.penalty_calculator import \
-    PenaltyCalculator
+from backend.modules.scoring.services.penalty_calculator import PenaltyCalculator
 
 
 class ScoringEngine:

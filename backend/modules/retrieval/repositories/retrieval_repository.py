@@ -4,8 +4,8 @@ Provides asynchronous database operations for tracking query audit logs,
 percentile latency calculations ($P_{95}$), and stage timing aggregations (`ADR-005`).
 """
 
-import math
 from collections.abc import Sequence
+import math
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
@@ -14,7 +14,10 @@ from structlog import get_logger
 
 from backend.modules.retrieval.models.retrieval_log import RetrievalQueryLog
 from backend.modules.retrieval.schemas.retrieval_dto import (
-    RetrievalMetricsDTO, RetrievalQueryLogDTO, RetrievalStageBreakdownDTO)
+    RetrievalMetricsDTO,
+    RetrievalQueryLogDTO,
+    RetrievalStageBreakdownDTO,
+)
 from backend.repositories.base import BaseRepository
 
 logger = get_logger(__name__)

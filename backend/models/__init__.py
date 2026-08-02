@@ -9,6 +9,9 @@ from .entities.user import User
 __all__ = [
     "AuditLog",
     "BaseModel",
+    "WorkspaceDomain",
+    "DomainCooldown",
+    "IdentityProvider",
     "ChatMessage",
     "ChatSession",
     "ChunkEmbedding",
@@ -79,4 +82,16 @@ def __getattr__(name: str) -> Any:
         import backend.modules.chat.models as chat_models
 
         return getattr(chat_models, name)
+    if name in {"WorkspaceDomain", "DomainCooldown", "IdentityProvider"}:
+        import backend.models.entities as auth_models
+
+        if name == "WorkspaceDomain":
+            from backend.models.entities.workspace_domain import WorkspaceDomain
+            return WorkspaceDomain
+        if name == "DomainCooldown":
+            from backend.models.entities.workspace_domain import DomainCooldown
+            return DomainCooldown
+        if name == "IdentityProvider":
+            from backend.models.entities.identity_provider import IdentityProvider
+            return IdentityProvider
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

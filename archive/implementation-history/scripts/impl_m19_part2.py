@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 19.2 Implementation...")
-    
+
     # 1. services/quota.py
     with open("backend/modules/analytics/services/quota.py", "w") as f:
         f.write("""from backend.modules.analytics.schemas.errors import QuotaExceededError

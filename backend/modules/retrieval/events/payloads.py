@@ -4,10 +4,10 @@ Enforces versioned domain event payloads across query retrieval completions (`Qu
 bridging cleanly with `BaseEvent` and `EventDispatcher` (`ADR-005`).
 """
 
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 

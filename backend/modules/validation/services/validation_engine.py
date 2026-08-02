@@ -1,11 +1,12 @@
 import os
 
-from backend.modules.validation.repositories.validation_repository import \
-    ValidationRepository
+from backend.modules.validation.repositories.validation_repository import ValidationRepository
 from backend.modules.validation.schemas.validation_dto import (
-    EntailmentVerdict, ValidationRequestDTO, ValidationResultDTO)
-from backend.modules.validation.services.citation_checker import \
-    CitationIntegrityChecker
+    EntailmentVerdict,
+    ValidationRequestDTO,
+    ValidationResultDTO,
+)
+from backend.modules.validation.services.citation_checker import CitationIntegrityChecker
 from backend.modules.validation.services.claim_extractor import ClaimExtractor
 from backend.modules.validation.services.nli_engine import NLIValidationEngine
 

@@ -1,6 +1,7 @@
 """Unit tests for RetryController monotonicity and hard cap — Phase 7."""
 import pytest
-from backend.modules.retry.schemas.retry_dto import RetryRequestContextDTO, RetryReason, RetryAction
+
+from backend.modules.retry.schemas.retry_dto import RetryAction, RetryReason, RetryRequestContextDTO
 from backend.modules.retry.services.retry_controller import RetryController
 
 

@@ -5,14 +5,18 @@ and health check capabilities for the PostgreSQL database.
 """
 
 import asyncio
-import weakref
-from typing import Any
 from collections.abc import AsyncGenerator
+from typing import Any
+import weakref
 
-import structlog
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import (AsyncEngine, AsyncSession,
-                                    async_sessionmaker, create_async_engine)
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+import structlog
 
 from backend.core.config import get_settings
 
@@ -36,9 +40,8 @@ def get_engine() -> AsyncEngine:
     if loop is not None:
         if loop in _state.engines:
             return _state.engines[loop]
-    else:
-        if _state.fallback_engine is not None:
-            return _state.fallback_engine
+    elif _state.fallback_engine is not None:
+        return _state.fallback_engine
 
     settings = get_settings().database
     url = settings.url
@@ -52,7 +55,7 @@ def get_engine() -> AsyncEngine:
 
     import sys
     is_celery = any("celery" in arg for arg in sys.argv)
-    
+
     if is_celery:
         from sqlalchemy.pool import NullPool
         engine_kwargs["poolclass"] = NullPool
@@ -68,12 +71,12 @@ def get_engine() -> AsyncEngine:
 
     logger.info("Initializing SQLAlchemy AsyncEngine", url=url.split("@")[-1], loop_id=id(loop) if loop else 0, is_celery=is_celery)
     engine = create_async_engine(url, **engine_kwargs)
-    
+
     if loop is not None:
         _state.engines[loop] = engine
     else:
         _state.fallback_engine = engine
-        
+
     return engine
 
 
@@ -87,9 +90,8 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     if loop is not None:
         if loop in _state.sessionmakers:
             return _state.sessionmakers[loop]
-    else:
-        if _state.fallback_sessionmaker is not None:
-            return _state.fallback_sessionmaker
+    elif _state.fallback_sessionmaker is not None:
+        return _state.fallback_sessionmaker
 
     engine = get_engine()
     factory = async_sessionmaker(
@@ -98,12 +100,12 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
         expire_on_commit=False,
         autoflush=False,
     )
-    
+
     if loop is not None:
         _state.sessionmakers[loop] = factory
     else:
         _state.fallback_sessionmaker = factory
-        
+
     return factory
 
 
@@ -135,20 +137,20 @@ async def check_db_health() -> bool:
     If PgBouncer is enabled, this checks both the PgBouncer route and the raw PostgreSQL route (if configured differently).
     """
     settings = get_settings().database
-    
+
     try:
         # Check standard configured engine (could be PgBouncer or Postgres)
         engine = get_engine()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-            
+
         # If PgBouncer is in use, verify raw Postgres as well to ensure the backend DB is up
         if settings.use_pgbouncer and settings.url:
             raw_engine = create_async_engine(settings.url, pool_pre_ping=True)
             async with raw_engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
             await raw_engine.dispose()
-            
+
         return True
     except Exception as exc:
         logger.warning("Database health check failed", error=str(exc))
@@ -162,7 +164,7 @@ async def close_db() -> None:
         await engine.dispose()
     _state.engines.clear()
     _state.sessionmakers.clear()
-    
+
     if _state.fallback_engine:
         await _state.fallback_engine.dispose()
         _state.fallback_engine = None

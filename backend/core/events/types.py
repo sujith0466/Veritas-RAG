@@ -28,6 +28,21 @@ class EventType(StrEnum):
     WORKSPACE_SETTINGS_IMPORTED = "workspace.settings_imported"
     WORKSPACE_BRANDING_UPDATED = "workspace.branding_updated"
 
+    # ── Workspace Invitations & Members (Epic 4) ──────────────────────────────
+    WORKSPACE_INVITATION_CREATED = "workspace.invitation_created"
+    WORKSPACE_INVITATION_RESENT = "workspace.invitation_resent"
+    WORKSPACE_INVITATION_REVOKED = "workspace.invitation_revoked"
+    WORKSPACE_INVITATION_EXPIRED = "workspace.invitation_expired"
+    WORKSPACE_INVITATION_ACCEPTED = "workspace.invitation_accepted"
+    WORKSPACE_INVITATION_ACCEPT_FAILED = "workspace.invitation_accept_failed"
+    WORKSPACE_MEMBER_ROLE_UPDATED = "workspace.member_role_updated"
+    WORKSPACE_MEMBER_SUSPENDED = "workspace.member_suspended"
+    WORKSPACE_MEMBER_RESTORED = "workspace.member_restored"
+    WORKSPACE_MEMBER_REMOVED = "workspace.member_removed"
+
+    # ── User Profile (Epic 4) ──────────────────────────────────────────────────
+    USER_PROFILE_UPDATED = "user.profile_updated"
+
     # ── Feature Flags ──────────────────────────────────────────────────────────
     FEATURE_FLAG_CREATED = "feature_flag.created"
     FEATURE_FLAG_UPDATED = "feature_flag.updated"

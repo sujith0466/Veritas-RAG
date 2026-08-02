@@ -3,10 +3,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.modules.evaluation.models.evaluation_log import (EvaluationRunORM,
-                                                              GoldenDatasetORM)
-from backend.modules.evaluation.schemas.evaluation_dto import (
-    DatasetCreateDTO, EvaluationResultDTO)
+from backend.modules.evaluation.models.evaluation_log import EvaluationRunORM, GoldenDatasetORM
+from backend.modules.evaluation.schemas.evaluation_dto import DatasetCreateDTO, EvaluationResultDTO
 
 
 class EvaluationRepository:

@@ -34,7 +34,6 @@ from backend.api.v1.schemas.workspace_settings import (
     WorkspaceSettingsResponse,
 )
 from backend.core.auth.context import UserContext
-from backend.core.permissions.rbac import Role
 from backend.core.dependencies.auth import get_current_user, require_role
 from backend.core.dependencies.database import (
     get_db,
@@ -42,6 +41,7 @@ from backend.core.dependencies.database import (
     get_workspace_provisioning_service,
     get_workspace_settings_service,
 )
+from backend.core.permissions.rbac import Role
 from backend.services.workspace.management_service import (
     WorkspaceConflictError,
     WorkspaceInvalidStateError,
@@ -376,7 +376,7 @@ async def suspend_workspace(
             reason_code=request.reason_code.value,
             reason_text=request.reason_text,
         )
-        
+
         return WorkspaceResponse(
             success=True,
             data=WorkspaceDataResponse(
@@ -431,7 +431,7 @@ async def unsuspend_workspace(
             expected_updated_at=request.expected_updated_at,
             reason_text=request.reason_text,
         )
-        
+
         return WorkspaceResponse(
             success=True,
             data=WorkspaceDataResponse(

@@ -119,8 +119,8 @@ class AuthService:
         Raises:
             AuthenticationException: If token is invalid, expired, revoked, or family is compromised.
         """
-        import secrets
         from sqlalchemy import select, update
+
         from backend.models.entities.user import User
 
         incoming_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
@@ -185,13 +185,13 @@ class AuthService:
         return access_token, new_raw_refresh
 
     async def handle_oidc_login(
-        self, 
-        email: str, 
-        provider: str, 
-        provider_user_id: str, 
+        self,
+        email: str,
+        provider: str,
+        provider_user_id: str,
         metadata: dict,
-        user_agent: str | None = None, 
-        ip_address: str | None = None, 
+        user_agent: str | None = None,
+        ip_address: str | None = None,
         device: str | None = None
     ) -> tuple[str, str]:
         """Handles OIDC callback authentication.
@@ -199,14 +199,14 @@ class AuthService:
         If user exists, links provider. If not, creates user and links provider.
         Then issues tokens.
         """
-        import uuid
         from sqlalchemy import select
-        from backend.models.entities.user import User
+
         from backend.models.entities.sso_identity import SSOIdentity
-        
+        from backend.models.entities.user import User
+
         email_normalized = email.lower().strip()
         user = await self.user_repo.get_by_email(email_normalized)
-        
+
         if not user:
             # Create user (without password since it's SSO)
             user = User(
@@ -218,7 +218,7 @@ class AuthService:
             )
             self.session.add(user)
             await self.session.flush() # get user.id
-            
+
         elif not user.is_active:
             raise AuthenticationException("Account is disabled. Please contact support.")
 
@@ -226,7 +226,7 @@ class AuthService:
         stmt = select(SSOIdentity).where(SSOIdentity.provider == provider, SSOIdentity.provider_user_id == provider_user_id)
         result = await self.session.execute(stmt)
         identity = result.scalar_one_or_none()
-        
+
         if not identity:
             identity = SSOIdentity(
                 user_id=user.id,
@@ -236,13 +236,13 @@ class AuthService:
                 linked_at=datetime.datetime.now(datetime.UTC)
             )
             self.session.add(identity)
-            
+
         user.last_login_at = datetime.datetime.now(datetime.UTC)
-        
+
         # Issue tokens
         access_token, raw_refresh_token, family_id = await self.jwt_service.issue_tokens(user)
         refresh_token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
-        
+
         expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=7)
         session_entry = UserSession(
             user_id=user.id,
@@ -256,6 +256,6 @@ class AuthService:
         )
         self.session.add(session_entry)
         await self.session.commit()
-        
+
         logger.info("OIDC login successful", user_id=str(user.id), provider=provider)
         return access_token, raw_refresh_token

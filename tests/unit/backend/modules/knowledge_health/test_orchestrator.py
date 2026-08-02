@@ -1,9 +1,11 @@
 """Unit tests for KnowledgeHealthOrchestrator domain service (`ADR-005`)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
 import pytest
+
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
 from backend.modules.knowledge_health.schemas.errors import InvalidScanTypeError
 from backend.modules.knowledge_health.schemas.health_dto import ScanStatus, ScanType
@@ -46,8 +48,8 @@ async def test_orchestrator_run_all_scans() -> None:
         stale_chunks_found=2,
         parity_status="SYNCED (25 == 25)",
         duration_ms=10.0,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     orchestrator.repo.update_scan_progress.return_value = mock_job
 

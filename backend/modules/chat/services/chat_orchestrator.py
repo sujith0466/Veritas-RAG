@@ -1,18 +1,21 @@
-import asyncio
 from collections.abc import AsyncGenerator
-from typing import Any, List, Dict
-import json
 import re
-import uuid
 import time
+from typing import Any
+
 from structlog import get_logger
 
 from backend.modules.chat.repositories.chat_repository import ChatRepository
 from backend.modules.chat.schemas import ChatMessageCreateDTO
-from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
+from backend.modules.generation.schemas.generation_dto import (
+    GenerationRequestDTOv2,
+    StreamingGenerationChunkDTO,
+)
+from backend.modules.generation.services.streaming_generation_service import (
+    StreamingGroundedGenerationService,
+)
 from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
-from backend.modules.generation.schemas.generation_dto import GenerationRequestDTOv2, StreamingGenerationChunkDTO
-from backend.modules.generation.services.streaming_generation_service import StreamingGroundedGenerationService
+from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
 
 logger = get_logger(__name__)
 
@@ -140,17 +143,17 @@ class ChatOrchestrator:
         self.streaming_generation = streaming_generation
 
     async def stream_chat(
-        self, 
-        session_id: str, 
-        tenant_id: str, 
-        user_id: str, 
+        self,
+        session_id: str,
+        tenant_id: str,
+        user_id: str,
         query: str,
         correlation_id: str
     ) -> AsyncGenerator[str, None]:
         from backend.database.engine import get_session_factory
         session_maker = get_session_factory()
         started_at = time.perf_counter()
-        
+
         # 1. Save User Message
         async with session_maker() as session:
             repo = ChatRepository(session)
@@ -163,27 +166,28 @@ class ChatOrchestrator:
                     message=query
                 )
             )
-        
+
         # 1.5 Check if knowledge base is still processing
+        from sqlalchemy import select
+
         from backend.document.models.document import Document
         from backend.document.models.status import DocumentStatus
-        from sqlalchemy import select
-        
+
         processing_statuses = [
-            DocumentStatus.UPLOADED, 
-            DocumentStatus.PENDING, 
+            DocumentStatus.UPLOADED,
+            DocumentStatus.PENDING,
             DocumentStatus.VALIDATING,
             DocumentStatus.EXTRACTING,
             DocumentStatus.OCR,
             DocumentStatus.MANIFEST_GENERATING,
             DocumentStatus.PROCESSED,
-            DocumentStatus.CHUNKING, 
-            DocumentStatus.CHUNKED, 
-            DocumentStatus.EMBEDDING, 
-            DocumentStatus.EMBEDDED, 
+            DocumentStatus.CHUNKING,
+            DocumentStatus.CHUNKED,
+            DocumentStatus.EMBEDDING,
+            DocumentStatus.EMBEDDED,
             DocumentStatus.VECTOR_SYNC
         ]
-        
+
         async with session_maker() as session:
             # Check for any READY documents
             ready_result = await session.execute(
@@ -193,7 +197,7 @@ class ChatOrchestrator:
                 ).limit(1)
             )
             has_ready_doc = ready_result.scalar_one_or_none() is not None
-            
+
             # If no READY documents exist, check if we are still processing others
             has_processing_doc = False
             if not has_ready_doc:
@@ -204,10 +208,10 @@ class ChatOrchestrator:
                     ).limit(1)
                 )
                 has_processing_doc = proc_result.scalar_one_or_none() is not None
-            
+
             if not has_ready_doc and has_processing_doc:
                 msg = "Your knowledge base is currently being prepared. Document processing is still in progress."
-                
+
                 # Stream the message
                 chunk = StreamingGenerationChunkDTO(
                     chunk_index=0,
@@ -218,7 +222,7 @@ class ChatOrchestrator:
                     correlation_id=correlation_id
                 )
                 yield f"data: {chunk.model_dump_json()}\n\n"
-                
+
                 # Save assistant message
                 async with session_maker() as session:
                     repo = ChatRepository(session)
@@ -246,7 +250,7 @@ class ChatOrchestrator:
             rerank=True,
             semantic_weight=0.7
         )
-        
+
         retrieval_result = None
         try:
             retrieval_result = await self.retrieval_orchestrator.execute_hybrid_search(
@@ -254,7 +258,7 @@ class ChatOrchestrator:
                 tenant_id=tenant_id,
                 correlation_id=correlation_id
             )
-            
+
             # Use the canonical DTOs directly to preserve metadata
             evidence_chunks = retrieval_result.final_evidence if retrieval_result.final_evidence else []
 
@@ -273,13 +277,13 @@ class ChatOrchestrator:
             tenant_id=tenant_id,
             stream=True
         )
-        
+
         full_assistant_text = ""
         final_citations = []
         is_grounded = False
-        
 
-        
+
+
         try:
             chunk_count = 0
             async for chunk in self.streaming_generation.generate_stream(gen_request):
@@ -290,11 +294,11 @@ class ChatOrchestrator:
                 if chunk.is_final:
                     final_citations = [c.model_dump() for c in chunk.citations_delta]
                     is_grounded = chunk.is_fully_grounded
-                    
+
                 yield f"data: {chunk.model_dump_json()}\n\n"
 
 
-        except Exception as e:
+        except Exception:
 
             raise
 
@@ -306,7 +310,7 @@ class ChatOrchestrator:
             is_grounded=bool(is_grounded),
             retrieval_result=retrieval_result,
         )
-            
+
         # 4. Save Assistant Message
         async with session_maker() as session:
             repo = ChatRepository(session)

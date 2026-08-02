@@ -8,11 +8,13 @@ import time
 
 from structlog import get_logger
 
-from backend.modules.query_rewrite.schemas.errors import \
-    ClarificationGenerationFailed
+from backend.modules.query_rewrite.schemas.errors import ClarificationGenerationFailed
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    ClarificationResumeRequestDTO, ClarificationStateDTO, ClarificationStatus,
-    ClarifiedQueryDTO)
+    ClarificationResumeRequestDTO,
+    ClarificationStateDTO,
+    ClarificationStatus,
+    ClarifiedQueryDTO,
+)
 
 logger = get_logger(__name__)
 

@@ -10,7 +10,10 @@ from typing import Any
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2, RewriteResultDTO, RewriteStrategy)
+    RewriteRequestDTOv2,
+    RewriteResultDTO,
+    RewriteStrategy,
+)
 from backend.modules.query_rewrite.strategies.base import BaseRewriteStrategy
 
 logger = get_logger(__name__)
@@ -106,8 +109,7 @@ class QueryDecompositionStrategy(BaseRewriteStrategy):
 # ---------------------------------------------------------------------------
 # Phase 3 backward-compatible class
 # ---------------------------------------------------------------------------
-from backend.modules.query_rewrite.schemas.rewrite_dto import \
-    DecomposedQueriesDTO
+from backend.modules.query_rewrite.schemas.rewrite_dto import DecomposedQueriesDTO
 
 
 class DecompositionRewriter:

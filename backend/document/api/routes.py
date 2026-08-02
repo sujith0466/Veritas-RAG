@@ -4,20 +4,33 @@ Provides endpoints for file upload (`POST /upload`), status inspection (`GET /{i
 document details and manifest (`GET /{id}`), listing (`GET /`), and deletion (`DELETE /{id}`).
 """
 
-import uuid
 from typing import Any
+import uuid
 
-import structlog
-from fastapi import (APIRouter, Depends, File, Form, Header, HTTPException, Query,
-                     Request, UploadFile, status)
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
-from backend.document.schemas import (DocumentDetailResponse,
-                                      DocumentListResponse,
-                                      ProcessingStatusResponse, UploadResponse)
+from backend.document.schemas import (
+    DocumentDetailResponse,
+    DocumentListResponse,
+    ProcessingStatusResponse,
+    UploadResponse,
+)
 from backend.document.services import DocumentService
 
 logger = structlog.get_logger(__name__)

@@ -14,10 +14,10 @@ Usage:
     await dispatcher.publish(event)
 """
 
-import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from .types import EventType
 

@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 12.2 Implementation...")
-    
+
     # 1. claim_extractor.py
     extractor_path = "backend/modules/validation/services/claim_extractor.py"
     if not os.path.exists(extractor_path):

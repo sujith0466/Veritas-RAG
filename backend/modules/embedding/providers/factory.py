@@ -9,10 +9,8 @@ from typing import Any
 import structlog
 
 from backend.modules.embedding.providers.base import BaseEmbeddingProvider
-from backend.modules.embedding.schemas.embedding_dto import (
-    ProviderInfoDTO, ProviderModelInfoDTO)
-from backend.modules.embedding.schemas.errors import (EmbeddingDomainException,
-                                                      EmbeddingErrorCode)
+from backend.modules.embedding.schemas.embedding_dto import ProviderInfoDTO, ProviderModelInfoDTO
+from backend.modules.embedding.schemas.errors import EmbeddingDomainException, EmbeddingErrorCode
 
 logger = structlog.get_logger(__name__)
 
@@ -22,6 +20,7 @@ logger = structlog.get_logger(__name__)
 _PROVIDER_REGISTRY: dict[str, type[BaseEmbeddingProvider] | Any] = {}
 _PROVIDER_INSTANCES: dict[str, BaseEmbeddingProvider] = {}
 import threading
+
 _FACTORY_LOCK = threading.Lock()
 
 
@@ -57,7 +56,7 @@ class EmbeddingProviderFactory:
         """
         # Default to 'openai' if not specified (checked against settings in service layer)
         target_provider = (provider_name or "openai").lower()
-        
+
         # Build a unique cache key based on provider configuration
         cache_key = f"{target_provider}::{model_name}::{api_key}"
 

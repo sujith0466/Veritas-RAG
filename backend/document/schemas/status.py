@@ -1,7 +1,7 @@
 """Processing status polling schemas (`GET /api/v1/documents/{id}/status`)."""
 
-import uuid
 from datetime import datetime
+import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 

@@ -7,8 +7,7 @@ Includes clean dev bypass and production ClamAV hook.
 from abc import ABC, abstractmethod
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 
 class VirusScanner(ABC):

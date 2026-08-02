@@ -60,14 +60,14 @@
 - [x] F3.7 — Workspace Branding (CSS Variables, Tailwind Tokens, WCAG AA Validation)
 - [x] F3.8 — Feature Flags (7-step Evaluation Pipeline, MurmurHash3, L1/L2 Cache)
 
-### ⏳ Epic 4 — User & Role Management (Next Up)
-- [ ] F4.1 — Workspace Invitation (Send, Secure Token, Expiry)
-- [ ] F4.2 — Invitation Acceptance Flow
-- [ ] F4.3 — Workspace Membership Management
-- [ ] F4.4 — RBAC Permission Enforcement (Full Matrix)
-- [ ] F4.5 — Role Assignment / Reassignment
-- [ ] F4.6 — Member Removal
-- [ ] F4.7 — User Profile Management
+### ⏳ Epic 4 — User & Role Management (In Progress)
+- [x] F4.1 — Workspace Invitation (Send, Secure Token, Expiry) - ✅ Frozen (100%)
+- [x] F4.2 — Invitation Acceptance Flow - ✅ Frozen (100%)
+- [x] F4.3 — Workspace Membership Management - ✅ Frozen (100%)
+- [x] F4.4 — RBAC Permission Enforcement (Full Matrix) - ✅ Frozen (100%)
+- [x] F4.5 — Role Assignment / Reassignment - ✅ Frozen (100%)
+- [x] F4.6 — Member Removal - ✅ Frozen (100%)
+- [x] F4.7 — User Profile Management - ✅ Frozen (100%)
 - [ ] F4.8 — Domain Verification
 - [ ] F4.9 — SSO Configuration per Workspace (`IdentityProvider` Entity)
 

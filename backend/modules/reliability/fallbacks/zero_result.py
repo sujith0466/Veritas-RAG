@@ -8,12 +8,15 @@ import time
 
 import structlog
 
-from backend.modules.reliability.schemas.errors import \
-    ZeroResultRecoveryFailedError
+from backend.modules.reliability.schemas.errors import ZeroResultRecoveryFailedError
 from backend.modules.reliability.schemas.reliability_dto import (
-    ReliableCandidateDTO, ReliableRetrievalResultDTO)
+    ReliableCandidateDTO,
+    ReliableRetrievalResultDTO,
+)
 from backend.modules.retrieval.providers.sparse.bm25_provider import (
-    BM25SparseSearchProvider, tokenize)
+    BM25SparseSearchProvider,
+    tokenize,
+)
 from backend.modules.retrieval.schemas.errors import SparseIndexNotFoundError
 
 logger = structlog.get_logger(__name__)

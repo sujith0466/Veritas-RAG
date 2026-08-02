@@ -5,19 +5,16 @@ and progress reporting for async Celery task execution (`ADR-M2-003`).
 """
 
 import random
-import uuid
 from typing import Any
+import uuid
 
-import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.events.dispatcher import get_dispatcher
-from backend.modules.embedding.repositories.embedding_repository import \
-    EmbeddingRepository
-from backend.modules.embedding.schemas.errors import (ErrorSeverity,
-                                                      get_error_severity)
-from backend.modules.embedding.services.embedding_service import \
-    EmbeddingService
+from backend.modules.embedding.repositories.embedding_repository import EmbeddingRepository
+from backend.modules.embedding.schemas.errors import ErrorSeverity, get_error_severity
+from backend.modules.embedding.services.embedding_service import EmbeddingService
 
 logger = structlog.get_logger(__name__)
 
@@ -68,11 +65,11 @@ class CeleryEmbeddingWorker:
                         "tokens": job.total_tokens_consumed,
                     },
                 )
-                
-            from backend.core.events.types import EventType
+
             from backend.core.events.dispatcher import get_dispatcher
+            from backend.core.events.types import EventType
             from backend.modules.embedding.events import create_embedding_event
-            
+
             success_event = create_embedding_event(
                 event_type=EventType.EMBEDDING_COMPLETED,
                 tenant_id=tenant_id,

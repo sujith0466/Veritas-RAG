@@ -34,7 +34,7 @@ class PubSubManager:
         channel_name = CacheKeyBuilder.build(tenant, domain, "channel", channel)
         serialized_msg = CacheSerializer.serialize(message)
         client = get_redis_client()
-        
+
         return await client.publish(channel_name, serialized_msg)
 
     @classmethod

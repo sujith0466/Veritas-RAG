@@ -1,7 +1,6 @@
 import logging
 
-from backend.modules.intelligence.schemas.intelligence_dto import \
-    FeedbackEventDTO
+from backend.modules.intelligence.schemas.intelligence_dto import FeedbackEventDTO
 
 
 class FeedbackProcessor:

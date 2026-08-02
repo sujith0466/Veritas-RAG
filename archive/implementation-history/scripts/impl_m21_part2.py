@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 21.2 Implementation...")
-    
+
     # 1. metrics.py
     with open("backend/modules/observability/services/metrics.py", "w") as f:
         f.write("""import time

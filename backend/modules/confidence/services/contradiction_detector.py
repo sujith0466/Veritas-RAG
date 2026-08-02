@@ -1,10 +1,8 @@
-import re
 from itertools import combinations
+import re
 
-from backend.modules.confidence.schemas.confidence_dto import \
-    ContradictionReportDTO
-from backend.modules.reliability.schemas.reliability_dto import \
-    ReliableCandidateDTO
+from backend.modules.confidence.schemas.confidence_dto import ContradictionReportDTO
+from backend.modules.reliability.schemas.reliability_dto import ReliableCandidateDTO
 
 
 class ContradictionDetector:

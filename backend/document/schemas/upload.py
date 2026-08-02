@@ -1,8 +1,9 @@
 from backend.document.models.status import DocumentStatus
+
 """Upload endpoint response and session schemas."""
 
-import uuid
 from datetime import datetime
+import uuid
 
 from pydantic import BaseModel, Field
 

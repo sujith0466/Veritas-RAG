@@ -19,7 +19,7 @@ def main():
 
     # 1. Update backend/modules/reflection/schemas/errors.py
     errors_path = "backend/modules/reflection/schemas/errors.py"
-    with open(errors_path, "r") as f:
+    with open(errors_path) as f:
         errors_content = f.read()
 
     if "ReflectionEvaluationFailed" not in errors_content:
@@ -40,7 +40,7 @@ class ContradictionDetectedError(ReflectionDomainException):
 
     # 2. Update backend/modules/reflection/schemas/reflection_dto.py
     dto_path = "backend/modules/reflection/schemas/reflection_dto.py"
-    with open(dto_path, "r") as f:
+    with open(dto_path) as f:
         dto_content = f.read()
 
     if "ReflectionRequestDTOv2" not in dto_content:
@@ -88,7 +88,7 @@ class ReflectionResultDTOv2(BaseModel):
     if not os.path.exists(models_init):
         with open(models_init, "w") as f:
             f.write('"""Reflection ORM models."""\n')
-            
+
     model_path = "backend/modules/reflection/models/reflection_log.py"
     if not os.path.exists(model_path):
         with open(model_path, "w") as f:
@@ -123,7 +123,7 @@ class ReflectionLogORM(Base):
     if not os.path.exists(repo_init):
         with open(repo_init, "w") as f:
             f.write('"""Reflection repository module."""\n')
-            
+
     repo_path = "backend/modules/reflection/repositories/reflection_repository.py"
     if not os.path.exists(repo_path):
         with open(repo_path, "w") as f:

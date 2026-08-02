@@ -10,8 +10,8 @@ from typing import Any, BinaryIO
 
 try:
     import aioboto3
-    import botocore.exceptions
     from botocore.config import Config
+    import botocore.exceptions
 except ImportError:
     aioboto3 = None
     Config = None
@@ -64,7 +64,7 @@ class S3StorageProvider(StorageProvider):
                     message=f"S3 access denied or configuration invalid: {error_code}",
                     detail={"object_key": object_key, "error": str(e)},
                 ) from e
-            elif error_code == "NoSuchKey":
+            if error_code == "NoSuchKey":
                 raise DocumentDomainException(
                     code=DocumentErrorCode.STORE_002,
                     message="Requested storage artifact was not found.",
@@ -81,12 +81,12 @@ class S3StorageProvider(StorageProvider):
     )
     async def save_stream(self, stream: BinaryIO, object_key: str) -> StorageObjectDTO:
         start_time = time.perf_counter()
-        
+
         current_pos = stream.tell()
         stream.seek(0)
         checksum = calculate_sha256(stream)
         stream.seek(0)
-        
+
         # Calculate size
         stream.seek(0, 2)
         size_bytes = stream.tell()
@@ -142,10 +142,10 @@ class S3StorageProvider(StorageProvider):
             ) as client:
                 response = await client.get_object(Bucket=self._bucket, Key=object_key)
                 body = await response["Body"].read()
-                
+
                 latency_ms = (time.perf_counter() - start_time) * 1000
                 StorageMetrics.record_download(len(body), latency_ms)
-                
+
                 return io.BytesIO(body)
         except Exception as e:
             self._handle_boto_error(e, object_key)

@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
@@ -11,7 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 def main():
     print("Starting Milestone 15.4 Implementation (Tests)...")
     os.makedirs("tests/unit/backend/modules/evaluation", exist_ok=True)
-    
+
     # 1. test_metric_calculator.py
     t_metrics_path = "tests/unit/backend/modules/evaluation/test_metric_calculator.py"
     with open(t_metrics_path, "w") as f:
@@ -100,7 +100,7 @@ async def test_continuous_learning_engine():
 """)
 
     print("Created test files.")
-    
+
     print("Running tests...")
     result = subprocess.run([sys.executable, "-m", "pytest", "tests/unit/backend/modules/evaluation"], capture_output=True, text=True)
     print(result.stdout)

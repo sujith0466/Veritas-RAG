@@ -1,9 +1,7 @@
 import re
 
-from backend.modules.confidence.schemas.confidence_dto import \
-    CoverageMetricsDTO
-from backend.modules.reliability.schemas.reliability_dto import \
-    ReliableCandidateDTO
+from backend.modules.confidence.schemas.confidence_dto import CoverageMetricsDTO
+from backend.modules.reliability.schemas.reliability_dto import ReliableCandidateDTO
 
 
 class CoverageAnalyzer:

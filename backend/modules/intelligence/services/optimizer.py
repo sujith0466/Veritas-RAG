@@ -1,5 +1,4 @@
-from backend.modules.intelligence.schemas.intelligence_dto import \
-    OptimizationRecommendationDTO
+from backend.modules.intelligence.schemas.intelligence_dto import OptimizationRecommendationDTO
 
 
 class ThresholdOptimizer:

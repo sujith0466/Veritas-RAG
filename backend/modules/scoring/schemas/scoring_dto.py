@@ -2,11 +2,9 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from backend.modules.confidence.schemas.confidence_dto import \
-    ConfidenceResultDTO
+from backend.modules.confidence.schemas.confidence_dto import ConfidenceResultDTO
 from backend.modules.generation.schemas.generation_dto import GroundedAnswerDTO
-from backend.modules.reflection.schemas.reflection_dto import \
-    ReflectionResultDTO
+from backend.modules.reflection.schemas.reflection_dto import ReflectionResultDTO
 from backend.modules.retry.schemas.retry_dto import RetryContextDTO
 
 

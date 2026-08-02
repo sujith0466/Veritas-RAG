@@ -3,8 +3,7 @@
 Routes file streams to the highest-priority enabled extractor based on MIME type and file extension (`Refinement 5`).
 """
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 from .base import BaseExtractor, ExtractorCapability
 

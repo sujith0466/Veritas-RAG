@@ -1,11 +1,13 @@
 """Unit tests for Knowledge Health & Lifecycle REST API endpoints (`/api/v1/knowledge-health/*`)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
+
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
 from backend.core.permissions.rbac import Role
@@ -40,8 +42,8 @@ def mock_orchestrator() -> MagicMock:
             stale_chunks_found=0,
             parity_status="SYNCED",
             duration_ms=15.0,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
     )
     orch.list_scan_jobs = AsyncMock(
@@ -57,8 +59,8 @@ def mock_orchestrator() -> MagicMock:
                     stale_chunks_found=0,
                     parity_status="SYNCED (10 == 10)",
                     duration_ms=5.0,
-                    created_at=datetime.now(timezone.utc),
-                    updated_at=datetime.now(timezone.utc),
+                    created_at=datetime.now(UTC),
+                    updated_at=datetime.now(UTC),
                 )
             ],
             1,
@@ -71,7 +73,7 @@ def mock_orchestrator() -> MagicMock:
             qdrant_point_count=100,
             is_synced=True,
             parity_status="SYNCED (100 == 100)",
-            checked_at=datetime.now(timezone.utc),
+            checked_at=datetime.now(UTC),
         )
     )
     orch.rotate_tenant_embedding_model = AsyncMock(
@@ -82,7 +84,7 @@ def mock_orchestrator() -> MagicMock:
             target_model="embed-english-v3.0",
             stale_chunks_enqueued=25,
             status="PROCESSING",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
     )
     orch.execute_two_phase_purge = AsyncMock(

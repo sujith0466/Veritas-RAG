@@ -4,20 +4,17 @@ Executes sub-millisecond, multi-tiered (L1 In-Memory -> L2 Redis -> L3 Postgres)
 following the deterministic 7-step priority resolution pipeline.
 """
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
-import hashlib
+from datetime import UTC, datetime
 import json
 import time
 from typing import Any
 import uuid
 
-import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
-from backend.models.entities.feature_flag import FeatureFlag, FlagLifecycleState
-from backend.models.entities.feature_flag_workspace_rule import FeatureFlagWorkspaceRule
+from backend.models.entities.feature_flag import FlagLifecycleState
 from backend.observability.metrics.prometheus import (
     record_feature_flag_cache_hit,
     record_feature_flag_cache_miss,
@@ -97,7 +94,7 @@ def is_entity_in_rollout(flag_key: str, entity_id: str, rollout_percentage: int)
         return True
     if rollout_percentage <= 0:
         return False
-    combined_key = f"{flag_key}:{entity_id}".encode("utf-8")
+    combined_key = f"{flag_key}:{entity_id}".encode()
     hash_val = _murmur3_32_seedless(combined_key, seed=0)
     bucket = (hash_val & 0x7FFFFFFF) % 100
     return bucket < rollout_percentage
@@ -180,8 +177,7 @@ class FeatureFlagEvaluationService:
             if now_ts - ts < _L1_TTL_SECONDS:
                 record_feature_flag_cache_hit(tier="L1_memory")
                 return data.get("flag"), data.get("rule"), "L1_memory"
-            else:
-                _L1_CACHE.pop(cache_key, None)
+            _L1_CACHE.pop(cache_key, None)
 
         record_feature_flag_cache_miss(tier="L1_memory")
 
@@ -258,7 +254,7 @@ class FeatureFlagEvaluationService:
     ) -> EvaluationResult:
         """Deterministic 7-Step Evaluation Priority Resolution Pipeline."""
         start_time = time.perf_counter()
-        now_dt = datetime.now(timezone.utc)
+        now_dt = datetime.now(UTC)
 
         if _depth > 10:
             return EvaluationResult(
@@ -384,7 +380,7 @@ class FeatureFlagEvaluationService:
                 if cond_type == "USER_ID" and context.user_id and str(context.user_id) in target_vals:
                     matched_user = True
                     break
-                elif cond_type == "EMAIL_DOMAIN" and context.user_email:
+                if cond_type == "EMAIL_DOMAIN" and context.user_email:
                     domain = context.user_email.split("@")[-1].lower()
                     if domain in [v.lower() for v in target_vals]:
                         matched_user = True
@@ -515,12 +511,8 @@ class FeatureFlagEvaluationService:
     def invalidate_local_cache(workspace_id: uuid.UUID | None = None, flag_key: str | None = None) -> None:
         """Clear L1 memory cache keys matching pattern."""
         keys_to_delete = []
-        for k in _L1_CACHE.keys():
-            if workspace_id and f"ff:ws:{workspace_id}:" in k:
-                keys_to_delete.append(k)
-            elif flag_key and f":{flag_key}" in k:
-                keys_to_delete.append(k)
-            elif not workspace_id and not flag_key:
+        for k in _L1_CACHE:
+            if (workspace_id and f"ff:ws:{workspace_id}:" in k) or (flag_key and f":{flag_key}" in k) or (not workspace_id and not flag_key):
                 keys_to_delete.append(k)
 
         for k in keys_to_delete:

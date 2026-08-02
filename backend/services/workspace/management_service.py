@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 import uuid
 
@@ -290,7 +290,7 @@ class WorkspaceManagementService:
             raise WorkspaceConflictError("Workspace has been modified by another administrator. Please refresh and try again.")
 
         # 5. Apply Changes
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         workspace.status = WorkspaceStatus.SUSPENDED.value
         workspace.suspended_at = now
         session.add(workspace)
@@ -359,7 +359,7 @@ class WorkspaceManagementService:
 
         # 4. Apply Changes
         prev_suspended_at = workspace.suspended_at.isoformat() if workspace.suspended_at else None
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         workspace.status = WorkspaceStatus.ACTIVE.value
         workspace.suspended_at = None
         session.add(workspace)
@@ -440,7 +440,7 @@ class WorkspaceManagementService:
 
         # 6. Apply Changes
         from datetime import timedelta
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         purge_at = now + timedelta(days=30)
         prev_status = workspace.status
 
@@ -478,9 +478,9 @@ class WorkspaceManagementService:
 
         # 8. Post-commit event dispatch & metric
         from backend.core.events.dispatcher import get_dispatcher
-        from backend.services.workspace.events import WorkspaceSoftDeletedEvent
         from backend.observability.metrics.prometheus import record_workspace_soft_deleted
-        
+        from backend.services.workspace.events import WorkspaceSoftDeletedEvent
+
         record_workspace_soft_deleted()
         dispatcher = get_dispatcher()
         await dispatcher.publish(WorkspaceSoftDeletedEvent(
@@ -522,7 +522,7 @@ class WorkspaceManagementService:
             raise WorkspaceInvalidStateError(f"Cannot restore workspace in {workspace.status} state.")
 
         # 4. Retention expiration check
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if workspace.purge_at and workspace.purge_at < now:
             raise WorkspaceInvalidStateError("The 30-day retention window for this workspace has expired and cannot be restored.")
 
@@ -561,8 +561,8 @@ class WorkspaceManagementService:
 
         # 8. Post-commit event dispatch & metric
         from backend.core.events.dispatcher import get_dispatcher
-        from backend.services.workspace.events import WorkspaceRestoredEvent
         from backend.observability.metrics.prometheus import record_workspace_restored
+        from backend.services.workspace.events import WorkspaceRestoredEvent
 
         record_workspace_restored()
         dispatcher = get_dispatcher()
@@ -595,7 +595,7 @@ class WorkspaceManagementService:
 
         # 3. State validation
         if not force_immediate and workspace.status != WorkspaceStatus.DELETING.value:
-            raise WorkspaceInvalidStateError(f"Workspace must be in DELETING state prior to hard delete unless force_immediate is set.")
+            raise WorkspaceInvalidStateError("Workspace must be in DELETING state prior to hard delete unless force_immediate is set.")
 
         # 4. Transition to PURGING
         workspace.status = WorkspaceStatus.PURGING.value
@@ -646,7 +646,7 @@ class WorkspaceManagementService:
 
         # 6. Database Cascade Purge (Note: Audit Logs and Security Logs are permanently preserved!)
         await self.workspace_repo.delete(workspace_id)
-        
+
         # 7. Permanent Audit Record
         audit_log = AuditLog(
             action="WORKSPACE_HARD_DELETED",
@@ -666,8 +666,8 @@ class WorkspaceManagementService:
 
         # 8. Post-commit event & metric
         from backend.core.events.dispatcher import get_dispatcher
-        from backend.services.workspace.events import WorkspaceHardDeletedEvent
         from backend.observability.metrics.prometheus import record_workspace_hard_deleted
+        from backend.services.workspace.events import WorkspaceHardDeletedEvent
 
         record_workspace_hard_deleted()
         dispatcher = get_dispatcher()

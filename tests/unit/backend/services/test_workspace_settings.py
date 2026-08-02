@@ -1,27 +1,24 @@
 """Unit tests for F3.6 Workspace Settings Service."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
-import pytest
 from pydantic import ValidationError
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.v1.schemas.workspace_settings import (
-    WorkspaceSettingsPayload,
     get_default_workspace_settings,
 )
 from backend.models.entities.workspace_member import WorkspaceMember
 from backend.models.entities.workspace_settings import WorkspaceSettings
-from backend.models.entities.workspace_settings_history import WorkspaceSettingsHistory
 from backend.repositories.workspace import WorkspaceRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
 from backend.repositories.workspace_settings import WorkspaceSettingsRepository
 from backend.repositories.workspace_settings_history import WorkspaceSettingsHistoryRepository
 from backend.services.workspace.management_service import (
     WorkspaceConflictError,
-    WorkspaceUnauthorizedError,
 )
 from backend.services.workspace.settings_service import (
     WorkspaceSettingsService,
@@ -157,7 +154,7 @@ async def test_patch_settings_success(
 ):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     existing_settings = WorkspaceSettings(
         workspace_id=ws_id,
@@ -201,7 +198,7 @@ async def test_patch_settings_schema_validation_error(
 ):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     existing_settings = WorkspaceSettings(
         workspace_id=ws_id,
@@ -236,7 +233,7 @@ async def test_patch_settings_concurrency_conflict(
 ):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stale_time = now - timedelta(minutes=10)
 
     existing_settings = WorkspaceSettings(
@@ -269,7 +266,7 @@ async def test_import_settings_dry_run(
 ):
     ws_id = uuid.uuid4()
     user_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     member_repo.get_membership.return_value = WorkspaceMember(
         workspace_id=ws_id, user_id=user_id, role="ADMIN"

@@ -2,8 +2,11 @@ import logging
 import re
 
 from backend.modules.reflection.schemas.reflection_dto import (
-    ClaimValidationResultDTO, ClaimVerdict, ReflectionRequestDTO,
-    ReflectionResultDTO)
+    ClaimValidationResultDTO,
+    ClaimVerdict,
+    ReflectionRequestDTO,
+    ReflectionResultDTO,
+)
 from backend.modules.reflection.services.claim_validator import ClaimValidator
 
 logger = logging.getLogger(__name__)
@@ -18,8 +21,7 @@ HALLUCINATION_THRESHOLD = 0.3
 
 import time
 
-from backend.observability.metrics import (record_reflection_metric,
-                                           record_stage_duration)
+from backend.observability.metrics import record_reflection_metric, record_stage_duration
 from backend.observability.tracing import trace_reflection
 
 
@@ -150,15 +152,16 @@ class ReflectionEngine:
 import asyncio
 import os
 
-from backend.modules.reflection.repositories.reflection_repository import \
-    ReflectionRepository
+from backend.modules.reflection.repositories.reflection_repository import ReflectionRepository
 from backend.modules.reflection.schemas.reflection_dto import (
-    CompletenessReportDTO, LogicalReviewReportDTO, ReflectionRequestDTOv2,
-    ReflectionResultDTOv2, ReflectionScoreDTO)
-from backend.modules.reflection.services.completeness_evaluator import \
-    CompletenessEvaluator
-from backend.modules.reflection.services.logical_reviewer import \
-    LogicalConsistencyReviewer
+    CompletenessReportDTO,
+    LogicalReviewReportDTO,
+    ReflectionRequestDTOv2,
+    ReflectionResultDTOv2,
+    ReflectionScoreDTO,
+)
+from backend.modules.reflection.services.completeness_evaluator import CompletenessEvaluator
+from backend.modules.reflection.services.logical_reviewer import LogicalConsistencyReviewer
 
 
 class ReflectionEngineV2:

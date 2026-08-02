@@ -12,8 +12,7 @@ from typing import Any
 import structlog
 
 from backend.database.engine import get_session_factory
-from backend.modules.vector.schemas.errors import (ErrorSeverity,
-                                                   VectorDomainException)
+from backend.modules.vector.schemas.errors import ErrorSeverity, VectorDomainException
 from backend.modules.vector.services.vector_service import VectorStorageService
 from backend.tasks.celery_app import celery_app
 
@@ -87,9 +86,8 @@ async def _async_sync_vectors_task(
     tenant_id: str,
     collection_name: str | None,
 ) -> dict[str, Any]:
-    from backend.database.engine import get_session_factory
     session_factory = get_session_factory()
-    
+
     async with session_factory() as session:
         service = VectorStorageService(session=session)
         upserted = await service.sync_document_vectors(
@@ -100,16 +98,16 @@ async def _async_sync_vectors_task(
         )
         await session.commit()
 
-        from backend.core.events.types import EventType
-        from backend.core.events.dispatcher import get_dispatcher
         from backend.core.events.base import BaseEvent
-        
+        from backend.core.events.dispatcher import get_dispatcher
+        from backend.core.events.types import EventType
+
         class VectorIndexedEvent(BaseEvent):
             event_type: EventType = EventType.VECTORS_INDEXED
             document_id: str
             tenant_id: str
             data: dict
-        
+
         success_event = VectorIndexedEvent(
             document_id=document_id,
             tenant_id=tenant_id,
@@ -117,7 +115,7 @@ async def _async_sync_vectors_task(
         )
         dispatcher = get_dispatcher()
         await dispatcher.publish(success_event)
-        
+
         return {
             "tenant_id": tenant_id,
             "document_id": document_id,

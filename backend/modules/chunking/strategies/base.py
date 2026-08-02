@@ -1,7 +1,7 @@
 """Abstract base class for all document chunking splitters."""
 
-import math
 from abc import ABC, abstractmethod
+import math
 from typing import Any
 
 from backend.modules.chunking.schemas.chunk import ChunkDTO, StrategyInfoDTO

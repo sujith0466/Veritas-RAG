@@ -6,7 +6,7 @@ import uuid
 import pytest
 
 from backend.document.models import Document, DocumentVersion
-from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.schemas.errors import DocumentDomainException
 from backend.document.storage.contract import DocumentProcessingContract
 
 

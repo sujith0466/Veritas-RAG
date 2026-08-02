@@ -9,15 +9,14 @@ from typing import Any
 from structlog import get_logger
 
 from backend.modules.query_rewrite.schemas.rewrite_dto import (
-    RewriteRequestDTOv2, RewriteResultDTO, RewriteStrategy)
-from backend.modules.query_rewrite.services.strategy_selector import \
-    StrategySelector
-from backend.modules.query_rewrite.strategies.decomposition import \
-    QueryDecompositionStrategy
-from backend.modules.query_rewrite.strategies.entity_recovery import \
-    MissingEntityRecoveryStrategy
-from backend.modules.query_rewrite.strategies.expansion import \
-    QueryExpansionStrategy
+    RewriteRequestDTOv2,
+    RewriteResultDTO,
+    RewriteStrategy,
+)
+from backend.modules.query_rewrite.services.strategy_selector import StrategySelector
+from backend.modules.query_rewrite.strategies.decomposition import QueryDecompositionStrategy
+from backend.modules.query_rewrite.strategies.entity_recovery import MissingEntityRecoveryStrategy
+from backend.modules.query_rewrite.strategies.expansion import QueryExpansionStrategy
 from backend.modules.query_rewrite.strategies.hyde import HyDEStrategy
 
 logger = get_logger(__name__)

@@ -2,9 +2,11 @@ import uuid
 
 from fastapi import APIRouter
 
-from backend.modules.alerts.schemas.alert_dto import (AlertHistoryDTO,
-                                                      AlertRuleCreateDTO,
-                                                      AlertRuleDTO)
+from backend.modules.alerts.schemas.alert_dto import (
+    AlertHistoryDTO,
+    AlertRuleCreateDTO,
+    AlertRuleDTO,
+)
 
 router = APIRouter(prefix="/alerts/v1", tags=["Alerts"])
 

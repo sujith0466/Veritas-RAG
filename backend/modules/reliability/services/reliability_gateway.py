@@ -16,26 +16,26 @@ from uuid import uuid4
 
 import structlog
 
-from backend.modules.reliability.circuit_breaker.engine import \
-    CircuitBreakerEngine
+from backend.modules.reliability.circuit_breaker.engine import CircuitBreakerEngine
 from backend.modules.reliability.circuit_breaker.states import CircuitState
 from backend.modules.reliability.events.payloads import (
-    create_circuit_tripped_event, create_fallback_triggered_event)
+    create_circuit_tripped_event,
+    create_fallback_triggered_event,
+)
 from backend.modules.reliability.fallbacks.router import FallbackRouter
-from backend.modules.reliability.fallbacks.zero_result import \
-    ZeroResultRecoverer
-from backend.modules.reliability.models.circuit_event import \
-    CircuitBreakerEventLog
+from backend.modules.reliability.fallbacks.zero_result import ZeroResultRecoverer
+from backend.modules.reliability.models.circuit_event import CircuitBreakerEventLog
 from backend.modules.reliability.models.sla_log import RetrievalSLALog
-from backend.modules.reliability.repositories.reliability_repository import \
-    ReliabilityRepository
+from backend.modules.reliability.repositories.reliability_repository import ReliabilityRepository
 from backend.modules.reliability.schemas.errors import CircuitBreakerOpenError
 from backend.modules.reliability.schemas.reliability_dto import (
-    CircuitBreakerStateDTO, ReliableCandidateDTO, ReliableRetrievalResultDTO,
-    SearchOptionsDTO)
+    CircuitBreakerStateDTO,
+    ReliableCandidateDTO,
+    ReliableRetrievalResultDTO,
+    SearchOptionsDTO,
+)
 from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
-from backend.modules.retrieval.services.retrieval_service import \
-    RetrievalOrchestrator
+from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
 
 logger = structlog.get_logger(__name__)
 
@@ -75,8 +75,7 @@ class ReliabilityGateway:
 
         import sys
 
-        from backend.observability.metrics import (record_query_metric,
-                                                   record_stage_duration)
+        from backend.observability.metrics import record_query_metric, record_stage_duration
         from backend.observability.tracing import trace_query_processing
 
         span_ctx = trace_query_processing(

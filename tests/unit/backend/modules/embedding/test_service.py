@@ -7,25 +7,27 @@ filtering (`cached_chunks vs missing_chunks`), batch vectorization, and domain e
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 import uuid
+
 import pytest
 
 from backend.core.events.dispatcher import EventDispatcher
 from backend.core.events.types import EventType
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.embedding.events.payloads import (
-    EVENT_EMBEDDING_COMPLETED,
     EVENT_EMBEDDING_FAILED,
-    EVENT_EMBEDDING_PROGRESS,
     EVENT_EMBEDDING_STARTED,
     EmbeddingDomainEvent,
 )
-from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.embedding.models.embedding_job import EmbeddingJob
 from backend.modules.embedding.providers.base import EmbeddingBatchResult
 from backend.modules.embedding.providers.factory import register_provider
 from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
+from backend.modules.embedding.schemas.errors import (
+    InvalidInputError,
+    ProviderTimeoutError,
+    TokenQuotaExceededError,
+)
 from backend.modules.embedding.services.embedding_service import EmbeddingService
-from backend.modules.embedding.schemas.errors import InvalidInputError, ProviderTimeoutError, TokenQuotaExceededError
 
 
 class MockOfflineProvider(LocalEmbeddingProvider):

@@ -5,8 +5,8 @@ Supports JSON, UUIDs, Datetimes (UTC), and Pydantic models.
 Pickle is strictly prohibited for security and cross-language compatibility.
 """
 
-import json
 from datetime import UTC, datetime
+import json
 from typing import Any
 from uuid import UUID
 
@@ -29,7 +29,7 @@ class CacheJSONEncoder(json.JSONEncoder):
             return str(obj)
         if hasattr(obj, "to_dict"):
             return obj.to_dict()
-        
+
         return super().default(obj)
 
 
@@ -46,8 +46,8 @@ class CacheSerializer:
         Returns:
             JSON string representation.
         """
-        # If it's already a string, int, or float, just return string rep to save space, 
-        # unless it needs to be strictly JSON. Let's serialize everything as JSON 
+        # If it's already a string, int, or float, just return string rep to save space,
+        # unless it needs to be strictly JSON. Let's serialize everything as JSON
         # to ensure deserialization type safety, except raw strings to avoid double quotes if preferred.
         # But to be safe and consistent with "Standardize serialization: JSON, UTF-8", use JSON for all.
         return json.dumps(value, cls=CacheJSONEncoder)
@@ -64,10 +64,10 @@ class CacheSerializer:
         """
         if value is None:
             return None
-            
+
         if isinstance(value, bytes):
             value = value.decode("utf-8")
-            
+
         try:
             return json.loads(value)
         except json.JSONDecodeError:

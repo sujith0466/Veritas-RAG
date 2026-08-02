@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 23.3 Implementation...")
-    
+
     # 1. advisor.py
     with open("backend/modules/intelligence/services/advisor.py", "w") as f:
         f.write("""class IndexAdvisor:

@@ -26,18 +26,20 @@ Usage:
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import structlog
 
+from backend.core.auth.middleware import JWTAuthenticationMiddleware
 from backend.core.config import get_settings
 from backend.core.events import get_dispatcher
 from backend.core.exceptions import get_exception_handlers
 from backend.core.logging import RequestLoggingMiddleware, configure_logging
-from backend.core.middleware import (CorrelationIDMiddleware,
-                                     ObservabilityMiddleware,
-                                     SecurityHeadersMiddleware)
-from backend.core.auth.middleware import JWTAuthenticationMiddleware
+from backend.core.middleware import (
+    CorrelationIDMiddleware,
+    ObservabilityMiddleware,
+    SecurityHeadersMiddleware,
+)
 from backend.observability.tracing import init_tracer
 
 logger = structlog.get_logger(__name__)
@@ -106,8 +108,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # NOTE: EventDispatcher is initialized and handlers can be registered here.
     from backend.modules.retrieval.events.handlers import register_retrieval_event_handlers
+    from backend.services.workspace.handlers import register_workspace_event_handlers
+
     register_retrieval_event_handlers()
-    
+    register_workspace_event_handlers()
+
     logger.info("RAGuard AI startup complete ✓")
 
     yield  # Application is running

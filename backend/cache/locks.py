@@ -4,23 +4,23 @@ Provides safe mutexes for background task synchronization across workers.
 """
 
 import asyncio
-import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+import uuid
 
 from backend.cache.client import get_redis_client
-from backend.core.exceptions.infrastructure import InfrastructureError
+from backend.core.exceptions.infrastructure import InfrastructureException
 
 
-class LockAcquisitionError(InfrastructureError):
+class LockAcquisitionError(InfrastructureException):
     """Raised when a distributed lock cannot be acquired."""
     pass
 
 
 @asynccontextmanager
 async def acquire_lock(
-    lock_name: str, 
-    timeout: int = 60, 
+    lock_name: str,
+    timeout: int = 60,
     acquire_timeout: int = 5,
     retry_delay: float = 0.5
 ) -> AsyncGenerator[str, None]:

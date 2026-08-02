@@ -5,9 +5,11 @@ Tests `POST /api/v1/reliability/search`, `GET /api/v1/reliability/circuit-breake
 """
 
 from unittest.mock import AsyncMock, MagicMock
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
+
 from backend.main import create_app
 from backend.modules.reliability.api.dependencies import (
     get_reliability_gateway,

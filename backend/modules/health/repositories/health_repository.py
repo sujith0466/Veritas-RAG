@@ -1,9 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.modules.health.models.health_log import (HealthLogORM,
-                                                      QuarantineLogORM)
-from backend.modules.health.schemas.health_dto import (HealthReportDTO,
-                                                       QuarantineRequestDTO)
+from backend.modules.health.models.health_log import HealthLogORM, QuarantineLogORM
+from backend.modules.health.schemas.health_dto import HealthReportDTO, QuarantineRequestDTO
 
 
 class HealthRepository:

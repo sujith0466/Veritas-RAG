@@ -5,8 +5,7 @@ Integration hook for advanced document layout and OCR via Docling.
 
 from typing import BinaryIO
 
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode)
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 from .base import OCREngine, OCRResult
 

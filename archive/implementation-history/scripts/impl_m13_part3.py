@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 13.3 Implementation...")
-    
+
     # 1. scoring_engine.py
     engine_path = "backend/modules/scoring/services/scoring_engine.py"
     if not os.path.exists(engine_path):

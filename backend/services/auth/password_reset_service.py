@@ -8,18 +8,19 @@ import datetime
 import hashlib
 import secrets
 import uuid
-import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
 
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
+
+from backend.cache.client import get_redis_client
 from backend.core.exceptions.auth import AuthenticationException
 from backend.core.security.password import get_password_hash
+from backend.models.entities.password_otp import PasswordRecoveryOTP
 from backend.models.entities.user import User
 from backend.models.entities.user_session import UserSession
-from backend.models.entities.password_otp import PasswordRecoveryOTP
 from backend.repositories.implementations.user_repository import UserRepository
 from backend.services.email.provider import get_email_provider
-from backend.cache.client import get_redis_client
 
 logger = structlog.get_logger(__name__)
 
@@ -35,7 +36,7 @@ class PasswordResetService:
         """Internal shared method to update password and revoke sessions."""
         user.hashed_password = get_password_hash(new_password)
         user.password_changed_at = datetime.datetime.now(datetime.UTC)
-        
+
         # Invalidate sessions (F2.5 Requirement)
         stmt_revoke = (
             update(UserSession)
@@ -43,19 +44,19 @@ class PasswordResetService:
             .values(is_revoked=True, refresh_token_hash=None)
         )
         await self.session.execute(stmt_revoke)
-        
+
         await self.session.commit()
-        
+
         logger.info("Password reset completed", user_id=str(user.id))
 
     async def generate_and_send_reset_token(self, email: str) -> None:
         """Generates a secure token and dispatches the reset email."""
         email_normalized = email.lower().strip()
         user = await self.user_repo.get_by_email(email_normalized)
-        
+
         # Always log that a request was made
         logger.info("Password reset requested", email_provided=True)
-        
+
         if not user or not user.is_active:
             # We don't log the email if they don't exist to prevent leak, just a generic log
             logger.info("Invalid reset attempt", reason="user_not_found_or_inactive")
@@ -64,12 +65,12 @@ class PasswordResetService:
         # Generate secure raw token
         raw_token = secrets.token_urlsafe(64)
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-        
+
         user.password_reset_token_hash = token_hash
         user.password_reset_token_expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=1)
-        
+
         await self.session.commit()
-        
+
         # Send the email
         email_provider = get_email_provider()
         await email_provider.send_password_reset_email(email_normalized, raw_token)
@@ -77,14 +78,14 @@ class PasswordResetService:
     async def reset_password(self, raw_token: str, new_password: str) -> None:
         """Validates token and updates the user's password."""
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-        
+
         stmt = select(User).where(
             User.password_reset_token_hash == token_hash,
             User.is_deleted.is_(False)
         )
         result = await self.session.execute(stmt)
         user = result.scalar_one_or_none()
-        
+
         if not user or not user.password_reset_token_hash:
             logger.warning("Invalid reset attempt", reason="token_not_found")
             raise AuthenticationException("Invalid or expired reset token")
@@ -93,11 +94,11 @@ class PasswordResetService:
         if not secrets.compare_digest(token_hash, user.password_reset_token_hash):
             logger.warning("Invalid reset attempt", reason="hash_mismatch")
             raise AuthenticationException("Invalid or expired reset token")
-            
+
         if not user.password_reset_token_expires_at:
             logger.warning("Invalid reset attempt", reason="token_missing_expiry")
             raise AuthenticationException("Invalid or expired reset token")
-            
+
         if datetime.datetime.now(datetime.UTC) > user.password_reset_token_expires_at.replace(tzinfo=datetime.UTC):
             logger.warning("Invalid reset attempt", reason="token_expired")
             raise AuthenticationException("Invalid or expired reset token")
@@ -105,7 +106,7 @@ class PasswordResetService:
         # Clear token fields
         user.password_reset_token_hash = None
         user.password_reset_token_expires_at = None
-        
+
         await self._execute_password_reset(user, new_password)
 
     # ─── F2.9 OTP Flow ─────────────────────────────────────────────────────────────
@@ -114,9 +115,9 @@ class PasswordResetService:
         """Generates an OTP and dispatches it via email, subject to rate limits."""
         email_normalized = email.lower().strip()
         user = await self.user_repo.get_by_email(email_normalized)
-        
+
         logger.info("OTP password reset requested", email_provided=True)
-        
+
         if not user or not user.is_active:
             logger.info("Invalid OTP request attempt", reason="user_not_found_or_inactive")
             return
@@ -130,7 +131,7 @@ class PasswordResetService:
                 logger.warning("OTP requested too frequently", user_id=user_id_str)
                 # Fail silently to user, returning generic response at the API level
                 return
-            
+
             # Rate limit check (3 per 15 mins)
             rate_limit_key = f"otp_requests:{user_id_str}"
             request_count = await self.redis.get(rate_limit_key)
@@ -140,12 +141,12 @@ class PasswordResetService:
 
             # Apply limits
             await self.redis.setex(cooldown_key, 60, "1")
-            
+
             # Since strict limits require pipelining, and our redis client may or may not support pipeline cleanly:
             await self.redis.incr(rate_limit_key)
             if not request_count:
                 await self.redis.expire(rate_limit_key, 900) # 15 minutes
-            
+
         # Invalidate existing active OTPs for this user
         stmt_invalidate = (
             update(PasswordRecoveryOTP)
@@ -161,7 +162,7 @@ class PasswordResetService:
         # Generate 6-digit numeric OTP
         raw_otp = "".join(secrets.choice("0123456789") for _ in range(6))
         otp_hash = hashlib.sha256(raw_otp.encode("utf-8")).hexdigest()
-        
+
         otp_entry = PasswordRecoveryOTP(
             user_id=user.id,
             otp_hash=otp_hash,
@@ -169,12 +170,12 @@ class PasswordResetService:
         )
         self.session.add(otp_entry)
         await self.session.commit()
-        
+
         email_provider = get_email_provider()
         if hasattr(email_provider, "send_otp_email"):
             await email_provider.send_otp_email(email_normalized, raw_otp)
         else:
-            logger.info("OTP Email sent (mocked)", email=email_normalized) 
+            logger.info("OTP Email sent (mocked)", email=email_normalized)
             logger.info(f"Your RAGuard verification code is: {raw_otp}")
 
     async def _get_active_otp(self, user_id: uuid.UUID) -> PasswordRecoveryOTP | None:
@@ -190,15 +191,15 @@ class PasswordResetService:
         """Verifies the OTP hash and records attempt."""
         email_normalized = email.lower().strip()
         user = await self.user_repo.get_by_email(email_normalized)
-        
+
         if not user or not user.is_active:
             raise AuthenticationException("Invalid or expired OTP")
 
         otp_entry = await self._get_active_otp(user.id)
-        
+
         if not otp_entry:
             raise AuthenticationException("Invalid or expired OTP")
-            
+
         if datetime.datetime.now(datetime.UTC) > otp_entry.expires_at.replace(tzinfo=datetime.UTC):
             otp_entry.is_invalidated = True
             await self.session.commit()
@@ -206,7 +207,7 @@ class PasswordResetService:
             raise AuthenticationException("Invalid or expired OTP")
 
         otp_entry.attempts += 1
-        
+
         if otp_entry.attempts > 5:
             otp_entry.is_invalidated = True
             await self.session.commit()
@@ -214,7 +215,7 @@ class PasswordResetService:
             raise AuthenticationException("Invalid or expired OTP")
 
         incoming_hash = hashlib.sha256(raw_otp.encode("utf-8")).hexdigest()
-        
+
         if not secrets.compare_digest(incoming_hash, otp_entry.otp_hash):
             await self.session.commit()
             logger.warning("Invalid OTP attempt", user_id=str(user.id))
@@ -222,14 +223,14 @@ class PasswordResetService:
 
         otp_entry.verified_at = datetime.datetime.now(datetime.UTC)
         await self.session.commit()
-        
+
         logger.info("OTP verified successfully", user_id=str(user.id))
-        
+
     async def reset_password_with_otp(self, email: str, raw_otp: str, new_password: str) -> None:
         """Final validation of OTP and updates the password."""
         email_normalized = email.lower().strip()
         user = await self.user_repo.get_by_email(email_normalized)
-        
+
         if not user or not user.is_active:
             raise AuthenticationException("Invalid or expired OTP")
 
@@ -255,7 +256,7 @@ class PasswordResetService:
         # Success - update password
         otp_entry.is_used = True
         otp_entry.verified_at = datetime.datetime.now(datetime.UTC) # just in case verify endpoint was skipped
-        
+
         await self._execute_password_reset(user, new_password)
         logger.info("OTP password reset completed", user_id=str(user.id))
 

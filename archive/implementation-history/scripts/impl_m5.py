@@ -1,6 +1,5 @@
 import os
-import glob
-import re
+
 
 def write_file(path, content):
     os.makedirs(os.path.dirname(path), exist_ok=True)

@@ -48,14 +48,14 @@ class TestChunkingStrategies:
         )
         chunks = splitter.split_text(text, max_characters=500, overlap_characters=50)
         assert len(chunks) == 3
-        
+
         # Check breadcrumbs
         assert chunks[0].section_path == ["# Chapter 1"]
         assert "Introduction text here." in chunks[0].content
-        
+
         assert chunks[1].section_path == ["# Chapter 1", "## Section 1.1"]
         assert "Details about section 1.1." in chunks[1].content
-        
+
         assert chunks[2].section_path == ["# Chapter 1", "## Section 1.1", "### Subsection 1.1.1"]
         assert "Deep details inside subsection 1.1.1." in chunks[2].content
 

@@ -4,12 +4,11 @@ Provides administrative lifecycle management, emergency killswitches,
 workspace override rules, and real-time flag evaluation.
 """
 
-from typing import Any
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.feature_flag import (
     FeatureFlagBulkEvaluationResponse,
@@ -28,7 +27,6 @@ from backend.api.v1.schemas.feature_flag import (
     FeatureFlagWorkspaceRuleResponse,
 )
 from backend.core.auth.context import UserContext
-from backend.core.permissions.rbac import Role
 from backend.core.dependencies.auth import get_current_user, require_role
 from backend.core.dependencies.database import (
     get_db,
@@ -37,6 +35,7 @@ from backend.core.dependencies.database import (
     get_feature_flag_repository,
     get_workspace_member_repository,
 )
+from backend.core.permissions.rbac import Role
 from backend.repositories.feature_flag import FeatureFlagRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
 from backend.services.feature_flag.evaluation_service import (
@@ -47,7 +46,6 @@ from backend.services.feature_flag.management_service import (
     FeatureFlagManagementService,
 )
 from backend.services.workspace.management_service import (
-    WorkspaceNotFoundError,
     WorkspaceUnauthorizedError,
 )
 

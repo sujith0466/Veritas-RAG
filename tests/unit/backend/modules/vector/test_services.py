@@ -7,6 +7,7 @@ domain event publishing (`VectorsIndexed`), and Celery worker retry behavior (`A
 
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +18,6 @@ from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 from backend.modules.vector.providers import BaseVectorDBProvider
 from backend.modules.vector.schemas.errors import (
     QdrantConnectionError,
-    VectorErrorCode,
 )
 from backend.modules.vector.services.vector_service import VectorStorageService
 

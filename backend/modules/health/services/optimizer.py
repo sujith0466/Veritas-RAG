@@ -1,7 +1,9 @@
-from backend.modules.health.schemas.health_dto import (DocumentIssueDTO,
-                                                       IssueType,
-                                                       QuarantineAction,
-                                                       QuarantineRequestDTO)
+from backend.modules.health.schemas.health_dto import (
+    DocumentIssueDTO,
+    IssueType,
+    QuarantineAction,
+    QuarantineRequestDTO,
+)
 
 
 class KnowledgeOptimizer:

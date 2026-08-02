@@ -9,7 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 14.3 Implementation...")
-    
+
     # 1. tasks/health_tasks.py
     with open("backend/modules/health/tasks/__init__.py", "w") as f:
         f.write('"""Health tasks."""\n')

@@ -1,7 +1,5 @@
 import re
 
-from typing import Any
-
 from backend.modules.generation.schemas.generation_dto import CitationDTO
 from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 
@@ -79,7 +77,7 @@ class CitationExtractor:
             citations.append(
                 CitationDTO(
                     citation_index=idx,
-                    chunk_id=str((chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", ""))),
+                    chunk_id=str(chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", "")),
                     document_id=str(chunk.document_id if hasattr(chunk, "document_id") else chunk.get("document_id", "")),
                     source_name=source_name,
                     document_name=document_name,

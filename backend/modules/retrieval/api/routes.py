@@ -12,15 +12,20 @@ from structlog import get_logger
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.modules.retrieval.api.dependencies import (
-    get_retrieval_orchestrator, get_retrieval_repository, resolve_tenant)
-from backend.modules.retrieval.repositories.retrieval_repository import \
-    RetrievalRepository
+    get_retrieval_orchestrator,
+    get_retrieval_repository,
+    resolve_tenant,
+)
+from backend.modules.retrieval.repositories.retrieval_repository import RetrievalRepository
 from backend.modules.retrieval.schemas.errors import RetrievalErrorCode
 from backend.modules.retrieval.schemas.retrieval_dto import (
-    RetrievalMetricsDTO, RetrievalQueryLogDTO, RetrievalResultDTO,
-    SearchRequestDTO, SearchSandboxResponseDTO)
-from backend.modules.retrieval.services.retrieval_service import \
-    RetrievalOrchestrator
+    RetrievalMetricsDTO,
+    RetrievalQueryLogDTO,
+    RetrievalResultDTO,
+    SearchRequestDTO,
+    SearchSandboxResponseDTO,
+)
+from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/retrieval", tags=["Hybrid Retrieval Engine"])
@@ -178,7 +183,9 @@ async def get_history(
 # ── Admin Routes ──────────────────────────────────────────────────────────────
 
 from typing import Any
+
 from backend.modules.retrieval.api.dependencies import get_sparse_index_manager
+
 
 @router.post(
     "/bm25/reindex",

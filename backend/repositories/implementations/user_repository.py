@@ -43,3 +43,21 @@ class UserRepository(BaseRepository[User], IUserRepository):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_username(self, username: str) -> User | None:
+        """Fetch an active user by their username."""
+        stmt = select(User).where(
+            User.username == username,
+            User.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def exists_by_username(self, username: str) -> bool:
+        """Check if an active user exists with the given username."""
+        stmt = select(User.id).where(
+            User.username == username,
+            User.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.first() is not None

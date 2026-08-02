@@ -1,16 +1,20 @@
-from fastapi import APIRouter, Depends, Request, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
 from backend.core.dependencies.database import get_db
 from backend.modules.dashboard.schemas.dashboard_dto import (
-    AuditExportBundleDTO, AuditExportRequestDTO, ExecutiveDashboardDTO,
-    HallucinationTrendDTO, SLAComplianceReportDTO, KnowledgeIntelligenceSummaryDTO)
+    AuditExportBundleDTO,
+    AuditExportRequestDTO,
+    ExecutiveDashboardDTO,
+    HallucinationTrendDTO,
+    KnowledgeIntelligenceSummaryDTO,
+    SLAComplianceReportDTO,
+)
 from backend.modules.dashboard.services.audit_export import AuditExportService
-from backend.modules.dashboard.services.dashboard_service import \
-    DashboardService
-from sqlalchemy.ext.asyncio import AsyncSession
+from backend.modules.dashboard.services.dashboard_service import DashboardService
 
 # NOTE: This router is mounted at /dashboard by the v1 router.
 # The internal /v1 prefix was removed to align with the frontend client.

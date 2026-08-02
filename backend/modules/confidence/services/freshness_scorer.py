@@ -2,10 +2,8 @@ from datetime import UTC, datetime
 
 from dateutil import parser
 
-from backend.modules.confidence.schemas.confidence_dto import \
-    FreshnessReportDTO
-from backend.modules.reliability.schemas.reliability_dto import \
-    ReliableCandidateDTO
+from backend.modules.confidence.schemas.confidence_dto import FreshnessReportDTO
+from backend.modules.reliability.schemas.reliability_dto import ReliableCandidateDTO
 
 
 class FreshnessScorer:

@@ -4,12 +4,11 @@ Resolves and returns the configured concrete `BaseVectorDBProvider` instance,
 defaulting to self-hosted Qdrant (`QdrantVectorDBProvider`).
 """
 
-import structlog
 from qdrant_client import AsyncQdrantClient
+import structlog
 
 from backend.modules.vector.providers.base import BaseVectorDBProvider
-from backend.modules.vector.providers.qdrant_provider import \
-    QdrantVectorDBProvider
+from backend.modules.vector.providers.qdrant_provider import QdrantVectorDBProvider
 
 logger = structlog.get_logger(__name__)
 

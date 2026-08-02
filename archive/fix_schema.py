@@ -1,6 +1,8 @@
 import asyncio
-import asyncpg
 import os
+
+import asyncpg
+
 
 async def fix():
     url = os.environ['ALEMBIC_DATABASE_URL']

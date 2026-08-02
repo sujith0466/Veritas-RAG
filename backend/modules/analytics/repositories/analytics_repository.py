@@ -4,20 +4,24 @@ Provides asynchronous database operations for logging query analytics records
 and computing aggregations across query outcomes, confidence, latency, and reliability.
 """
 
-import math
 from collections.abc import Sequence
 from datetime import UTC, datetime
+import math
 from uuid import UUID
 
-import structlog
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
-from backend.modules.analytics.models.query_analytics import \
-    QueryAnalyticsRecord
+from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
 from backend.modules.analytics.schemas.analytics_dto import (
-    ConfidenceAnalyticsDTO, LatencyAnalyticsDTO, QueryTrendsDTO,
-    ReliabilityHistoryDTO, SearchAnalyticsDTO, SuccessRateDTO)
+    ConfidenceAnalyticsDTO,
+    LatencyAnalyticsDTO,
+    QueryTrendsDTO,
+    ReliabilityHistoryDTO,
+    SearchAnalyticsDTO,
+    SuccessRateDTO,
+)
 from backend.modules.retrieval.models.retrieval_log import RetrievalQueryLog
 from backend.repositories.base import BaseRepository
 

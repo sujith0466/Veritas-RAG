@@ -4,9 +4,9 @@ Sweeps and purges unreferenced chunks and vector points lacking valid parent doc
 preventing phantom retrieval results and storage bloat (`ADR-M6-001`).
 """
 
-import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.document.models.document import Document
 from backend.modules.chunking.models.chunk import DocumentChunk

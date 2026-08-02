@@ -2,7 +2,9 @@
 
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+
 import pytest
+
 from backend.modules.knowledge_health.audits.integrity import IntegrityAuditor
 from backend.modules.knowledge_health.audits.stale_scanner import StaleEmbeddingScanner
 from backend.modules.vector.schemas.payload import CollectionSummaryDTO

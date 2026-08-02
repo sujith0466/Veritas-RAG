@@ -11,8 +11,12 @@ from fastapi import Depends
 
 from backend.cache.client import get_cache as _get_cache
 from backend.database.engine import get_async_session
-from backend.repositories import (AuditLogRepository, IAuditLogRepository,
-                                  IUserRepository, UserRepository)
+from backend.repositories import (
+    AuditLogRepository,
+    IAuditLogRepository,
+    IUserRepository,
+    UserRepository,
+)
 from backend.vector_db.client import get_vector_db as _get_vector_db
 
 if TYPE_CHECKING:
@@ -58,12 +62,13 @@ async def get_audit_log_repository(
 # Workspace Dependencies
 
 from backend.repositories.workspace import WorkspaceRepository
+from backend.repositories.workspace_member import WorkspaceMemberRepository
 from backend.repositories.workspace_settings import WorkspaceSettingsRepository
 from backend.repositories.workspace_settings_history import WorkspaceSettingsHistoryRepository
-from backend.repositories.workspace_member import WorkspaceMemberRepository
-from backend.services.workspace.provisioning_service import WorkspaceProvisioningService
 from backend.services.workspace.management_service import WorkspaceManagementService
+from backend.services.workspace.provisioning_service import WorkspaceProvisioningService
 from backend.services.workspace.settings_service import WorkspaceSettingsService
+
 
 async def get_workspace_repository(session: AsyncSession = Depends(get_db)) -> WorkspaceRepository:
     return WorkspaceRepository(session)
@@ -90,6 +95,47 @@ async def get_workspace_management_service(
 ) -> WorkspaceManagementService:
     return WorkspaceManagementService(workspace_repo, workspace_member_repo)
 
+from backend.services.workspace.membership_service import WorkspaceMembershipService
+
+
+async def get_workspace_membership_service(
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+) -> WorkspaceMembershipService:
+    return WorkspaceMembershipService(member_repo=member_repo, workspace_repo=workspace_repo)
+
+from backend.repositories.workspace_invitation import WorkspaceInvitationRepository
+from backend.services.email.provider import get_email_provider
+from backend.services.workspace.invitation_expiration_worker import (
+    WorkspaceInvitationExpirationWorker,
+)
+from backend.services.workspace.invitation_service import WorkspaceInvitationService
+
+
+async def get_workspace_invitation_repository(session: AsyncSession = Depends(get_db)) -> WorkspaceInvitationRepository:
+    return WorkspaceInvitationRepository(session)
+
+async def get_workspace_invitation_service(
+    invitation_repo: WorkspaceInvitationRepository = Depends(get_workspace_invitation_repository),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    settings_repo: WorkspaceSettingsRepository = Depends(get_workspace_settings_repository),
+) -> WorkspaceInvitationService:
+    email_provider = get_email_provider()
+    return WorkspaceInvitationService(
+        invitation_repo=invitation_repo,
+        member_repo=member_repo,
+        workspace_repo=workspace_repo,
+        settings_repo=settings_repo,
+        email_provider=email_provider,
+    )
+
+async def get_workspace_invitation_expiration_worker(
+    invitation_service: WorkspaceInvitationService = Depends(get_workspace_invitation_service),
+) -> WorkspaceInvitationExpirationWorker:
+    return WorkspaceInvitationExpirationWorker(invitation_service)
+
+
 async def get_workspace_settings_service(
     settings_repo: WorkspaceSettingsRepository = Depends(get_workspace_settings_repository),
     history_repo: WorkspaceSettingsHistoryRepository = Depends(get_workspace_settings_history_repository),
@@ -97,6 +143,8 @@ async def get_workspace_settings_service(
     member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
 ) -> WorkspaceSettingsService:
     return WorkspaceSettingsService(settings_repo, history_repo, workspace_repo, member_repo)
+
+
 
 
 # Feature Flag Dependencies
@@ -108,6 +156,7 @@ from backend.repositories.feature_flag import (
 )
 from backend.services.feature_flag.evaluation_service import FeatureFlagEvaluationService
 from backend.services.feature_flag.management_service import FeatureFlagManagementService
+
 
 async def get_feature_flag_repository(session: AsyncSession = Depends(get_db)) -> FeatureFlagRepository:
     return FeatureFlagRepository(session)

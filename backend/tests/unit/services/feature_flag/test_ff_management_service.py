@@ -1,17 +1,14 @@
 """Unit tests for Feature Flag Management Service."""
 
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+
 import pytest
 
 from backend.models.entities.feature_flag import (
     FeatureFlag,
     FlagCategory,
-    FlagLifecycleState,
-    FlagType,
 )
-from backend.models.entities.feature_flag_workspace_rule import FeatureFlagWorkspaceRule
 from backend.services.feature_flag.management_service import (
     FeatureFlagManagementService,
 )

@@ -5,9 +5,9 @@ and the real RAG pipeline for the RAGuard v1.0 certification.
 """
 
 import os
-import uuid
-import pytest
+
 import httpx
+import pytest
 
 API_URL = "http://127.0.0.1:8000"
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -56,8 +56,8 @@ async def create_user_if_not_exists(client: httpx.AsyncClient, email: str, role:
             "user_metadata": {"role": role, "tenant_id": tenant_id}
         }
         await client.post(
-            f"{SUPABASE_URL}/auth/v1/admin/users", 
-            headers=headers, 
+            f"{SUPABASE_URL}/auth/v1/admin/users",
+            headers=headers,
             json=create_payload
         )
 
@@ -66,7 +66,7 @@ async def create_user_if_not_exists(client: httpx.AsyncClient, email: str, role:
 async def tokens(supa_client: httpx.AsyncClient):
     # Ensure a second tenant exists for tenant isolation tests
     await create_user_if_not_exists(supa_client, "demo2@gmail.com", "viewer", "demo-tenant-2")
-    
+
     return {
         "admin": await get_token(supa_client, "demoadmin@gmail.com"),
         "user": await get_token(supa_client, "demo@gmail.com"),
@@ -103,28 +103,28 @@ async def test_tenant_isolation(async_client: httpx.AsyncClient, tokens: dict):
 @pytest.mark.anyio
 async def test_chat_lifecycle(async_client: httpx.AsyncClient, tokens: dict):
     headers = {"Authorization": f"Bearer {tokens['user']}"}
-    
+
     # 1. Create conversation
     resp = await async_client.post("/api/v1/chat/sessions", headers=headers, json={"title": "Test Chat"})
     assert resp.status_code in (200, 201)
     session_id = resp.json()["data"]["id"]
-    
+
     # 2. Rename conversation
     resp = await async_client.put(f"/api/v1/chat/sessions/{session_id}", headers=headers, json={"title": "Renamed Chat"})
     assert resp.status_code == 200
     assert resp.json()["data"]["title"] == "Renamed Chat"
-    
+
     # 3. Pin conversation
     resp = await async_client.put(f"/api/v1/chat/sessions/{session_id}", headers=headers, json={"pinned": True})
     assert resp.status_code == 200
     assert resp.json()["data"]["pinned"] is True
-    
+
     # 4. Persistence after refresh (List conversations)
     resp = await async_client.get("/api/v1/chat/sessions", headers=headers)
     assert resp.status_code == 200
     sessions = resp.json()["data"]
     assert any(s["id"] == session_id for s in sessions), "Chat session should persist"
-    
+
     # 5. Delete conversation
     resp = await async_client.delete(f"/api/v1/chat/sessions/{session_id}", headers=headers)
     assert resp.status_code == 204
@@ -133,15 +133,15 @@ async def test_chat_lifecycle(async_client: httpx.AsyncClient, tokens: dict):
 @pytest.mark.anyio
 async def test_rag_pipeline_retrieval(async_client: httpx.AsyncClient, tokens: dict):
     headers = {"Authorization": f"Bearer {tokens['admin']}"}
-    
+
     # Use real RAG pipeline (this depends on the seeded documents from demo_bootstrap.py)
     # The HR policy document contains: "Full-time employees accrue 15 days of PTO per year."
-    
+
     # 1. Create a session
     resp = await async_client.post("/api/v1/chat/sessions", headers=headers, json={"title": "PTO Question"})
     assert resp.status_code in (200, 201)
     session_id = resp.json()["data"]["id"]
-    
+
     # 2. Send message
     resp = await async_client.post(
         f"/api/v1/chat/sessions/{session_id}/stream",
@@ -150,9 +150,9 @@ async def test_rag_pipeline_retrieval(async_client: httpx.AsyncClient, tokens: d
     )
     assert resp.status_code == 200
     text_data = resp.text
-    
+
     # 3. Verify Grounded Generation and Citations
     assert "15 days" in text_data.lower(), "AI should use grounded knowledge (15 days of PTO)"
-    
+
     # Verify citations were returned
     assert "citations" in text_data.lower(), "AI should potentially return citations"

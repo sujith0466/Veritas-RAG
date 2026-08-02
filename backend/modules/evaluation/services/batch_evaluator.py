@@ -1,5 +1,4 @@
-from backend.modules.evaluation.services.metric_calculator import \
-    MetricCalculator
+from backend.modules.evaluation.services.metric_calculator import MetricCalculator
 
 
 class BatchEvaluator:

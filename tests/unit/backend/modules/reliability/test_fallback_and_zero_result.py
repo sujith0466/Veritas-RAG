@@ -4,9 +4,11 @@ Tests sparse BM25 failover mapping, stopword stripping during zero-result recove
 and uninitialized sparse index exception handling (`REL_004`, `REL_005`).
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 import uuid
+
 import pytest
+
 from backend.modules.reliability.fallbacks.router import FallbackRouter
 from backend.modules.reliability.fallbacks.zero_result import ZeroResultRecoverer
 from backend.modules.reliability.schemas.errors import (

@@ -4,32 +4,35 @@ Master service coordinating two-phase purges, orphan vector sweeps, 1:1 count pa
 and model rotation drift detection across all storage tiers (`ADR-005`, `ADR-M6-001`).
 """
 
-import time
 from datetime import UTC, datetime
+import time
 from uuid import UUID
 
-import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
 from backend.core.events.types import EventType
 from backend.modules.knowledge_health.audits.integrity import IntegrityAuditor
-from backend.modules.knowledge_health.audits.stale_scanner import \
-    StaleEmbeddingScanner
-from backend.modules.knowledge_health.cleanups.orphans import \
-    OrphanCleanupEngine
+from backend.modules.knowledge_health.audits.stale_scanner import StaleEmbeddingScanner
+from backend.modules.knowledge_health.cleanups.orphans import OrphanCleanupEngine
 from backend.modules.knowledge_health.cleanups.purge import PurgeOrchestrator
 from backend.modules.knowledge_health.events.payloads import (
-    KnowledgeHealthDomainEvent, KnowledgeHealthScanCompletedPayload,
-    KnowledgeHealthScanStartedPayload)
+    KnowledgeHealthDomainEvent,
+    KnowledgeHealthScanCompletedPayload,
+    KnowledgeHealthScanStartedPayload,
+)
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
-from backend.modules.knowledge_health.repositories.health_repository import \
-    HealthRepository
-from backend.modules.knowledge_health.schemas.errors import \
-    InvalidScanTypeError
+from backend.modules.knowledge_health.repositories.health_repository import HealthRepository
+from backend.modules.knowledge_health.schemas.errors import InvalidScanTypeError
 from backend.modules.knowledge_health.schemas.health_dto import (
-    HealthScanJobDTO, MigrationJobDTO, ParityAuditDTO, PurgeSummaryDTO,
-    ScanStatus, ScanType)
+    HealthScanJobDTO,
+    MigrationJobDTO,
+    ParityAuditDTO,
+    PurgeSummaryDTO,
+    ScanStatus,
+    ScanType,
+)
 from backend.modules.vector.services.vector_service import VectorStorageService
 
 logger = structlog.get_logger(__name__)

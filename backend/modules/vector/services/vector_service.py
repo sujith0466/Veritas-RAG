@@ -1,4 +1,3 @@
-from backend.document.models.status import DocumentStatus
 """Vector Storage Foundation Service (`VectorStorageService`).
 
 Orchestrates multi-tenant collection creation, exact payload index setup (`ADR-M3-001`),
@@ -6,12 +5,12 @@ batch point upserts into Qdrant (`ADR-004`), synchronization state tracking insi
 PostgreSQL (`VectorIndexMetadata`), and domain event distribution (`VectorsIndexed`).
 """
 
-import uuid
 from typing import Any
+import uuid
 
-import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.config import get_settings
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
@@ -19,16 +18,19 @@ from backend.core.events.types import EventType
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.vector.events.payloads import (
-    VectorDomainEvent, create_vector_index_failed_payload,
-    create_vector_indexed_payload)
+    VectorDomainEvent,
+    create_vector_index_failed_payload,
+    create_vector_indexed_payload,
+)
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 from backend.modules.vector.providers.base import BaseVectorDBProvider
 from backend.modules.vector.providers.factory import VectorProviderFactory
-from backend.modules.vector.repositories.vector_repository import \
-    VectorMetadataRepository
-from backend.modules.vector.schemas.payload import (CollectionConfigDTO,
-                                                    CollectionSummaryDTO,
-                                                    VectorPointDTO)
+from backend.modules.vector.repositories.vector_repository import VectorMetadataRepository
+from backend.modules.vector.schemas.payload import (
+    CollectionConfigDTO,
+    CollectionSummaryDTO,
+    VectorPointDTO,
+)
 
 logger = structlog.get_logger(__name__)
 

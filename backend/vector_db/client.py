@@ -5,23 +5,24 @@ helpers, and health monitoring.
 """
 
 from collections.abc import AsyncGenerator
+import time
 from typing import Any
 
-import structlog
+import httpx
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
-import httpx
+import structlog
 
 from backend.core.config import get_settings
 from backend.core.utils.retry import with_retry
 from backend.vector_db.metrics import QdrantMetrics
-import time
 
 logger = structlog.get_logger(__name__)
 
 
 import asyncio
 import weakref
+
 
 class _VectorDbState:
     clients: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
@@ -39,9 +40,8 @@ def get_qdrant_client() -> AsyncQdrantClient:
     if loop is not None:
         if loop in _state.clients:
             return _state.clients[loop]
-    else:
-        if _state.fallback_client is not None:
-            return _state.fallback_client
+    elif _state.fallback_client is not None:
+        return _state.fallback_client
 
     settings = get_settings().qdrant
     client_kwargs: dict[str, Any] = {
@@ -53,7 +53,7 @@ def get_qdrant_client() -> AsyncQdrantClient:
     else:
         client_kwargs["host"] = settings.host
         client_kwargs["port"] = settings.port
-        
+
     if settings.api_key:
         client_kwargs["api_key"] = settings.api_key
 
@@ -61,12 +61,12 @@ def get_qdrant_client() -> AsyncQdrantClient:
         "Initializing AsyncQdrantClient", host=settings.host, port=settings.port, loop_id=id(loop) if loop else 0
     )
     client = AsyncQdrantClient(**client_kwargs)
-    
+
     if loop is not None:
         _state.clients[loop] = client
     else:
         _state.fallback_client = client
-        
+
     return client
 
 
@@ -85,7 +85,7 @@ async def check_vector_db_health() -> dict[str, Any]:
     error = None
     collection_count = 0
     grpc_enabled = False
-    
+
     try:
         # Wrap the ping with the generic retry utility for transient network errors
         @with_retry(
@@ -97,22 +97,22 @@ async def check_vector_db_health() -> dict[str, Any]:
             client = get_qdrant_client()
             res = await client.get_collections()
             return client, res
-            
+
         client, res = await _ping()
         collection_count = len(res.collections) if res and res.collections else 0
-        
+
         # Check if the underlying client is preferring grpc
         grpc_enabled = client._prefer_grpc if hasattr(client, "_prefer_grpc") else False
-            
+
     except Exception as exc:
         logger.warning("Qdrant vector database health check failed", error=str(exc))
         QdrantMetrics.record_error()
         status = "unhealthy"
         error = str(exc)
-        
+
     latency_ms = (time.perf_counter() - start) * 1000
     stats = QdrantMetrics.get_stats()
-    
+
     return {
         "status": status,
         "latency_ms": round(latency_ms, 2),
@@ -130,7 +130,7 @@ async def close_vector_db() -> None:
         logger.info("Closing AsyncQdrantClient", loop_id=id(loop))
         await client.close()
     _state.clients.clear()
-    
+
     if _state.fallback_client:
         await _state.fallback_client.close()
         _state.fallback_client = None

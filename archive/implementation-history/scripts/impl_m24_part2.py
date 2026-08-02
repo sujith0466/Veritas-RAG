@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 24.2 Implementation...")
-    
+
     # 1. bundle.py
     with open("backend/modules/marketplace/services/bundle.py", "w") as f:
         f.write("""import hashlib

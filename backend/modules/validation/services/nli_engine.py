@@ -1,7 +1,6 @@
 from backend.modules.generation.schemas.generation_dto import CitationDTO
 from backend.modules.validation.providers.base import NLIValidationProvider
-from backend.modules.validation.schemas.validation_dto import \
-    ClaimValidationItemDTO
+from backend.modules.validation.schemas.validation_dto import ClaimValidationItemDTO
 
 
 class NLIValidationEngine:

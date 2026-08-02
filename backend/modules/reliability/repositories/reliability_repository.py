@@ -4,16 +4,15 @@ Provides asynchronous database operations for logging SLA compliance metrics,
 circuit breaker state transitions, and aggregating tenant reliability summaries.
 """
 
-import math
 from collections.abc import Sequence
+import math
 from uuid import UUID
 
-import structlog
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
-from backend.modules.reliability.models.circuit_event import \
-    CircuitBreakerEventLog
+from backend.modules.reliability.models.circuit_event import CircuitBreakerEventLog
 from backend.modules.reliability.models.sla_log import RetrievalSLALog
 from backend.modules.reliability.schemas.reliability_dto import SLASummaryDTO
 from backend.repositories.base import BaseRepository

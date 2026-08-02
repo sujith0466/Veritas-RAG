@@ -1,7 +1,6 @@
 from backend.modules.alerts.models.alert_rule import AlertRuleORM
 from backend.modules.alerts.schemas.alert_dto import AlertPayloadDTO
-from backend.modules.alerts.services.deduplication import \
-    AlertDeduplicationEngine
+from backend.modules.alerts.services.deduplication import AlertDeduplicationEngine
 from backend.modules.alerts.services.dispatcher import AlertDispatcher
 
 

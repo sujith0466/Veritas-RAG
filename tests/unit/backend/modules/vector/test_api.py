@@ -6,12 +6,17 @@ Verifies route handler response formatting, status codes (`202 Accepted` for syn
 
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
 
 from backend.main import create_app
-from backend.modules.vector.api.dependencies import get_vector_repository, get_vector_service, resolve_tenant
+from backend.modules.vector.api.dependencies import (
+    get_vector_repository,
+    get_vector_service,
+    resolve_tenant,
+)
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 
 

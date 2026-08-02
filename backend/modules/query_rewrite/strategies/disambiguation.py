@@ -1,7 +1,6 @@
 import re
 
-from backend.modules.query_rewrite.schemas.rewrite_dto import \
-    ClarificationQuestionDTO
+from backend.modules.query_rewrite.schemas.rewrite_dto import ClarificationQuestionDTO
 
 
 class DisambiguationRewriter:

@@ -1,4 +1,3 @@
-import os
 
 retrieval_service = '''"""Hybrid Retrieval Orchestrator (`RetrievalOrchestrator`).
 

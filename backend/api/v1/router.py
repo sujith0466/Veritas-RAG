@@ -21,13 +21,23 @@ api_v1_router.include_router(auth_router)
 
 # ── User Profile & Settings (`/users`) ──────────────────────────────────────────
 from .routes.users import router as users_router
+
 api_v1_router.include_router(users_router)
 
 # ── Workspace Management (`/workspaces`) ───────────────────────────────────────
 api_v1_router.include_router(workspaces_router)
 
+from .routes.domains import router as domains_router
+
+api_v1_router.include_router(domains_router)
+
+from .routes.sso import router as sso_router
+
+api_v1_router.include_router(sso_router)
+
 # ── Storage (`/storage`) ──────────────────────────────────────────
 from .routes.storage import router as storage_router
+
 api_v1_router.include_router(storage_router)
 
 # ── Document Intelligence Foundation (`/documents`) ────────────────────────────
@@ -59,8 +69,7 @@ from backend.modules.reliability.api import reliability_router
 api_v1_router.include_router(reliability_router)
 
 # ── Knowledge Health & Lifecycle Management (`/knowledge-health`) ──────────────
-from backend.modules.knowledge_health.api import \
-    router as knowledge_health_router
+from backend.modules.knowledge_health.api import router as knowledge_health_router
 
 api_v1_router.include_router(knowledge_health_router, prefix="/knowledge-health")
 
@@ -82,6 +91,8 @@ api_v1_router.include_router(chat_router)
 # ── Feature Flags (`/feature-flags` & `/workspaces/{id}/feature-flags`) ────────
 from .routes.feature_flags import (
     router as feature_flags_router,
+)
+from .routes.feature_flags import (
     workspace_ff_router as workspace_feature_flags_router,
 )
 

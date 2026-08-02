@@ -11,22 +11,14 @@ from typing import Any
 
 from structlog import get_logger
 
-from backend.database.engine import get_session_factory
-from backend.modules.embedding.providers.openai_provider import \
-    OpenAIEmbeddingProvider
-from backend.modules.retrieval.providers.reranker.local_reranker import \
-    LocalCrossEncoderProvider
-from backend.modules.retrieval.providers.sparse.bm25_provider import \
-    BM25SparseSearchProvider
-from backend.modules.retrieval.repositories.retrieval_repository import \
-    RetrievalRepository
-from backend.modules.retrieval.schemas.errors import (ErrorSeverity,
-                                                      RetrievalDomainException)
+from backend.modules.embedding.providers.openai_provider import OpenAIEmbeddingProvider
+from backend.modules.retrieval.providers.reranker.local_reranker import LocalCrossEncoderProvider
+from backend.modules.retrieval.providers.sparse.bm25_provider import BM25SparseSearchProvider
+from backend.modules.retrieval.repositories.retrieval_repository import RetrievalRepository
+from backend.modules.retrieval.schemas.errors import ErrorSeverity, RetrievalDomainException
 from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
-from backend.modules.retrieval.services.retrieval_service import \
-    RetrievalOrchestrator
-from backend.modules.vector.providers.qdrant_provider import \
-    QdrantVectorDBProvider
+from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
+from backend.modules.vector.providers.qdrant_provider import QdrantVectorDBProvider
 from backend.tasks.celery_app import celery_app
 
 logger = get_logger(__name__)
@@ -88,19 +80,20 @@ async def _async_execute_batch_search(
     top_k: int,
     webhook_url: str | None,
 ) -> dict[str, Any]:
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
     from backend.core.config import get_settings
-    
+
     settings = get_settings().database
     engine = create_async_engine(settings.url, pool_pre_ping=True)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
-    
+
     try:
         async with session_factory() as session:
             repository = RetrievalRepository(session)
             # Default embedding provider (OpenAI or Local fallback)
             embedding_provider = OpenAIEmbeddingProvider()
-            
+
             from backend.modules.retrieval.services.bm25_manager import SparseIndexManager
             index_manager = SparseIndexManager(sparse_provider=_bm25_provider)
 

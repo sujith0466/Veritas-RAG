@@ -10,11 +10,15 @@ import httpx
 import structlog
 
 from backend.core.config import get_settings
-from backend.modules.embedding.providers.base import (BaseEmbeddingProvider,
-                                                      EmbeddingBatchResult)
+from backend.modules.embedding.providers.base import BaseEmbeddingProvider, EmbeddingBatchResult
 from backend.modules.embedding.schemas.errors import (
-    EmbeddingDomainException, EmbeddingErrorCode, InvalidInputError,
-    ProviderAuthenticationError, ProviderTimeoutError, RateLimitExceededError)
+    EmbeddingDomainException,
+    EmbeddingErrorCode,
+    InvalidInputError,
+    ProviderAuthenticationError,
+    ProviderTimeoutError,
+    RateLimitExceededError,
+)
 
 logger = structlog.get_logger(__name__)
 

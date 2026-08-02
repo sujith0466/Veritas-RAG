@@ -1,14 +1,12 @@
 """Unit tests for F3.7 Workspace Branding (CSS Variables & Validation)."""
 
-from datetime import datetime, timezone
-import uuid
-import pytest
 from pydantic import ValidationError
+import pytest
 
 from backend.api.v1.schemas.workspace_settings import (
     BrandingSettings,
-    calculate_relative_luminance,
     calculate_contrast_ratio,
+    calculate_relative_luminance,
 )
 from backend.services.workspace.settings_service import (
     compile_branding_css_variables,

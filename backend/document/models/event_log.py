@@ -3,8 +3,8 @@
 Immutable ledger of domain events emitted across the document processing lifecycle.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID

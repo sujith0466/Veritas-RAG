@@ -1,7 +1,6 @@
 import asyncio
 
-from backend.modules.dashboard.schemas.dashboard_dto import \
-    LiveDashboardEventDTO
+from backend.modules.dashboard.schemas.dashboard_dto import LiveDashboardEventDTO
 
 
 class LiveEventBroadcaster:

@@ -5,8 +5,8 @@ Enforces strict payload structure requirements (`tenant_id`, `document_id`,
 and instantaneous indexed payload filtering inside Qdrant.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

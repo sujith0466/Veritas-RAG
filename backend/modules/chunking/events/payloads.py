@@ -3,9 +3,9 @@
 Enforces versioned domain event payloads across chunk creation, failure, and deletion (`schema_version: "1.0.0"`).
 """
 
-import uuid
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 

@@ -6,14 +6,14 @@ the configured provider priority list (`LLM_PROVIDER_PRIORITY`) until a request 
 """
 
 import asyncio
-import time
 from collections.abc import AsyncIterator
+from datetime import UTC
+import time
 from typing import Any
 
 import structlog
 
-from backend.ai.interfaces.llm_provider import (LLMProvider, LLMRequest,
-                                                LLMResponse)
+from backend.ai.interfaces.llm_provider import LLMProvider, LLMRequest, LLMResponse
 from backend.ai.registry import ProviderRegistry
 from backend.core.config import get_settings
 from backend.core.exceptions import LLMProviderException
@@ -109,9 +109,9 @@ class LLMProviderManager(LLMProvider):
                     logger.debug("Attempting LLM generate", provider=provider_name, attempt=attempt)
                     response = await provider.generate(request)
                     latency = (time.monotonic() - start_time) * 1000
-                    
+
                     self._record_metrics(provider_name, success=True, latency=latency)
-                    
+
                     logger.info(
                         "LLM Provider Generate Success",
                         provider=provider_name,
@@ -121,11 +121,14 @@ class LLMProviderManager(LLMProvider):
                         fallback_triggered=bool(errors),
                         final_provider=provider_name,
                     )
-                    
-                    from backend.modules.generation.services.llm_audit_service import LLMAuditService
-                    from datetime import datetime, timezone
-                    end_time = datetime.now(timezone.utc)
-                    start_time_dt = datetime.fromtimestamp(start_time, tz=timezone.utc)
+
+                    from datetime import datetime
+
+                    from backend.modules.generation.services.llm_audit_service import (
+                        LLMAuditService,
+                    )
+                    end_time = datetime.now(UTC)
+                    start_time_dt = datetime.fromtimestamp(start_time, tz=UTC)
                     asyncio.create_task(LLMAuditService.log_telemetry(
                         correlation_id=None,
                         provider=provider_name,
@@ -145,14 +148,14 @@ class LLMProviderManager(LLMProvider):
                         error_message=None,
                         metadata_payload={"attempt": attempt, **(response.metadata or {})}
                     ))
-                    
+
                     return response
                 except Exception as exc:
                     latency = (time.monotonic() - start_time) * 1000
                     self._record_metrics(provider_name, success=False, latency=latency, exc=exc)
-                    
+
                     status_code = exc.status_code if hasattr(exc, "status_code") else None
-                    
+
                     logger.warning(
                         "LLM Provider Generate Failure",
                         provider=provider_name,
@@ -161,7 +164,7 @@ class LLMProviderManager(LLMProvider):
                         failure_reason=str(exc),
                         status_code=status_code,
                     )
-                    
+
                     if attempt < max_retries and self._is_retryable(exc):
                         delay = initial_delay * (2 ** attempt)
                         logger.info("Retrying transient LLM error", provider=provider_name, delay=delay, attempt=attempt+1)
@@ -169,10 +172,13 @@ class LLMProviderManager(LLMProvider):
                     else:
                         errors.append({"provider": provider_name, "error": str(exc), "status_code": status_code})
                         # Log failure telemetry
-                        from backend.modules.generation.services.llm_audit_service import LLMAuditService
-                        from datetime import datetime, timezone
-                        end_time = datetime.now(timezone.utc)
-                        start_time_dt = datetime.fromtimestamp(start_time, tz=timezone.utc)
+                        from datetime import datetime
+
+                        from backend.modules.generation.services.llm_audit_service import (
+                            LLMAuditService,
+                        )
+                        end_time = datetime.now(UTC)
+                        start_time_dt = datetime.fromtimestamp(start_time, tz=UTC)
                         asyncio.create_task(LLMAuditService.log_telemetry(
                             correlation_id=None,
                             provider=provider_name,
@@ -233,14 +239,14 @@ class LLMProviderManager(LLMProvider):
                 start_time = time.monotonic()
                 try:
                     logger.debug("Attempting LLM stream", provider=provider_name, attempt=attempt)
-                    
+
                     async for chunk in provider.stream(request):
                         chunks_yielded += 1
                         yield chunk
-                    
+
                     latency = (time.monotonic() - start_time) * 1000
                     self._record_metrics(provider_name, success=True, latency=latency)
-                    
+
                     logger.info(
                         "LLM Provider Stream Success",
                         provider=provider_name,
@@ -253,7 +259,7 @@ class LLMProviderManager(LLMProvider):
                 except Exception as exc:
                     latency = (time.monotonic() - start_time) * 1000
                     status_code = exc.status_code if hasattr(exc, "status_code") else None
-                    
+
                     if chunks_yielded > 0:
                         self._record_metrics(provider_name, success=False, latency=latency, exc=exc)
                         logger.error(
@@ -322,7 +328,7 @@ class LLMProviderManager(LLMProvider):
             try:
                 provider = ProviderRegistry.get_provider(provider_name)
                 is_healthy = await provider.health_check()
-                
+
                 metrics = _health_metrics.get(provider_name, {})
                 success_rate = 0.0
                 avg_response_time = 0.0
@@ -330,7 +336,7 @@ class LLMProviderManager(LLMProvider):
                 if total > 0:
                     success_rate = metrics.get("successful_requests", 0) / float(total)
                     avg_response_time = metrics.get("total_latency_ms", 0.0) / float(total)
-                
+
                 results[provider_name] = {
                     "is_healthy": is_healthy,
                     "total_requests": total,

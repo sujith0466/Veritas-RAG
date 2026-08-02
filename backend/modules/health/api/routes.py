@@ -3,8 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database.engine import get_db_session
-from backend.modules.health.repositories.health_repository import \
-    HealthRepository
+from backend.modules.health.repositories.health_repository import HealthRepository
 from backend.modules.health.schemas.health_dto import HealthReportDTO
 from backend.modules.health.tasks.health_tasks import HealthAnalysisTask
 

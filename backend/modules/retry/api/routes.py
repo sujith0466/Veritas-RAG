@@ -2,8 +2,7 @@
 
 from fastapi import APIRouter
 
-from backend.modules.retry.schemas.retry_dto import (RetryDecisionDTO,
-                                                     RetryRequestContextDTO)
+from backend.modules.retry.schemas.retry_dto import RetryDecisionDTO, RetryRequestContextDTO
 from backend.modules.retry.services.retry_controller import RetryController
 
 router = APIRouter()

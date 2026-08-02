@@ -1,4 +1,5 @@
 from backend.document.models.status import DocumentStatus
+
 """Two-Phase Transactional Purge Orchestrator (`ADR-M6-001`, `PurgeOrchestrator`).
 
 Ensures safe, atomic cleanup across PostgreSQL (`documents`, `document_chunks`) and
@@ -8,9 +9,9 @@ Qdrant vector stores (`ADR-004`), preventing orphan vector pollution when deleti
 import time
 from uuid import UUID
 
-import structlog
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
 from backend.core.events.types import EventType
@@ -18,9 +19,10 @@ from backend.document.models.document import Document, DocumentVersion
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.knowledge_health.events.payloads import (
-    KnowledgeHealthDomainEvent, OrphanChunksPurgedPayload)
-from backend.modules.knowledge_health.schemas.errors import \
-    PurgeSynchronizationError
+    KnowledgeHealthDomainEvent,
+    OrphanChunksPurgedPayload,
+)
+from backend.modules.knowledge_health.schemas.errors import PurgeSynchronizationError
 from backend.modules.knowledge_health.schemas.health_dto import PurgeSummaryDTO
 from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
 from backend.modules.vector.services.vector_service import VectorStorageService

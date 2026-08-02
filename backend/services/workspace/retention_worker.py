@@ -7,13 +7,14 @@ all resources across PostgreSQL, Qdrant, S3, and Redis.
 Routes failed cleanups to a Dead Letter Queue (DLQ) after exceeding MAX_RETRIES.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import json
 import time
 import uuid
-import structlog
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.models.entities.workspace import Workspace, WorkspaceStatus
 from backend.observability.metrics.prometheus import (
@@ -35,7 +36,7 @@ class WorkspaceRetentionWorker:
     async def run_retention_cleanup(self, session: AsyncSession, limit: int = 50) -> dict[str, int]:
         """Execute a single retention cleanup pass for expired workspaces."""
         start_time = time.time()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # 1. Query expired workspaces
         stmt = (
@@ -70,7 +71,7 @@ class WorkspaceRetentionWorker:
                 failed_count += 1
                 record_workspace_cleanup_failure(stage="retention_worker")
                 logger.error("Failed to purge expired workspace", workspace_id=str(ws.id), error=str(exc))
-                
+
                 # Push to Dead Letter Queue (DLQ)
                 await self._push_to_dlq(ws.id, ws.slug, str(exc))
 
@@ -89,7 +90,7 @@ class WorkspaceRetentionWorker:
             "workspace_id": str(workspace_id),
             "slug": slug,
             "error": error_message,
-            "failed_at": datetime.now(timezone.utc).isoformat(),
+            "failed_at": datetime.now(UTC).isoformat(),
             "max_retries_exceeded": True,
         }
         try:

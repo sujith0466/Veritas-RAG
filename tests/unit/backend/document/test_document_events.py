@@ -3,12 +3,10 @@
 import uuid
 
 from backend.document.events.domain_events import (
-    DomainEventPayload,
-    create_domain_event,
-    EVENT_DOCUMENT_UPLOADED,
-    EVENT_DOCUMENT_VALIDATED,
-    EVENT_DOCUMENT_PROCESSED,
     EVENT_DOCUMENT_FAILED,
+    EVENT_DOCUMENT_PROCESSED,
+    EVENT_DOCUMENT_UPLOADED,
+    create_domain_event,
 )
 
 

@@ -4,10 +4,10 @@ Enforces versioned domain event payloads across Qdrant point batch indexing succ
 and failures (`VectorIndexFailed`), bridging cleanly with `BaseEvent` and `EventDispatcher`.
 """
 
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 

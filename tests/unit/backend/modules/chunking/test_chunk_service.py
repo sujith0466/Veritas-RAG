@@ -2,10 +2,10 @@
 
 from unittest.mock import AsyncMock, MagicMock
 import uuid
+
 import pytest
 
 from backend.document.models import Document, DocumentVersion
-from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.chunking.schemas.errors import ChunkNotFoundException
 from backend.modules.chunking.services.chunk_service import ChunkingService
 

@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
-from backend.modules.analytics.schemas.analytics_dto import (ROIAttributionDTO,
-                                                             TrendForecastDTO)
+from backend.modules.analytics.schemas.analytics_dto import ROIAttributionDTO, TrendForecastDTO
 
 router = APIRouter(prefix="/analytics/v1/roi", tags=["ROI"])
 

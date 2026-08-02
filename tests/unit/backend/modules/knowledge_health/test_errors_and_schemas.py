@@ -1,11 +1,10 @@
 """Unit tests for Knowledge Health error hierarchy and DTO schemas (`ADR-005`)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
-import pytest
+
 from backend.modules.knowledge_health.schemas.errors import (
     InvalidScanTypeError,
-    KnowledgeHealthDomainException,
     ModelRotationConflictError,
     ParityMismatchError,
     PurgeSynchronizationError,
@@ -14,8 +13,6 @@ from backend.modules.knowledge_health.schemas.errors import (
 from backend.modules.knowledge_health.schemas.health_dto import (
     HealthScanJobDTO,
     HealthScanRequestDTO,
-    MigrationJobDTO,
-    ModelRotationRequestDTO,
     ParityAuditDTO,
     PurgeSummaryDTO,
     ScanStatus,
@@ -66,8 +63,8 @@ def test_health_dto_serialization() -> None:
         stale_chunks_found=0,
         parity_status="SYNCED (10 == 10)",
         duration_ms=12.5,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     assert job.status == ScanStatus.COMPLETED
     assert job.orphans_purged == 5
@@ -78,7 +75,7 @@ def test_health_dto_serialization() -> None:
         qdrant_point_count=100,
         is_synced=True,
         parity_status="SYNCED",
-        checked_at=datetime.now(timezone.utc),
+        checked_at=datetime.now(UTC),
     )
     assert parity.is_synced
 

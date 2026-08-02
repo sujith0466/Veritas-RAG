@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 
 def main():
     print("Starting Milestone 23.2 Implementation...")
-    
+
     # 1. feedback.py
     with open("backend/modules/intelligence/services/feedback.py", "w") as f:
         f.write("""from backend.modules.intelligence.schemas.intelligence_dto import FeedbackEventDTO

@@ -6,24 +6,24 @@ paginated job history (`GET /jobs`), tenant metrics inspection (`GET /metrics`),
 
 import uuid
 
-import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.database import get_db
-from backend.modules.embedding.api.dependencies import (get_embedding_service,
-                                                        resolve_tenant)
-from backend.modules.embedding.providers.factory import \
-    EmbeddingProviderFactory
+from backend.modules.embedding.api.dependencies import get_embedding_service, resolve_tenant
+from backend.modules.embedding.providers.factory import EmbeddingProviderFactory
 from backend.modules.embedding.schemas.embedding_dto import (
-    EmbeddingJobDTO, EmbeddingMetricsDTO, EmbeddingProcessRequestDTO,
-    PaginatedJobResponse, ProviderInfoDTO)
+    EmbeddingJobDTO,
+    EmbeddingMetricsDTO,
+    EmbeddingProcessRequestDTO,
+    PaginatedJobResponse,
+    ProviderInfoDTO,
+)
 from backend.modules.embedding.schemas.errors import EmbeddingDomainException
-from backend.modules.embedding.services.embedding_service import \
-    EmbeddingService
-from backend.modules.embedding.workers.tasks import \
-    process_embedding_batch_task
+from backend.modules.embedding.services.embedding_service import EmbeddingService
+from backend.modules.embedding.workers.tasks import process_embedding_batch_task
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/embeddings", tags=["Embedding Pipeline"])

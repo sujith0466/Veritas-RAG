@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class DocumentStatus(str, Enum):
     """Canonical document lifecycle statuses."""
     UPLOADED = "UPLOADED"

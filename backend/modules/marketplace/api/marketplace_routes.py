@@ -1,7 +1,10 @@
 from fastapi import APIRouter
 
 from backend.modules.marketplace.schemas.marketplace_dto import (
-    AppBundleDTO, BundleInstallRequestDTO, BundleInstallStatusDTO)
+    AppBundleDTO,
+    BundleInstallRequestDTO,
+    BundleInstallStatusDTO,
+)
 
 router = APIRouter(prefix="/marketplace/v1", tags=["Marketplace"])
 

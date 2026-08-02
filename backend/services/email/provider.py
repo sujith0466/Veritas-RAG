@@ -20,6 +20,20 @@ class EmailProvider(ABC):
         """Send a password reset email with the given token."""
         pass
 
+    @abstractmethod
+    async def send_invitation_email(
+        self,
+        to_email: EmailStr,
+        raw_token: str,
+        workspace_name: str,
+        role: str,
+        inviter_name: str | None = None,
+        custom_message: str | None = None,
+        expires_at: str | None = None,
+    ) -> bool:
+        """Send a workspace invitation email with versioned acceptance link."""
+        pass
+
 class SMTPEmailProvider(EmailProvider):
     """SMTP-based email provider (mock implementation for architecture readiness)."""
 
@@ -32,6 +46,24 @@ class SMTPEmailProvider(EmailProvider):
     async def send_password_reset_email(self, to_email: EmailStr, raw_token: str) -> bool:
         """Sends password reset email via SMTP."""
         logger.info(f"MOCK EMAIL DISPATCH: Sent password reset token to {to_email}. Token: {raw_token}")
+        return True
+
+    async def send_invitation_email(
+        self,
+        to_email: EmailStr,
+        raw_token: str,
+        workspace_name: str,
+        role: str,
+        inviter_name: str | None = None,
+        custom_message: str | None = None,
+        expires_at: str | None = None,
+    ) -> bool:
+        """Sends workspace invitation email via SMTP."""
+        acceptance_link = f"/api/v1/invitations/accept?token={raw_token}"
+        logger.info(
+            f"MOCK EMAIL DISPATCH: Sent workspace invitation to {to_email} for workspace '{workspace_name}' "
+            f"as role '{role}'. Link: {acceptance_link}"
+        )
         return True
 
 def get_email_provider() -> EmailProvider:

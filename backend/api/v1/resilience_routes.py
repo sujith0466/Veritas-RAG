@@ -1,9 +1,11 @@
 from fastapi import APIRouter
 
-from backend.core.chaos.schemas.chaos_dto import (FailoverCommandDTO,
-                                                  FailoverStatusDTO,
-                                                  FaultPolicyCreateDTO,
-                                                  FaultPolicyDTO)
+from backend.core.chaos.schemas.chaos_dto import (
+    FailoverCommandDTO,
+    FailoverStatusDTO,
+    FaultPolicyCreateDTO,
+    FaultPolicyDTO,
+)
 
 router = APIRouter(prefix="/resilience/v1", tags=["Resilience"])
 

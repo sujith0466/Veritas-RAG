@@ -1,4 +1,5 @@
 from backend.document.models.status import DocumentStatus
+
 """Celery Ingestion Worker (`process_document_job`).
 
 Runs asynchronous document ingestion tasks on the dedicated `ingestion` queue.
@@ -7,32 +8,38 @@ enforcing strict retry policy based on error severity (`RECOVERABLE` vs `FATAL`)
 """
 
 import asyncio
-import time
-import uuid
 from datetime import UTC, datetime
+import time
 from typing import Any
+import uuid
 
 import structlog
 
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from backend.core.config import get_settings
-from backend.document.events import (EVENT_DOCUMENT_FAILED,
-                                     EVENT_DOCUMENT_PROCESSED,
-                                     EVENT_DOCUMENT_VALIDATED,
-                                     EVENT_METADATA_EXTRACTED,
-                                     EVENT_OCR_COMPLETED, EVENT_TEXT_EXTRACTED,
-                                     create_domain_event)
+from backend.document.events import (
+    EVENT_DOCUMENT_FAILED,
+    EVENT_DOCUMENT_PROCESSED,
+    EVENT_DOCUMENT_VALIDATED,
+    EVENT_METADATA_EXTRACTED,
+    EVENT_OCR_COMPLETED,
+    EVENT_TEXT_EXTRACTED,
+    create_domain_event,
+)
 from backend.document.extractors import create_default_registry, normalize_text
 from backend.document.models import DocumentEventLog
 from backend.document.ocr import OCRPipeline
-from backend.document.repositories import (DocumentEventRepository,
-                                           DocumentRepository, JobRepository)
+from backend.document.repositories import DocumentEventRepository, DocumentRepository, JobRepository
 from backend.document.schemas import DocumentManifestDTO, StageMetricDTO
-from backend.document.schemas.errors import (DocumentDomainException,
-                                             DocumentErrorCode, ErrorSeverity,
-                                             get_error_severity)
-from backend.document.storage import (DocumentProcessingContract,
-                                      LocalStorageProvider, get_versioned_path)
+from backend.document.schemas.errors import (
+    DocumentDomainException,
+    DocumentErrorCode,
+    ErrorSeverity,
+    get_error_severity,
+)
+from backend.document.storage import (
+    DocumentProcessingContract,
+    LocalStorageProvider,
+    get_versioned_path,
+)
 from backend.tasks.celery_app import celery_app
 
 logger = structlog.get_logger(__name__)
@@ -89,11 +96,12 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             if not doc:
                 # Fallback without tenant check if tenant_id is unknown to worker initially
                 from sqlalchemy import select
+
                 from backend.document.models import Document
-                
+
                 tenant_id_stmt = select(Document.tenant_id).where(Document.id == job.document_id)
                 actual_tenant_id = await session.scalar(tenant_id_stmt)
-                
+
                 if not actual_tenant_id:
                     raise DocumentDomainException(
                         code=DocumentErrorCode.SYS_001,
@@ -349,7 +357,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
                 session,
             )
             await session.commit()
-            
+
             # Publish event in process to trigger next pipeline stage
             from backend.core.events.dispatcher import get_dispatcher
             dispatcher = get_dispatcher()
