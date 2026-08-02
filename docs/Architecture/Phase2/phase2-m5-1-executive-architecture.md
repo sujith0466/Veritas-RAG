@@ -1,10 +1,10 @@
 # RAGuard AI — Phase 2 Milestone 5: Retrieval Reliability Framework
 ## Document 1: Executive Architecture
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 5 (`Retrieval Reliability Framework`)  
-**Status**: Architectural Blueprint (Strict Planning Only — No Code)  
-**Author**: Principal Site Reliability Engineer & AI Infrastructure Lead  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 5 (`Retrieval Reliability Framework`)
+**Status**: Architectural Blueprint (Strict Planning Only — No Code)
+**Author**: Principal Site Reliability Engineer & AI Infrastructure Lead
 
 ---
 

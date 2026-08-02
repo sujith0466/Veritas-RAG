@@ -11,18 +11,18 @@ interface AnimatedCounterProps {
   decimals?: number
 }
 
-export function AnimatedCounter({ 
-  value, 
-  suffix = '', 
-  prefix = '', 
-  duration = 2, 
+export function AnimatedCounter({
+  value,
+  suffix = '',
+  prefix = '',
+  duration = 2,
   className,
   decimals = 0
 }: AnimatedCounterProps) {
   const ref = useRef<HTMLSpanElement>(null)
   const isInView = useInView(ref, { once: true, margin: "-50px" })
   const [displayValue, setDisplayValue] = useState("0")
-  
+
   const spring = useSpring(0, {
     duration: duration * 1000,
     bounce: 0,
@@ -43,8 +43,8 @@ export function AnimatedCounter({
   }, [spring, decimals])
 
   return (
-    <span 
-      ref={ref} 
+    <span
+      ref={ref}
       className={cn("tabular-nums tracking-tight font-bold", className)}
       aria-label={`${prefix}${value}${suffix}`}
     >

@@ -6,8 +6,7 @@ counters, histograms, and gauges in standard Prometheus text format (`CONTENT_TY
 
 from fastapi import APIRouter, Response
 
-from backend.observability.metrics import (get_metrics_content_type,
-                                           get_metrics_output)
+from backend.observability.metrics import get_metrics_content_type, get_metrics_output
 
 router = APIRouter(tags=["Monitoring & Metrics"])
 

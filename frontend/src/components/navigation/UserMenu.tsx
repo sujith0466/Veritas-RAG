@@ -37,31 +37,31 @@ export function UserMenu() {
             <p className="text-xs leading-none text-muted-foreground truncate">{user?.email}</p>
           </div>
           <DropdownMenu.Separator className="-mx-1 my-1 h-px bg-border-subtle" />
-          
+
           <DropdownMenu.Item className="flex cursor-default select-none items-center rounded-sm text-sm outline-none hover:bg-muted focus:bg-muted" asChild>
             <Link to="/dashboard" className="flex items-center px-2 py-1.5 w-full">
               <LayoutDashboard className="mr-2 h-4 w-4" />
               <span>Dashboard</span>
             </Link>
           </DropdownMenu.Item>
-          
+
           <DropdownMenu.Item className="flex cursor-default select-none items-center rounded-sm text-sm outline-none hover:bg-muted focus:bg-muted" asChild>
             <Link to="/settings/profile" className="flex items-center px-2 py-1.5 w-full">
               <UserIcon className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </Link>
           </DropdownMenu.Item>
-          
+
           <DropdownMenu.Item className="flex cursor-default select-none items-center rounded-sm text-sm outline-none hover:bg-muted focus:bg-muted" asChild>
             <Link to="/settings" className="flex items-center px-2 py-1.5 w-full">
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </Link>
           </DropdownMenu.Item>
-          
+
           <DropdownMenu.Separator className="-mx-1 my-1 h-px bg-border-subtle" />
-          
-          <DropdownMenu.Item 
+
+          <DropdownMenu.Item
             onClick={handleLogout}
             className="flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-danger/10 hover:text-danger focus:bg-danger/10 focus:text-danger text-danger"
           >

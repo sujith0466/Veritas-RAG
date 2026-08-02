@@ -8,7 +8,7 @@ The Knowledge Health & Automated Cleanup Engine (Phase 14) has been successfully
 ### Milestone 14.1: Schemas, Models, and Migrations
 - **DTOs**: Created `HealthReportDTO`, `DocumentIssueDTO`, `QuarantineRequestDTO`, `IssueType`, and `QuarantineAction` (`schemas/health_dto.py`).
 - **Exceptions**: Extended `errors.py` with `HealthDomainException`.
-- **Database**: 
+- **Database**:
   - Created `HealthLogORM` and `QuarantineLogORM` (`models/health_log.py`).
   - Created `HealthRepository` (`repositories/health_repository.py`) to store health reports and quarantine actions.
   - Created Alembic migration `0015_knowledge_health.py`.

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Shield, 
-  Database, 
-  FileText, 
-  Layers, 
-  Cpu, 
-  CheckCircle2, 
-  ChevronRight, 
+import {
+  Shield,
+  Database,
+  FileText,
+  Layers,
+  Cpu,
+  CheckCircle2,
+  ChevronRight,
   ChevronLeft,
   UploadCloud,
   Loader2,
@@ -85,7 +85,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           (kiSummary.vector_cluster_status || '').toLowerCase() === 'healthy'
         ) {
           clearInterval(interval)
-          
+
           try {
             const updatedSettings = { ...user?.workspace_settings, onboarding_completed: true }
             await userService.updateWorkspace({ workspace_settings: updatedSettings })
@@ -147,7 +147,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             return
           }
         }
-        
+
         try {
           const updatedSettings = { ...user?.workspace_settings, onboarding_completed: true }
           await userService.updateWorkspace({ workspace_settings: updatedSettings })
@@ -336,7 +336,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
           </Button>
           <Button onClick={handleNext} disabled={(currentStep === 2 && !file) || isLoading}>
             {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-            {currentStep === steps.length - 1 ? 'Start Processing' : 'Continue'} 
+            {currentStep === steps.length - 1 ? 'Start Processing' : 'Continue'}
             {!isLoading && currentStep !== steps.length - 1 && <ChevronRight className="h-4 w-4 ml-2" />}
           </Button>
         </div>

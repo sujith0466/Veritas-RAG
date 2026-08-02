@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 2: Embedding Pipeline
 ## Document 2: Technical Design
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)  
-**Status**: Technical Blueprint (Strict Planning Only — No Code)  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)
+**Status**: Technical Blueprint (Strict Planning Only — No Code)
 
 ---
 
@@ -121,15 +121,15 @@ sequenceDiagram
     Worker->>Svc: process_embedding_batch(job_id, tenant_id)
     Svc->>Repo: get_job(job_id, tenant_id)
     Repo-->>Svc: EmbeddingJob(status=PROCESSING, provider=openai)
-    
+
     Svc->>ChunkRepo: fetch_chunks_by_ids(job.chunk_ids, tenant_id)
     ChunkRepo-->>Svc: List[DocumentChunk] (batch of 100)
-    
+
     Svc->>Repo: filter_existing_hashes(chunk_hashes, tenant_id)
     Repo-->>Svc: List[content_hash] (already embedded)
-    
+
     Note over Svc: Filter out chunks whose hash already exists (`Idempotency`)
-    
+
     alt All Chunks Already Embedded
         Svc->>Repo: update_job_status(job_id, COMPLETED)
         Svc->>EB: publish(ChunksEmbedded(chunk_count=100, cached=True))
@@ -137,7 +137,7 @@ sequenceDiagram
         Svc->>Factory: get_provider("openai", "text-embedding-3-large")
         Factory-->>Svc: OpenAIEmbeddingProvider
         Svc->>Provider: embed_documents([c.content for c in unindexed_chunks])
-        
+
         alt Provider RateLimit / HTTP 429
             Provider-->>Svc: raise EMB_003(RateLimitExceeded)
             Svc-->>Worker: raise Retry(countdown = 2**retries * 5)

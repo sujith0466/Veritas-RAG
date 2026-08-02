@@ -1,10 +1,10 @@
 """RAGuard AI — Security core package."""
 
 from .audit import log_auth_event
-from .jwt import JWTVerifier, get_jwt_verifier
+from .jwt import JWTService, get_jwt_service
 
 __all__ = [
-    "JWTVerifier",
-    "get_jwt_verifier",
+    "JWTService",
+    "get_jwt_service",
     "log_auth_event",
 ]

@@ -10,10 +10,10 @@ export function AppearanceSettings() {
   const setAuth = useAuthStore(s => s.setAuth)
   const token = useAuthStore(s => s.token)
   const { toast } = useToast()
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  
+
   const [preferences, setPreferences] = useState({
     theme: 'system',
     density: 'comfortable',
@@ -60,11 +60,11 @@ export function AppearanceSettings() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader 
-        title="Appearance" 
+      <SectionHeader
+        title="Appearance"
         description="Customize how the RAGuard AI workspace looks and feels on this device."
       />
-      
+
       <Card className="p-6 space-y-8">
         {/* Theme Selection */}
         <div className="space-y-4">
@@ -72,7 +72,7 @@ export function AppearanceSettings() {
             <h3 className="text-sm font-medium">Theme</h3>
             <p className="text-sm text-muted-foreground">Select or customize your UI theme.</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => setPreferences(p => ({ ...p, theme: 'light' }))}
@@ -97,7 +97,7 @@ export function AppearanceSettings() {
             </button>
           </div>
         </div>
-        
+
         {/* Animations */}
         <div className="flex items-center justify-between border-t border-border pt-6">
           <div className="space-y-0.5">
@@ -114,7 +114,7 @@ export function AppearanceSettings() {
           </button>
         </div>
       </Card>
-      
+
       <div className="flex justify-end">
         <Button onClick={handleSave} isLoading={saving}>Save Preferences</Button>
       </div>

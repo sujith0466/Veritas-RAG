@@ -10,7 +10,7 @@ export function WorkspaceSettings() {
   const user = useAuthStore(s => s.user)
   const setAuth = useAuthStore(s => s.setAuth)
   const token = useAuthStore(s => s.token)
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -58,7 +58,7 @@ export function WorkspaceSettings() {
           data_region: formData.data_region,
         }
       })
-      
+
       // Also update the profile data to keep workspace name in sync if needed
       await userService.updateProfile({
         profile_data: {
@@ -66,16 +66,16 @@ export function WorkspaceSettings() {
           workspace_name: formData.workspace_name
         }
       })
-      
+
       if (user && token) {
-        setAuth({ 
-          ...user, 
+        setAuth({
+          ...user,
           ...data,
-          workspace_name: formData.workspace_name, 
+          workspace_name: formData.workspace_name,
           profile_data: { ...user.profile_data, workspace_name: formData.workspace_name }
         }, token)
       }
-      
+
       toast({ title: 'Success', message: 'Workspace settings updated successfully', type: 'success' })
     } catch (error) {
       toast({ title: 'Error', message: 'Failed to update workspace settings', type: 'error' })
@@ -90,11 +90,11 @@ export function WorkspaceSettings() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader 
-        title="Workspace Configuration" 
-        description="Manage your enterprise workspace identity and data policies." 
+      <SectionHeader
+        title="Workspace Configuration"
+        description="Manage your enterprise workspace identity and data policies."
       />
-      
+
       <div className="grid gap-8">
         <Card className="p-6 space-y-6">
           <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
@@ -106,31 +106,31 @@ export function WorkspaceSettings() {
               <p className="text-sm text-muted-foreground">Basic workspace identity details.</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="workspace_name">Workspace Name</Label>
-              <Input 
-                id="workspace_name" 
-                name="workspace_name" 
-                value={formData.workspace_name} 
-                onChange={handleChange} 
-                placeholder="Acme Corp" 
+              <Input
+                id="workspace_name"
+                name="workspace_name"
+                value={formData.workspace_name}
+                onChange={handleChange}
+                placeholder="Acme Corp"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label>Tenant ID</Label>
-              <Input 
-                value={user?.tenant_id || 'Not Assigned'} 
-                readOnly 
-                className="bg-muted cursor-not-allowed font-mono text-xs" 
+              <Input
+                value={user?.tenant_id || 'Not Assigned'}
+                readOnly
+                className="bg-muted cursor-not-allowed font-mono text-xs"
               />
               <p className="text-xs text-muted-foreground mt-1">Unique isolation identifier.</p>
             </div>
           </div>
         </Card>
-        
+
         <Card className="p-6 space-y-6">
           <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -141,13 +141,13 @@ export function WorkspaceSettings() {
               <p className="text-sm text-muted-foreground">Compliance and retention configurations.</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <Label htmlFor="retention_policy">Log Retention Policy</Label>
-              <select 
-                id="retention_policy" 
-                name="retention_policy" 
+              <select
+                id="retention_policy"
+                name="retention_policy"
                 value={formData.retention_policy}
                 onChange={handleChange}
                 className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -159,12 +159,12 @@ export function WorkspaceSettings() {
                 <option value="indefinite">Indefinite (Requires Enterprise Plan)</option>
               </select>
             </div>
-            
+
             <div className="space-y-3">
               <Label htmlFor="data_region">Primary Data Region</Label>
-              <select 
-                id="data_region" 
-                name="data_region" 
+              <select
+                id="data_region"
+                name="data_region"
                 value={formData.data_region}
                 onChange={handleChange}
                 className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -177,7 +177,7 @@ export function WorkspaceSettings() {
             </div>
           </div>
         </Card>
-        
+
         <Card className="p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
             <div className="flex items-center gap-3">
@@ -191,13 +191,13 @@ export function WorkspaceSettings() {
             </div>
             <Button variant="outline">Manage Team</Button>
           </div>
-          
+
           <div className="bg-surface-elevated rounded-lg p-4 text-center border border-border">
             <p className="text-sm text-muted-foreground">Team management is currently handled through your SSO Provider.</p>
           </div>
         </Card>
       </div>
-      
+
       <div className="flex justify-end pt-4">
         <Button onClick={handleSave} isLoading={saving}>
           Save Workspace Settings

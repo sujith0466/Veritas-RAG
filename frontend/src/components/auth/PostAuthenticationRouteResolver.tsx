@@ -13,7 +13,7 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
   const [isResolved, setIsResolved] = useState(false)
   const [isWorkspaceEmpty, setIsWorkspaceEmpty] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
-  
+
   const user = useAuthStore(s => s.user)
   const updateUser = useAuthStore(s => s.updateUser)
 
@@ -31,7 +31,7 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
       // we check if documents exist.
       const kiSummary = await dashboardService.getKnowledgeIntelligenceSummary()
       const hasDocuments = kiSummary.total_documents > 0
-      
+
       if (hasDocuments) {
         // Lazy migration for existing workspaces
         try {

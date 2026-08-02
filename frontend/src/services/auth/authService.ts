@@ -1,47 +1,84 @@
 import { apiClient } from '@/api/client'
-import { supabaseClient } from './supabaseClient'
-import { get } from '@/api/wrapper'
+
+import { get, post } from '@/api/wrapper'
 import type { UserContext } from '@/types'
 import type { LoginFormData, RegisterFormData } from '@/utils/validators'
 
 export const authService = {
   async login(data: LoginFormData) {
-    const { error } = await supabaseClient.auth.signInWithPassword({
+    const response = await post<{ access_token: string }>('/auth/login', {
       email: data.email,
       password: data.password,
     })
-    if (error) throw new Error((error as Error).message)
+    
+    // Memory storage of token and state will be handled by the authStore,
+    // which intercepts this, or we could set it explicitly.
+    // For F2.3 we just return the token if needed, or rely on authStore doing it.
+    // Actually, `useAuthStore` uses `setToken`. Let's return the token so useAuth can store it.
+    return response.access_token
   },
 
   async register(data: RegisterFormData) {
-    // If role is user, tenant_id is the invitation code. 
-    // If role is admin, the tenant_id will be set to their own supabase_id during backend sync or they own the workspace.
-    // However, the backend sync handles 'tenant_id' and 'workspace_name' from claims.
-    const metadata: Record<string, unknown> = {
-      full_name: data.fullName,
-      role: data.role || 'user',
-    }
-
-    if (data.role === 'admin') {
-      metadata.workspace_name = data.workspaceName
-      metadata.organization_name = data.organizationName
-    } else if (data.role === 'user') {
-      metadata.tenant_id = data.invitationCode
-    }
-
-    const { error } = await supabaseClient.auth.signUp({
+    // Send registration payload directly to our backend API
+    await post('/auth/register', {
       email: data.email,
       password: data.password,
-      options: {
-        data: metadata,
-      },
+      full_name: data.fullName,
     })
-    if (error) throw new Error((error as Error).message)
+  },
+
+  async verifyEmail(email: string, token: string) {
+    await get('/auth/verify', { email, token })
+  },
+
+  async resendVerification(email: string) {
+    await post('/auth/resend-verification', { email })
+  },
+
+  async forgotPassword(email: string) {
+    await post('/auth/forgot-password', { email })
+  },
+
+  async resetPassword(token: string, newPassword: string) {
+    await post('/auth/reset-password', { token, new_password: newPassword })
+  },
+
+  async requestOTP(email: string) {
+    await post('/auth/password/otp/request', { email })
+  },
+
+  async verifyOTP(email: string, otp: string) {
+    await post('/auth/password/otp/verify', { email, otp })
+  },
+
+  async resetPasswordOTP(email: string, otp: string, newPassword: string) {
+    await post('/auth/password/otp/reset', { email, otp, new_password: newPassword })
+  },
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    await post('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
   },
 
   async logout() {
-    const { error } = await supabaseClient.auth.signOut()
-    if (error) throw new Error((error as Error).message)
+    try {
+      await post('/auth/logout')
+    } catch (error) {
+      console.warn("Logout endpoint failed, proceeding with local logout", error)
+    }
+    
+    // Broadcast channel logout (F2.4)
+    const channel = new BroadcastChannel('auth_sync')
+    channel.postMessage({ type: 'LOGOUT' })
+    channel.close()
+  },
+
+  async refresh() {
+    // The refresh_token is sent automatically via httpOnly cookies
+    const response = await post<{ access_token: string }>('/auth/refresh')
+    return response.access_token
   },
 
   async fetchBackendProfile(): Promise<UserContext> {
@@ -55,7 +92,7 @@ export const authService = {
         await new Promise(resolve => setTimeout(resolve, 1000))
       }
     }
-    
+
     if (!authContext) throw new Error('Failed to fetch user context')
 
     try {

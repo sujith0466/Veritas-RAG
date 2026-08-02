@@ -8,7 +8,7 @@ The Answer Validation Engine (Phase 12) has been successfully implemented. It es
 ### Milestone 12.1: Schemas, Models, and Migrations
 - **DTOs**: Created `ValidationRequestDTO`, `ValidationResultDTO`, `ClaimValidationItemDTO`, and `EntailmentVerdict` (`schemas/validation_dto.py`).
 - **Exceptions**: Extended `errors.py` with `UnsupportedClaimError` and `InvalidCitationError`.
-- **Database**: 
+- **Database**:
   - Created `ValidationLogORM` (`models/validation_log.py`).
   - Created `ValidationRepository` (`repositories/validation_repository.py`).
   - Created Alembic migration `0013_answer_validation_schema.py`.

@@ -42,7 +42,12 @@ class IUserRepository(ABC):
     @abstractmethod
     async def get_by_email(self, email: str) -> User | None:
         """Fetch an active user by their email address."""
-        ...
+        pass
+
+    @abstractmethod
+    async def exists_by_email(self, email: str) -> bool:
+        """Check if an active user exists with the given email."""
+        pass
 
     @abstractmethod
     async def get_by_supabase_id(self, supabase_user_id: str) -> User | None:

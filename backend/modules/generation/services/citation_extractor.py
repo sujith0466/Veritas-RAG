@@ -70,20 +70,21 @@ class CitationExtractor:
 
             chunk = evidence_chunks[chunk_pos]
             # Use first 200 chars of content as the supporting excerpt
-            excerpt = chunk.content[:200].strip()
+            excerpt = (chunk.content if hasattr(chunk, "content") else chunk.get("content", ""))[:200].strip()
 
-            source_name = chunk.metadata.get("source_name") or chunk.metadata.get("filename")
-            document_name = chunk.metadata.get("document_name")
+            metadata = chunk.metadata if hasattr(chunk, "metadata") else chunk.get("metadata", {})
+            source_name = metadata.get("source_name") or metadata.get("filename")
+            document_name = metadata.get("document_name")
 
             citations.append(
                 CitationDTO(
                     citation_index=idx,
-                    chunk_id=str(chunk.chunk_id),
-                    document_id=str(chunk.document_id),
+                    chunk_id=str((chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", ""))),
+                    document_id=str(chunk.document_id if hasattr(chunk, "document_id") else chunk.get("document_id", "")),
                     source_name=source_name,
                     document_name=document_name,
                     excerpt=excerpt,
-                    relevance_score=chunk.normalized_relevance_score if chunk.normalized_relevance_score is not None else 1.0,
+                    relevance_score=(chunk.normalized_relevance_score if hasattr(chunk, "normalized_relevance_score") and chunk.normalized_relevance_score is not None else chunk.get("normalized_relevance_score", 1.0) if not hasattr(chunk, "normalized_relevance_score") else 1.0),
                 )
             )
 
@@ -156,7 +157,8 @@ class CitationExtractor:
             if chunk_pos < 0 or chunk_pos >= len(evidence_chunks):
                 return False
 
-            content = evidence_chunks[chunk_pos].content
+            chunk_item = evidence_chunks[chunk_pos]
+            content = chunk_item.content if hasattr(chunk_item, "content") else chunk_item.get("content", "")
             if not str(content).strip():
                 return False
             if self._evidence_supports_claim(sentence, str(content)):

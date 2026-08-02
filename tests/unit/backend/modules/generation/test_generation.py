@@ -24,8 +24,8 @@ def test_grounded_generation_no_evidence(generation_service):
 
 def test_grounded_generation_with_evidence(generation_service):
     evidence = [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAG stands for Retrieval-Augmented Generation.", "score": 0.95},
-        {"chunk_id": "chk_2", "document_id": "doc_1", "content": "It combines retrieval with generation models.", "score": 0.88},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "RAG stands for Retrieval-Augmented Generation.", "score": 0.95},
+        {"chunk_id": "00000000-0000-0000-0000-000000000002", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "It combines retrieval with generation models.", "score": 0.88},
     ]
     request = GenerationRequestDTO(
         query="What is RAG?",
@@ -37,7 +37,7 @@ def test_grounded_generation_with_evidence(generation_service):
     assert len(result.citations) > 0
     # All citations must trace to a real chunk
     for citation in result.citations:
-        assert citation.chunk_id in ["chk_1", "chk_2"]
+        assert citation.chunk_id in ["00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"]
 
 
 def test_citation_extractor_check_grounding():
@@ -45,8 +45,8 @@ def test_citation_extractor_check_grounding():
     # A fully grounded answer has [N] in every sentence
     grounded_text = "RAG stands for retrieval augmented generation. [1] It uses a retrieval step before the LLM call. [2]"
     citations = extractor.extract(grounded_text, [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAG stands for retrieval augmented generation.", "score": 0.9},
-        {"chunk_id": "chk_2", "document_id": "doc_1", "content": "It uses a retrieval step before the LLM call.", "score": 0.8},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "RAG stands for retrieval augmented generation.", "score": 0.9},
+        {"chunk_id": "00000000-0000-0000-0000-000000000002", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "It uses a retrieval step before the LLM call.", "score": 0.8},
     ])
     assert extractor.check_grounding(grounded_text, citations) is True
 
@@ -56,7 +56,7 @@ def test_citation_extractor_flags_ungrounded():
     # One sentence lacks a citation marker
     ungrounded_text = "RAG is very useful. [1] However, it has many downsides that are not covered in evidence."
     citations = extractor.extract(ungrounded_text, [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAG is very useful.", "score": 0.9},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "RAG is very useful.", "score": 0.9},
     ])
     assert extractor.check_grounding(ungrounded_text, citations) is False
 
@@ -64,7 +64,7 @@ def test_citation_extractor_flags_ungrounded():
 def test_evidence_aware_grounding_accepts_supported_citations():
     extractor = CitationExtractor()
     evidence = [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations and uses hybrid retrieval.", "score": 0.9},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "RAGuard reduces hallucinations and uses hybrid retrieval.", "score": 0.9},
     ]
     text = "RAGuard reduces hallucinations. [1] It uses hybrid retrieval. [1]"
     citations = extractor.extract(text, evidence)
@@ -75,7 +75,7 @@ def test_evidence_aware_grounding_accepts_supported_citations():
 def test_evidence_aware_grounding_rejects_missing_citations():
     extractor = CitationExtractor()
     evidence = [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations.", "score": 0.9},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "RAGuard reduces hallucinations.", "score": 0.9},
     ]
     text = "RAGuard reduces hallucinations. [1] It uses hybrid retrieval."
     citations = extractor.extract(text, evidence)
@@ -86,7 +86,7 @@ def test_evidence_aware_grounding_rejects_missing_citations():
 def test_evidence_aware_grounding_rejects_empty_evidence():
     extractor = CitationExtractor()
     evidence = [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "", "score": 0.9},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "", "score": 0.9},
     ]
     text = "RAGuard reduces hallucinations. [1]"
     citations = extractor.extract(text, evidence)
@@ -97,7 +97,7 @@ def test_evidence_aware_grounding_rejects_empty_evidence():
 def test_evidence_aware_grounding_rejects_invalid_citation_index():
     extractor = CitationExtractor()
     evidence = [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations.", "score": 0.9},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "RAGuard reduces hallucinations.", "score": 0.9},
     ]
     text = "RAGuard reduces hallucinations. [2]"
     citations = extractor.extract(text, evidence)
@@ -108,7 +108,7 @@ def test_evidence_aware_grounding_rejects_invalid_citation_index():
 def test_evidence_aware_grounding_rejects_unsupported_claims():
     extractor = CitationExtractor()
     evidence = [
-        {"chunk_id": "chk_1", "document_id": "doc_1", "content": "RAGuard reduces hallucinations.", "score": 0.9},
+        {"chunk_id": "00000000-0000-0000-0000-000000000001", "document_id": "00000000-0000-0000-0000-000000000010", "document_version_id": "00000000-0000-0000-0000-000000000020", "tenant_id": "test_tenant", "rrf_score": 0.5, "final_rank": 1, "content": "RAGuard reduces hallucinations.", "score": 0.9},
     ]
     text = "RAGuard guarantees zero latency. [1]"
     citations = extractor.extract(text, evidence)

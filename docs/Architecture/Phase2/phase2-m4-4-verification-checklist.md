@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 4: Hybrid Retrieval Engine
 ## Document 4: Verification & Freeze Checklist
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 4 (`Hybrid Retrieval Engine`)  
-**Status**: Verification Checklist & Quality Gates  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 4 (`Hybrid Retrieval Engine`)
+**Status**: Verification Checklist & Quality Gates
 
 ---
 
@@ -75,5 +75,5 @@ Before **Phase 2 Milestone 4 (`Hybrid Retrieval Engine`)** can be marked as `COM
 
 Once all 12 gates above are checked `[x]`, the following freeze declaration becomes official:
 
-> **MILESTONE 4 FREEZE DECLARATION**  
+> **MILESTONE 4 FREEZE DECLARATION**
 > `Phase 2 Milestone 4: Hybrid Retrieval Engine` is officially **VERIFIED and FROZEN**. No further modifications to `backend/modules/retrieval/` or `retrieval_queries` schemas are permitted unless a critical defect is identified. Development may now advance to `Phase 2 Milestone 5: Retrieval Reliability Framework`.

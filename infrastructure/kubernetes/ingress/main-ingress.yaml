@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: raguard-ingress
+  namespace: raguard-production
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: networking
+    app.kubernetes.io/instance: ingress-1
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    # Agnostic annotations for TLS provisioning (e.g., cert-manager)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.raguard.ai
+    secretName: raguard-tls-secret
+  rules:
+  - host: api.raguard.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: raguard-api
+            port:
+              number: 80

@@ -1,0 +1,83 @@
+name: Staging Deployment
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Backend
+        id: meta_backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-backend
+          tags: |
+            type=raw,value=staging
+            type=sha
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: v0.14.0
+
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile.backend.prod
+          push: true
+          tags: ${{ steps.meta_backend.outputs.tags }}
+          labels: ${{ steps.meta_backend.outputs.labels }}
+
+      - name: Extract metadata for Frontend
+        id: meta_frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-frontend
+          tags: |
+            type=raw,value=staging
+            type=sha
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./infrastructure/docker/Dockerfile.frontend.prod
+          push: true
+          tags: ${{ steps.meta_frontend.outputs.tags }}
+          labels: ${{ steps.meta_frontend.outputs.labels }}
+
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: publish
+    environment:
+      name: Staging
+      url: https://staging.raguard.ai
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Placeholder Deployment Hook
+        run: |
+          echo "Triggering deployment for Staging Environment..."
+          echo "Images deployed:"
+          echo "ghcr.io/${{ github.repository }}-backend:staging"
+          echo "ghcr.io/${{ github.repository }}-frontend:staging"
+          echo "(F1.8 Kubernetes IaC will replace this placeholder.)"

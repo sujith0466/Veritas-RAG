@@ -64,7 +64,7 @@ export function Sidebar() {
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const user = useAuthStore((s) => s.user)
-  
+
   const { sessions, fetchSessions, updateSession, deleteSession } = useChatStore()
 
   useEffect(() => {
@@ -83,20 +83,20 @@ export function Sidebar() {
       previous7Days: [] as ChatSession[],
       older: [] as ChatSession[]
     }
-    
+
     sessions.forEach(session => {
       if (session.pinned) {
         groups.pinned.push(session)
         return
       }
-      
+
       const date = parseISO(session.updated_at)
       if (isToday(date)) groups.today.push(session)
       else if (isYesterday(date)) groups.yesterday.push(session)
       else if (isThisWeek(date)) groups.previous7Days.push(session)
       else groups.older.push(session)
     })
-    
+
     return groups
   }, [sessions])
 
@@ -151,10 +151,10 @@ export function Sidebar() {
                 {i > 0 && <div className="h-px bg-border/40 mx-2 my-2" />}
                 <div className="space-y-0.5">
                   {items.map((item) => {
-                    const isActive = item.matchPrefix 
+                    const isActive = item.matchPrefix
                       ? location.pathname.startsWith(item.href)
                       : location.pathname === item.href
-                      
+
                     return (
                       <Link
                         key={item.name}
@@ -213,12 +213,12 @@ export function Sidebar() {
           {!sidebarCollapsed && (
             <div className="mt-4 space-y-4 pb-4">
               {groupedSessions.pinned.length > 0 && (
-                <ChatGroup 
-                  title="Pinned" 
-                  sessions={groupedSessions.pinned} 
-                  location={location} 
-                  onDelete={deleteSession} 
-                  onUpdate={updateSession} 
+                <ChatGroup
+                  title="Pinned"
+                  sessions={groupedSessions.pinned}
+                  location={location}
+                  onDelete={deleteSession}
+                  onUpdate={updateSession}
                 />
               )}
               {groupedSessions.today.length > 0 && (
@@ -294,7 +294,7 @@ function ChatItem({ session, location, onDelete, onUpdate }: { session: ChatSess
   }
 
   return (
-    <div 
+    <div
       className="relative group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -321,7 +321,7 @@ function ChatItem({ session, location, onDelete, onUpdate }: { session: ChatSess
           <span className="truncate flex-1">{session.title}</span>
         )}
       </Link>
-      
+
       {(isHovered || isActive) && !isEditing && (
         <div className="absolute right-1 top-1.5 flex items-center gap-1 bg-gradient-to-l from-muted/80 via-muted/80 to-transparent pl-4 pr-1">
           <button onClick={(e) => { e.preventDefault(); onUpdate(session.id, { pinned: !session.pinned }) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title={session.pinned ? "Unpin" : "Pin"}>

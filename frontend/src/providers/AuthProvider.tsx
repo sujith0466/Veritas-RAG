@@ -1,43 +1,37 @@
 import { useEffect, useRef } from 'react'
 import { AuthContext } from '@/contexts/AuthContext'
 import { useAuthStore } from '@/stores/authStore'
-import { supabaseClient } from '@/services/auth/supabaseClient'
 import { authService } from '@/services/auth/authService'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setStatus, setAuth, clearAuth, setErrorAuth } = useAuthStore()
+  const { setStatus, setAuth, clearAuth, setErrorAuth, token } = useAuthStore()
   const initialMount = useRef(true)
 
   useEffect(() => {
     let mounted = true
 
     async function initializeAuth() {
-      let session = null
       try {
         if (initialMount.current) {
           setStatus('LOADING')
           initialMount.current = false
         }
 
-        const { data: { session: s }, error } = await supabaseClient.auth.getSession()
-
-        if (error || !s) {
+        if (!token) {
           if (mounted) clearAuth()
           return
         }
-        
-        session = s
 
-        // We have a Supabase session, now strictly sync with backend
+        // We have a token in memory, sync with backend
         const userContext = await authService.fetchBackendProfile()
-        
+
         if (mounted) {
-          setAuth(userContext, session.access_token)
+          setAuth(userContext, token)
         }
       } catch (error) {
         if (mounted) {
-          if (session) {
-            setErrorAuth(session.access_token, {
+          if (token) {
+            setErrorAuth(token, {
               code: 'BACKEND_UNAVAILABLE',
               message: 'Failed to synchronize profile with backend.',
               retryable: true,
@@ -52,43 +46,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth()
 
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-      async (event: any, session: any) => {
-        if (!mounted) return
-
-        if (event === 'SIGNED_OUT' || !session) {
-          clearAuth()
-          return
-        }
-
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          // If we already have the user and it's just a token refresh, skip backend profile fetch
-          const currentUser = useAuthStore.getState().user
-          if (currentUser && event === 'TOKEN_REFRESHED') {
-            setAuth(currentUser, session.access_token)
-            return
-          }
-
-          try {
-            const userContext = await authService.fetchBackendProfile()
-            setAuth(userContext, session.access_token)
-          } catch {
-            setErrorAuth(session.access_token, {
-              code: 'BACKEND_UNAVAILABLE',
-              message: 'Failed to synchronize profile with backend.',
-              retryable: true,
-              timestamp: Date.now()
-            })
-          }
-        }
+    // F2.4: Listen to BroadcastChannel for cross-tab logout synchronization
+    const channel = new BroadcastChannel('auth_sync')
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'LOGOUT') {
+        if (mounted) clearAuth()
       }
-    )
+    }
 
     return () => {
       mounted = false
-      subscription.unsubscribe()
+      channel.close()
     }
-  }, [clearAuth, setAuth, setStatus])
+  }, [clearAuth, setAuth, setStatus, token])
 
   return (
     <AuthContext.Provider value={null}>

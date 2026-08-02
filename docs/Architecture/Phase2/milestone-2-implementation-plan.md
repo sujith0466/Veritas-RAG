@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 2: Embedding Pipeline Implementation Plan
 
-**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)  
-**Status**: Implementation Plan (Planning Only — Strict No-Code)  
-**Author**: Principal Software Architect & AI Engineering Team  
-**Date**: 2026-07-19  
+**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)
+**Status**: Implementation Plan (Planning Only — Strict No-Code)
+**Author**: Principal Software Architect & AI Engineering Team
+**Date**: 2026-07-19
 
 ---
 
@@ -268,10 +268,10 @@ We will register default embedding configuration settings in `backend/core/confi
 ## 14. Milestone Boundaries Verification (Strict Architecture Check)
 
 We explicitly confirm that this implementation plan strictly adheres to all boundary constraints:
-✅ **No Vector Storage**: `ChunkEmbedding` records store float vectors in PostgreSQL only (`chunk_embeddings`). Zero Qdrant connections or indexing logic exist in Milestone 2.  
-✅ **No Retrieval**: Zero BM25, RRF, similarity search, or reranking logic exists.  
-✅ **No Reliability**: Zero circuit breakers, fallback routing, or zero-result recovery logic exists.  
-✅ **No Knowledge Health**: Zero orphan sweeps, count parity audits, or shadow migrations exist.  
+✅ **No Vector Storage**: `ChunkEmbedding` records store float vectors in PostgreSQL only (`chunk_embeddings`). Zero Qdrant connections or indexing logic exist in Milestone 2.
+✅ **No Retrieval**: Zero BM25, RRF, similarity search, or reranking logic exists.
+✅ **No Reliability**: Zero circuit breakers, fallback routing, or zero-result recovery logic exists.
+✅ **No Knowledge Health**: Zero orphan sweeps, count parity audits, or shadow migrations exist.
 ✅ **Only Embedding Pipeline**: Only chunk vectorization, batch job tracking, provider abstractions, quota governance, and dashboarding are planned.
 
 ---

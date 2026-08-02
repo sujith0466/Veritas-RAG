@@ -47,3 +47,15 @@ class BaseModel(Base):
         return {
             column.name: getattr(self, column.name) for column in self.__table__.columns
         }
+
+
+class TenantAwareBaseModel(BaseModel):
+    """Abstract base class for all tenant-aware entity models requiring RLS."""
+
+    __abstract__ = True
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        index=True,
+    )

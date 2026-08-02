@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { useChatStore, ChatMessage } from '@/stores/chatStore'
-import { supabaseClient } from '@/services/auth/supabaseClient'
+import { useAuthStore } from '@/stores/authStore'
 
 import { Badge } from '@/components/common/Badge'
 
@@ -65,8 +65,7 @@ export function AIChatPage() {
     setIsStreaming(true)
 
     try {
-      const { data: sessionData } = await supabaseClient.auth.getSession()
-      const token = sessionData.session?.access_token
+      const token = useAuthStore.getState().token
 
       const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
       const response = await fetch(`${baseUrl}/api/v1/chat/sessions/${targetSessionId}/stream`, {
@@ -92,7 +91,7 @@ export function AIChatPage() {
 
         const chunkStr = decoder.decode(value, { stream: true })
         const events = chunkStr.split('\n\n').filter(Boolean)
-        
+
         for (const event of events) {
           if (event.startsWith('data: ')) {
             try {
@@ -197,7 +196,7 @@ export function AIChatPage() {
 
     const currentQuery = input.trim()
     setInput('')
-    
+
     if (!sessionId) {
       const newSession = await createSession()
       navigate(`/chat/${newSession.id}`, { replace: true, state: { initialQuery: currentQuery } })
@@ -235,7 +234,7 @@ export function AIChatPage() {
               <h3 className="text-xl font-medium text-foreground">How can I help you today?</h3>
               <p className="text-muted-foreground text-sm">RAGuard AI is connected to your enterprise knowledge base. You can ask questions about policies, procedures, and internal documentation.</p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
               {[
                 'What is the password policy?',
@@ -304,7 +303,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mx-auto max-w-4xl`}>
       <div className={`flex gap-4 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-        
+
         {/* Avatar */}
         <div className="shrink-0 mt-1">
           <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isUser ? 'bg-indigo-500/10 text-indigo-500 ring-1 ring-indigo-500/20' : 'bg-primary/10 text-primary ring-1 ring-primary/20'}`}>
@@ -321,7 +320,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
               </ReactMarkdown>
             </div>
           </div>
-          
+
           {/* Metadata & Actions (Assistant only) */}
           {!isUser && (message.reliability_score !== undefined || message.citations?.length) && (
             <div className="flex items-center gap-3 px-1">
@@ -333,14 +332,14 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
                   </Badge>
                 </div>
               )}
-              
+
               <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-[11px] font-medium">
                 {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
             </div>
           )}
-          
+
           {/* Citations block */}
           {!isUser && message.citations && message.citations.length > 0 && (
             <div className="mt-2 w-full space-y-2">

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raguard-api
+  namespace: raguard-production
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/instance: api-1
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: raguard
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: raguard
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/instance: api-1
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: kubectl
+    spec:
+      containers:
+      - name: api
+        image: ghcr.io/your-org/raguard-backend:v1.0.0
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: raguard-config
+        - secretRef:
+            name: raguard-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20

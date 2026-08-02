@@ -53,3 +53,84 @@ async def get_audit_log_repository(
 ) -> IAuditLogRepository:
     """FastAPI dependency yielding an AuditLogRepository instance."""
     return AuditLogRepository(session)
+
+
+# Workspace Dependencies
+
+from backend.repositories.workspace import WorkspaceRepository
+from backend.repositories.workspace_settings import WorkspaceSettingsRepository
+from backend.repositories.workspace_settings_history import WorkspaceSettingsHistoryRepository
+from backend.repositories.workspace_member import WorkspaceMemberRepository
+from backend.services.workspace.provisioning_service import WorkspaceProvisioningService
+from backend.services.workspace.management_service import WorkspaceManagementService
+from backend.services.workspace.settings_service import WorkspaceSettingsService
+
+async def get_workspace_repository(session: AsyncSession = Depends(get_db)) -> WorkspaceRepository:
+    return WorkspaceRepository(session)
+
+async def get_workspace_settings_repository(session: AsyncSession = Depends(get_db)) -> WorkspaceSettingsRepository:
+    return WorkspaceSettingsRepository(session)
+
+async def get_workspace_settings_history_repository(session: AsyncSession = Depends(get_db)) -> WorkspaceSettingsHistoryRepository:
+    return WorkspaceSettingsHistoryRepository(session)
+
+async def get_workspace_member_repository(session: AsyncSession = Depends(get_db)) -> WorkspaceMemberRepository:
+    return WorkspaceMemberRepository(session)
+
+async def get_workspace_provisioning_service(
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    workspace_settings_repo: WorkspaceSettingsRepository = Depends(get_workspace_settings_repository),
+    workspace_member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+) -> WorkspaceProvisioningService:
+    return WorkspaceProvisioningService(workspace_repo, workspace_settings_repo, workspace_member_repo)
+
+async def get_workspace_management_service(
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    workspace_member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+) -> WorkspaceManagementService:
+    return WorkspaceManagementService(workspace_repo, workspace_member_repo)
+
+async def get_workspace_settings_service(
+    settings_repo: WorkspaceSettingsRepository = Depends(get_workspace_settings_repository),
+    history_repo: WorkspaceSettingsHistoryRepository = Depends(get_workspace_settings_history_repository),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+) -> WorkspaceSettingsService:
+    return WorkspaceSettingsService(settings_repo, history_repo, workspace_repo, member_repo)
+
+
+# Feature Flag Dependencies
+
+from backend.repositories.feature_flag import (
+    FeatureFlagHistoryRepository,
+    FeatureFlagRepository,
+    FeatureFlagWorkspaceRuleRepository,
+)
+from backend.services.feature_flag.evaluation_service import FeatureFlagEvaluationService
+from backend.services.feature_flag.management_service import FeatureFlagManagementService
+
+async def get_feature_flag_repository(session: AsyncSession = Depends(get_db)) -> FeatureFlagRepository:
+    return FeatureFlagRepository(session)
+
+async def get_feature_flag_workspace_rule_repository(session: AsyncSession = Depends(get_db)) -> FeatureFlagWorkspaceRuleRepository:
+    return FeatureFlagWorkspaceRuleRepository(session)
+
+async def get_feature_flag_history_repository(session: AsyncSession = Depends(get_db)) -> FeatureFlagHistoryRepository:
+    return FeatureFlagHistoryRepository(session)
+
+async def get_feature_flag_evaluation_service(
+    flag_repo: FeatureFlagRepository = Depends(get_feature_flag_repository),
+    rule_repo: FeatureFlagWorkspaceRuleRepository = Depends(get_feature_flag_workspace_rule_repository),
+) -> FeatureFlagEvaluationService:
+    return FeatureFlagEvaluationService(flag_repo, rule_repo)
+
+async def get_feature_flag_management_service(
+    flag_repo: FeatureFlagRepository = Depends(get_feature_flag_repository),
+    rule_repo: FeatureFlagWorkspaceRuleRepository = Depends(get_feature_flag_workspace_rule_repository),
+    history_repo: FeatureFlagHistoryRepository = Depends(get_feature_flag_history_repository),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+) -> FeatureFlagManagementService:
+    return FeatureFlagManagementService(flag_repo, rule_repo, history_repo, workspace_repo, member_repo)
+
+

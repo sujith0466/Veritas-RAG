@@ -1,8 +1,8 @@
 # RAGuard AI — Phase 2 Milestone 1: Chunking & Document Processing Foundation Architecture Plan
 
-**Date**: 2026-07-19  
-**Status**: Proposed — Awaiting User Sign-Off (Phase 2 Milestone 1 Step 4 & 5)  
-**Author**: Principal AI & System Architect  
+**Date**: 2026-07-19
+**Status**: Proposed — Awaiting User Sign-Off (Phase 2 Milestone 1 Step 4 & 5)
+**Author**: Principal AI & System Architect
 
 ---
 

@@ -19,7 +19,7 @@ The RAGuard AI platform consists of a containerized microservices architecture o
 ## 2. Environment Validation
 All environment variables across the stack were inspected and validated via `.env`.
 - **Secrets Loading**: Confirmed `SECRET_KEY`, Supabase JWTs, and API Keys (OpenRouter, Gemini) are correctly loaded and active.
-- **Configuration Verification**: 
+- **Configuration Verification**:
   - `DATABASE_POOL_SIZE` = 5
   - `DATABASE_MAX_OVERFLOW` = 10
   - These values were intentionally tightened to prevent the `EMAXCONNSESSION` exhaustion previously observed against Supabase PgBouncer limits (Max 15).

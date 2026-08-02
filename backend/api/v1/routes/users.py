@@ -13,7 +13,7 @@ from backend.api.v1.schemas.users import (
     UserWorkspaceUpdate,
 )
 from backend.core.dependencies.storage import get_current_storage_provider
-from backend.modules.storage.services.provider import StorageProvider
+from backend.document.storage.base import StorageProvider
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -175,11 +175,23 @@ async def upload_avatar(
     await file.seek(0)
 
     # If user already has an avatar, delete it
-    if user.avatar_url and user.avatar_url.startswith("/api/v1/storage"):
-        await storage.delete_file(user.avatar_url)
+    if user.avatar_url and "/avatars/" in user.avatar_url:
+        try:
+            # Extract object key (e.g. avatars/123/img.jpg) from URL
+            parts = user.avatar_url.split("/avatars/")
+            if len(parts) == 2:
+                old_key = "avatars/" + parts[1]
+                await storage.delete_object(old_key)
+        except Exception:
+            pass
 
     # Upload new file
-    url = await storage.upload_file(file.file, file.filename, file.content_type)
+    import uuid
+    ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    object_key = f"avatars/{current_user.id}/{uuid.uuid4().hex}.{ext}"
+    await storage.save_stream(file.file, object_key)
+    
+    url = await storage.get_uri(object_key)
     user.avatar_url = url
 
     await db.commit()

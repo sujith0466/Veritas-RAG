@@ -106,3 +106,13 @@ class StorageProvider(ABC):
     async def get_uri(self, object_key: str) -> str:
         """Get accessible URI or file path for `object_key`."""
         ...
+        
+    @abstractmethod
+    async def create_upload_url(self, object_key: str, expiration_seconds: int = 3600) -> str:
+        """Generate a pre-signed URL to allow client-side upload of a physical artifact."""
+        ...
+        
+    @abstractmethod
+    async def create_download_url(self, object_key: str, expiration_seconds: int = 3600) -> str:
+        """Generate a pre-signed URL to allow client-side download of a physical artifact."""
+        ...

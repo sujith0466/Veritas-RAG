@@ -26,6 +26,15 @@ class UserRepository(BaseRepository[User], IUserRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def exists_by_email(self, email: str) -> bool:
+        """Check if an active user exists with the given email."""
+        stmt = select(User.id).where(
+            User.email == email,
+            User.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.first() is not None
+
     async def get_by_supabase_id(self, supabase_user_id: str) -> User | None:
         """Fetch an active user by their Supabase Auth ID."""
         stmt = select(User).where(

@@ -117,7 +117,7 @@ def mock_reranker_provider() -> MagicMock:
     async def _rerank(query: str, candidates: list[RankedEvidenceDTO], top_k: int = 10) -> list[RankedEvidenceDTO]:
         out = []
         for idx, item in enumerate(candidates[:top_k], start=1):
-            item.rerank_score = round(1.0 - idx * 0.1, 4)
+            item.raw_rerank_score = round(1.0 - idx * 0.1, 4)
             item.final_rank = idx
             out.append(item)
         return out
@@ -250,5 +250,5 @@ class TestRerankerProviders:
         )
         res_one = await provider.rerank("query", [item])
         assert len(res_one) == 1
-        assert res_one[0].rerank_score == 0.33
+        assert res_one[0].raw_rerank_score == 0.33
         assert res_one[0].final_rank == 1

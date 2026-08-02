@@ -6,61 +6,78 @@ authentication verification, and role/permission enforcement.
 
 from collections.abc import Callable, Coroutine
 from typing import Any
+import uuid
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from backend.core.auth.context import UserContext
-from backend.core.auth.middleware import extract_bearer_token
 from backend.core.dependencies.database import get_db
 from backend.core.exceptions.auth import AuthenticationException
 from backend.core.permissions.rbac import Role
-from backend.core.permissions.registry import Permission
-from backend.services.auth.auth_service import AuthService
-from backend.services.auth.authorization_service import AuthorizationService
-
+from backend.models.entities.user import User
 
 async def get_optional_user(
     request: Request,
-    session: AsyncSession = Depends(get_db),
 ) -> UserContext | None:
-    """Extract and authenticate the request bearer token if present.
-
+    """Retrieve the UserContext injected by the JWTAuthenticationMiddleware.
+    
     Returns:
         UserContext if a valid token is provided, else None for anonymous requests.
-
-    Raises:
-        InvalidTokenException: If a token is provided but has invalid signature/format.
-        ExpiredTokenException: If a token is provided but has expired.
     """
-    token = extract_bearer_token(request)
-    if not token:
-        return None
-
-    auth_service = AuthService(session)
-    return await auth_service.authenticate_token(token)
+    return getattr(request.state, "user_context", None)
 
 
 async def get_current_user(
-    user: UserContext | None = Depends(get_optional_user),
+    user_context: UserContext | None = Depends(get_optional_user),
 ) -> UserContext:
     """Enforce that the request is made by an authenticated user.
 
     Returns:
-        The authenticated UserContext.
+        The UserContext from the middleware.
 
     Raises:
         AuthenticationException: If no valid credentials were provided.
     """
-    if not user:
+    if not user_context:
         raise AuthenticationException("Authentication required")
-    return user
+    return user_context
 
+def require_active_user() -> Callable[..., Coroutine[Any, Any, User]]:
+    """Dependency requirement ensuring the request is authenticated and user is active."""
+    async def _active_guard(
+        user_context: UserContext = Depends(get_current_user),
+        session: AsyncSession = Depends(get_db),
+    ) -> User:
+        user_id = user_context.id
+        stmt = select(User).where(User.id == user_id, User.is_deleted.is_(False))
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active:
+            raise AuthenticationException("Account is inactive")
+        return user
+    return _active_guard
 
-def require_authenticated() -> Callable[..., Coroutine[Any, Any, UserContext]]:
-    """Dependency requirement ensuring the request is authenticated."""
-    return get_current_user
+def require_verified_user() -> Callable[..., Coroutine[Any, Any, User]]:
+    """Dependency requirement ensuring the user is verified."""
+    async def _verified_guard(
+        user: User = Depends(require_active_user()),
+    ) -> User:
+        if not user.is_verified:
+            raise AuthenticationException("Account is not verified")
+        return user
+    return _verified_guard
 
+def require_workspace() -> Callable[..., Coroutine[Any, Any, UserContext]]:
+    """Dependency requirement ensuring the token has a workspace_id."""
+    async def _workspace_guard(
+        user_context: UserContext = Depends(get_current_user),
+    ) -> UserContext:
+        if not user_context.workspace_name:
+            raise AuthenticationException("Workspace context required")
+        return user_context
+    return _workspace_guard
 
 def require_role(*roles: Role) -> Callable[..., Coroutine[Any, Any, UserContext]]:
     """Return a dependency requiring the authenticated user to possess one of the roles.
@@ -71,34 +88,10 @@ def require_role(*roles: Role) -> Callable[..., Coroutine[Any, Any, UserContext]
     Returns:
         FastAPI dependency function enforcing the role check.
     """
-
     async def _role_guard(
-        user: UserContext = Depends(get_current_user),
+        user_context: UserContext = Depends(get_current_user),
     ) -> UserContext:
-        authz_service = AuthorizationService()
-        authz_service.verify_role(user, *roles)
-        return user
-
+        if user_context.role not in roles:
+            raise AuthenticationException("Insufficient permissions")
+        return user_context
     return _role_guard
-
-
-def require_permission(
-    permission: Permission,
-) -> Callable[..., Coroutine[Any, Any, UserContext]]:
-    """Return a dependency requiring the user's role to grant the specified permission.
-
-    Args:
-        permission: The required Permission enum.
-
-    Returns:
-        FastAPI dependency function enforcing the permission check.
-    """
-
-    async def _permission_guard(
-        user: UserContext = Depends(get_current_user),
-    ) -> UserContext:
-        authz_service = AuthorizationService()
-        authz_service.verify_permission(user, permission)
-        return user
-
-    return _permission_guard

@@ -61,7 +61,7 @@ export function LoginPage() {
               className="absolute inset-0"
             >
               <RoleSelector mode="login" onSelect={setSelectedRole} />
-              
+
               <div className="text-center text-sm mt-8">
                 <span className="text-muted-foreground">Don&apos;t have an account? </span>
                 <Link
@@ -80,14 +80,14 @@ export function LoginPage() {
               exit={{ opacity: 0, x: 20 }}
               className="absolute inset-0"
             >
-              <button 
+              <button
                 onClick={() => setSelectedRole(null)}
                 className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back to roles
               </button>
-              
+
               <div className="space-y-2 mb-6">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                   {selectedRole === 'admin' ? 'Admin Login' : 'User Login'}
@@ -97,7 +97,7 @@ export function LoginPage() {
                 </p>
               </div>
 
-              <LoginForm 
+              <LoginForm
                 role={selectedRole}
                 onFocusChange={handleFocusChange}
                 onSuccess={handleSuccess}

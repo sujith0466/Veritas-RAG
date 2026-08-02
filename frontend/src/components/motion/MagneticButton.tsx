@@ -9,12 +9,12 @@ interface MagneticButtonProps extends HTMLMotionProps<"button"> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost'
 }
 
-export function MagneticButton({ 
-  children, 
-  strength = 15, 
+export function MagneticButton({
+  children,
+  strength = 15,
   className,
   variant = 'primary',
-  ...props 
+  ...props
 }: MagneticButtonProps) {
   const ref = useRef<HTMLButtonElement>(null)
   const [position, setPosition] = useState({ x: 0, y: 0 })
@@ -32,7 +32,7 @@ export function MagneticButton({
   const reset = () => setPosition({ x: 0, y: 0 })
 
   const baseClasses = "relative inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:pointer-events-none px-4 py-2 h-10 w-full sm:w-auto overflow-hidden group"
-  
+
   const variants = {
     primary: "bg-primary text-primary-foreground shadow-md hover:bg-primary/90",
     secondary: "bg-surface-elevated text-foreground hover:bg-muted shadow-sm",
@@ -53,7 +53,7 @@ export function MagneticButton({
       <div className="relative z-10 flex items-center justify-center gap-2 pointer-events-none">
         {children}
       </div>
-      
+
       {/* Ripple/Glow effect on hover */}
       {!shouldReduceMotion && (
         <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-300 pointer-events-none" />

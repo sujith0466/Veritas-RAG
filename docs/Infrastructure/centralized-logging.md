@@ -13,7 +13,7 @@ logging:
 ```
 
 ## Ingestion
-For production, run a log forwarder (FluentBit, Promtail, or Filebeat) to scrape the 
+For production, run a log forwarder (FluentBit, Promtail, or Filebeat) to scrape the
 `/var/lib/docker/containers/*/*.log` files and ship them to Datadog, Elasticsearch, or Loki.
 
 All logs contain a `trace_id` for OpenTelemetry correlation.

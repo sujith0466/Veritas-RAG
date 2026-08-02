@@ -3,7 +3,7 @@ import { apiClient } from './client'
 import { ApiError } from '@/types'
 import type { ErrorResponse, SuccessResponse } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
-import { supabaseClient } from '@/services/auth/supabaseClient'
+import { authService } from '@/services/auth/authService'
 
 // ─── Request Interceptor ──────────────────────────────────────────────────────
 
@@ -71,11 +71,8 @@ apiClient.interceptors.response.use(
         isRefreshing = true
 
         try {
-          const { data: refreshData, error: refreshError } =
-            await supabaseClient.auth.refreshSession()
-          if (refreshError || !refreshData.session) throw refreshError
-
-          const newToken = refreshData.session.access_token
+          const newToken = await authService.refresh()
+          
           const currentUser = useAuthStore.getState().user;
           if (currentUser) {
             useAuthStore.getState().setAuth(currentUser, newToken);

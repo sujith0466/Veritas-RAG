@@ -42,7 +42,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
     try {
       const jszip = new JSZip()
       const zip = await jszip.loadAsync(file)
-      
+
       const root: ZipNode = { path: '', name: 'root', isDir: true, children: {}, selected: true, supported: true }
       const newExpanded = new Set<string>()
 
@@ -76,7 +76,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
 
         const ext = '.' + name.split('.').pop()?.toLowerCase()
         const isSupportedExt = ALLOWED_EXTENSIONS.includes(ext)
-        
+
         if (!current.children) current.children = {}
         current.children[name] = {
           path: relativePath,
@@ -108,7 +108,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
 
   const toggleSelection = (node: ZipNode, currentSelected: boolean) => {
     const newRoot = JSON.parse(JSON.stringify(rootNode))
-    
+
     const updateRecursively = (n: ZipNode, val: boolean) => {
       if (n.supported) n.selected = val
       if (n.children) {
@@ -130,7 +130,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
     }
 
     findAndUpdate(newRoot)
-    
+
     const updateFolderStates = (n: ZipNode): boolean => {
       if (!n.children) return n.selected || false
       let allSelected = true
@@ -143,7 +143,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
       n.selected = allSelected && anySelected
       return n.selected
     }
-    
+
     updateFolderStates(newRoot)
     setRootNode(newRoot)
   }
@@ -151,9 +151,9 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
   const handleConfirm = async () => {
     if (!rootNode || !zipFile) return
     setLoading(true)
-    
+
     const selectedFiles: Array<{file: File, path: string}> = []
-    
+
     const gatherFiles = async (n: ZipNode) => {
       if (!n.isDir && n.selected && n.supported && (n as any)._zipEntry) {
         const entry = (n as any)._zipEntry
@@ -169,7 +169,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
         }
       }
     }
-    
+
     await gatherFiles(rootNode)
     setLoading(false)
     onConfirm(selectedFiles)
@@ -177,35 +177,35 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
 
   const renderTree = (node: ZipNode, depth = 0) => {
     if (depth > 0 && node.name === 'root') return null
-    
+
     const isExpanded = expandedFolders.has(node.path)
     const hasChildren = node.children && Object.keys(node.children).length > 0
-    
+
     return (
       <div key={node.path + node.name} style={{ marginLeft: depth > 1 ? 24 : 0 }}>
         {depth > 0 && (
           <div className="flex items-center gap-2 py-1 hover:bg-muted/50 rounded px-2 -mx-2">
-            <button 
+            <button
               onClick={() => hasChildren && toggleFolder(node.path)}
               className="p-0.5 text-muted-foreground hover:text-foreground"
             >
               {hasChildren ? (isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : <span className="w-5" />}
             </button>
-            
-            <button 
+
+            <button
               onClick={() => toggleSelection(node, node.selected || false)}
               disabled={!node.supported && !node.isDir}
               className={cn("p-0.5", (!node.supported && !node.isDir) ? "opacity-30 cursor-not-allowed" : "text-primary")}
             >
               {node.selected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             </button>
-            
+
             {node.isDir ? <Folder className="h-4 w-4 text-primary/70" /> : <FileText className="h-4 w-4 text-muted-foreground" />}
-            
+
             <span className={cn("text-sm", (!node.supported && !node.isDir) && "text-muted-foreground line-through opacity-70")}>
               {node.name}
             </span>
-            
+
             {(!node.supported && !node.isDir) && (
               <span className="text-[10px] text-danger ml-2 bg-danger/10 px-1.5 py-0.5 rounded">
                 {node.reason}
@@ -213,7 +213,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
             )}
           </div>
         )}
-        
+
         {isExpanded && node.children && (
           <div className="mt-1">
             {Object.values(node.children)
@@ -230,7 +230,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
 
   let totalFiles = 0
   let selectedFiles = 0
-  
+
   const countStats = (n: ZipNode) => {
     if (!n.isDir) {
       totalFiles++
@@ -254,7 +254,7 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
             <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
-        
+
         <div className="p-4 flex-1 overflow-y-auto min-h-[300px]">
           {loading && !rootNode && (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-4">
@@ -262,29 +262,29 @@ export function ZipPreviewDialog({ zipFile, onClose, onConfirm }: ZipPreviewDial
               <p>Parsing archive structure...</p>
             </div>
           )}
-          
+
           {error && (
             <div className="p-4 bg-danger/10 text-danger rounded-md flex items-center gap-3">
               <AlertCircle className="h-5 w-5 shrink-0" />
               <p>{error}</p>
             </div>
           )}
-          
+
           {rootNode && (
             <div className="text-foreground">
               {renderTree(rootNode)}
             </div>
           )}
         </div>
-        
+
         <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">{selectedFiles}</span> of <span className="font-semibold text-foreground">{totalFiles}</span> files selected
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button 
-              onClick={handleConfirm} 
+            <Button
+              onClick={handleConfirm}
               disabled={selectedFiles === 0 || loading}
               isLoading={loading}
             >

@@ -1,10 +1,10 @@
 # phase-6-implementation-plan.md
 # RAGuard AI — Phase 6: Retrieval Reliability & Confidence Engine (Production Grade)
 
-**Version**: 1.0.0  
-**Date**: 2026-07-20  
-**Author**: Principal Software Architect  
-**Status**: PLANNING — Awaiting Approval  
+**Version**: 1.0.0
+**Date**: 2026-07-20
+**Author**: Principal Software Architect
+**Status**: PLANNING — Awaiting Approval
 **Depends On**: Phase 5 (Hybrid Retrieval)
 
 ---
@@ -185,7 +185,7 @@ Stage 1 — Query Clause Extraction:
 Stage 2 — Token Overlap Coverage (per clause):
   For each clause, compute:
     token_overlap = |clause_tokens ∩ all_evidence_tokens| / |clause_tokens|
-  
+
 Stage 3 — Semantic Coverage (optional, requires embedding provider):
   For each clause, compute cosine_similarity(embed(clause), embed(evidence_chunk))
   Use max similarity across all chunks as coverage signal
@@ -315,7 +315,7 @@ Threshold Logic:
   Base thresholds (configurable via ConfidencePolicy):
     proceed_threshold: float = 75.0
     retry_threshold: float = 50.0
-    
+
   Degraded-mode adjustments:
     if retrieval_result.is_degraded_fallback: +10 to both thresholds
     if conflict.has_severe_conflict: force ABORT regardless of score
@@ -844,33 +844,33 @@ raguard_confidence_evaluation_duration_seconds (histogram)
 ## 36. Milestone Breakdown
 
 ### Milestone 6.1 — Schema & Policy Foundation
-**Objective**: Extend DTOs; create `ConfidencePolicy` and `ConfidencePolicyStore`.  
-**Components**: `confidence_dto.py` extensions, `confidence_policy_store.py`, `confidence_policies` DB table (migration 0010a).  
+**Objective**: Extend DTOs; create `ConfidencePolicy` and `ConfidencePolicyStore`.
+**Components**: `confidence_dto.py` extensions, `confidence_policy_store.py`, `confidence_policies` DB table (migration 0010a).
 **Testing**: `TestConfidencePolicyStore` (4 tests).
 
 ### Milestone 6.2 — Evidence Strength Scorer
-**Objective**: Implement multi-signal evidence quality scorer.  
-**Components**: `evidence_strength_scorer.py`.  
+**Objective**: Implement multi-signal evidence quality scorer.
+**Components**: `evidence_strength_scorer.py`.
 **Testing**: `TestEvidenceStrengthScorer` (5 tests).
 
 ### Milestone 6.3 — CoverageAnalyzer v2 & FreshnessAnalyzer v2
-**Objective**: Productionize existing baseline analyzers with clause extraction and decay curves.  
-**Components**: `coverage_analyzer.py` (v2), `freshness_scorer.py` (v2 → renamed `freshness_analyzer.py`).  
+**Objective**: Productionize existing baseline analyzers with clause extraction and decay curves.
+**Components**: `coverage_analyzer.py` (v2), `freshness_scorer.py` (v2 → renamed `freshness_analyzer.py`).
 **Testing**: `TestCoverageAnalyzerV2` (5 tests), `TestFreshnessAnalyzerV2` (5 tests).
 
 ### Milestone 6.4 — Conflict Detector v2
-**Objective**: Replace `ContradictionDetector` with production `ConflictDetector` including severity grading.  
-**Components**: `conflict_detector.py`, `backend/providers/nli/`.  
+**Objective**: Replace `ContradictionDetector` with production `ConflictDetector` including severity grading.
+**Components**: `conflict_detector.py`, `backend/providers/nli/`.
 **Testing**: `TestConflictDetectorV2` (5 tests).
 
 ### Milestone 6.5 — Confidence Engine v2 & REST API
-**Objective**: Integrate all analyzers into `ConfidenceEngine` v2; expose REST API.  
-**Components**: `confidence_engine.py` (v2), `confidence_log.py`, `confidence_repository.py`, `api/routes.py`, migration 0010.  
+**Objective**: Integrate all analyzers into `ConfidenceEngine` v2; expose REST API.
+**Components**: `confidence_engine.py` (v2), `confidence_log.py`, `confidence_repository.py`, `api/routes.py`, migration 0010.
 **Testing**: `TestConfidenceEngineV2` (6 tests), integration tests (5 tests).
 
 ### Milestone 6.6 — Final Integration & Verification
-**Objective**: Wire Phase 6 into Phase 5 output; run full regression suite.  
-**Testing**: All new + regression tests.  
+**Objective**: Wire Phase 6 into Phase 5 output; run full regression suite.
+**Testing**: All new + regression tests.
 **Acceptance**: All tests pass; metrics emit; Git commit ready.
 
 ---

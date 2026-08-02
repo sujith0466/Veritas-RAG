@@ -1,14 +1,14 @@
 # Phase 13: Reliability Score Engine Implementation Report
 
 ## Summary
-The Reliability Score Engine (Phase 13) has been successfully implemented. It establishes a unified reliability scoring mechanism combining relevance, entailment, confidence, and completeness, while penalizing hallucinations and citation errors. 
+The Reliability Score Engine (Phase 13) has been successfully implemented. It establishes a unified reliability scoring mechanism combining relevance, entailment, confidence, and completeness, while penalizing hallucinations and citation errors.
 
 ## Milestones Completed
 
 ### Milestone 13.1: Schemas, Models, and Migrations
 - **DTOs**: Extended `scoring_dto.py` with `ScoringInputsDTO`, `ScoringRequestDTO`, and `ReliabilityScoreDTOv2`.
 - **Exceptions**: Extended `errors.py` with `MissingScoringInputsError`.
-- **Database**: 
+- **Database**:
   - Created `ScoringLogORM` (`models/scoring_log.py`).
   - Created `ScoringRepository` (`repositories/scoring_repository.py`).
   - Created Alembic migration `0014_reliability_score.py`.

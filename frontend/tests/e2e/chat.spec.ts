@@ -65,7 +65,7 @@ test.describe('Chat Suite @chat', () => {
         const proseElements = page.locator('div.prose');
         const count = await proseElements.count();
         if (count === 0) return 0;
-        
+
         // Check the last prose element (the assistant response)
         const text = await proseElements.last().innerText().catch(() => '');
         if (text.trim().length > 20) return text.trim().length;

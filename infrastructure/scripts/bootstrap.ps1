@@ -73,7 +73,7 @@ $allHealthy = $false
 while ($attempt -le $maxAttempts) {
     Start-Sleep -Seconds 2
     $unready = docker compose ps --format json | ConvertFrom-Json | Where-Object { $_.Health -ne "" -and $_.Health -ne "healthy" }
-    
+
     if ($null -eq $unready -or $unready.Count -eq 0) {
         $allHealthy = $true
         break

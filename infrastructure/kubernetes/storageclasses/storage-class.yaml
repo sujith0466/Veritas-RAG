@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: raguard-fast-storage
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/instance: sc-1
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+provisioner: kubernetes.io/no-provisioner # Placeholder: agnostic
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Retain

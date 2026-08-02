@@ -8,10 +8,10 @@ export interface ThemeProviderProps {
   onModeChange?: (mode: ThemeMode) => void
 }
 
-export function ThemeProvider({ 
-  children, 
+export function ThemeProvider({
+  children,
   initialMode = 'light',
-  onModeChange 
+  onModeChange
 }: ThemeProviderProps) {
   const [mode, setModeState] = useState<ThemeMode>(initialMode)
   const [resolvedMode, setResolvedMode] = useState<'dark' | 'light'>('light')

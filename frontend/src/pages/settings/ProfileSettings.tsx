@@ -11,11 +11,11 @@ export function ProfileSettings() {
   const setAuth = useAuthStore(s => s.setAuth)
   const token = useAuthStore(s => s.token)
   const { toast } = useToast()
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     username: '',
     bio: '',
@@ -27,7 +27,7 @@ export function ProfileSettings() {
     timezone: '',
     location: '',
   })
-  
+
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export function ProfileSettings() {
     try {
       const { username, ...profile_data } = formData
       const { data } = await userService.updateProfile({ username, profile_data })
-      
+
       // Update global store user context if needed
       if (user && token) {
         setAuth({ ...user, ...data }, token)
@@ -81,16 +81,16 @@ export function ProfileSettings() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
+
     // Quick preview
     const objectUrl = URL.createObjectURL(file)
     setAvatarPreview(objectUrl)
-    
+
     setUploading(true)
     try {
       const { data } = await userService.uploadAvatar(file)
       setAvatarPreview(getAssetUrl(data.avatar_url) || null)
-      
+
       if (user && token) {
         setAuth({ ...user, ...data }, token)
       }
@@ -109,11 +109,11 @@ export function ProfileSettings() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader 
-        title="Public Profile" 
+      <SectionHeader
+        title="Public Profile"
         description="This information will be displayed publicly so be careful what you share."
       />
-      
+
       <div className="flex gap-8 items-start">
         <div className="flex-1 space-y-6">
           <Card className="p-6 space-y-6">
@@ -125,7 +125,7 @@ export function ProfileSettings() {
                   <Input id="username" name="username" className="pl-10" value={formData.username} onChange={handleChange} placeholder="johndoe" />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -134,7 +134,7 @@ export function ProfileSettings() {
                 </div>
                 <p className="text-xs text-muted-foreground">Email cannot be changed here.</p>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="organization">Organization</Label>
                 <div className="relative">
@@ -142,12 +142,12 @@ export function ProfileSettings() {
                   <Input id="organization" name="organization" className="pl-10" value={formData.organization} onChange={handleChange} placeholder="Acme Corp" />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="designation">Role / Designation</Label>
                 <Input id="designation" name="designation" value={formData.designation} onChange={handleChange} placeholder="Software Engineer" />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="location">Location</Label>
                 <div className="relative">
@@ -155,7 +155,7 @@ export function ProfileSettings() {
                   <Input id="location" name="location" className="pl-10" value={formData.location} onChange={handleChange} placeholder="San Francisco, CA" />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="website">Website</Label>
                 <div className="relative">
@@ -164,27 +164,27 @@ export function ProfileSettings() {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
-              <textarea 
-                id="bio" 
+              <textarea
+                id="bio"
                 name="bio"
                 rows={4}
-                className="w-full flex min-h-[80px] rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
-                value={formData.bio} 
-                onChange={handleChange} 
+                className="w-full flex min-h-[80px] rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={formData.bio}
+                onChange={handleChange}
                 placeholder="A brief description about yourself"
               />
             </div>
           </Card>
-          
+
           <div className="flex justify-end gap-4">
             <Button variant="outline" onClick={loadProfile} disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} isLoading={saving}>Save Changes</Button>
           </div>
         </div>
-        
+
         {/* Avatar Sidebar */}
         <Card className="p-6 w-64 flex flex-col items-center text-center space-y-4">
           <h3 className="font-medium text-sm w-full text-left">Profile Picture</h3>
@@ -196,7 +196,7 @@ export function ProfileSettings() {
                 <User className="h-12 w-12 text-muted-foreground/50" />
               </div>
             )}
-            
+
             <label className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
               {uploading ? (
                 <Loader2 className="h-6 w-6 text-white animate-spin" />

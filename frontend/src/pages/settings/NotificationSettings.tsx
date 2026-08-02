@@ -10,7 +10,7 @@ export function NotificationSettings() {
   const user = useAuthStore(s => s.user)
   const setAuth = useAuthStore(s => s.setAuth)
   const token = useAuthStore(s => s.token)
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [preferences, setPreferences] = useState({
@@ -52,11 +52,11 @@ export function NotificationSettings() {
           notifications: preferences
         }
       })
-      
+
       if (user && token) {
         setAuth({ ...user, ...data }, token)
       }
-      
+
       toast({ title: 'Success', message: 'Notification preferences updated successfully', type: 'success' })
     } catch (error) {
       toast({ title: 'Error', message: 'Failed to update preferences', type: 'error' })
@@ -86,11 +86,11 @@ export function NotificationSettings() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader 
-        title="Notification Settings" 
-        description="Choose what events and alerts you want to be notified about." 
+      <SectionHeader
+        title="Notification Settings"
+        description="Choose what events and alerts you want to be notified about."
       />
-      
+
       <Card className="p-0 overflow-hidden divide-y divide-border/50">
         <div className="flex items-center justify-between p-6">
           <div className="flex items-start gap-4">
@@ -121,7 +121,7 @@ export function NotificationSettings() {
           </div>
           {renderSwitch(preferences.security_alerts, () => handleToggle('security_alerts'))}
         </div>
-        
+
         <div className="flex items-center justify-between p-6">
           <div className="flex items-start gap-4">
             <div className="p-2 bg-info/10 rounded-lg text-info mt-1">
@@ -137,7 +137,7 @@ export function NotificationSettings() {
           {renderSwitch(preferences.weekly_reports, () => handleToggle('weekly_reports'))}
         </div>
       </Card>
-      
+
       <div className="flex justify-end">
         <Button onClick={handleSave} isLoading={saving}>
           Save Preferences

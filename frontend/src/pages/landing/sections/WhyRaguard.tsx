@@ -26,7 +26,7 @@ export function WhyRaguard() {
         </FadeUp>
 
         <div className="grid md:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-border shadow-md">
-          
+
           {/* Traditional RAG Column */}
           <div className="bg-surface p-8 md:p-10 border-b md:border-b-0 md:border-r border-border">
             <h3 className="text-xl font-medium text-muted-foreground mb-8 text-center md:text-left">
@@ -34,7 +34,7 @@ export function WhyRaguard() {
             </h3>
             <Stagger className="space-y-6" staggerDelay={0.05}>
               {COMPARISON_DATA.map((row, i) => (
-                <motion.li 
+                <motion.li
                   key={`trad-${i}`}
                   variants={{ hidden: {opacity:0, x:-10}, show: {opacity:1, x:0} }}
                   className="flex items-center space-x-3 text-muted-foreground"
@@ -55,7 +55,7 @@ export function WhyRaguard() {
             </h3>
             <Stagger className="space-y-6" staggerDelay={0.05}>
               {COMPARISON_DATA.map((row, i) => (
-                <motion.li 
+                <motion.li
                   key={`raguard-${i}`}
                   variants={{ hidden: {opacity:0, x:10}, show: {opacity:1, x:0} }}
                   className="flex items-center space-x-3 text-foreground font-medium"

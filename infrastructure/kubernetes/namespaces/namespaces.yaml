@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: raguard-dev
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/managed-by: manual
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: raguard-staging
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/managed-by: manual
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: raguard-production
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/managed-by: manual

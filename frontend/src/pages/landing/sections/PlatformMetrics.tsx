@@ -40,10 +40,10 @@ export function PlatformMetrics() {
               className="flex flex-col items-center text-center pt-8 md:pt-0 px-4 group"
             >
               <div className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-                <AnimatedCounter 
-                  value={metric.value} 
-                  suffix={metric.suffix} 
-                  decimals={metric.value % 1 !== 0 ? 1 : 0} 
+                <AnimatedCounter
+                  value={metric.value}
+                  suffix={metric.suffix}
+                  decimals={metric.value % 1 !== 0 ? 1 : 0}
                   className="text-primary group-hover:text-primary/80 transition-colors"
                 />
               </div>

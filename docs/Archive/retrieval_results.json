@@ -1,0 +1,161 @@
+[
+  {
+    "query": "What are the project dependencies?",
+    "status": 200,
+    "data": {
+      "success": true,
+      "data": {
+        "query_text": "What are the project dependencies?",
+        "tenant_id": "2d1d0399-56e5-4288-9fae-e3021688d823",
+        "correlation_id": "ce2c1687-efd1-415c-8c65-cf643ff70181",
+        "top_k_requested": 3,
+        "dense_candidates_count": 1,
+        "sparse_candidates_count": 0,
+        "unique_candidates_merged": 1,
+        "final_evidence": [
+          {
+            "chunk_id": "0d470837-6ec1-4b29-9c27-7fb2a87115a1",
+            "document_id": "3403151c-0616-4ffe-a793-39f3b2cb9e2f",
+            "document_version_id": "62ebf2dd-ea42-4818-ae84-dd759a525f2e",
+            "tenant_id": "2d1d0399-56e5-4288-9fae-e3021688d823",
+            "content": "RAGuard Enterprise Architecture Overview.\nThe system uses FastAPI, Celery, PostgreSQL, and Qdrant.\nThis is a padding sentence to ensure the word count exceeds fifty.\nWe need to bypass the OCR fallback logic in the pdf extractor.\nThe pdf extractor flags any document with fewer than fifty words as needing OCR.\nHowever, our worker container does not have Tesseract installed by default.\nTherefore, we must provide a text rich document to avoid triggering the fallback.\nHere are more words just to be absolutely certain we cross the threshold.\nThis should be more than enough words to successfully extract without OCR.",
+            "compressed_content": null,
+            "compression_ratio": null,
+            "dense_rank": 1,
+            "sparse_rank": null,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393,
+            "final_rank": 1,
+            "matched_sources": [
+              "dense"
+            ],
+            "metadata": {}
+          }
+        ],
+        "stage_latencies": {
+          "dense_ms": 10544.35,
+          "sparse_ms": 6.49,
+          "rrf_fusion_ms": 0.94,
+          "dedup_ms": 0.0,
+          "rerank_ms": 0.02,
+          "compression_ms": 0.0,
+          "total_ms": 10545.81
+        },
+        "dedup_removed_count": 0,
+        "filter_applied": false
+      },
+      "metadata": {
+        "request_id": "ce2c1687-efd1-415c-8c65-cf643ff70181",
+        "timestamp": "2026-07-28T05:42:44.618381Z",
+        "version": "1.0.0"
+      }
+    },
+    "latency": 18.301830291748047
+  },
+  {
+    "query": "Explain the authentication workflow.",
+    "status": 200,
+    "data": {
+      "success": true,
+      "data": {
+        "query_text": "Explain the authentication workflow.",
+        "tenant_id": "2d1d0399-56e5-4288-9fae-e3021688d823",
+        "correlation_id": "fa2354a4-8dec-4a40-a1bc-1c1d70dc7980",
+        "top_k_requested": 3,
+        "dense_candidates_count": 1,
+        "sparse_candidates_count": 0,
+        "unique_candidates_merged": 1,
+        "final_evidence": [
+          {
+            "chunk_id": "0d470837-6ec1-4b29-9c27-7fb2a87115a1",
+            "document_id": "3403151c-0616-4ffe-a793-39f3b2cb9e2f",
+            "document_version_id": "62ebf2dd-ea42-4818-ae84-dd759a525f2e",
+            "tenant_id": "2d1d0399-56e5-4288-9fae-e3021688d823",
+            "content": "RAGuard Enterprise Architecture Overview.\nThe system uses FastAPI, Celery, PostgreSQL, and Qdrant.\nThis is a padding sentence to ensure the word count exceeds fifty.\nWe need to bypass the OCR fallback logic in the pdf extractor.\nThe pdf extractor flags any document with fewer than fifty words as needing OCR.\nHowever, our worker container does not have Tesseract installed by default.\nTherefore, we must provide a text rich document to avoid triggering the fallback.\nHere are more words just to be absolutely certain we cross the threshold.\nThis should be more than enough words to successfully extract without OCR.",
+            "compressed_content": null,
+            "compression_ratio": null,
+            "dense_rank": 1,
+            "sparse_rank": null,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393,
+            "final_rank": 1,
+            "matched_sources": [
+              "dense"
+            ],
+            "metadata": {}
+          }
+        ],
+        "stage_latencies": {
+          "dense_ms": 9734.67,
+          "sparse_ms": 7.18,
+          "rrf_fusion_ms": 0.33,
+          "dedup_ms": 0.0,
+          "rerank_ms": 0.01,
+          "compression_ms": 0.0,
+          "total_ms": 9735.17
+        },
+        "dedup_removed_count": 0,
+        "filter_applied": false
+      },
+      "metadata": {
+        "request_id": "fa2354a4-8dec-4a40-a1bc-1c1d70dc7980",
+        "timestamp": "2026-07-28T05:43:00.108987Z",
+        "version": "1.0.0"
+      }
+    },
+    "latency": 15.471684455871582
+  },
+  {
+    "query": "How is connection pooling configured?",
+    "status": 200,
+    "data": {
+      "success": true,
+      "data": {
+        "query_text": "How is connection pooling configured?",
+        "tenant_id": "2d1d0399-56e5-4288-9fae-e3021688d823",
+        "correlation_id": "fd9e6f48-350d-4aff-af0e-30a91cbad67d",
+        "top_k_requested": 3,
+        "dense_candidates_count": 1,
+        "sparse_candidates_count": 0,
+        "unique_candidates_merged": 1,
+        "final_evidence": [
+          {
+            "chunk_id": "0d470837-6ec1-4b29-9c27-7fb2a87115a1",
+            "document_id": "3403151c-0616-4ffe-a793-39f3b2cb9e2f",
+            "document_version_id": "62ebf2dd-ea42-4818-ae84-dd759a525f2e",
+            "tenant_id": "2d1d0399-56e5-4288-9fae-e3021688d823",
+            "content": "RAGuard Enterprise Architecture Overview.\nThe system uses FastAPI, Celery, PostgreSQL, and Qdrant.\nThis is a padding sentence to ensure the word count exceeds fifty.\nWe need to bypass the OCR fallback logic in the pdf extractor.\nThe pdf extractor flags any document with fewer than fifty words as needing OCR.\nHowever, our worker container does not have Tesseract installed by default.\nTherefore, we must provide a text rich document to avoid triggering the fallback.\nHere are more words just to be absolutely certain we cross the threshold.\nThis should be more than enough words to successfully extract without OCR.",
+            "compressed_content": null,
+            "compression_ratio": null,
+            "dense_rank": 1,
+            "sparse_rank": null,
+            "rrf_score": 0.016393,
+            "rerank_score": 0.016393,
+            "final_rank": 1,
+            "matched_sources": [
+              "dense"
+            ],
+            "metadata": {}
+          }
+        ],
+        "stage_latencies": {
+          "dense_ms": 10233.33,
+          "sparse_ms": 0.27,
+          "rrf_fusion_ms": 0.22,
+          "dedup_ms": 0.0,
+          "rerank_ms": 0.01,
+          "compression_ms": 0.0,
+          "total_ms": 10233.66
+        },
+        "dedup_removed_count": 0,
+        "filter_applied": false
+      },
+      "metadata": {
+        "request_id": "fd9e6f48-350d-4aff-af0e-30a91cbad67d",
+        "timestamp": "2026-07-28T05:43:18.785252Z",
+        "version": "1.0.0"
+      }
+    },
+    "latency": 18.676069259643555
+  }
+]

@@ -1,10 +1,10 @@
 # RAGuard AI — Phase 2 Master Implementation Roadmap
 ## Knowledge Layer & Retrieval Foundation (Milestones 1 through 6)
 
-**Document Version**: 1.0.0  
-**Phase**: Phase 2 (`Knowledge Layer & Retrieval Foundation`)  
-**Status**: COMPLETED & FROZEN  
-**Author**: Principal Software Architect & AI Engineering Team  
+**Document Version**: 1.0.0
+**Phase**: Phase 2 (`Knowledge Layer & Retrieval Foundation`)
+**Status**: COMPLETED & FROZEN
+**Author**: Principal Software Architect & AI Engineering Team
 
 ---
 
@@ -42,7 +42,7 @@ graph TD
         M2_2 -->|ChunkEmbedding Float Arrays & ChunksEmbedded Event| M2_3[Milestone 3: Vector Storage Foundation]
         M2_3 -->|Indexed Qdrant Points & VectorsIndexed Event| M2_4[Milestone 4: Hybrid Retrieval Engine]
         M2_4 -->|RankedEvidence & Stage Breakdown| M2_5[Milestone 5: Retrieval Reliability Framework]
-        
+
         M2_3 -.->|Monitored & Purged by| M2_6[Milestone 6: Knowledge Health & Lifecycle]
         M2_2 -.->|Shadow Migrations by| M2_6
         M2_1 -.->|Orphan Sweeps by| M2_6
@@ -117,5 +117,5 @@ Before **Phase 2 (`Knowledge Layer & Retrieval Foundation`)** can be formally cl
 
 ---
 
-> **NEXT STEPS FOR ENGINEERING**  
+> **NEXT STEPS FOR ENGINEERING**
 > With this complete architectural blueprint established across all 21 documents, engineering teams may begin executing **Phase 2 Milestone 2 (`Embedding Pipeline`)** exactly according to `phase2_m2_3_roadmap.md`.

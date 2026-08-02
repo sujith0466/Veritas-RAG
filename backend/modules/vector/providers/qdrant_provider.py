@@ -8,9 +8,11 @@ filtering (`ADR-M3-001`), and standardized domain error mapping (`VEC_xxx`).
 from typing import Any
 
 import structlog
-import httpx
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http import models as qdrant_models
+import time
+
+from backend.vector_db.metrics import QdrantMetrics
 
 from backend.modules.vector.providers.base import BaseVectorDBProvider
 from backend.modules.vector.schemas.errors import (CollectionNotFoundError,
@@ -102,6 +104,7 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 ),
                 quantization_config=quantization_config,
             )
+            QdrantMetrics.record_collection_creation()
             return True
         except Exception as exc:
             if "already exists" in str(exc).lower():
@@ -128,6 +131,7 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                         field_name=field,
                         field_schema=qdrant_models.PayloadSchemaType.KEYWORD,
                     )
+                    QdrantMetrics.record_payload_index_creation()
                 except Exception as idx_exc:
                     # If index already exists or status is running, log and continue safely
                     if (
@@ -165,11 +169,15 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 for p in points
             ]
 
+            start = time.perf_counter()
             await self.client.upsert(
                 collection_name=collection_name,
                 points=qdrant_points,
                 wait=True,
             )
+            latency_ms = (time.perf_counter() - start) * 1000
+            QdrantMetrics.record_upsert(latency_ms)
+            
             log.debug("Successfully upserted point batch into Qdrant")
             return len(points)
         except Exception as exc:
@@ -302,33 +310,24 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 qdrant_models.Filter(must=must_conditions) if must_conditions else None
             )
 
-            payload = {
-                "vector": query_vector,
-                "limit": limit,
-                "with_payload": True,
-            }
-            if filter_selector:
-                payload["filter"] = filter_selector.model_dump(exclude_none=True)
-                
-            qdrant_url = str(self.client._client._host) + ":" + str(self.client._client._port)
-            if not qdrant_url.startswith("http"):
-                qdrant_url = f"http://{qdrant_url}"
-                
-            async with httpx.AsyncClient() as http_client:
-                res = await http_client.post(
-                    f"{qdrant_url}/collections/{collection_name}/points/search",
-                    json=payload
-                )
-                res.raise_for_status()
-                data = res.json()
+            start = time.perf_counter()
+            results = await self.client.search(
+                collection_name=collection_name,
+                query_vector=query_vector,
+                query_filter=filter_selector,
+                limit=limit,
+                with_payload=True
+            )
+            latency_ms = (time.perf_counter() - start) * 1000
+            QdrantMetrics.record_search(latency_ms)
                 
             candidates: list[dict[str, Any]] = []
-            for hit in data.get("result", []):
+            for hit in results:
                 candidates.append(
                     {
-                        "point_id": str(hit.get("id")),
-                        "score": float(hit.get("score", 0.0)),
-                        "payload": hit.get("payload", {}),
+                        "point_id": str(hit.id),
+                        "score": float(hit.score),
+                        "payload": hit.payload or {},
                     }
                 )
             log.debug(

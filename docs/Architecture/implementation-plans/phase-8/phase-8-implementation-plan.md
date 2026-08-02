@@ -1,10 +1,10 @@
 # phase-8-implementation-plan.md
 # RAGuard AI — Phase 8: Query Rewrite Engine (Production Grade)
 
-**Version**: 1.0.0  
-**Date**: 2026-07-20  
-**Author**: Principal Software Architect  
-**Status**: PLANNING — Awaiting Approval  
+**Version**: 1.0.0
+**Date**: 2026-07-20
+**Author**: Principal Software Architect
+**Status**: PLANNING — Awaiting Approval
 **Depends On**: Phase 5 (Hybrid Retrieval), Phase 6 (Confidence Engine), Phase 7 (Retry Controller)
 
 ---
@@ -177,14 +177,14 @@ Algorithm:
   1. Build HyDE prompt:
      "Generate a short factual document that would answer: '{query}'.
       Use formal, factual language. 1-3 sentences maximum."
-  
+
   2. Call LLMProvider.generate(prompt, max_tokens=150)
      Timeout: 2000ms
      On timeout/failure: use template synthesis:
        hypothetical_doc = f"This document discusses {query} in the context of {domain}."
-  
+
   3. Embed hypothetical_doc using EmbeddingProvider.embed_query()
-  
+
   4. Return HyDEResultDTO:
      original_query: str
      hypothetical_document: str
@@ -210,7 +210,7 @@ Algorithm:
   4. Optional LLM expansion (if enabled):
      "List 3 alternative phrasings of: '{query}'"
      Merge with synonym-expanded query.
-  
+
   Return QueryExpansionResultDTO:
     original_query: str
     expanded_query: str
@@ -230,16 +230,16 @@ Algorithm:
        - Contains comparison words ("compare", "difference between") → decompose
        - Word count > 20 → likely complex
        - Contains multiple question marks → multi-part
-     
+
      If not complex → return original_query unchanged
-  
+
   2. Decomposition (LLM-based):
      Prompt: "Decompose this question into 2-3 independent simpler questions.
               Return ONLY a JSON array of strings: ['q1', 'q2', 'q3']
               Question: '{original_query}'"
      Parse response → list[str] sub_queries
      On LLM failure: split on " and " / "?" heuristically
-  
+
   3. Return QueryDecompositionResultDTO:
      original_query: str
      sub_queries: list[str]
@@ -257,11 +257,11 @@ Algorithm:
   1. Pronoun Detection:
      Patterns: ["it", "they", "them", "this", "that", "these", "those", "he", "she"]
      Check if query contains pronouns without clear antecedents
-  
+
   2. Implicit Reference Detection:
      Patterns: ["the policy", "the contract", "the document", "the above"]
      → references that require context to resolve
-  
+
   3. Resolution:
      If conversation_context provided:
        - Extract most recent noun phrase from context
@@ -269,7 +269,7 @@ Algorithm:
      If no context:
        - LLM prompt: "What specific entity does '{query}' refer to?"
        - On failure: mark as UNRESOLVED; proceed with original query
-  
+
   4. Return MissingEntityResultDTO:
      original_query: str
      resolved_query: str

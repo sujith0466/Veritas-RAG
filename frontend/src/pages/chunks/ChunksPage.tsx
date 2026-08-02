@@ -22,7 +22,7 @@ export function ChunksPage() {
   const [strategies, setStrategies] = React.useState<StrategyInfoDTO[]>([])
   const [documents, setDocuments] = React.useState<DocumentResponse[]>([])
   const [metrics, setMetrics] = React.useState<ChunkMetricsDTO | null>(null)
-  
+
   // Selection & filter state
   const [selectedDocId, setSelectedDocId] = React.useState<string>('')
   const [chunks, setChunks] = React.useState<ChunkResponse[]>([])

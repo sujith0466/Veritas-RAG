@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 2: Embedding Pipeline
 ## Document 4: Verification & Freeze Checklist
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)  
-**Status**: Verification Checklist & Quality Gates  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)
+**Status**: Verification Checklist & Quality Gates
 
 ---
 
@@ -78,5 +78,5 @@ Before **Phase 2 Milestone 2 (`Embedding Pipeline`)** can be marked as `COMPLETE
 
 Once all 12 gates above are checked `[x]`, the following freeze declaration becomes official:
 
-> **MILESTONE 2 FREEZE DECLARATION**  
+> **MILESTONE 2 FREEZE DECLARATION**
 > `Phase 2 Milestone 2: Embedding Pipeline` is officially **VERIFIED and FROZEN**. No further modifications to `backend/modules/embedding/` or `chunk_embeddings` schemas are permitted unless a critical defect is identified. Development may now advance to `Phase 2 Milestone 3: Vector Storage Foundation`.

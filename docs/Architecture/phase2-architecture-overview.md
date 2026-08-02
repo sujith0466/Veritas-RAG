@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Master Architecture Overview (`Knowledge Layer & Retrieval Foundation`)
 
-**Document Version**: 1.0.0  
-**Status**: COMPLETED & FROZEN  
-**Author**: Principal Software Architect & AI Infrastructure Engineering Team  
-**Scope**: Phase 2 Master Architecture (`Milestones 1 through 6`)  
+**Document Version**: 1.0.0
+**Status**: COMPLETED & FROZEN
+**Author**: Principal Software Architect & AI Infrastructure Engineering Team
+**Scope**: Phase 2 Master Architecture (`Milestones 1 through 6`)
 
 ---
 
@@ -25,7 +25,7 @@ graph TD
         M2 --> M3[Milestone 3: Vector Storage Foundation]
         M3 --> M4[Milestone 4: Hybrid Retrieval Engine]
         M4 --> M5[Milestone 5: Retrieval Reliability Framework]
-        
+
         subgraph Lifecycle Management
             M6[Milestone 6: Knowledge Health & Maintenance]
         end
@@ -95,14 +95,14 @@ sequenceDiagram
     M1->>M1: Execute Splitter Strategy (Recursive/Markdown/Table/Code)
     M1->>PG: Bulk Insert DocumentChunks (doubly-linked prev/next IDs)
     M1->>EB: Publish DocumentChunked Event (version 1.0.0)
-    
+
     EB-->>M2: Trigger process_embedding_batch_task(document_id, version_id)
     M2->>PG: Fetch Chunks where is_embedded = False
     M2->>EP: embed_documents(texts, batch_size=100)
     EP-->>M2: Return Dense Vectors (e.g., float[1536])
     M2->>PG: Update Chunks set is_embedded = True
     M2->>EB: Publish ChunksEmbedded Event
-    
+
     EB-->>M3: Trigger sync_vectors_to_qdrant_task(document_id)
     M3->>PG: Fetch Chunks + Dense Vectors + Metadata
     M3->>QD: Batch Upsert Points with Tenant Payload Filter
@@ -124,7 +124,7 @@ sequenceDiagram
 
     Client->>M5: execute_search(query, tenant_id, top_k=10)
     M5->>M5: Check Circuit Breaker State & Latency Budget
-    
+
     alt Circuit Breaker Closed (Healthy)
         M5->>M4: retrieve_hybrid(query, tenant_id, top_k=10)
         par Concurrent Retrieval
@@ -291,7 +291,7 @@ graph LR
     M2 --> M3[Milestone 3: Vector Storage]
     M3 --> M4[Milestone 4: Hybrid Retrieval Engine]
     M4 --> M5[Milestone 5: Retrieval Reliability]
-    
+
     M1 -.-> M6[Milestone 6: Knowledge Health]
     M2 -.-> M6
     M3 -.-> M6

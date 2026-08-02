@@ -9,6 +9,8 @@ class DatabaseSettings(BaseSettings):
 
     url: str = Field(alias="DATABASE_URL")
     alembic_url: str = Field(alias="ALEMBIC_DATABASE_URL")
+    use_pgbouncer: bool = Field(default=False, alias="USE_PGBOUNCER")
+    pgbouncer_url: str | None = Field(default=None, alias="PGBOUNCER_URL")
     pool_size: int = Field(default=5, alias="DATABASE_POOL_SIZE")
     max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
     pool_timeout: int = Field(default=30, alias="DATABASE_POOL_TIMEOUT")

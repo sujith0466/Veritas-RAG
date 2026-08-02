@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 4: Hybrid Retrieval Engine
 ## Document 2: Technical Design
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 4 (`Hybrid Retrieval Engine`)  
-**Status**: Technical Blueprint (Strict Planning Only — No Code)  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 4 (`Hybrid Retrieval Engine`)
+**Status**: Technical Blueprint (Strict Planning Only — No Code)
 
 ---
 
@@ -123,7 +123,7 @@ sequenceDiagram
 
     Client->>Svc: execute_hybrid_search(query, tenant_id, top_k=10, limit=50)
     Svc->>Svc: Start Execution Timer (`duration_ms`)
-    
+
     par Concurrent Stage 1: Dense + Sparse Candidate Retrieval
         Svc->>Embed: embed_query(query, tenant_id)
         Embed-->>Svc: query_vector (float[1536])
@@ -133,15 +133,15 @@ sequenceDiagram
         Svc->>BM25: search_keywords(tenant_id, query, limit=50)
         BM25-->>Svc: sparse_candidates (top-50)
     end
-    
+
     Svc->>Fusion: execute_rrf_and_deduplicate(dense_candidates, sparse_candidates, k=60)
     Fusion->>Fusion: Calculate RRF_Score(d) across ranks
     Fusion->>Fusion: Exact chunk_id Union + Cosine Near-Duplicate Filter (`sim >= 0.92`)
     Fusion-->>Svc: unique_candidates (top-30 merged)
-    
+
     Svc->>Rerank: rerank(query, unique_candidates[0..30], top_k=10)
     Rerank-->>Svc: ranked_evidence (top-10 with cross-encoder scores)
-    
+
     Svc->>Svc: Stop Timer & Compile Stage Breakdown Metrics
     Svc->>Repo: log_query_execution(RetrievalQueryLog)
     Svc->>EB: publish(QueryRetrieved(tenant_id, query_text, top_k=10, duration_ms))

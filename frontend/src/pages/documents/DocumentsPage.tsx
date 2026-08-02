@@ -20,7 +20,7 @@ export function DocumentsPage() {
   const [documents, setDocuments] = React.useState<DocumentResponse[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL')
-  
+
   // Active upload & polling state
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadProgress, setUploadProgress] = React.useState(0)
@@ -112,7 +112,7 @@ export function DocumentsPage() {
         if (completed % 5 === 0) fetchDocuments() // Refresh periodically
       }
     }
-    
+
     fetchDocuments()
     setIsUploading(false)
   }

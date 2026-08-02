@@ -3,7 +3,8 @@
 Represents users in the PostgreSQL database and links to Supabase Authentication identities.
 """
 
-from sqlalchemy import Boolean, String
+import datetime
+from sqlalchemy import Boolean, String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import BaseModel
@@ -25,6 +26,21 @@ class User(BaseModel):
     avatar_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    
+    # F2.1 Registration Fields
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True) # Nullable only for backward compat/Supabase
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    verified_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verification_token_hash: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    verification_token_expires_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_login_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # F2.5 Password Reset Fields
+    password_reset_token_hash: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    password_reset_token_expires_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    password_changed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Deprecated: Transitioning away from Supabase Auth
     supabase_user_id: Mapped[str | None] = mapped_column(
         String(255), unique=True, index=True, nullable=True
     )

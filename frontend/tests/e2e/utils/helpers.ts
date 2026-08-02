@@ -58,7 +58,7 @@ export function setupConsoleListener(page: Page) {
       const text = msg.text();
       // Ignore extension errors, known dev warnings, and expected auth-related errors
       if (
-        !text.includes('favicon.ico') && 
+        !text.includes('favicon.ico') &&
         !text.includes('chrome-extension') &&
         !text.includes('react-refresh') &&
         // 401 is expected during Supabase session hydration on initial page load

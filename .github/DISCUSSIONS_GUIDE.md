@@ -8,7 +8,7 @@ When enabling Discussions in repository settings, configure the following catego
 
 1. **📢 Announcements** (Maintainers Only)
    - Release notes, critical security patches, project milestones.
-2. **💬 General** 
+2. **💬 General**
    - Anything that doesn't fit elsewhere. General chat.
 3. **💡 Ideas**
    - Feature requests, architecture proposals, RFCs (Request for Comments).

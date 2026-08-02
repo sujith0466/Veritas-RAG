@@ -6,7 +6,7 @@
 - **Background Workers:** Heavy maintenance tasks (Phase 14 Knowledge Health) are decoupled into asynchronous task definitions meant for Celery. This prevents API latency degradation.
 
 ## 2. Theoretical Scaling Limits & Mitigation
-- **NLI Validation:** Deep entailment cross-encoders (Phase 12) represent the largest CPU/GPU bottleneck. 
+- **NLI Validation:** Deep entailment cross-encoders (Phase 12) represent the largest CPU/GPU bottleneck.
   - *Mitigation:* The system isolates this into `NLIValidationProvider`, allowing it to be offloaded to dedicated Triton inference servers via API, maintaining `< 300ms` API response SLA.
 - **Memory Stability:** Iterating over large query logs is paginated or streamed, preventing OOM (Out of Memory) crashes during continuous learning (Phase 15).
 

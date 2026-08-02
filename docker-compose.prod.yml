@@ -14,6 +14,13 @@ services:
         failure_action: rollback
       restart_policy:
         condition: any
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: "1G"
+        reservations:
+          cpus: "0.1"
+          memory: "256M"
     environment:
       - ENVIRONMENT=production
     logging:
@@ -33,6 +40,14 @@ services:
     depends_on:
       - api
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: "512M"
+        reservations:
+          cpus: "0.1"
+          memory: "128M"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s

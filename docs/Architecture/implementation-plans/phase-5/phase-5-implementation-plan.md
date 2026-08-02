@@ -1,10 +1,10 @@
 # phase-5-implementation-plan.md
 # RAGuard AI — Phase 5: Hybrid Retrieval Engine (Production Grade)
 
-**Version**: 1.0.0  
-**Date**: 2026-07-20  
-**Author**: Principal Software Architect  
-**Status**: PLANNING — Awaiting Approval  
+**Version**: 1.0.0
+**Date**: 2026-07-20
+**Author**: Principal Software Architect
+**Status**: PLANNING — Awaiting Approval
 **Depends On**: Phases 0–4 (COMPLETED & FROZEN)
 
 ---
@@ -534,8 +534,8 @@ CREATE INDEX idx_retrieval_query_logs_filter_dsl
 
 ### 21.2 POST /api/v1/retrieval/compress (NEW)
 
-**Purpose**: Compress existing evidence without re-running retrieval.  
-**Request**: `{ "query": str, "evidence": list[RankedEvidenceDTO], "max_tokens": int }`  
+**Purpose**: Compress existing evidence without re-running retrieval.
+**Request**: `{ "query": str, "evidence": list[RankedEvidenceDTO], "max_tokens": int }`
 **Response**: `{ "compressed_evidence": list[CompressedEvidenceDTO], "compression_ratios": list[float] }`
 
 ### 21.3 GET /api/v1/retrieval/metrics (existing — extended)
@@ -779,48 +779,48 @@ raguard_retrieval_filter_applied_total (counter, labels: filter_type)
 ## 37. Milestone Breakdown
 
 ### Milestone 5.1 — FilterDSL & Schema Foundation
-**Objective**: Establish the filtering language, DTOs, and compiler.  
-**Scope**: New Pydantic models, compiler logic, error taxonomy extension.  
-**Components**: `filter_dsl.py`, `filter_dsl_compiler.py`, `errors.py` (RET_006, RET_007).  
-**Database Impact**: None.  
-**API Changes**: Extend `SearchRequestDTO` with `filter_dsl` field.  
-**Testing**: `TestFilterDSLCompiler` (5 tests).  
+**Objective**: Establish the filtering language, DTOs, and compiler.
+**Scope**: New Pydantic models, compiler logic, error taxonomy extension.
+**Components**: `filter_dsl.py`, `filter_dsl_compiler.py`, `errors.py` (RET_006, RET_007).
+**Database Impact**: None.
+**API Changes**: Extend `SearchRequestDTO` with `filter_dsl` field.
+**Testing**: `TestFilterDSLCompiler` (5 tests).
 **Acceptance**: FilterDSL compiles to valid Qdrant filter; tenant enforcement proven by test.
 
 ### Milestone 5.2 — Deduplication Engine
-**Objective**: Implement production-grade 3-phase deduplication.  
-**Scope**: `DedupEngine` with SHA-256, Jaccard, and semantic dedup.  
-**Components**: `dedup_engine.py`.  
-**Database Impact**: Add `dedup_removed_count` column (migration 0009).  
-**Testing**: `TestDedupEngine` (5 tests).  
+**Objective**: Implement production-grade 3-phase deduplication.
+**Scope**: `DedupEngine` with SHA-256, Jaccard, and semantic dedup.
+**Components**: `dedup_engine.py`.
+**Database Impact**: Add `dedup_removed_count` column (migration 0009).
+**Testing**: `TestDedupEngine` (5 tests).
 **Acceptance**: SHA-256 exact dedup removes 100% exact duplicates; Jaccard removes near-duplicates above threshold.
 
 ### Milestone 5.3 — BM25 Redis Persistence
-**Objective**: Persist BM25 index to Redis with incremental updates.  
-**Scope**: Extend `BM25SparseSearchProvider` with Redis persistence.  
-**Components**: `providers/sparse/bm25_provider.py` (extended).  
-**Database Impact**: None (Redis only).  
-**Testing**: `TestSparseRetrievalRedis` (3 tests).  
+**Objective**: Persist BM25 index to Redis with incremental updates.
+**Scope**: Extend `BM25SparseSearchProvider` with Redis persistence.
+**Components**: `providers/sparse/bm25_provider.py` (extended).
+**Database Impact**: None (Redis only).
+**Testing**: `TestSparseRetrievalRedis` (3 tests).
 **Acceptance**: BM25 index survives process restart via Redis; incremental update adds new chunks.
 
 ### Milestone 5.4 — Cross-Encoder Batching & Timeout
-**Objective**: Harden cross-encoder reranking with batched inference and timeout guard.  
-**Scope**: Extend `CohereRerankerProvider` and `LocalRerankerProvider`.  
-**Components**: Both reranker providers + base class.  
-**Testing**: `TestCrossEncoderRerankerBatched` (5 tests).  
+**Objective**: Harden cross-encoder reranking with batched inference and timeout guard.
+**Scope**: Extend `CohereRerankerProvider` and `LocalRerankerProvider`.
+**Components**: Both reranker providers + base class.
+**Testing**: `TestCrossEncoderRerankerBatched` (5 tests).
 **Acceptance**: Timeout triggers RRF fallback; batch processing handles 30 candidates correctly.
 
 ### Milestone 5.5 — Context Compression
-**Objective**: Implement TF-IDF-guided context compression.  
-**Scope**: `ContextCompressor` service + API endpoint.  
-**Components**: `context_compressor.py`, new compress route.  
-**Testing**: `TestContextCompressor` (5 tests).  
+**Objective**: Implement TF-IDF-guided context compression.
+**Scope**: `ContextCompressor` service + API endpoint.
+**Components**: `context_compressor.py`, new compress route.
+**Testing**: `TestContextCompressor` (5 tests).
 **Acceptance**: ≥20% token reduction; min_relevance threshold enforced.
 
 ### Milestone 5.6 — Orchestrator Integration & Verification
-**Objective**: Wire all Phase 5 components into `RetrievalOrchestrator`; run full regression.  
-**Scope**: `retrieval_service.py` v2, Alembic migration 0009, API routes v2.  
-**Testing**: All new unit tests + integration tests + full 328+ regression suite.  
+**Objective**: Wire all Phase 5 components into `RetrievalOrchestrator`; run full regression.
+**Scope**: `retrieval_service.py` v2, Alembic migration 0009, API routes v2.
+**Testing**: All new unit tests + integration tests + full 328+ regression suite.
 **Acceptance**: All tests pass; P95 < 400ms confirmed; Git commit ready.
 
 ---

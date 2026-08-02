@@ -40,7 +40,7 @@ markdown_extensions:
   - tables
 
 nav:
-  - Home: 
+  - Home:
     - Overview: PROJECT_OVERVIEW.md
     - Installation: INSTALLATION_GUIDE.md
     - Configuration: CONFIGURATION_GUIDE.md

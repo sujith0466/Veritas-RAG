@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 3: Vector Storage Foundation
 ## Document 2: Technical Design
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 3 (`Vector Storage Foundation`)  
-**Status**: Technical Blueprint (Strict Planning Only — No Code)  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 3 (`Vector Storage Foundation`)
+**Status**: Technical Blueprint (Strict Planning Only — No Code)
 
 ---
 
@@ -115,21 +115,21 @@ sequenceDiagram
     Worker->>Svc: sync_document_vectors(document_id, version_id, tenant_id)
     Svc->>MetaRepo: get_or_create_index_metadata(version_id, tenant_id)
     MetaRepo-->>Svc: VectorIndexMetadata(sync_status=PROCESSING)
-    
+
     Svc->>EmbedRepo: fetch_embeddings_for_version(version_id, tenant_id)
     EmbedRepo-->>Svc: List[ChunkEmbedding] (float vectors + content_hash)
-    
+
     Svc->>ChunkRepo: fetch_chunks_by_ids([e.chunk_id for e in embeddings], tenant_id)
     ChunkRepo-->>Svc: List[DocumentChunk] (metadata, section_path, flags)
-    
+
     Svc->>Svc: resolve_collection_name(dimension=1536) -> "raguard_knowledge_openai_1536"
     Svc->>Provider: ensure_collection("raguard_knowledge_openai_1536", dimension=1536)
     Svc->>Provider: create_payload_indexes(collection, ["tenant_id", "document_id", "content_hash"])
-    
+
     Note over Svc: Construct VectorPointDTO items with standardized Qdrant Payload
-    
+
     Svc->>Provider: upsert_points(collection, points, batch_size=500 via gRPC)
-    
+
     alt Qdrant Connection / gRPC Failure
         Provider-->>Svc: raise VEC_003(QdrantConnectionError)
         Svc->>MetaRepo: update_sync_status(version_id, FAILED, error)

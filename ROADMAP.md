@@ -1,50 +1,76 @@
 <div align="center">
-  <h1>🗺️ RAGuard AI Roadmap</h1>
-  <p><b>Our vision for the future of Enterprise RAG Reliability.</b></p>
+  <h1>🗺️ RAGuard AI Program 2 Roadmap</h1>
+  <p><b>Master Delivery Plan for Enterprise RAG Reliability, Multi-Tenancy & Governance.</b></p>
 </div>
 
 ---
 
-At RAGuard, we iterate rapidly to bring enterprise-grade observability and governance to the fast-moving AI ecosystem. Below is our planned trajectory.
+## 🎯 Implementation Status Summary
 
-## 🚀 v1.0.0 (Released — July 2026)
-*The Foundation for Enterprise AI*
-
-- [x] Complete 24-phase enterprise backend platform with DDD architecture.
-- [x] Confidence Engine & NLI Claim Validation.
-- [x] Hybrid Retrieval (Dense + Sparse) with Reciprocal Rank Fusion.
-- [x] Self-healing LLM Provider Manager (OpenAI, Gemini, Anthropic fallback).
-- [x] Premium React/Vite Glassmorphic Frontend Dashboard.
-- [x] Docker, CI/CD, and full production-ready documentation suite.
-
----
-
-## ⚡ v1.1.0 (Next Up)
-*Enhanced Intelligence & Deployment*
-
-- [ ] **ML-based NER for DLP:** Deep integration with Microsoft Presidio for advanced PII detection.
-- [ ] **Kubernetes Native:** Official Helm charts for scalable K8s deployments.
-- [ ] **GraphQL API:** Supplemental GraphQL layer for flexible frontend data fetching alongside the existing REST API.
-- [ ] **Custom Rerankers:** UI support for managed endpoints like Cohere Rerank.
+| Epic | Focus Area | Status | Progress | Target Delivery |
+|---|---|---|---|---|
+| **Epic 1** | Infrastructure & Foundation Layer | ✅ **FROZEN** | 100% | Completed |
+| **Epic 2** | Authentication & Identity Architecture | ✅ **FROZEN** | 100% | Completed |
+| **Epic 3** | Workspace Architecture & Management | ✅ **FROZEN** | 100% | Completed |
+| **Epic 4** | User & Role Management (RBAC & Invitations) | ⏳ **IN QUEUE** | 0% | Next Up |
+| **Epic 5** | Document & Folder Management | ⏳ Scheduled | 0% | Phase 2 |
+| **Epic 6** | Document Ingestion Pipeline | ⏳ Scheduled | 0% | Phase 2 |
+| **Epic 7** | Vector Search & Qdrant Integration | ⏳ Scheduled | 0% | Phase 2 |
+| **Epic 8** | Hybrid Search & BM25 Sparse Indexing | ⏳ Scheduled | 0% | Phase 3 |
+| **Epic 9** | Contextual Reranking & RRF Fusion | ⏳ Scheduled | 0% | Phase 3 |
+| **Epic 10** | Hallucination Prevention & Confidence Engine | ⏳ Scheduled | 0% | Phase 3 |
+| **Epic 11** | Generation & LLM Provider Gateway | ⏳ Scheduled | 0% | Phase 4 |
+| **Epic 12** | Chat & Session Management | ⏳ Scheduled | 0% | Phase 4 |
+| **Epic 13** | Analytics, Audit Logging & Governance | ⏳ Scheduled | 0% | Phase 4 |
+| **Epic 14** | Enterprise Security & Compliance | ⏳ Scheduled | 0% | Phase 5 |
+| **Epic 15** | Cloud Deployment, Helm & Scalability | ⏳ Scheduled | 0% | Phase 5 |
 
 ---
 
-## 🔮 v1.2.0 (Planned)
-*Multi-modal & Enterprise Integration*
+## 📦 Detailed Epic Breakdown
 
-- [ ] **Multi-modal Retrieval:** Native ingestion pipelines for images and complex PDF layouts (via LlamaParse).
-- [ ] **Enterprise SSO:** SAML/OIDC integrations (Okta, Entra ID, PingIdentity) for massive enterprise rollouts.
-- [ ] **Fine-tuning Pipeline:** Seamlessly export highly-rated RAG logs directly to fine-tuning datasets.
+### ✅ Epic 1 — Infrastructure & Foundation Layer (100% Frozen)
+- [x] F1.1 — Monorepo Scaffolding, Tooling (Ruff, Mypy), Pre-commit Hooks
+- [x] F1.2 — PostgreSQL Foundation (SQLAlchemy 2.0 Async, PgBouncer, RLS)
+- [x] F1.3 — Redis Foundation (Distributed Locks, Pub/Sub, Cache Management)
+- [x] F1.4 — Qdrant Foundation (Vector Client, Tenant Partitions, HNSW Index)
+- [x] F1.5 — Object Storage Foundation (S3 Client, Presigned URLs, WORM Policy)
+- [x] F1.6 — Observability Foundation (OpenTelemetry, JSON Logging, Prometheus)
+- [x] F1.7 — CI/CD Foundation (GitHub Actions SAST, Unit/Integration Test Runners)
+- [x] F1.8 — Cloud Infrastructure (Terraform AWS EKS/RDS/ElastiCache & Kubernetes)
+
+### ✅ Epic 2 — Authentication & Identity Architecture (100% Frozen)
+- [x] F2.1 — User Registration (Argon2id Hashing, Schema Validation)
+- [x] F2.2 — User Login (Dual-token JWT + Refresh Rotation)
+- [x] F2.3 — Session Management (Redis Revocation, Active Session Tracking)
+- [x] F2.4 — Logout / Revocation (Server-side Blacklist & Token Flush)
+- [x] F2.5 — Password Reset (Cryptographic Single-Use Tokens)
+- [x] F2.6 — Email Verification (Verification Link Invalidation)
+- [x] F2.7 — SSO Integration (OAuth2/OIDC Extensible Provider Layer)
+- [x] F2.8 — Token Refresh Flow (Atomic Replay-Proof Rotation)
+- [x] F2.9 — Email OTP Verification (6-digit Time-based OTP Fallback)
+
+### ✅ Epic 3 — Workspace Architecture & Management (100% Frozen)
+- [x] F3.1 — Create Workspace (Slug Generation, Tenant Directory Isolation)
+- [x] F3.2 — Update Workspace (Metadata & Slug Mutations, Optimistic Locking)
+- [x] F3.3 — Archive / Restore Workspace (Read-only Freeze, Non-destructive)
+- [x] F3.4 — Suspend Workspace (Platform Admin Enforcement, Session Flush)
+- [x] F3.5 — Soft Delete / Hard Delete Workspace (30-day Retention Window)
+- [x] F3.6 — Workspace Settings (Typed JSON Schema, History & Rollback)
+- [x] F3.7 — Workspace Branding (CSS Variables, Tailwind Tokens, WCAG AA Validation)
+- [x] F3.8 — Feature Flags (7-step Evaluation Pipeline, MurmurHash3, L1/L2 Cache)
+
+### ⏳ Epic 4 — User & Role Management (Next Up)
+- [ ] F4.1 — Workspace Invitation (Send, Secure Token, Expiry)
+- [ ] F4.2 — Invitation Acceptance Flow
+- [ ] F4.3 — Workspace Membership Management
+- [ ] F4.4 — RBAC Permission Enforcement (Full Matrix)
+- [ ] F4.5 — Role Assignment / Reassignment
+- [ ] F4.6 — Member Removal
+- [ ] F4.7 — User Profile Management
+- [ ] F4.8 — Domain Verification
+- [ ] F4.9 — SSO Configuration per Workspace (`IdentityProvider` Entity)
 
 ---
 
-## 🌌 v2.0.0 (Future Vision)
-*The Autonomous Reliability Layer*
-
-- [ ] **Agentic Frameworks:** Governance support for long-running, multi-step autonomous AI agents (AutoGPT, LangGraph).
-- [ ] **Federated Deployments:** Multi-cluster deployment architecture for global latency reduction and data sovereignty compliance.
-- [ ] **Real-time Streaming Insights:** End-to-end SSE generation streaming with inline confidence overlays in the UI.
-
----
-
-*Note: This roadmap is a living document. Features and timelines are subject to change based on community feedback and enterprise customer needs.*
+*Note: This roadmap is maintained continuously as each Epic reaches production validation freeze.*

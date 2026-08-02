@@ -14,8 +14,6 @@ try:
     from opentelemetry import trace
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import (BatchSpanProcessor,
-                                                ConsoleSpanExporter)
     from opentelemetry.trace import Span, Status, StatusCode
 
     OTEL_AVAILABLE = True
@@ -33,7 +31,7 @@ _tracer: Any = None
 
 def init_tracer(app_name: str = "raguard-ai", environment: str = "development") -> Any:
     """Initialize OpenTelemetry tracer provider with resource metadata."""
-    global _tracer
+    global _tracer  # noqa: PLW0603
     if not OTEL_AVAILABLE:
         logger.warning("OpenTelemetry not installed; tracing will run in no-op mode.")
         return None
@@ -62,7 +60,7 @@ def init_tracer(app_name: str = "raguard-ai", environment: str = "development") 
 
 def get_tracer() -> Any:
     """Return the global OpenTelemetry tracer instance."""
-    global _tracer
+    global _tracer  # noqa: PLW0603
     if _tracer is None and OTEL_AVAILABLE and trace is not None:
         _tracer = trace.get_tracer("raguard-ai")
     return _tracer
@@ -187,7 +185,7 @@ def trace_reflection(
 
 @contextmanager
 def trace_reporting(
-    report_type: str, format: str, **kwargs: Any
+    report_type: str, format: str, **kwargs: Any  # noqa: A002
 ) -> Generator[Any, None, None]:
     """Create a span for Enterprise ReportLab PDF/JSON Report Export."""
     with trace_stage(

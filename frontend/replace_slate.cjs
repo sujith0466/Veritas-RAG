@@ -20,7 +20,7 @@ const mapRegex = new RegExp('([a-z]+-)?slate-(\\d+)(\\/\\d+)?', 'g');
 function processFile(filePath) {
   let content = fs.readFileSync(filePath, 'utf8');
   let changed = false;
-  
+
   content = content.replace(mapRegex, (match, prefix, num, opacity) => {
     changed = true;
     const replacement = map['slate-' + num] || 'muted-foreground';

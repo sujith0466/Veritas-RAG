@@ -1,17 +1,17 @@
 ﻿# phase-10-implementation-plan.md
 # RAGuard AI — Phase 10: Grounded Answer Generation (Production Grade)
 
-**Version**: 1.0.0  
-**Date**: 2026-07-20  
-**Author**: Principal Software Architect  
-**Status**: PLANNING — Awaiting Approval  
+**Version**: 1.0.0
+**Date**: 2026-07-20
+**Author**: Principal Software Architect
+**Status**: PLANNING — Awaiting Approval
 **Depends On**: Phase 5 (Hybrid Retrieval), Phase 6 (Confidence Engine), Phase 7 (Retry Controller)
 
 ---
 
 ## 1. Executive Summary
 
-Phase 10 delivers the **production-grade Grounded Answer Generation** engine. This is the final stage of the RAGuard AI pipeline, invoked only when the Confidence Engine (Phase 6) and Retry Controller (Phase 7) authorize a PROCEED action. 
+Phase 10 delivers the **production-grade Grounded Answer Generation** engine. This is the final stage of the RAGuard AI pipeline, invoked only when the Confidence Engine (Phase 6) and Retry Controller (Phase 7) authorize a PROCEED action.
 
 While Phase 3 included a basic generation service, Phase 10 implements strict prompt engineering templates, mandatory inline citations, structured output formatting, hallucination prevention guardrails, and streaming response support via Server-Sent Events (SSE).
 
@@ -188,9 +188,9 @@ data: {"citations": [{"doc_id": "...", "chunk_id": "...", "index": 1}], "confide
 
 - **Unit Tests**: Template variable replacement; Citation regex parsing and validation; Guardrail trigger (mocking LLM refusal).
 - **Integration Tests**: Full ExecutionGateway flow with streaming enabled. Ensure SSE format is correct.
-- **Metrics**: 
-aguard_generation_duration_seconds, 
-aguard_generation_tokens_total, 
+- **Metrics**:
+aguard_generation_duration_seconds,
+aguard_generation_tokens_total,
 aguard_generation_refusal_total.
 
 ---
@@ -236,12 +236,12 @@ sequenceDiagram
     GenerationOrchestrator->>PromptEngine: build_prompt(Query, Evidence)
     PromptEngine-->>GenerationOrchestrator: Rendered Prompt
     GenerationOrchestrator->>LLMProvider: generate_stream(Prompt)
-    
+
     loop Stream Yield
         LLMProvider-->>ExecutionGateway: yield token
         ExecutionGateway-->>Client: SSE data: {"chunk": "..."}
     end
-    
+
     LLMProvider-->>GenerationOrchestrator: Final Complete Text
     GenerationOrchestrator->>CitationEngine: parse(Text, Evidence)
     CitationEngine-->>GenerationOrchestrator: List of CitationDTO

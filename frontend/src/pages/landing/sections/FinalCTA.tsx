@@ -23,23 +23,23 @@ export function FinalCTA() {
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 tracking-tight">
             Ready to Build AI You Can <span className="text-primary">Trust?</span>
           </h2>
-          
+
           <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-10 max-w-2xl mx-auto">
             Deploy enterprise-grade RAG systems with grounded responses, explainability, and reliability built in.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
-            <MagneticButton 
+            <MagneticButton
               variant="primary"
-              onClick={handleLaunch} 
+              onClick={handleLaunch}
               className="w-full sm:w-auto text-base h-12 px-8 shadow-[0_0_20px_rgb(59,130,246,0.2)] hover:shadow-[0_0_30px_rgb(59,130,246,0.4)] transition-shadow group"
             >
               Launch Workspace
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </MagneticButton>
-            
-            <MagneticButton 
-              variant="outline" 
+
+            <MagneticButton
+              variant="outline"
               className="w-full sm:w-auto text-base h-12 px-8 border-border/60 hover:bg-surface-elevated"
             >
               Request Enterprise Demo

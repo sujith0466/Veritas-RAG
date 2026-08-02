@@ -1,2 +1,6 @@
 export * from './LoginPage'
 export * from './RegisterPage'
+export * from './VerifyPage'
+export * from './ResendVerificationPage'
+export * from './ForgotPasswordPage'
+export * from './ResetPasswordPage'

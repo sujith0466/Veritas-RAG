@@ -66,7 +66,7 @@ test.describe('Retrieval Suite @retrieval', () => {
       const proseElements = page.locator('div.prose');
       const count = await proseElements.count();
       if (count === 0) return 0;
-      
+
       const text = await proseElements.last().innerText().catch(() => '');
       if (text.trim().length > 20) return text.trim().length;
 

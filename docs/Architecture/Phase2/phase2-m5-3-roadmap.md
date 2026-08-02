@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 5: Retrieval Reliability Framework
 ## Document 3: Implementation Roadmap
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 5 (`Retrieval Reliability Framework`)  
-**Status**: Planning Roadmap (Strict No-Code Specification)  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 5 (`Retrieval Reliability Framework`)
+**Status**: Planning Roadmap (Strict No-Code Specification)
 
 ---
 

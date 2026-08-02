@@ -10,7 +10,7 @@ export function DashboardLayout() {
   const location = useLocation()
   const [isIndexing, setIsIndexing] = useState(false)
   const [docStats, setDocStats] = useState({ total: 0, processed: 0 })
-  
+
   useEffect(() => {
     if (location.pathname && !location.pathname.startsWith('/auth')) {
       localStorage.setItem('raguard-last-page', location.pathname + location.search)

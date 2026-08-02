@@ -41,7 +41,7 @@ export function BackendUnavailableBanner() {
         <div className="h-20 w-20 rounded-full bg-danger/10 flex items-center justify-center animate-pulse">
           <ServerCrash className="h-10 w-10 text-danger" />
         </div>
-        
+
         <div className="space-y-2 max-w-md">
           <h2 className="text-2xl font-bold text-foreground">Service Temporarily Unavailable</h2>
           <p className="text-muted-foreground">
@@ -55,17 +55,17 @@ export function BackendUnavailableBanner() {
           </div>
         )}
 
-        <Button 
-          variant="default" 
-          size="lg" 
-          onClick={handleRetry} 
+        <Button
+          variant="default"
+          size="lg"
+          onClick={handleRetry}
           isLoading={isRetrying}
           className="mt-8"
         >
           <RefreshCw className={`h-5 w-5 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
           {isRetrying ? 'Connecting...' : 'Try Again Now'}
         </Button>
-        
+
         <p className="text-xs text-muted-foreground">
           Auto-retrying in the background. You don't need to log in again.
         </p>

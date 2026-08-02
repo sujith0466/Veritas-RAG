@@ -16,7 +16,7 @@ interface WorkspaceLoaderProps {
 
 export function WorkspaceLoader({ onComplete }: WorkspaceLoaderProps) {
   const [currentStep, setCurrentStep] = useState(0)
-  
+
   useEffect(() => {
     const runSequence = async () => {
       for (let i = 0; i < STEPS.length; i++) {
@@ -52,8 +52,8 @@ export function WorkspaceLoader({ onComplete }: WorkspaceLoaderProps) {
             <motion.div
               key={step}
               initial={{ opacity: 0, x: -10 }}
-              animate={{ 
-                opacity: isPending ? 0.4 : 1, 
+              animate={{
+                opacity: isPending ? 0.4 : 1,
                 x: 0,
                 color: isComplete ? 'var(--foreground)' : isActive ? 'var(--primary)' : 'var(--muted-foreground)'
               }}

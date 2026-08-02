@@ -1,10 +1,10 @@
 # RAGuard AI — Phase 2 Milestone 6: Knowledge Health & Lifecycle Management
 ## Document 1: Executive Architecture
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 6 (`Knowledge Health & Lifecycle Management`)  
-**Status**: Architectural Blueprint (Strict Planning Only — No Code)  
-**Author**: Principal Data Platform Architect & AI Infrastructure Engineering Team  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 6 (`Knowledge Health & Lifecycle Management`)
+**Status**: Architectural Blueprint (Strict Planning Only — No Code)
+**Author**: Principal Data Platform Architect & AI Infrastructure Engineering Team
 
 ---
 

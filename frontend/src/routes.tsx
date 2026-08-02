@@ -2,7 +2,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppProvider } from '@/providers/AppProvider'
 import { AuthLayout, DashboardLayout, LandingLayout } from '@/components/layouts'
-import { LoginPage, RegisterPage } from '@/pages/auth'
+import { LoginPage, RegisterPage, VerifyPage, ResendVerificationPage, ForgotPasswordPage, ResetPasswordPage } from '@/pages/auth'
 import { LandingPage } from '@/pages/landing/LandingPage'
 import { DashboardPage, KnowledgeIntelligenceDashboardPage } from '@/pages/dashboard'
 import { DocumentsPage } from '@/pages/documents'
@@ -12,20 +12,22 @@ import { VectorsPage } from '@/pages/vectors'
 import { KnowledgeHealthPage } from '@/pages/knowledge_health'
 import { ReliabilityDashboardPage } from '@/pages/analytics'
 import { DeveloperInvestigationPage } from '@/pages/investigation'
-import { 
-  SettingsLayout, 
-  ProfileSettings, 
-  AppearanceSettings, 
-  SecuritySettings, 
-  NotificationSettings, 
-  AIPrefSettings, 
-  WorkspaceSettings, 
-  DeveloperSettings, 
-  PrivacySettings, 
-  ActivitySettings 
+import {
+  SettingsLayout,
+  ProfileSettings,
+  AppearanceSettings,
+  SecuritySettings,
+  NotificationSettings,
+  AIPrefSettings,
+  WorkspaceSettings,
+  DeveloperSettings,
+  PrivacySettings,
+  ActivitySettings
 } from '@/pages/settings'
 import { AIChatPage } from '@/pages/chat'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { CreateWorkspace } from '@/pages/workspace/CreateWorkspace'
+import { EditWorkspace } from '@/pages/workspace/EditWorkspace'
 import { useAuthStore } from '@/stores/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { MarketingThemeProvider } from '@/providers/MarketingThemeProvider'
@@ -102,6 +104,10 @@ export const router = createBrowserRouter([
         children: [
           { path: 'login', element: <LoginPage /> },
           { path: 'register', element: <RegisterPage /> },
+          { path: 'verify', element: <VerifyPage /> },
+          { path: 'resend-verification', element: <ResendVerificationPage /> },
+          { path: 'forgot-password', element: <ForgotPasswordPage /> },
+          { path: 'reset-password', element: <ResetPasswordPage /> },
           { path: '', element: <Navigate to="/auth/login" replace /> },
         ],
       },
@@ -119,7 +125,7 @@ export const router = createBrowserRouter([
               { path: 'dashboard', element: <DashboardPage /> },
               { path: 'chat', element: <AIChatPage /> },
               { path: 'chat/:sessionId', element: <AIChatPage /> },
-              
+
               // Admin Only
               { path: 'knowledge', element: <ProtectedRoute adminOnly><KnowledgeIntelligenceDashboardPage /></ProtectedRoute> },
               { path: 'documents', element: <ProtectedRoute adminOnly><DocumentsPage /></ProtectedRoute> },
@@ -129,7 +135,7 @@ export const router = createBrowserRouter([
               { path: 'vectors', element: <ProtectedRoute adminOnly><VectorsPage /></ProtectedRoute> },
               { path: 'health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
               { path: 'diagnostics', element: <ProtectedRoute adminOnly><DeveloperInvestigationPage /></ProtectedRoute> },
-              
+
               // Settings
               {
                 path: 'settings',
@@ -146,7 +152,11 @@ export const router = createBrowserRouter([
                   { path: 'privacy', element: <PrivacySettings /> },
                   { path: 'activity', element: <ActivitySettings /> },
                 ]
-              }
+              },
+              
+              // Workspace Management
+              { path: 'workspaces/new', element: <CreateWorkspace /> },
+              { path: 'w/:slug/edit', element: <EditWorkspace /> }
             ],
           }
         ],
@@ -162,7 +172,7 @@ export const router = createBrowserRouter([
 // Helper component for AnimatePresence support across layout boundaries
 function OutletWithAnimation() {
   const location = useLocation()
-  
+
   // Group chat routes under a single key to prevent unmounting during chat session navigation
   // This prevents the chat streaming state from being destroyed when navigating from /chat to /chat/:id
   const animationKey = location.pathname.startsWith('/chat') ? '/chat' : location.pathname

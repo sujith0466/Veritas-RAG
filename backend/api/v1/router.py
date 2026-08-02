@@ -7,6 +7,7 @@ from backend.observability.monitoring import router as metrics_router
 
 from .routes.auth import router as auth_router
 from .routes.health import router as health_router
+from .routes.workspaces import router as workspaces_router
 
 api_v1_router = APIRouter()
 
@@ -21,6 +22,9 @@ api_v1_router.include_router(auth_router)
 # ── User Profile & Settings (`/users`) ──────────────────────────────────────────
 from .routes.users import router as users_router
 api_v1_router.include_router(users_router)
+
+# ── Workspace Management (`/workspaces`) ───────────────────────────────────────
+api_v1_router.include_router(workspaces_router)
 
 # ── Storage (`/storage`) ──────────────────────────────────────────
 from .routes.storage import router as storage_router
@@ -74,3 +78,13 @@ api_v1_router.include_router(dashboard_router, prefix="/dashboard")
 from backend.modules.chat.api import router as chat_router
 
 api_v1_router.include_router(chat_router)
+
+# ── Feature Flags (`/feature-flags` & `/workspaces/{id}/feature-flags`) ────────
+from .routes.feature_flags import (
+    router as feature_flags_router,
+    workspace_ff_router as workspace_feature_flags_router,
+)
+
+api_v1_router.include_router(feature_flags_router)
+api_v1_router.include_router(workspace_feature_flags_router)
+

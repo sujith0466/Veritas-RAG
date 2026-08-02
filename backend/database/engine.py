@@ -42,6 +42,8 @@ def get_engine() -> AsyncEngine:
 
     settings = get_settings().database
     url = settings.url
+    if settings.use_pgbouncer and settings.pgbouncer_url:
+        url = settings.pgbouncer_url
 
     engine_kwargs: dict[str, Any] = {
         "echo": settings.echo,
@@ -128,11 +130,25 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def check_db_health() -> bool:
-    """Check database connectivity by executing SELECT 1."""
+    """Check database connectivity by executing SELECT 1.
+    
+    If PgBouncer is enabled, this checks both the PgBouncer route and the raw PostgreSQL route (if configured differently).
+    """
+    settings = get_settings().database
+    
     try:
+        # Check standard configured engine (could be PgBouncer or Postgres)
         engine = get_engine()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
+            
+        # If PgBouncer is in use, verify raw Postgres as well to ensure the backend DB is up
+        if settings.use_pgbouncer and settings.url:
+            raw_engine = create_async_engine(settings.url, pool_pre_ping=True)
+            async with raw_engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+            await raw_engine.dispose()
+            
         return True
     except Exception as exc:
         logger.warning("Database health check failed", error=str(exc))

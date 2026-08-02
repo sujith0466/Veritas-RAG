@@ -1,10 +1,10 @@
 # RAGuard AI — Phase 2 Milestone 4: Hybrid Retrieval Engine
 ## Document 1: Executive Architecture
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 4 (`Hybrid Retrieval Engine`)  
-**Status**: Architectural Blueprint (Strict Planning Only — No Code)  
-**Author**: Principal AI Search Scientist & Software Architect  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 4 (`Hybrid Retrieval Engine`)
+**Status**: Architectural Blueprint (Strict Planning Only — No Code)
+**Author**: Principal AI Search Scientist & Software Architect
 
 ---
 

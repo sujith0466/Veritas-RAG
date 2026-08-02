@@ -55,12 +55,12 @@ export function CoreFeatures() {
                 >
                   <category.icon className="w-6 h-6" />
                 </motion.div>
-                
+
                 <h3 className="text-xl font-bold text-foreground mb-3">{category.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-8 flex-1">
                   {category.description}
                 </p>
-                
+
                 <ul className="space-y-3">
                   {category.features.map((feature) => (
                     <li key={feature} className="flex items-start space-x-2 text-sm text-foreground font-medium">

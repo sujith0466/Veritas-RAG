@@ -92,4 +92,3 @@ export const analyticsService = {
     return get<ReportMetadataDTO[]>('/analytics/reports/history')
   },
 }
-

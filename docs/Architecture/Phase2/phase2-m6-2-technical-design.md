@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 6: Knowledge Health & Lifecycle Management
 ## Document 2: Technical Design
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 6 (`Knowledge Health & Lifecycle Management`)  
-**Status**: Technical Blueprint (Strict Planning Only — No Code)  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 6 (`Knowledge Health & Lifecycle Management`)
+**Status**: Technical Blueprint (Strict Planning Only — No Code)
 
 ---
 
@@ -115,7 +115,7 @@ sequenceDiagram
         Svc->>PG: Phase 1: Mark Document & Versions `status=DELETED`, `deleted_at=NOW()`
         Svc->>Purge: enqueue_async_hard_purge(document_id, tenant_id)
         Purge->>Qdrant: delete_points_by_filter(tenant_id, document_id)
-        
+
         alt Qdrant Deletion Success
             Qdrant-->>Purge: Acknowledged (points_deleted=45)
             Purge->>PG: Phase 2: `DELETE FROM documents WHERE id = document_id CASCADE`
@@ -127,7 +127,7 @@ sequenceDiagram
     else Scheduled Periodic Audit Sweep (`Celery Beat`)
         Admin->>Svc: run_health_scan(tenant_id, scan_type="ALL")
         Svc->>Repo: create_scan_job(HealthScanJob(status=PROCESSING))
-        
+
         par Audit Phase A: Orphan Sweep
             Svc->>Orphan: sweep_orphaned_chunks(tenant_id)
             Orphan->>PG: Find chunks where `parent_document.status == DELETED`
@@ -140,7 +140,7 @@ sequenceDiagram
             IntegrityAuditor->>Qdrant: `get_collection_info().points_count`
             IntegrityAuditor-->>Svc: parity_status="SYNCED (1000 == 1000)"
         end
-        
+
         Svc->>Repo: update_scan_progress(job_id, COMPLETED, orphans=12, parity="SYNCED")
         Svc->>EB: publish(OrphanChunksPurged(tenant_id, count=12))
     end

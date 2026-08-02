@@ -5,7 +5,7 @@
 
 ## 1. Environment Parsing Hierarchy
 
-A critical issue was identified where Pydantic v2 `BaseSettings` models were hardcoded to read exclusively from `.env.local` (`env_file=".env.local"`). 
+A critical issue was identified where Pydantic v2 `BaseSettings` models were hardcoded to read exclusively from `.env.local` (`env_file=".env.local"`).
 While `.env.local` is useful for overriding values locally, Docker Compose relies on standard `.env` files for environment variable injection.
 
 **Resolution:**
@@ -13,7 +13,7 @@ All 13 configuration models in `backend/core/config/` were updated to read from 
 ```python
 model_config = {"populate_by_name": True, "env_file": (".env", ".env.local"), "extra": "ignore"}
 ```
-**Effect:** 
+**Effect:**
 1. Pydantic will first load variables from `.env`.
 2. It will then load variables from `.env.local`, overwriting any overlapping keys.
 3. Finally, system environment variables take supreme precedence.

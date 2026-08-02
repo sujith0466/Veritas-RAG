@@ -1,9 +1,9 @@
 # Phase 16 Implementation Plan — AI Reliability & Governance Dashboard (Production Grade)
 
-**Phase Name:** Phase 16 — AI Reliability & Governance Dashboard  
-**Target Module:** `backend/modules/dashboard/`  
-**Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)  
-**Author:** RAGuard Principal Architecture & Enterprise QA Team  
+**Phase Name:** Phase 16 — AI Reliability & Governance Dashboard
+**Target Module:** `backend/modules/dashboard/`
+**Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
+**Author:** RAGuard Principal Architecture & Enterprise QA Team
 
 ---
 

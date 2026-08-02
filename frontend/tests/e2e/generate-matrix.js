@@ -33,7 +33,7 @@ try {
       total++;
       const area = getArea(suite.title);
       let status = 'PASSED';
-      
+
       const lastRun = spec.tests[0].results[spec.tests[0].results.length - 1];
       if (lastRun.status === 'passed' || lastRun.status === 'expected') {
         passed++;
@@ -44,7 +44,7 @@ try {
         failed++;
         status = 'FAILED';
       }
-      
+
       if (areaStatus[area] !== 'FAILED') {
          if (status === 'FAILED') areaStatus[area] = 'FAILED';
          else if (status === 'PASSED') areaStatus[area] = 'PASSED';

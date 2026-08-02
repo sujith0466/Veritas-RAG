@@ -15,16 +15,16 @@ export interface UserWorkspaceUpdate {
 
 export const userService = {
   getProfile: () => apiClient.get('/users/me'),
-  
-  updateProfile: (data: UserProfileUpdate) => 
+
+  updateProfile: (data: UserProfileUpdate) =>
     apiClient.patch('/users/me/profile', data),
-    
-  updatePreferences: (data: UserPreferencesUpdate) => 
+
+  updatePreferences: (data: UserPreferencesUpdate) =>
     apiClient.patch('/users/me/preferences', data),
-    
-  updateWorkspace: (data: UserWorkspaceUpdate) => 
+
+  updateWorkspace: (data: UserWorkspaceUpdate) =>
     apiClient.patch('/users/me/workspace', data),
-    
+
   uploadAvatar: async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)

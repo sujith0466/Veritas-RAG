@@ -1,9 +1,9 @@
 # RAGuard AI — Phase 2 Milestone 5: Retrieval Reliability Framework
 ## Document 2: Technical Design
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 5 (`Retrieval Reliability Framework`)  
-**Status**: Technical Blueprint (Strict Planning Only — No Code)  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 5 (`Retrieval Reliability Framework`)
+**Status**: Technical Blueprint (Strict Planning Only — No Code)
 
 ---
 
@@ -120,19 +120,19 @@ sequenceDiagram
     Client->>Gateway: execute_reliable_search(query, tenant_id, top_k=10)
     Gateway->>CB: check_state(tenant_id, target="qdrant_hybrid")
     CB-->>Gateway: CircuitState.CLOSED (`Healthy`)
-    
+
     alt Circuit Closed (Normal Path)
         Gateway->>M4: execute_hybrid_search(query, tenant_id, top_k=10)
-        
+
         alt M4 Executes Cleanly (< 400ms)
             M4-->>Gateway: RetrievalResultDTO (top_k=10)
             Gateway->>CB: record_success(tenant_id, target="qdrant_hybrid")
-            
+
             alt Result Count == 0
                 Gateway->>Zero: recover_empty_results(query, tenant_id)
                 Zero-->>Gateway: ReliableRetrievalResultDTO (broadened BM25 top_k=5)
             end
-            
+
             Gateway->>Repo: log_sla_metric(duration_ms=185ms, is_degraded=False)
             Gateway-->>Client: Return ReliableRetrievalResultDTO
         else M4 Timeout (> 400ms) or Qdrant Exception (`RET_004`)

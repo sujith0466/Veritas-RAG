@@ -1,16 +1,28 @@
 """Metrics collection — Prometheus counters, histograms, gauges, and recording functions."""
 
-from .prometheus import (ERRORS_TOTAL, HALLUCINATION_DETECTIONS_TOTAL,
-                         HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUESTS_ACTIVE,
-                         HTTP_REQUESTS_TOTAL, PIPELINE_STAGE_DURATION_SECONDS,
-                         POST_GEN_RELIABILITY_SCORE, PRE_GEN_CONFIDENCE_SCORE,
-                         QUERIES_PROCESSED_TOTAL, REFLECTION_FAILURES_TOTAL,
+from .prometheus import (
+                         ERRORS_TOTAL,
+                         HALLUCINATION_DETECTIONS_TOTAL,
+                         HTTP_REQUEST_DURATION_SECONDS,
+                         HTTP_REQUESTS_ACTIVE,
+                         HTTP_REQUESTS_TOTAL,
+                         PIPELINE_STAGE_DURATION_SECONDS,
+                         POST_GEN_RELIABILITY_SCORE,
+                         PRE_GEN_CONFIDENCE_SCORE,
+                         QUERIES_PROCESSED_TOTAL,
+                         REFLECTION_FAILURES_TOTAL,
                          SELF_CORRECTION_RETRIES_TOTAL,
-                         get_metrics_content_type, get_metrics_output,
-                         record_confidence_metric, record_error_metric,
-                         record_http_request, record_query_metric,
-                         record_reflection_metric, record_reliability_metric,
-                         record_retry_metric, record_stage_duration)
+                         get_metrics_content_type,
+                         get_metrics_output,
+                         record_confidence_metric,
+                         record_error_metric,
+                         record_http_request,
+                         record_query_metric,
+                         record_reflection_metric,
+                         record_reliability_metric,
+                         record_retry_metric,
+                         record_stage_duration,
+)
 
 __all__ = [
     "HTTP_REQUESTS_TOTAL",

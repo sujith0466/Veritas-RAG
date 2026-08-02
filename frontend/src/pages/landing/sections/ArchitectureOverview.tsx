@@ -31,8 +31,8 @@ export function ArchitectureOverview() {
         <div className="relative flex flex-col items-center">
           {/* Central connecting line */}
           <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-border pointer-events-none" />
-          
-          <motion.div 
+
+          <motion.div
             className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-primary origin-top pointer-events-none"
             initial={{ scaleY: 0 }}
             whileInView={{ scaleY: 1 }}

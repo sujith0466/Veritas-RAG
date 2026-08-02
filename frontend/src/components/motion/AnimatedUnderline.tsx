@@ -7,8 +7,8 @@ interface AnimatedUnderlineProps {
   color?: string
 }
 
-export function AnimatedUnderline({ 
-  children, 
+export function AnimatedUnderline({
+  children,
   className,
   color = 'var(--primary)'
 }: AnimatedUnderlineProps) {

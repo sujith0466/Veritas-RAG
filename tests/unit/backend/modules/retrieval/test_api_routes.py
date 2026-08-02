@@ -51,7 +51,7 @@ def mock_orchestrator() -> MagicMock:
         tenant_id="org_api",
         content="Evidence chunk found via API search.",
         rrf_score=0.032,
-        rerank_score=0.95,
+        raw_rerank_score=0.95,
         final_rank=1,
     )
 
@@ -134,7 +134,7 @@ class TestRetrievalApiRoutes:
             assert data["query_text"] == "API search query"
             assert data["tenant_id"] == "org_api"
             assert len(data["final_evidence"]) == 1
-            assert data["final_evidence"][0]["rerank_score"] == 0.95
+            assert data["final_evidence"][0]["raw_rerank_score"] == 0.95
         finally:
             app.dependency_overrides.clear()
 

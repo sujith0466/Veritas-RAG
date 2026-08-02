@@ -76,8 +76,8 @@ export function DashboardPage() {
   return (
     <PageTransition>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <PageHeader 
-          title="Executive Overview" 
+        <PageHeader
+          title="Executive Overview"
           description="Autonomous AI observability, query reliability scoring, and hallucination prevention activity."
         />
 
@@ -95,7 +95,7 @@ export function DashboardPage() {
 
       {error ? (
         <div className="mb-8">
-          <ErrorState 
+          <ErrorState
             title="Dashboard Error"
             error={new Error(error)}
             onRetry={loadData}
@@ -104,15 +104,15 @@ export function DashboardPage() {
       ) : (
         <>
           {/* KPI Stats Grid */}
-          <motion.div 
+          <motion.div
             variants={listContainerVariants}
             initial="hidden"
             animate="visible"
             className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8"
           >
             {stats.map((stat) => (
-              <MotionCard 
-                key={stat.title} 
+              <MotionCard
+                key={stat.title}
                 variants={listItemVariants}
                 whileHover={cardHover}
                 className="relative overflow-hidden group shadow-card hover:shadow-card-hover transition-shadow duration-300"
@@ -136,7 +136,7 @@ export function DashboardPage() {
           </motion.div>
 
           {/* Activity and Alerts Section */}
-          <motion.div 
+          <motion.div
             variants={listContainerVariants}
             initial="hidden"
             animate="visible"

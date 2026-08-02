@@ -58,18 +58,18 @@ export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
         >
           {/* Glass reflection */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-          
+
           <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300">
             <Shield className="h-6 w-6" />
           </div>
-          
+
           <div className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors mb-1">
             Admin Workspace
           </div>
           <div className="text-sm text-muted-foreground mb-4">
             Workspace Owner
           </div>
-          
+
 
         </motion.button>
 
@@ -87,11 +87,11 @@ export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
         >
           {/* Glass reflection */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-          
+
           <div className="h-12 w-12 rounded-xl bg-muted text-muted-foreground flex items-center justify-center mb-4 group-hover:bg-primary/10 group-hover:text-primary group-hover:scale-110 transition-all duration-300">
             <User className="h-6 w-6" />
           </div>
-          
+
           <div className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors mb-1">
             Workspace Member
           </div>

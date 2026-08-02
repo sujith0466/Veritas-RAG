@@ -13,6 +13,8 @@ class RedisSettings(BaseSettings):
     db: int = Field(default=0, alias="REDIS_DB")
     max_connections: int = Field(default=20, alias="REDIS_MAX_CONNECTIONS")
     socket_timeout: int = Field(default=5, alias="REDIS_SOCKET_TIMEOUT")
+    retry_attempts: int = Field(default=3, alias="REDIS_RETRY_ATTEMPTS")
+    retry_backoff_max: int = Field(default=10, alias="REDIS_RETRY_BACKOFF_MAX")
 
     url_override: str | None = Field(default=None, alias="REDIS_URL")
 

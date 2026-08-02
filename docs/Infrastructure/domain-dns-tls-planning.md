@@ -7,7 +7,7 @@ cookie and CORS policies from the main application.
 
 ## TLS / HTTPS
 - **Edge Termination**: TLS must be terminated at the edge (Load Balancer or Nginx Reverse Proxy).
-- **Certificates**: 
+- **Certificates**:
   - Use Let's Encrypt (Certbot) for automated certificate rotation.
   - Or, supply Enterprise Wildcard certificates via the secrets volume mount.
 - **HSTS**: Strict-Transport-Security headers are automatically enforced by RAGuard

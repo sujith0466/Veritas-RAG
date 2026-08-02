@@ -67,8 +67,8 @@ export function Footer() {
               <ul className="flex flex-col space-y-3">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <a 
-                      href={link.href} 
+                    <a
+                      href={link.href}
                       className="text-sm text-muted-foreground hover:text-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
                     >
                       {link.label}

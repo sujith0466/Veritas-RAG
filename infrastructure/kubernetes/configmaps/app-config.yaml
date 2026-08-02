@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: raguard-config
+  namespace: raguard-production
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: config
+    app.kubernetes.io/instance: config-1
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+data:
+  ENVIRONMENT: production
+  LOG_LEVEL: info
+  POSTGRES_DB: raguard_db
+  POSTGRES_USER: raguard
+  REDIS_URL: redis://raguard-redis:6379/0
+  QDRANT_URL: http://raguard-qdrant:6333

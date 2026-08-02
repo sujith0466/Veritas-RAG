@@ -1,10 +1,10 @@
 # RAGuard AI — Phase 2 Milestone 3: Vector Storage Foundation
 ## Document 1: Executive Architecture
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 3 (`Vector Storage Foundation`)  
-**Status**: Architectural Blueprint (Strict Planning Only — No Code)  
-**Author**: Principal Database Architect & AI Infrastructure Engineering Team  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 3 (`Vector Storage Foundation`)
+**Status**: Architectural Blueprint (Strict Planning Only — No Code)
+**Author**: Principal Database Architect & AI Infrastructure Engineering Team
 
 ---
 

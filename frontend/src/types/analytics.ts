@@ -156,4 +156,3 @@ export interface ReportMetadataDTO {
   download_url: string
   summary_metrics: Record<string, unknown>
 }
-

@@ -1,17 +1,17 @@
 # phase-9-implementation-plan.md
 # RAGuard AI — Phase 9: Clarification Engine (Production Grade)
 
-**Version**: 1.0.0  
-**Date**: 2026-07-20  
-**Author**: Principal Software Architect  
-**Status**: PLANNING — Awaiting Approval  
+**Version**: 1.0.0
+**Date**: 2026-07-20
+**Author**: Principal Software Architect
+**Status**: PLANNING — Awaiting Approval
 **Depends On**: Phase 5 (Hybrid Retrieval), Phase 6 (Confidence Engine), Phase 7 (Retry Controller)
 
 ---
 
 ## 1. Executive Summary
 
-Phase 9 delivers the **production-grade Clarification Engine** for RAGuard AI. When the Confidence Engine (Phase 6) detects extreme ambiguity or unresolvable multi-intent queries, and the Retry Controller (Phase 7) decides that automated rewriting (Phase 8) cannot safely resolve the intent, the system triggers a `RETRY_CLARIFY` action. 
+Phase 9 delivers the **production-grade Clarification Engine** for RAGuard AI. When the Confidence Engine (Phase 6) detects extreme ambiguity or unresolvable multi-intent queries, and the Retry Controller (Phase 7) decides that automated rewriting (Phase 8) cannot safely resolve the intent, the system triggers a `RETRY_CLARIFY` action.
 
 The Clarification Engine pauses the automated retrieval loop and generates a targeted, user-friendly clarification question (e.g., *"Did you mean Q3 2024 or Q3 2025?"*). This phase implements the generation of these questions, the persistence of the "Pending Clarification" state, and the API endpoints for the client to submit the clarifying answer.
 
@@ -146,9 +146,9 @@ Output: AmbiguityCategory
 Input: original_query, AmbiguityCategory, retrieved_context
 
 Algorithm (LLM):
-Prompt: "The user asked '{query}'. We retrieved this context: {context}. 
-However, it is ambiguous due to {category}. 
-Generate a polite, single-sentence question asking the user to clarify. 
+Prompt: "The user asked '{query}'. We retrieved this context: {context}.
+However, it is ambiguous due to {category}.
+Generate a polite, single-sentence question asking the user to clarify.
 Provide 2-4 likely options if possible, otherwise leave options empty.
 Format as JSON: { 'question': '...', 'options': ['...', '...'] }"
 

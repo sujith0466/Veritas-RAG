@@ -13,13 +13,34 @@ from enum import StrEnum
 class EventType(StrEnum):
     """All domain events that can be emitted by the RAGuard AI platform."""
 
+    # ── Workspace Lifecycle ────────────────────────────────────────────────────
+    WORKSPACE_ARCHIVED = "workspace.archived"
+    WORKSPACE_RESTORED = "workspace.restored"
+    WORKSPACE_SUSPENDED = "workspace.suspended"
+    WORKSPACE_UNSUSPENDED = "workspace.unsuspended"
+    WORKSPACE_SOFT_DELETED = "workspace.soft_deleted"
+    WORKSPACE_PURGING_STARTED = "workspace.purging_started"
+    WORKSPACE_HARD_DELETED = "workspace.hard_deleted"
+
+    # ── Workspace Settings & Branding ──────────────────────────────────────────
+    WORKSPACE_SETTINGS_UPDATED = "workspace.settings_updated"
+    WORKSPACE_SETTINGS_RESET = "workspace.settings_reset"
+    WORKSPACE_SETTINGS_IMPORTED = "workspace.settings_imported"
+    WORKSPACE_BRANDING_UPDATED = "workspace.branding_updated"
+
+    # ── Feature Flags ──────────────────────────────────────────────────────────
+    FEATURE_FLAG_CREATED = "feature_flag.created"
+    FEATURE_FLAG_UPDATED = "feature_flag.updated"
+    FEATURE_FLAG_KILLSWITCH_TRIGGERED = "feature_flag.killswitch_triggered"
+    FEATURE_FLAG_RULE_UPDATED = "feature_flag.rule_updated"
+
     # ── Document Lifecycle ─────────────────────────────────────────────────────
     DOCUMENT_UPLOADED = "document.uploaded"
     DOCUMENT_INGESTION_STARTED = "document.ingestion_started"
     DOCUMENT_INGESTION_COMPLETED = "document.ingestion_completed"
     DOCUMENT_INGESTION_FAILED = "document.ingestion_failed"
     DOCUMENT_DELETED = "document.deleted"
-    
+
     # ── Chunking Pipeline ──────────────────────────────────────────────────────
     CHUNKING_STARTED = "chunking.started"
     CHUNKING_COMPLETED = "chunking.completed"

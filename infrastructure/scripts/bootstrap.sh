@@ -55,7 +55,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     sleep 2
     UNREADY=$(docker compose ps --format json | grep -c '"Health":"unhealthy"' || true)
     WAITING=$(docker compose ps --format json | grep -c '"Health":"starting"' || true)
-    
+
     if [ "$UNREADY" -eq 0 ] && [ "$WAITING" -eq 0 ]; then
         ALL_HEALTHY=true
         break

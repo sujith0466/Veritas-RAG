@@ -13,5 +13,5 @@ We recommend injecting the `.env.prod` file at runtime via one of the following:
 - **Kubernetes Secrets**
 
 ## Secret Injection (Docker/Swarm)
-Use external secrets bound via Docker Swarm or injected directly into the 
+Use external secrets bound via Docker Swarm or injected directly into the
 container environment by the CI/CD pipeline prior to startup.

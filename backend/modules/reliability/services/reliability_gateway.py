@@ -315,8 +315,8 @@ class ReliabilityGateway:
                 tenant_id=item.tenant_id,
                 content=item.content,
                 score=(
-                    item.rerank_score
-                    if item.rerank_score is not None
+                    item.raw_rerank_score
+                    if item.raw_rerank_score is not None
                     else item.rrf_score
                 ),
                 rank=item.final_rank,

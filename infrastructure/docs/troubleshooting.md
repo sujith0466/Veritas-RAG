@@ -1,9 +1,9 @@
 # RAGuard AI — Infrastructure Troubleshooting & Incident Guide
 
-**Document Version**: 1.0.0  
-**Phase**: Phase 1 — Foundation & Enterprise Setup  
-**Milestone**: Milestone 5 — Infrastructure & Developer Environment  
-**Status**: Approved & Frozen Baseline  
+**Document Version**: 1.0.0
+**Phase**: Phase 1 — Foundation & Enterprise Setup
+**Milestone**: Milestone 5 — Infrastructure & Developer Environment
+**Status**: Approved & Frozen Baseline
 
 ---
 

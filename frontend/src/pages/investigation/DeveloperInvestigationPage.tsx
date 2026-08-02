@@ -272,17 +272,17 @@ export function DeveloperInvestigationPage() {
   return (
     <PageTransition className="space-y-8 max-w-7xl mx-auto pb-12">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/60 pb-6">
-        <PageHeader 
-          title="Developer Investigation Console" 
+        <PageHeader
+          title="Developer Investigation Console"
           description="Deep-dive forensic debugging suite for RAGuard AI queries, multi-stage waterfalls, RRF rankings, and self-correction traces."
         />
-        
+
         <div className="flex bg-surface border border-border p-1 rounded-lg shadow-sm shrink-0">
           <button
             onClick={() => setActiveTab('sandbox')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold transition-all ${
-              activeTab === 'sandbox' 
-                ? 'bg-primary text-primary-foreground shadow' 
+              activeTab === 'sandbox'
+                ? 'bg-primary text-primary-foreground shadow'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
@@ -291,8 +291,8 @@ export function DeveloperInvestigationPage() {
           <button
             onClick={() => setActiveTab('trace')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold transition-all ${
-              activeTab === 'trace' 
-                ? 'bg-primary text-primary-foreground shadow' 
+              activeTab === 'trace'
+                ? 'bg-primary text-primary-foreground shadow'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
             }`}
           >
@@ -302,9 +302,9 @@ export function DeveloperInvestigationPage() {
       </div>
 
       {error && (
-        <ErrorState 
-          title="Execution Error" 
-          error={new Error(error)} 
+        <ErrorState
+          title="Execution Error"
+          error={new Error(error)}
           className="mb-8"
         />
       )}
@@ -509,7 +509,7 @@ export function DeveloperInvestigationPage() {
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="p-0 overflow-y-auto flex-1">
               {isLoadingHistory ? (
                 <div className="p-12 flex flex-col items-center justify-center text-muted-foreground space-y-3">

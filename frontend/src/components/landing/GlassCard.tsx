@@ -33,7 +33,7 @@ export const GlassCard = forwardRef<HTMLDivElement, GlassCardProps>(
       >
         {/* Subtle glass reflection overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 transition-opacity duration-500 pointer-events-none group-hover:opacity-100" />
-        
+
         <div className="relative z-10">
           {children}
         </div>

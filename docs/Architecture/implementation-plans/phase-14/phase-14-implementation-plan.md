@@ -1,9 +1,9 @@
 # Phase 14 Implementation Plan — Knowledge Health & Automated Cleanup Engine (Production Grade)
 
-**Phase Name:** Phase 14 — Knowledge Health & Automated Cleanup Engine  
-**Target Module:** `backend/modules/knowledge_health/`  
-**Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)  
-**Author:** RAGuard Principal Architecture & Enterprise QA Team  
+**Phase Name:** Phase 14 — Knowledge Health & Automated Cleanup Engine
+**Target Module:** `backend/modules/knowledge_health/`
+**Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
+**Author:** RAGuard Principal Architecture & Enterprise QA Team
 
 ---
 

@@ -152,7 +152,7 @@ class ExecutionGateway:
                 "chunk_id": c.chunk_id,
                 "document_id": c.document_id,
                 "content": c.content,
-                "score": c.score,
+                "score": (c.raw_rerank_score if hasattr(c, "raw_rerank_score") else getattr(c, "score", 0.0)),
             }
             for c in current_retrieval.candidates
         ]

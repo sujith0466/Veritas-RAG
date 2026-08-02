@@ -1,9 +1,9 @@
 # Phase 13 Implementation Plan — Reliability Score Engine (Production Grade)
 
-**Phase Name:** Phase 13 — Reliability Score Engine  
-**Target Module:** `backend/modules/scoring/`  
-**Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)  
-**Author:** RAGuard Principal Architecture & Enterprise QA Team  
+**Phase Name:** Phase 13 — Reliability Score Engine
+**Target Module:** `backend/modules/scoring/`
+**Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
+**Author:** RAGuard Principal Architecture & Enterprise QA Team
 
 ---
 

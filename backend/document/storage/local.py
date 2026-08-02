@@ -175,3 +175,11 @@ class LocalStorageProvider(StorageProvider):
     async def get_uri(self, object_key: str) -> str:
         target_path = self._resolve_path(object_key)
         return target_path.as_uri()
+
+    async def create_upload_url(self, object_key: str, expiration_seconds: int = 3600) -> str:
+        """Mock upload URL for local development."""
+        return f"/api/v1/storage/upload?key={object_key}&expires={expiration_seconds}"
+
+    async def create_download_url(self, object_key: str, expiration_seconds: int = 3600) -> str:
+        """Mock download URL for local development."""
+        return f"/api/v1/storage/download?key={object_key}&expires={expiration_seconds}"

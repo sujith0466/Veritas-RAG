@@ -53,11 +53,11 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
   }
 
   return (
-    <motion.form 
+    <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onSubmit)} 
+      onSubmit={handleSubmit(onSubmit)}
       className="space-y-4"
     >
       <div className="space-y-2">
@@ -69,7 +69,7 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
           autoComplete="email"
           autoFocus
           onFocus={() => onFocusChange?.('email')}
-          
+
           leftIcon={<Mail className="h-4 w-4" />}
           error={errors.email?.message}
           {...register('email')}
@@ -91,7 +91,7 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
           type={showPassword ? "text" : "password"}
           autoComplete="current-password"
           onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
-          
+
           leftIcon={<Lock className="h-4 w-4" />}
           rightIcon={
             <button
@@ -106,7 +106,7 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
           {...register('password')}
         />
       </div>
-      
+
       <div className="flex items-center space-x-2 pt-1 pb-2">
         <input type="checkbox" id="remember" className="rounded border-border bg-surface text-primary focus:ring-primary" />
         <label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
@@ -116,6 +116,29 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
 
       <Button type="submit" className="w-full" isLoading={isLoading}>
         Login
+      </Button>
+
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+        </div>
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={() => {
+          window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'}/api/v1/auth/sso/login/google`
+        }}
+      >
+        <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+          <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+        </svg>
+        Google
       </Button>
     </motion.form>
   )
@@ -128,7 +151,13 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
 const baseRegisterSchema = {
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/\d/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
   confirmPassword: z.string(),
   acceptTerms: z.literal(true, {
     errorMap: () => ({ message: "You must accept the terms" }),
@@ -157,7 +186,7 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  
+
   const { register, handleSubmit, watch, formState: { errors } } = useForm<z.infer<typeof adminRegisterSchema>>({
     resolver: zodResolver(adminRegisterSchema),
   })
@@ -181,11 +210,11 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
   }
 
   return (
-    <motion.form 
+    <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onSubmit)} 
+      onSubmit={handleSubmit(onSubmit)}
       className="space-y-4"
     >
       <div className="grid grid-cols-2 gap-4">
@@ -217,7 +246,7 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
             id="password"
             type={showPassword ? "text" : "password"}
             onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
-            
+
             leftIcon={<Lock className="h-4 w-4" />}
             error={errors.password?.message}
             {...register('password')}
@@ -229,7 +258,7 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
             id="confirmPassword"
             type={showPassword ? "text" : "password"}
             onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
-            
+
             leftIcon={<Lock className="h-4 w-4" />}
             rightIcon={
               <button type="button" onClick={() => { setShowPassword(!showPassword); onFocusChange?.(!showPassword ? 'password_visible' : 'password'); }} className="text-muted-foreground hover:text-foreground">
@@ -241,7 +270,7 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
           />
         </div>
       </div>
-      
+
       <PasswordStrength password={passwordVal} />
 
       <div className="flex items-center space-x-2 pt-2 pb-2">
@@ -263,7 +292,7 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  
+
   const { register, handleSubmit, watch, formState: { errors } } = useForm<z.infer<typeof userRegisterSchema>>({
     resolver: zodResolver(userRegisterSchema),
   })
@@ -286,11 +315,11 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
   }
 
   return (
-    <motion.form 
+    <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onSubmit)} 
+      onSubmit={handleSubmit(onSubmit)}
       className="space-y-4"
     >
       <div className="space-y-2">
@@ -316,7 +345,7 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
             id="password"
             type={showPassword ? "text" : "password"}
             onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
-            
+
             leftIcon={<Lock className="h-4 w-4" />}
             error={errors.password?.message}
             {...register('password')}
@@ -328,7 +357,7 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
             id="confirmPassword"
             type={showPassword ? "text" : "password"}
             onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
-            
+
             leftIcon={<Lock className="h-4 w-4" />}
             rightIcon={
               <button type="button" onClick={() => { setShowPassword(!showPassword); onFocusChange?.(!showPassword ? 'password_visible' : 'password'); }} className="text-muted-foreground hover:text-foreground">
@@ -340,7 +369,7 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
           />
         </div>
       </div>
-      
+
       <PasswordStrength password={passwordVal} />
 
       <div className="flex items-center space-x-2 pt-2 pb-2">

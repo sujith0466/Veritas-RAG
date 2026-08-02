@@ -8,7 +8,7 @@ The Evaluation & Continuous Learning Engine (Phase 15) has been fully implemente
 ### Milestone 15.1: Schemas, Models, and Migrations
 - **DTOs**: Created `GoldenExampleDTO`, `DatasetCreateDTO`, and `EvaluationResultDTO` (`schemas/evaluation_dto.py`).
 - **Exceptions**: Extended `errors.py` with `EvaluationErrorCode`.
-- **Database**: 
+- **Database**:
   - Created `GoldenDatasetORM` and `EvaluationRunORM` (`models/evaluation_log.py`).
   - Created `EvaluationRepository` (`repositories/evaluation_repository.py`) to manage dataset CRUD and log evaluation runs.
   - Created Alembic migration `0016_evaluation_engine.py`.

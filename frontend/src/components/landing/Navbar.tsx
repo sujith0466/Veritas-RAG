@@ -13,17 +13,17 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hoveredLink, setHoveredLink] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string>('')
-  
+
   const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
   const logout = useAuthStore((s) => s.clearAuth)
-  
+
   const navigate = useNavigate()
   const location = useLocation()
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 70)
-      
+
       // Update active section
       const sections = ['platform', 'security', 'features', 'architecture']
       for (const section of sections.reverse()) {
@@ -75,14 +75,14 @@ export function Navbar() {
     <header
       className={cn(
         "fixed top-0 inset-x-0 z-50 transition-all duration-500",
-        scrolled 
-          ? "bg-background/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_40px_rgba(0,0,0,0.15)] py-3" 
+        scrolled
+          ? "bg-background/80 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_40px_rgba(0,0,0,0.15)] py-3"
           : "bg-transparent py-6 border-b border-transparent"
       )}
     >
       <div className="container mx-auto px-4 md:px-8 max-w-7xl flex items-center justify-between">
         {/* Logo */}
-        <a 
+        <a
           href="#"
           onClick={(e) => handleScrollTo(e, '')}
           className="flex items-center space-x-2.5 group outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1"
@@ -96,7 +96,7 @@ export function Navbar() {
         </a>
 
         {/* Desktop Nav */}
-        <nav 
+        <nav
           className="hidden md:flex items-center space-x-1 bg-surface/50 border border-border/40 px-2 py-1.5 rounded-full backdrop-blur-md"
           onMouseLeave={() => setHoveredLink(null)}
         >
@@ -191,7 +191,7 @@ export function Navbar() {
                 </motion.a>
               ))}
               <div className="h-px bg-border/50 my-2" />
-              
+
               {!isAuthenticated ? (
                 <Button variant="ghost" onClick={() => { setMobileMenuOpen(false); navigate('/auth/login'); }} className="justify-start">
                   Sign In
@@ -202,7 +202,7 @@ export function Navbar() {
                   Log out
                 </Button>
               )}
-              
+
               {!isAuthenticated && (
                 <Button onClick={() => { setMobileMenuOpen(false); handleLaunch(); }} className="justify-start bg-primary text-primary-foreground">
                   Launch Workspace

@@ -32,10 +32,10 @@ export const useAuthStore = create<AuthStoreState & AuthStoreActions>()((set) =>
 
   clearAuth: () =>
     set({ ...initialState, status: 'UNAUTHENTICATED' }),
-    
+
   setErrorAuth: (token, error) =>
     set({ status: 'ERROR', user: null, token, error }),
-    
+
   updateUser: (partialUser) =>
     set((state) => ({
       user: state.user ? { ...state.user, ...partialUser } : null,

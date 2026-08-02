@@ -1,31 +1,21 @@
-# Release Notes — RAGuard AI v1.0.0
+# Release Notes — RAGuard AI v2.0.0-milestone.3
 
-**Release Date**: 2026-07-21
-**Version**: 1.0.0 (Enterprise General Availability)
+**Release Date:** August 2, 2026  
+**Version:** 2.0.0-milestone.3 (Epics 1, 2, and 3 Frozen)
 
 ## Overview
-
-This is the first official General Availability release of RAGuard AI — an enterprise
-Retrieval-Augmented Generation Reliability Platform.
+This milestone marks the complete delivery and freezing of the first three core epics of **RAGuard V2**:
+- **Epic 1:** Foundational Infrastructure, Async Engines, Observability & Cloud Topology
+- **Epic 2:** Authentication, Identity Management, Sessions & SSO
+- **Epic 3:** Multi-Tenant Workspace Lifecycle, Versioned Settings, Dynamic Branding & Feature Flags
 
 ## Highlights
+- **100% Feature Freeze:** All 25 individual features across Epics 1, 2, and 3 have completed implementation, automated testing, and strict read-only production validation.
+- **Enterprise Multi-Tenancy:** Robust tenant isolation at PostgreSQL, Redis, Qdrant, and S3 layers.
+- **Zero Client-Side Trust Auth:** Server-side Argon2id hashing, dual-token JWT rotation, active Redis session revocation, and extensible SSO IdP adapter.
+- **Dynamic CSS & Feature Flag Engine:** Sub-millisecond flag evaluation via L1/L2 caching and real-time WCAG AA compliant CSS compilation.
+- **Test Suite Health:** All unit and integration test suites pass at 100%.
 
-- 24 production phases fully implemented and tested.
-- 419+ unit and integration tests passing at 100%.
-- Complete enterprise security posture (DLP, RBAC, audit logging).
-- Production-ready observability (OpenTelemetry, Prometheus).
-- Docker and CI/CD ready.
-
-## Known Limitations
-
-- Frontend UI is not included in this backend-only release.
-- DLP is regex-based; ML-based NER planned for v1.1.
-- Helm charts are not included (planned for v1.1).
-
-## Upgrade Notes
-
-This is the initial GA release. No upgrade path required.
-
-## Support
-
-See [support.md](support.md) for enterprise support options.
+## Next Milestones
+- **Epic 4:** User & Role Management (Invitations, RBAC Matrix Enforcement, Profiles, Domain Verification, Workspace SSO).
+- **Epic 5:** Document & Folder Management.

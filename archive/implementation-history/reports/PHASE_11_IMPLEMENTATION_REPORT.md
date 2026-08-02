@@ -8,7 +8,7 @@ The Reflection Engine (Phase 11) has been fully implemented, adding asynchronous
 ### Milestone 11.1: Schema, Exceptions, and Setup
 - **DTOs**: Created `ReflectionRequestDTOv2`, `ReflectionResultDTOv2`, `ReflectionScoreDTO`, `CompletenessReportDTO`, and `LogicalReviewReportDTO`.
 - **Exceptions**: Extended `errors.py` with `ReflectionEvaluationFailed` and `ContradictionDetectedError`.
-- **Database**: 
+- **Database**:
   - Created `ReflectionLogORM`.
   - Created `ReflectionRepository`.
   - Created Alembic migration `0012_reflection_engine_v2.py`.

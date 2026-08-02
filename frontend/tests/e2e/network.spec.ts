@@ -15,10 +15,10 @@ test.describe('Network & UI Error States Suite @network', () => {
     // Navigate through core sections
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/.*\/dashboard/);
-    
+
     await page.goto('/documents');
     await expect(page).toHaveURL(/.*\/documents/);
-    
+
     await page.goto('/chat');
     await expect(page).toHaveURL(/.*\/chat/);
 

@@ -17,7 +17,7 @@ test('Collect RCA Evidence via CDP', async () => {
   // Mock Backend Health
   await page.route('**/api/v1/health', route => route.abort('failed'));
   await page.route('**/api/v1/vectors/health', route => route.abort('failed'));
-  
+
   // Mock /auth/me failure
   await page.route('**/auth/me', route => {
     evidence.fetch_profile_retries.push({ url: route.request().url(), time: Date.now() });
@@ -69,9 +69,9 @@ test('Collect RCA Evidence via CDP', async () => {
   client.on('Debugger.paused', async (params) => {
     const callFrames = params.callFrames;
     const stack = callFrames.map(f => `${f.functionName} (${f.url}:${f.location.lineNumber})`);
-    
+
     const isAuthError = stack.some(s => s.includes('fetchBackendProfile') || s.includes('clearAuth') || s.includes('AuthProvider'));
-    
+
     if (isAuthError && !evidence.clearAuth_stack) {
       evidence.clearAuth_stack = stack;
     }
@@ -96,7 +96,7 @@ test('Collect RCA Evidence via CDP', async () => {
   // Wait for redirect to login (the rollback)
   await page.waitForURL('**/auth/login', { timeout: 15000 }).catch(() => {});
 
-  // For fetch_profile_failure, if it was aborted by route, response event doesn't fire. 
+  // For fetch_profile_failure, if it was aborted by route, response event doesn't fire.
   // We can just assert it failed via the retries length.
   if (evidence.fetch_profile_retries.length > 0) {
      evidence.fetch_profile_failure = { status: 0, url: '**/auth/me' };

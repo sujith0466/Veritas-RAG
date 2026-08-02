@@ -9,8 +9,14 @@ from typing import Any
 import structlog
 
 try:
-    from prometheus_client import (CONTENT_TYPE_LATEST, REGISTRY, Counter,
-                                   Gauge, Histogram, generate_latest)
+    from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        REGISTRY,
+        Counter,
+        Gauge,
+        Histogram,
+        generate_latest,
+    )
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:
@@ -22,7 +28,7 @@ except ImportError:
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        def labels(self, *args: Any, **kwargs: Any) -> "_MockMetric":
+        def labels(self, *args: Any, **kwargs: Any) -> "_MockMetric":  # noqa: ARG002
             return self
 
         def inc(self, amount: float = 1.0) -> None:
@@ -183,6 +189,109 @@ def record_reflection_metric(
         HALLUCINATION_DETECTIONS_TOTAL.labels(severity="high").inc()
 
 
+# ── 8. Workspace Lifecycle & Retention Metrics ───────────────────────────────
+
+WORKSPACES_SOFT_DELETED_TOTAL = Counter(
+    "raguard_workspaces_soft_deleted_total",
+    "Total workspaces soft deleted.",
+)
+
+WORKSPACES_RESTORED_TOTAL = Counter(
+    "raguard_workspaces_restored_total",
+    "Total workspaces restored from soft deletion.",
+)
+
+WORKSPACES_HARD_DELETED_TOTAL = Counter(
+    "raguard_workspaces_hard_deleted_total",
+    "Total workspaces permanently hard deleted.",
+)
+
+WORKSPACE_CLEANUP_FAILURES_TOTAL = Counter(
+    "raguard_workspace_cleanup_failures_total",
+    "Total cleanup failure incidents encountered during workspace purge.",
+    ["stage"],
+)
+
+WORKSPACE_RETENTION_WORKER_DURATION_SECONDS = Histogram(
+    "raguard_workspace_retention_worker_duration_seconds",
+    "Time taken in seconds to run workspace retention cleanup batch.",
+)
+
+
+def record_workspace_soft_deleted() -> None:
+    WORKSPACES_SOFT_DELETED_TOTAL.inc()
+
+
+def record_workspace_restored() -> None:
+    WORKSPACES_RESTORED_TOTAL.inc()
+
+
+def record_workspace_hard_deleted() -> None:
+    WORKSPACES_HARD_DELETED_TOTAL.inc()
+
+
+def record_workspace_cleanup_failure(stage: str) -> None:
+    WORKSPACE_CLEANUP_FAILURES_TOTAL.labels(stage=stage).inc()
+
+
+def record_retention_worker_duration(duration_seconds: float) -> None:
+    WORKSPACE_RETENTION_WORKER_DURATION_SECONDS.observe(duration_seconds)
+
+
+# ── 9. Feature Flag Metrics ──────────────────────────────────────────────────
+
+FEATURE_FLAG_EVALUATIONS_TOTAL = Counter(
+    "raguard_feature_flag_evaluations_total",
+    "Total feature flag evaluations executed.",
+    ["flag_key", "result", "reason"],
+)
+
+FEATURE_FLAG_CACHE_HITS_TOTAL = Counter(
+    "raguard_feature_flag_cache_hits_total",
+    "Total feature flag cache hits by tier.",
+    ["tier"],
+)
+
+FEATURE_FLAG_CACHE_MISSES_TOTAL = Counter(
+    "raguard_feature_flag_cache_misses_total",
+    "Total feature flag cache misses by tier.",
+    ["tier"],
+)
+
+FEATURE_FLAG_EVALUATION_DURATION_SECONDS = Histogram(
+    "raguard_feature_flag_evaluation_duration_seconds",
+    "Time taken to evaluate a feature flag in seconds.",
+    ["tier"],
+)
+
+FEATURE_FLAG_KILLSWITCHES_ACTIVE = Gauge(
+    "raguard_feature_flag_killswitches_active",
+    "Current count of active emergency killswitches.",
+)
+
+
+def record_feature_flag_evaluation(flag_key: str, result: str, reason: str) -> None:
+    FEATURE_FLAG_EVALUATIONS_TOTAL.labels(
+        flag_key=flag_key, result=result, reason=reason
+    ).inc()
+
+
+def record_feature_flag_cache_hit(tier: str) -> None:
+    FEATURE_FLAG_CACHE_HITS_TOTAL.labels(tier=tier).inc()
+
+
+def record_feature_flag_cache_miss(tier: str) -> None:
+    FEATURE_FLAG_CACHE_MISSES_TOTAL.labels(tier=tier).inc()
+
+
+def record_feature_flag_duration(tier: str, duration_seconds: float) -> None:
+    FEATURE_FLAG_EVALUATION_DURATION_SECONDS.labels(tier=tier).observe(duration_seconds)
+
+
+def set_active_killswitches_count(count: int) -> None:
+    FEATURE_FLAG_KILLSWITCHES_ACTIVE.set(count)
+
+
 def get_metrics_output() -> bytes:
     """Return the raw Prometheus text-format metrics buffer."""
     return generate_latest(REGISTRY)
@@ -191,3 +300,5 @@ def get_metrics_output() -> bytes:
 def get_metrics_content_type() -> str:
     """Return the standard Prometheus MIME content type."""
     return str(CONTENT_TYPE_LATEST)
+
+

@@ -4,7 +4,7 @@
 - RAGuard AI: Securing the Future of Enterprise Generative AI.
 
 **Slide 2: The Core Problem**
-- Generative AI is powerful, but unpredictable. 
+- Generative AI is powerful, but unpredictable.
 - Hallucinations destroy user trust.
 - Lack of observability prevents SLA guarantees.
 

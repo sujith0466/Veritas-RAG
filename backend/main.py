@@ -37,6 +37,7 @@ from backend.core.logging import RequestLoggingMiddleware, configure_logging
 from backend.core.middleware import (CorrelationIDMiddleware,
                                      ObservabilityMiddleware,
                                      SecurityHeadersMiddleware)
+from backend.core.auth.middleware import JWTAuthenticationMiddleware
 from backend.observability.tracing import init_tracer
 
 logger = structlog.get_logger(__name__)
@@ -168,6 +169,9 @@ def create_app() -> FastAPI:
         RequestLoggingMiddleware,
         log_requests=settings.logging.log_requests,
     )
+
+    # JWT Authentication middleware (protects routes, checks blocklist)
+    app.add_middleware(JWTAuthenticationMiddleware)
 
     # Security response headers
     app.add_middleware(

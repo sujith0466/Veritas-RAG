@@ -9,8 +9,13 @@ from typing import Any
 
 import structlog
 from qdrant_client import AsyncQdrantClient
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+import httpx
 
 from backend.core.config import get_settings
+from backend.core.utils.retry import with_retry
+from backend.vector_db.metrics import QdrantMetrics
+import time
 
 logger = structlog.get_logger(__name__)
 
@@ -70,15 +75,53 @@ async def get_vector_db() -> AsyncGenerator[AsyncQdrantClient, None]:
     yield get_qdrant_client()
 
 
-async def check_vector_db_health() -> bool:
-    """Check Qdrant connectivity by retrieving the collections list."""
+async def check_vector_db_health() -> dict[str, Any]:
+    """Check Qdrant connectivity and measure latency.
+    
+    Returns detailed connection status, latency in ms, and gRPC preference.
+    """
+    start = time.perf_counter()
+    status = "healthy"
+    error = None
+    collection_count = 0
+    grpc_enabled = False
+    
     try:
-        client = get_qdrant_client()
-        await client.get_collections()
-        return True
+        # Wrap the ping with the generic retry utility for transient network errors
+        @with_retry(
+            max_retries=get_settings().qdrant.retry_attempts,
+            base_delay=0.5,
+            exceptions=(ResponseHandlingException, UnexpectedResponse, httpx.ConnectError)
+        )
+        async def _ping():
+            client = get_qdrant_client()
+            res = await client.get_collections()
+            return client, res
+            
+        client, res = await _ping()
+        collection_count = len(res.collections) if res and res.collections else 0
+        
+        # Check if the underlying client is preferring grpc
+        grpc_enabled = client._prefer_grpc if hasattr(client, "_prefer_grpc") else False
+            
     except Exception as exc:
         logger.warning("Qdrant vector database health check failed", error=str(exc))
-        return False
+        QdrantMetrics.record_error()
+        status = "unhealthy"
+        error = str(exc)
+        
+    latency_ms = (time.perf_counter() - start) * 1000
+    stats = QdrantMetrics.get_stats()
+    
+    return {
+        "status": status,
+        "latency_ms": round(latency_ms, 2),
+        "collection_count": collection_count,
+        "grpc_enabled": grpc_enabled,
+        "retries": stats["retries"],
+        "errors": stats["errors"],
+        "error": error
+    }
 
 
 async def close_vector_db() -> None:

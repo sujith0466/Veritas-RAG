@@ -33,4 +33,3 @@ services:
       - ./backend:/app/backend
       - ./tests:/app/tests
       - app_data:/app/data
-

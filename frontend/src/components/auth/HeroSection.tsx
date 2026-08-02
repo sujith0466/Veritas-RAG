@@ -31,9 +31,9 @@ export function HeroSection() {
 
   return (
     <div className="flex flex-col justify-center h-full max-w-lg mx-auto lg:mx-0 p-8 lg:p-12 relative z-10 text-foreground">
-      
+
       {/* Logo & Subtitle */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}

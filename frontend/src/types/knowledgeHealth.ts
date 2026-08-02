@@ -43,4 +43,3 @@ export interface MigrationJobDTO {
   status: string
   started_at: string
 }
-

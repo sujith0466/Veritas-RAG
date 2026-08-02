@@ -14,21 +14,20 @@ Liveness vs Readiness:
   A failure here removes the pod from the load balancer without restarting it.
 """
 
-import time
 from datetime import UTC, datetime
+import time
 from typing import Any
 
-import structlog
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+import structlog
 
 from backend.core.auth.context import UserContext
 from backend.core.config import get_settings
 from backend.core.dependencies.auth import require_role
 from backend.core.permissions.rbac import Role
 
-from ..schemas.common import (DependencyHealth, DetailedHealthResponse,
-                              HealthStatus)
+from ..schemas.common import DependencyHealth, DetailedHealthResponse, HealthStatus
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/health", tags=["Health"])
@@ -79,20 +78,18 @@ async def liveness() -> dict[str, Any]:
     }
 
 
-async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHealth]:
+async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHealth]:  # noqa: PLR0915
     """Ping downstream infrastructure dependencies."""
+    import asyncio
+
     from backend.cache.client import check_cache_health, get_redis_client
     from backend.database.engine import check_db_health
-    from backend.vector_db.client import check_vector_db_health, get_qdrant_client
-    from backend.core.config.llm_manager import LLMManagerSettings
+    from backend.document.storage.utils import check_storage_health
     from backend.tasks.celery_app import celery_app
-    import uuid
-    import asyncio
-    
-    settings = get_settings()
-    
+    from backend.vector_db.client import check_vector_db_health
+
     deps = {}
-    
+
     # 1. PostgreSQL
     t0 = time.time()
     db_ok = await check_db_health()
@@ -106,92 +103,62 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
 
     # 2. Redis & Queue Health
     t0 = time.time()
-    cache_ok = await check_cache_health()
-    cache_latency = (time.time() - t0) * 1000
-    
-    redis_info = None
-    if detailed and cache_ok:
+    cache_res = await check_cache_health()
+    is_cache_healthy = cache_res.get("status") == "healthy"
+
+    redis_info = cache_res
+    if detailed and is_cache_healthy:
         try:
             # Audit background queues
             redis = get_redis_client()
-            # Celery uses lists or sets for queues. We can get lengths.
-            # In Celery, queues are lists named after the queue. Default is 'celery' but we defined 'default', 'ingestion', etc.
             queue_info = {}
             for q in ["default", "ingestion", "embeddings", "retrieval", "evaluation", "health", "ai"]:
                 length = await redis.llen(q)
                 if length > 0:
                     queue_info[q] = length
-            
-            # Simple queue stats
-            redis_info = {
-                "queue_lengths": queue_info,
-            }
+            redis_info["queue_lengths"] = queue_info
         except Exception as e:
-            logger.error(f"Error fetching redis info: {e}")
+            logger.error(f"Error fetching redis queue info: {e}")
 
     deps["redis"] = DependencyHealth(
         name="redis",
-        status="healthy" if cache_ok else "unhealthy",
-        latency_ms=round(cache_latency, 2) if cache_ok else None,
-        error=None if cache_ok else "Redis connection failed",
+        status="healthy" if is_cache_healthy else "unhealthy",
+        latency_ms=cache_res.get("latency_ms"),
+        error=cache_res.get("error"),
         info=redis_info
     )
 
     # 3. Qdrant
     t0 = time.time()
-    qdrant_info = None
-    vector_ok = False
-    vector_err = None
-    try:
-        qclient = get_qdrant_client()
-        cols = await qclient.get_collections()
-        vector_ok = True
-        
-        if detailed:
-            # Collection Exists, Collection Count, Access, Search Test
-            col_count = len(cols.collections)
-            # Find the main collection if any
-            test_success = False
-            if col_count > 0:
-                try:
-                    # Simple search test on first collection
-                    await qclient.search(
-                        collection_name=cols.collections[0].name,
-                        query_vector=[0.0] * 384, # dummy vector, might fail if dimension mismatch, so we just use scroll
-                        limit=1
-                    )
-                    test_success = True
-                except Exception:
-                    try:
-                        await qclient.scroll(collection_name=cols.collections[0].name, limit=1)
-                        test_success = True
-                    except Exception:
-                        pass
-            
-            qdrant_info = {
-                "collection_count": col_count,
-                "collections_exist": col_count > 0,
-                "search_test": test_success
-            }
-    except Exception as exc:
-        vector_err = str(exc)
-        logger.warning("Qdrant health check failed", error=str(exc))
-    
-    qdrant_latency = (time.time() - t0) * 1000
-    
+    vector_res = await check_vector_db_health()
+    is_vector_healthy = vector_res.get("status") == "healthy"
+
     deps["qdrant"] = DependencyHealth(
         name="qdrant",
-        status="healthy" if vector_ok else "unhealthy",
-        latency_ms=round(qdrant_latency, 2) if vector_ok else None,
-        error=vector_err,
-        info=qdrant_info
+        status="healthy" if is_vector_healthy else "unhealthy",
+        latency_ms=vector_res.get("latency_ms"),
+        error=vector_res.get("error"),
+        info=vector_res
+    )
+
+    # 4. Object Storage (F1.5)
+    t0 = time.time()
+    storage_res = await check_storage_health()
+    is_storage_healthy = storage_res.get("status") == "healthy"
+
+    deps["object_storage"] = DependencyHealth(
+        name="object_storage",
+        status="healthy" if is_storage_healthy else "unhealthy",
+        latency_ms=storage_res.get("latency_ms"),
+        error=storage_res.get("error"),
+        info=storage_res
     )
 
     # 4. LLM Provider
     # Lazy import to avoid circular dependencies
     from backend.ai.factory import create_llm_provider
-    from backend.ai.interfaces.llm_provider import LLMProvider
-    
+    from backend.ai.interfaces.llm_provider import LLMProvider  # noqa: TC001
+
     t0 = time.time()
     llm_info = None
     llm_ok = False
@@ -207,7 +174,7 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
             }
     except Exception as exc:
         llm_err = str(exc)
-        
+
     llm_latency = (time.time() - t0) * 1000
     deps["llm_provider"] = DependencyHealth(
         name="llm_provider",
@@ -227,18 +194,18 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
             # Celery app.control.ping() is synchronous, so we run in executor
             loop = asyncio.get_running_loop()
             ping_res = await loop.run_in_executor(None, lambda: celery_app.control.ping(timeout=1.0))
-            
+
             num_active = len(ping_res)
             celery_ok = num_active > 0
-            
+
             celery_info = {
                 "active_workers": num_active,
                 "last_successful_ping": datetime.now(UTC).isoformat() if celery_ok else None,
                 "ping_responses": ping_res
             }
-        except Exception as exc:
+        except Exception:
             pass
-            
+
         celery_latency = (time.time() - t0) * 1000
         deps["celery_workers"] = DependencyHealth(
             name="celery_workers",
@@ -267,8 +234,8 @@ async def readiness() -> JSONResponse:
     settings = get_settings()
     deps_dict = await _check_dependencies(detailed=False)
 
-    # PostgreSQL, Redis, Qdrant must be healthy for readiness
-    required_deps = ["postgresql", "redis", "qdrant"]
+    # PostgreSQL, Redis, Qdrant, Object Storage must be healthy for readiness
+    required_deps = ["postgresql", "redis", "qdrant", "object_storage"]
     is_ready = True
     for req in required_deps:
         if deps_dict.get(req) and deps_dict[req].status not in ("healthy", "not_initialized"):

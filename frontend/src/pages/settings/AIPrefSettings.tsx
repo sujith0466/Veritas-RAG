@@ -10,7 +10,7 @@ export function AIPrefSettings() {
   const user = useAuthStore(s => s.user)
   const setAuth = useAuthStore(s => s.setAuth)
   const token = useAuthStore(s => s.token)
-  
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -53,11 +53,11 @@ export function AIPrefSettings() {
           ai: formData
         }
       })
-      
+
       if (user && token) {
         setAuth({ ...user, ...data }, token)
       }
-      
+
       toast({ title: 'Success', message: 'AI preferences updated successfully', type: 'success' })
     } catch (error) {
       toast({ title: 'Error', message: 'Failed to update AI preferences', type: 'error' })
@@ -72,11 +72,11 @@ export function AIPrefSettings() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader 
-        title="AI Preferences" 
-        description="Configure default generation settings, model routing, and core behavior." 
+      <SectionHeader
+        title="AI Preferences"
+        description="Configure default generation settings, model routing, and core behavior."
       />
-      
+
       <div className="grid gap-8">
         <Card className="p-6 space-y-6">
           <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
@@ -88,14 +88,14 @@ export function AIPrefSettings() {
               <p className="text-sm text-muted-foreground">Select the default LLM and parameter configurations.</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-3">
               <Label htmlFor="default_model">Default Language Model</Label>
               <div className="relative">
-                <select 
-                  id="default_model" 
-                  name="default_model" 
+                <select
+                  id="default_model"
+                  name="default_model"
                   value={formData.default_model}
                   onChange={handleChange}
                   className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
@@ -109,22 +109,22 @@ export function AIPrefSettings() {
               </div>
               <p className="text-xs text-muted-foreground">This model will be used when a specific agent doesn't enforce one.</p>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label htmlFor="temperature">Temperature: {formData.temperature.toFixed(2)}</Label>
                 <Sliders className="w-4 h-4 text-muted-foreground" />
               </div>
-              <input 
-                id="temperature" 
+              <input
+                id="temperature"
                 name="temperature"
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.05" 
-                value={formData.temperature} 
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={formData.temperature}
                 onChange={handleChange}
-                className="w-full accent-primary h-2 bg-muted rounded-lg appearance-none cursor-pointer" 
+                className="w-full accent-primary h-2 bg-muted rounded-lg appearance-none cursor-pointer"
               />
               <div className="flex justify-between text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                 <span>Deterministic</span>
@@ -133,7 +133,7 @@ export function AIPrefSettings() {
             </div>
           </div>
         </Card>
-        
+
         <Card className="p-6 space-y-6">
           <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
             <div className="p-2 bg-primary/10 rounded-lg text-primary">
@@ -144,10 +144,10 @@ export function AIPrefSettings() {
               <p className="text-sm text-muted-foreground">Add custom instructions appended to all queries in your workspace.</p>
             </div>
           </div>
-          
+
           <div className="space-y-2">
-            <textarea 
-              id="system_prompt" 
+            <textarea
+              id="system_prompt"
               name="system_prompt"
               rows={5}
               value={formData.system_prompt}
@@ -158,7 +158,7 @@ export function AIPrefSettings() {
           </div>
         </Card>
       </div>
-      
+
       <div className="flex justify-end pt-4">
         <Button onClick={handleSave} isLoading={saving}>
           Save AI Preferences

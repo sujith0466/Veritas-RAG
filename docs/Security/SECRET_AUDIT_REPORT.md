@@ -20,7 +20,7 @@ A repository-wide regex scan was executed across all files, checking for:
 - Base64 encoded credentials
 
 ## 5. Git History Findings
-The Git history was analyzed for instances of `SUPABASE_JWT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENROUTER_API_KEY`, `DATABASE_URL`, and `JWT_SECRET`. 
+The Git history was analyzed for instances of `SUPABASE_JWT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENROUTER_API_KEY`, `DATABASE_URL`, and `JWT_SECRET`.
 No production secrets were ever committed to the repository history. Environment files (`.env`, `.env.local`) have been intentionally and correctly ignored via `.gitignore` since project inception.
 
 ## 6. Secrets Discovered
@@ -32,7 +32,7 @@ No production secrets were ever committed to the repository history. Environment
 The insecure fallback patterns in `archive/scripts/verify_e2e.py` were entirely removed. The script now enforces strict environment variable resolution via `os.getenv` and raises an explicit `RuntimeError` if variables are missing.
 
 ## 8. Rotation Requirements
-**No rotation is required.** 
+**No rotation is required.**
 Because the detected value was purely a local dummy placeholder and no real production secrets were found in the source code or git history, there are no compromised credentials to rotate.
 
 ## 9. Remaining Risks

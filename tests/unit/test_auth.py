@@ -22,8 +22,6 @@ from backend.core.auth.context import UserContext
 from backend.core.auth.middleware import extract_bearer_token
 from backend.core.dependencies.auth import (
     get_current_user,
-    require_permission,
-    require_role,
 )
 from backend.core.exceptions.auth import (
     AuthenticationException,
@@ -34,7 +32,6 @@ from backend.core.exceptions.auth import (
 from backend.core.permissions.guards import evaluate_permission_access, evaluate_role_access
 from backend.core.permissions.rbac import Role
 from backend.core.permissions.registry import Permission, PermissionRegistry
-from backend.core.security.jwt import JWTVerifier
 from backend.models.entities.user import User
 from backend.services.auth.auth_service import AuthService
 from backend.services.auth.authorization_service import AuthorizationService
@@ -99,75 +96,6 @@ def test_permission_guards():
     assert evaluate_permission_access(Role.ANALYST, Permission.MANAGE_KEYS) is False
 
 
-# ── Test JWTVerifier ───────────────────────────────────────────────────────────
-
-
-def test_jwt_verifier_secret_mode_valid():
-    verifier = JWTVerifier()
-    claims = {
-        "sub": "user-uuid-123",
-        "email": "engineer@raguard.ai",
-        "role": "engineer",
-        "exp": int(time.time()) + 3600,
-    }
-    token = _make_token(claims)
-    payload = verifier.verify_and_decode(token)
-    assert payload.sub == "user-uuid-123"
-    assert payload.email == "engineer@raguard.ai"
-    assert payload.role == "engineer"
-
-
-def test_jwt_verifier_expired_token():
-    verifier = JWTVerifier()
-    claims = {
-        "sub": "user-uuid-123",
-        "exp": int(time.time()) - 3600,
-    }
-    token = _make_token(claims)
-    with pytest.raises(ExpiredTokenException) as exc_info:
-        verifier.verify_and_decode(token)
-    assert exc_info.value.error_code == "AUTH_003"
-
-
-def test_jwt_verifier_invalid_signature():
-    verifier = JWTVerifier()
-    claims = {"sub": "user-uuid-123", "exp": int(time.time()) + 3600}
-    token = _make_token(claims, secret="wrong-secret")
-    with pytest.raises(InvalidTokenException) as exc_info:
-        verifier.verify_and_decode(token)
-    assert exc_info.value.error_code == "AUTH_002"
-
-
-def test_jwt_verifier_missing_sub():
-    verifier = JWTVerifier()
-    claims = {"email": "no_sub@raguard.ai", "exp": int(time.time()) + 3600}
-    token = _make_token(claims)
-    with pytest.raises(InvalidTokenException):
-        verifier.verify_and_decode(token)
-
-
-@patch("jwt.PyJWKClient")
-def test_jwt_verifier_jwks_mode(mock_jwk_client_class, monkeypatch):
-    monkeypatch.setenv("SUPABASE_JWKS_URL", "https://test.supabase.co/.well-known/jwks.json")
-    from backend.core.config import get_settings
-
-    get_settings.cache_clear()
-
-    mock_client_instance = MagicMock()
-    mock_jwk_client_class.return_value = mock_client_instance
-
-    mock_key = MagicMock()
-    mock_key.key = SECRET
-    mock_client_instance.get_signing_key_from_jwt.return_value = mock_key
-
-    verifier = JWTVerifier()
-    assert verifier._jwk_client is not None
-
-    claims = {"sub": "jwks-user-456", "exp": int(time.time()) + 3600}
-    token = _make_token(claims)
-    payload = verifier.verify_and_decode(token)
-    assert payload.sub == "jwks-user-456"
-    get_settings.cache_clear()
 
 
 # ── Test AuthService ───────────────────────────────────────────────────────────
@@ -318,31 +246,3 @@ async def test_get_current_user_dependency():
         await get_current_user(None)
 
 
-@pytest.mark.asyncio
-async def test_require_role_dependency():
-    guard = require_role(Role.ENGINEER)
-    engineer = UserContext(
-        id=uuid.uuid4(), supabase_id="sub", email="e@raguard.ai", role=Role.ENGINEER
-    )
-    viewer = UserContext(
-        id=uuid.uuid4(), supabase_id="sub", email="v@raguard.ai", role=Role.VIEWER
-    )
-
-    assert await guard(engineer) == engineer
-    with pytest.raises(InsufficientRoleException):
-        await guard(viewer)
-
-
-@pytest.mark.asyncio
-async def test_require_permission_dependency():
-    guard = require_permission(Permission.RUN_QUERY)
-    analyst = UserContext(
-        id=uuid.uuid4(), supabase_id="sub", email="a@raguard.ai", role=Role.ANALYST
-    )
-    viewer = UserContext(
-        id=uuid.uuid4(), supabase_id="sub", email="v@raguard.ai", role=Role.VIEWER
-    )
-
-    assert await guard(analyst) == analyst
-    with pytest.raises(InsufficientRoleException):
-        await guard(viewer)

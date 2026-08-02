@@ -1,0 +1,71 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: raguard-production
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: database
+    app.kubernetes.io/instance: cronjob-backup
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: pg-dump
+            image: postgres:15-alpine
+            command:
+            - /bin/sh
+            - -c
+            - "pg_dump -h raguard-postgres -U raguard raguard_db > /backup/db_$(date +%Y%m%d).sql"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: backup-storage
+            emptyDir: {} # Placeholder for PVC or S3 mount
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: minio-backup
+  namespace: raguard-production
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: mc-mirror
+            image: minio/mc:latest
+            command:
+            - /bin/sh
+            - -c
+            - "mc alias set local http://raguard-minio:9000 admin placeholder && mc mirror local/data s3/backup"
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qdrant-snapshot
+  namespace: raguard-production
+spec:
+  schedule: "0 4 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: qdrant-curl
+            image: curlimages/curl:latest
+            command:
+            - /bin/sh
+            - -c
+            - "curl -X POST http://raguard-qdrant:6333/collections/knowledge/snapshots"
+          restartPolicy: OnFailure

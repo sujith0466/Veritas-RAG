@@ -9,12 +9,12 @@ interface FadeUpProps {
   yOffset?: number
 }
 
-export function FadeUp({ 
-  children, 
-  className, 
-  delay = 0, 
-  duration = 0.5, 
-  yOffset = 20 
+export function FadeUp({
+  children,
+  className,
+  delay = 0,
+  duration = 0.5,
+  yOffset = 20
 }: FadeUpProps) {
   const shouldReduceMotion = useReducedMotion()
 

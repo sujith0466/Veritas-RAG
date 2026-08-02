@@ -14,6 +14,12 @@ class QdrantSettings(BaseSettings):
     api_key: str = Field(default="", alias="QDRANT_API_KEY")
     prefer_grpc: bool = Field(default=False, alias="QDRANT_PREFER_GRPC")
     collection_prefix: str = Field(default="raguard", alias="QDRANT_COLLECTION_PREFIX")
+    
+    # Telemetry and Resilience
+    retry_attempts: int = Field(default=3, alias="QDRANT_RETRY_ATTEMPTS")
+    retry_backoff_max: float = Field(default=10.0, alias="QDRANT_RETRY_BACKOFF_MAX")
+    timeout: float = Field(default=10.0, alias="QDRANT_TIMEOUT")
+    batch_size_limit: int = Field(default=100, alias="QDRANT_BATCH_SIZE_LIMIT")
 
     model_config = {
         "populate_by_name": True,
@@ -21,6 +27,3 @@ class QdrantSettings(BaseSettings):
         "extra": "ignore",
     }
 
-    def collection_name(self, tenant_id: str) -> str:
-        """Generate a tenant-scoped collection name."""
-        return f"{self.collection_prefix}_{tenant_id}"

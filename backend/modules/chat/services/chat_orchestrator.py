@@ -30,7 +30,7 @@ def compute_chat_reliability_score(
         return 0.0
 
     non_empty_evidence = [
-        chunk for chunk in evidence_chunks if str(getattr(chunk, "content", "") or "").strip()
+        chunk for chunk in evidence_chunks if str((chunk.content if hasattr(chunk, "content") else chunk.get("content", "")) or "").strip()
     ]
     evidence_completeness = (
         len(non_empty_evidence) / len(evidence_chunks) if evidence_chunks else 0.0
@@ -78,7 +78,7 @@ def _citation_validity(
         if (
             citation
             and 0 <= chunk_pos < len(evidence_chunks)
-            and str(getattr(evidence_chunks[chunk_pos], "content", "") or "").strip()
+            and str((evidence_chunks[chunk_pos].content if hasattr(evidence_chunks[chunk_pos], "content") else evidence_chunks[chunk_pos].get("content", "")) or "").strip()
             and str(citation.get("excerpt") or "").strip()
         ):
             valid_count += 1

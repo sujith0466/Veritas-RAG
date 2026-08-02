@@ -19,7 +19,7 @@ export function SecurityCompliance() {
 
       <div className="container mx-auto px-4 md:px-8 max-w-7xl relative z-10">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          
+
           {/* Text Content */}
           <div className="max-w-2xl">
             <SectionHeading
@@ -28,8 +28,8 @@ export function SecurityCompliance() {
               align="left"
               className="mb-8"
             />
-            
-            <motion.p 
+
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -38,7 +38,7 @@ export function SecurityCompliance() {
             >
               We guarantee that private knowledge never leaks across tenant boundaries. Our strict Role-Based Access Control (RBAC) ensures users only retrieve context they are explicitly authorized to view, completely eliminating cross-contamination in LLM generation.
             </motion.p>
-            
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}

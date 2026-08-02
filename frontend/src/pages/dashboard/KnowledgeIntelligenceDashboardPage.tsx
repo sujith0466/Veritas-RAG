@@ -90,7 +90,7 @@ export function KnowledgeIntelligenceDashboardPage() {
 
       {error ? (
         <div className="mb-8">
-          <ErrorState 
+          <ErrorState
             title="Dashboard Error"
             error={new Error(error)}
             onRetry={loadData}
@@ -99,7 +99,7 @@ export function KnowledgeIntelligenceDashboardPage() {
       ) : (
         <>
           {/* Top Overview Cards */}
-          <motion.div 
+          <motion.div
             variants={listContainerVariants}
             initial="hidden"
             animate="visible"
@@ -191,7 +191,7 @@ export function KnowledgeIntelligenceDashboardPage() {
           </motion.div>
 
           {/* Middle Grid: Chunk Strategies & Stage Latencies */}
-          <motion.div 
+          <motion.div
             variants={listContainerVariants}
             initial="hidden"
             animate="visible"

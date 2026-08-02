@@ -49,10 +49,10 @@ export function FAQ() {
         <Stagger className="space-y-4" staggerDelay={0.1}>
           {FAQS.map((faq, i) => {
             const isOpen = openIndex === i
-            
+
             return (
               <FadeUp key={faq.question} yOffset={10}>
-                <div 
+                <div
                   className="border border-border/40 rounded-xl bg-surface/50 backdrop-blur-sm overflow-hidden transition-colors hover:border-border/80"
                 >
                   <button
@@ -68,7 +68,7 @@ export function FAQ() {
                       <ChevronDown className="w-5 h-5" />
                     </motion.span>
                   </button>
-                  
+
                   <AnimatePresence initial={false}>
                     {isOpen && (
                       <motion.div

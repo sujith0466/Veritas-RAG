@@ -5,7 +5,7 @@ import { healthService } from '@/services/api/healthService'
 import { vectorService } from '@/services/vectorService'
 import { Check } from 'lucide-react'
 
-type StepId = 
+type StepId =
   | 'security'
   | 'knowledge'
   | 'vector'
@@ -35,13 +35,13 @@ export function AppBootstrap() {
   const [isColdStart] = useState<boolean>(() => {
     return !sessionStorage.getItem('raguard_bootstrapped')
   })
-  
+
   const authStatus = useAuthStore((s) => s.status)
-  
+
   const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set())
   const [allReady, setAllReady] = useState(false)
   const [activeStepText, setActiveStepText] = useState('Initializing Enterprise AI Infrastructure')
-  
+
   // Real signal flags
   const [healthReady, setHealthReady] = useState(false)
   const [vectorReady, setVectorReady] = useState(false)
@@ -132,7 +132,7 @@ export function AppBootstrap() {
           {/* Layered Translucent Planes / Noise (from 3D background system) */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.04),transparent_50%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.04),transparent_50%)] opacity-70 mix-blend-screen" />
-          <div 
+          <div
             className="absolute inset-0 opacity-[0.015] mix-blend-multiply pointer-events-none"
             style={{
               backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")'
@@ -142,9 +142,9 @@ export function AppBootstrap() {
           <div className="relative z-10 flex flex-col items-center w-full max-w-sm px-6">
             {/* Wordmark */}
             <h1 className="text-3xl font-semibold tracking-tight mb-2">RAGuard AI</h1>
-            
+
             {/* Single supporting line */}
-            <motion.p 
+            <motion.p
               key={activeStepText}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -184,7 +184,7 @@ export function AppBootstrap() {
                 )
               })}
             </div>
-            
+
             {/* Screen Reader Announcement */}
             <div className="sr-only">
               {allReady ? 'Application initialization complete. Launching workspace.' : `Initializing. ${completedSteps.size} of ${STEPS.length} stages complete.`}

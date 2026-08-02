@@ -13,7 +13,7 @@ export function PasswordStrength({ password = '', onChangeStrength }: PasswordSt
 
   useEffect(() => {
     let newStrength: StrengthLevel = 'empty'
-    
+
     if (password.length > 0) {
       let score = 0
       if (password.length > 7) score += 1

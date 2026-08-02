@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
   test.beforeEach(async ({ page }) => {
     testFileName = `sample_${Date.now()}.txt`;
     testFilePath = path.join(__dirname, `data/${testFileName}`);
-    
+
     // RC-7: Write a richer 200+ word document to avoid EXTRACTING retries
     const fs = await import('fs');
     if (!fs.existsSync(path.join(__dirname, 'data'))) {
@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
 RAGuard Corporate Security and Engineering Policy
 
 1. Introduction
-This document outlines the standard operating procedures and guidelines for engineering and security at RAGuard. It is imperative that all employees follow these guidelines to ensure the integrity, confidentiality, and availability of our systems. 
+This document outlines the standard operating procedures and guidelines for engineering and security at RAGuard. It is imperative that all employees follow these guidelines to ensure the integrity, confidentiality, and availability of our systems.
 
 2. Data Privacy
 All customer data must be encrypted at rest and in transit. Access to production databases is strictly limited to authorized personnel. Any data breach must be reported immediately to the security team. Personal identifiable information (PII) must be anonymized or redacted where possible.
@@ -51,7 +51,7 @@ Employees must undergo annual security training. We adhere to industry standards
     if (fs.existsSync(testFilePath)) {
       fs.unlinkSync(testFilePath);
     }
-    
+
     // Note: We don't have the token in the request context easily here,
     // but the delete step in the UI test should handle deletion.
     // If we wanted robust API cleanup, we'd need to extract the token from page context.

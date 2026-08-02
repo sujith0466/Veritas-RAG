@@ -156,7 +156,7 @@ class TestCeleryBatchSearchWorker:
         mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_factory.return_value.__aexit__ = AsyncMock()
 
-        with patch("backend.modules.retrieval.workers.tasks.get_session_factory", return_value=mock_factory):
+        with patch("sqlalchemy.ext.asyncio.async_sessionmaker", return_value=mock_factory):
             with patch(
                 "backend.modules.retrieval.workers.tasks.RetrievalOrchestrator.execute_hybrid_search",
                 new_callable=AsyncMock,

@@ -22,7 +22,7 @@ test.describe("Manual Validation Automation", () => {
 
     // wait for stream to finish (Playwright waitForResponse only waits for headers, so we must wait for the actual stream body to complete)
     await page.waitForResponse(resp => resp.url().includes("/stream") && resp.status() < 500, { timeout: 30000 });
-    
+
     // Check if wipe happens within 5 seconds (we wait 25s for stream to finish + 5s to check for wipe)
     await page.waitForTimeout(25000);
     let proseCount = await page.locator("div.prose").count();
@@ -37,7 +37,7 @@ test.describe("Manual Validation Automation", () => {
 
     await page.waitForResponse(resp => resp.url().includes("/stream") && resp.status() < 500, { timeout: 30000 });
     await page.waitForTimeout(25000);
-    
+
     proseCount = await page.locator("div.prose").count();
     expect(proseCount).toBeGreaterThanOrEqual(4); // 2 pairs of user/assistant
     console.log("Scenario 4 passed. Prose count:", proseCount);
@@ -46,7 +46,7 @@ test.describe("Manual Validation Automation", () => {
     console.log("=== SCENARIO 3: Refresh ===");
     await page.reload();
     await expect(page).toHaveURL(session1Url);
-    
+
     // wait for messages to load
     await page.waitForResponse(resp => resp.url().includes("/messages"), { timeout: 15000 });
     await page.waitForTimeout(2000);
@@ -68,7 +68,7 @@ test.describe("Manual Validation Automation", () => {
     const sidebarLink = page.locator(`a[href="${pathname}"]`).first();
     await sidebarLink.click();
     await expect(page).toHaveURL(session1Url);
-    
+
     await page.waitForResponse(resp => resp.url().includes("/messages"), { timeout: 15000 });
     await page.waitForTimeout(2000);
 
@@ -81,7 +81,7 @@ test.describe("Manual Validation Automation", () => {
     await page.goto(session1Url);
     await page.waitForResponse(resp => resp.url().includes("/messages"), { timeout: 15000 });
     await page.waitForTimeout(2000);
-    
+
     proseCount = await page.locator("div.prose").count();
     expect(proseCount).toBeGreaterThanOrEqual(4);
     console.log("Scenario 2 passed. Prose count restored via direct navigation:", proseCount);

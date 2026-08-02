@@ -9,7 +9,10 @@ export function useAuth() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated)
 
   const login = async (data: LoginFormData) => {
-    await authService.login(data)
+    const tokenStr = await authService.login(data)
+    // The profile will be fetched manually
+    const profile = await authService.fetchBackendProfile()
+    useAuthStore.getState().setAuth(profile, tokenStr)
   }
 
   const register = async (data: RegisterFormData) => {
@@ -18,7 +21,7 @@ export function useAuth() {
 
   const logout = async () => {
     await authService.logout()
-    // State is cleared automatically via AuthProvider listening to Supabase onAuthStateChange
+    useAuthStore.getState().clearAuth()
   }
 
   return {

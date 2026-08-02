@@ -56,24 +56,24 @@ class PromptGuard:
         for chunk in chunks:
             if not chunk:
                 continue
-            raw_content = chunk.content
+            raw_content = (chunk.content if hasattr(chunk, "content") else chunk.get("content", ""))
             if not raw_content:
                 logger.info(
                     "Filtering out empty evidence chunk before prompt construction",
-                    chunk_id=str(chunk.chunk_id),
+                    chunk_id=str((chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", ""))),
                 )
                 continue
             content = str(raw_content).replace("\n", " ").strip()
             if not content:
                 logger.info(
                     "Filtering out empty evidence chunk before prompt construction",
-                    chunk_id=str(chunk.chunk_id),
+                    chunk_id=str((chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", ""))),
                 )
                 continue
             if self.scan_for_injection(content):
                 logger.warning(
                     "Filtering out suspicious evidence chunk due to prompt injection check",
-                    chunk_id=str(chunk.chunk_id),
+                    chunk_id=str((chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", ""))),
                 )
                 continue
             safe_chunks.append(chunk)

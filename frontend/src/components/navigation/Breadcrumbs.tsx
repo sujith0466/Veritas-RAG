@@ -37,7 +37,7 @@ export function Breadcrumbs() {
         {paths.map((path, index) => {
           const isLast = index === paths.length - 1
           const href = `/${paths.slice(0, index + 1).join('/')}`
-          
+
           let label = ROUTE_LABELS[path]
           if (!label) {
             label = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ')

@@ -9,9 +9,9 @@ interface FloatingElementProps {
   delay?: number
 }
 
-export function FloatingElement({ 
-  children, 
-  className, 
+export function FloatingElement({
+  children,
+  className,
   yOffset = 10,
   duration = 4,
   delay = 0
@@ -21,11 +21,11 @@ export function FloatingElement({
   return (
     <motion.div
       animate={shouldReduceMotion ? {} : { y: [0, -yOffset, 0] }}
-      transition={{ 
-        repeat: Infinity, 
-        duration, 
+      transition={{
+        repeat: Infinity,
+        duration,
         delay,
-        ease: "easeInOut" 
+        ease: "easeInOut"
       }}
       className={cn("will-change-transform", className)}
     >

@@ -19,9 +19,9 @@ const reducedItemVariants: Variants = {
   show: { opacity: 1 }
 }
 
-export function Stagger({ 
-  children, 
-  className, 
+export function Stagger({
+  children,
+  className,
   staggerDelay = 0.1,
   initialDelay = 0
 }: StaggerProps) {

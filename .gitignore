@@ -1,13 +1,18 @@
-# Python
+# ==============================================================================
+# RAGuard Enterprise - Git Ignore Specification
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Python & Bytecode
+# ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
-*.class
+*$py.class
 *.so
-.Python
-build/
-develop-eggs/
+*.egg
+*.egg-info/
 dist/
-downloads/
+build/
 eggs/
 .eggs/
 lib/
@@ -17,96 +22,116 @@ sdist/
 var/
 wheels/
 share/python-wheels/
-*.egg-info/
 .installed.cfg
-*.egg
 MANIFEST
+
+# ------------------------------------------------------------------------------
+# Virtual Environments & Packages
+# ------------------------------------------------------------------------------
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ------------------------------------------------------------------------------
+# Secrets, Environment Files & Credentials
+# ------------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# Explicitly track example configurations
+!.env.example
+!.env.prod.example
+
+# ------------------------------------------------------------------------------
+# Node.js / TypeScript / React / Vite
+# ------------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.npm/
+.yarn/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.eslintcache
+.stylelintcache
+
+# ------------------------------------------------------------------------------
+# Testing, Linting & Coverage
+# ------------------------------------------------------------------------------
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
 pytest.xml
+coverage.xml
+test-results/
+playwright-report/
+playwright/.cache/
+.hypothesis/
 
-# Virtual Environment
-.env
-.env.local
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-!.env.example
-
-# Node / JS / React / Vite
-node_modules/
-frontend/node_modules/
-frontend/dist/
-dist/
-build/
-coverage/
-.npm
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.eslintcache
-.stylelintcache
-
-# IDEs and Editors
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-.DS_Store
-Thumbs.db
-.directory
-*~
-
-# Logs and Databases
+# ------------------------------------------------------------------------------
+# Logs, Databases & Runtime Caches
+# ------------------------------------------------------------------------------
 *.log
 logs/
 *.sqlite
+*.sqlite3
 *.db
 pgdata/
 redis_data/
 qdrant_data/
 
-# Temporary and Output Directories
+# ------------------------------------------------------------------------------
+# IDEs, Operating Systems & Tooling
+# ------------------------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ------------------------------------------------------------------------------
+# Docker Local Overrides
+# ------------------------------------------------------------------------------
+docker-compose.override.yml
+*.docker.local
+
+# ------------------------------------------------------------------------------
+# Temporary Scratch & AI Workspace Files
+# ------------------------------------------------------------------------------
 tmp/
+temp/
 scratch/
-test-results/
-playwright-report/
-playwright/.cache/
-archive/
-enterprise_demo_dataset/
-enterprise_demo_dataset.zip
-
-# Generated Reports (unless specifically whitelisted)
-*_REPORT.md
-*REPORT*.md
-!FINAL_RELEASE_SUMMARY.md
-!CODE_QUALITY_REPORT.md
-!PRODUCTION_CONFIGURATION_REPORT.md
-!VALIDATION_REPORT.md
-!FINAL_RELEASE_AUDIT.md
-!GENERATION_PROVIDER_ROOT_CAUSE.md
-
-# AI Agent & Workspace Files
 .gemini/
 .antigravity/
-
-# Docker Override
-docker-compose.override.yml
-
-# Archives and History
-archive/
-archives/
-backup/
-legacy/
-old/
-old_versions/
-history/
+enterprise_demo_dataset.zip
+enterprise_demo_dataset/

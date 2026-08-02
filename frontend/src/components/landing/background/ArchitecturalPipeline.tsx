@@ -100,14 +100,14 @@ export function ArchitecturalPipeline() {
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       if (mediaQuery.matches) return
-      
+
       const { innerWidth, innerHeight } = window
       const x = (e.clientX / innerWidth) * 2 - 1
       const y = (e.clientY / innerHeight) * 2 - 1
-      
+
       mouseX.set(x)
       mouseY.set(y)
     }
@@ -119,7 +119,7 @@ export function ArchitecturalPipeline() {
   // Base perspective
   const baseRotateX = 22
   const baseRotateY = -28
-  
+
   const finalRotateX = useTransform(parallaxX, r => r + baseRotateX)
   const finalRotateY = useTransform(parallaxY, r => r + baseRotateY)
 
@@ -137,21 +137,21 @@ export function ArchitecturalPipeline() {
   ]
 
   return (
-    <div 
+    <div
       className="absolute inset-0 overflow-hidden pointer-events-none flex items-center justify-center lg:justify-end lg:pr-[12%]"
       style={{ perspective: '1400px' }}
       aria-hidden="true"
     >
-      <motion.div 
+      <motion.div
         className="relative w-[85vw] h-[55vw] max-w-[700px] max-h-[450px]"
-        style={{ 
+        style={{
           transformStyle: 'preserve-3d',
           rotateX: finalRotateX,
           rotateY: finalRotateY,
         }}
       >
         {/* Core architectural connection line passing through the center of all planes */}
-        <div 
+        <div
           className="absolute top-1/2 left-1/2 w-px h-[800px] bg-slate-400/20"
           style={{
             transform: 'translate(-50%, -50%) rotateX(90deg)',
@@ -191,7 +191,7 @@ export function ArchitecturalPipeline() {
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
               // Edge lighting
-              border: '1px solid rgba(148, 163, 184, 0.25)', 
+              border: '1px solid rgba(148, 163, 184, 0.25)',
               borderTopColor: 'rgba(255, 255, 255, 0.9)',
               borderLeftColor: 'rgba(255, 255, 255, 0.6)',
               // Strong ambient occlusion shadow

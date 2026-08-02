@@ -11,7 +11,7 @@ interface SectionHeadingProps {
 export function SectionHeading({ title, subtitle, align = 'center', className }: SectionHeadingProps) {
   return (
     <div className={cn("space-y-4 max-w-3xl", align === 'center' ? 'mx-auto text-center' : 'text-left', className)}>
-      <motion.h2 
+      <motion.h2
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-100px" }}
@@ -21,7 +21,7 @@ export function SectionHeading({ title, subtitle, align = 'center', className }:
         {title}
       </motion.h2>
       {subtitle && (
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}

@@ -1,0 +1,16 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: raguard-api-pdb
+  namespace: raguard-production
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/instance: pdb-api
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend

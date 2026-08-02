@@ -1,6 +1,6 @@
 # Deployment Platform Abstraction
 
-RAGuard AI is fundamentally infrastructure-agnostic. 
+RAGuard AI is fundamentally infrastructure-agnostic.
 The core container (`raguard:1.0.0`) can run on any orchestrator.
 
 ## Reference Architectures Supported:

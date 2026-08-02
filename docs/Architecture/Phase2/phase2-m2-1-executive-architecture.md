@@ -1,16 +1,16 @@
 # RAGuard AI — Phase 2 Milestone 2: Embedding Pipeline
 ## Document 1: Executive Architecture
 
-**Document Version**: 1.0.0  
-**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)  
-**Status**: Architectural Blueprint (Strict Planning Only — No Code)  
-**Author**: Principal AI Infrastructure Engineer & Software Architect  
+**Document Version**: 1.0.0
+**Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)
+**Status**: Architectural Blueprint (Strict Planning Only — No Code)
+**Author**: Principal AI Infrastructure Engineer & Software Architect
 
 ---
 
 ## 1. Executive Summary
 
-The **Phase 2 Milestone 2: Embedding Pipeline** establishes the asynchronous, multi-provider vectorization engine that converts validated text chunks from Milestone 1 into high-dimensional dense floating-point vector representations (`embeddings`). 
+The **Phase 2 Milestone 2: Embedding Pipeline** establishes the asynchronous, multi-provider vectorization engine that converts validated text chunks from Milestone 1 into high-dimensional dense floating-point vector representations (`embeddings`).
 
 Operating within `backend/modules/embedding/` under strict **Domain-Oriented Modular Architecture (`ADR-005`)**, this module orchestrates high-throughput batch vectorization, token quota tracking, rate-limit exponential backoff, and provider-independent fallback chains across OpenAI (`text-embedding-3-large`, `text-embedding-3-small`), Cohere (`embed-multilingual-v3.0`), and self-hosted local models (`HuggingFace / BAAI/bge-large-en-v1.5`).
 

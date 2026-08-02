@@ -1,9 +1,9 @@
 # RAGuard AI — Infrastructure Architecture & Service Topology
 
-**Document Version**: 1.0.0  
-**Phase**: Phase 1 — Foundation & Enterprise Setup  
-**Milestone**: Milestone 5 — Infrastructure & Developer Environment  
-**Status**: Approved & Frozen Baseline  
+**Document Version**: 1.0.0
+**Phase**: Phase 1 — Foundation & Enterprise Setup
+**Milestone**: Milestone 5 — Infrastructure & Developer Environment
+**Status**: Approved & Frozen Baseline
 
 ---
 
@@ -93,3 +93,29 @@ The service topology enforces fail-safe startup synchronization:
 1. When `./Infrastructure/scripts/start.ps1` (`make start`) is executed, Docker Compose launches `postgres`, `redis`, and `qdrant` concurrently.
 2. The `backend` container enters a wait loop supervised by Docker Compose until all three data engines report `status: healthy`.
 3. Once `backend` starts Uvicorn and passes its own readiness probe (`GET /api/v1/health/ready`), the `frontend` and `celery-worker` services start, ensuring zero race conditions or connection refusal logs at boot.
+
+---
+
+## 7. Cloud-Native Topology (Phase 2/F1.8 Setup)
+
+The RAGuard infrastructure supports transitioning from Docker Compose to distributed cloud orchestration.
+
+### 7.1 Kubernetes Raw Manifests
+The foundation for Kubernetes is constructed strictly with raw YAML manifests (Helm is intentionally bypassed for foundational simplicity).
+- **Namespaces**: `raguard-dev`, `raguard-staging`, `raguard-production` to enforce multi-environment isolation.
+- **Resource Constraints**: Every deployment enforces strict CPU and Memory `requests` and `limits`.
+- **Ingress Strategy**: Designed to be ingress-controller agnostic, removing hard dependencies on Nginx.
+- **Resilience**: Placeholders for `HorizontalPodAutoscaler` (HPA), `PodDisruptionBudget` (PDB), and Controller-Agnostic `NetworkPolicies` and `StorageClasses`.
+- **Disaster Recovery**: Pre-built Kubernetes `CronJob` and `VolumeSnapshot` placeholder manifests for PostgreSQL, MinIO, Qdrant, and generic PVs to satisfy RTO/RPO SLAs.
+
+### 7.2 Terraform IaC Modules
+RAGuard strictly provisions underlying cloud resources using a cloud-agnostic modular Terraform architecture (with AWS as the primary reference implementation).
+- **Modules Directory Structure**:
+  - `/network`
+  - `/compute`
+  - `/database`
+  - `/storage`
+  - `/cache`
+  - `/security`
+  - `/monitoring`
+- **Standardization**: Each module utilizes standard `main.tf`, `variables.tf`, and `outputs.tf` constructs, prepared for remote state backends.

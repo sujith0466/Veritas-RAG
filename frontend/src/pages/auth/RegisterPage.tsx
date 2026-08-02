@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { RoleSelector, AIAssistant, AdminRegisterForm, UserRegisterForm, WorkspaceLoader, type AIAssistantState } from '@/components/auth'
-import { ArrowLeft } from 'lucide-react'
+import { RoleSelector, AIAssistant, AdminRegisterForm, UserRegisterForm, type AIAssistantState } from '@/components/auth'
+import { ArrowLeft, MailCheck } from 'lucide-react'
 
 export function RegisterPage() {
   const [searchParams] = useSearchParams()
@@ -33,7 +33,9 @@ export function RegisterPage() {
   }
 
   const handleLoaderComplete = () => {
-    navigate('/dashboard')
+    // F2.1: We do not navigate to dashboard immediately because we require email verification
+    // Navigation/Login flows are handled in subsequent features.
+    navigate('/auth/login')
   }
 
   return (
@@ -52,7 +54,21 @@ export function RegisterPage() {
               exit={{ opacity: 0 }}
               className="absolute inset-0"
             >
-              <WorkspaceLoader onComplete={handleLoaderComplete} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <MailCheck className="h-8 w-8 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">Check your email</h2>
+                <p className="text-muted-foreground max-w-sm">
+                  We've sent a verification link to your email address. Please verify your account to continue.
+                </p>
+                <button
+                  onClick={handleLoaderComplete}
+                  className="mt-8 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium transition-colors"
+                >
+                  Return to Login
+                </button>
+              </div>
             </motion.div>
           ) : !selectedRole ? (
             <motion.div
@@ -63,7 +79,7 @@ export function RegisterPage() {
               className="absolute inset-0"
             >
               <RoleSelector mode="register" onSelect={setSelectedRole} />
-              
+
               <div className="text-center text-sm mt-8">
                 <span className="text-muted-foreground">Already have an account? </span>
                 <Link
@@ -82,33 +98,33 @@ export function RegisterPage() {
               exit={{ opacity: 0, x: 20 }}
               className="absolute inset-0"
             >
-              <button 
+              <button
                 onClick={() => setSelectedRole(null)}
                 className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back to roles
               </button>
-              
+
               <div className="space-y-2 mb-6">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                   {selectedRole === 'admin' ? 'Admin Registration' : 'User Registration'}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {selectedRole === 'admin' 
+                  {selectedRole === 'admin'
                     ? 'Enter your details to create a new workspace'
                     : 'Enter your details and invitation code to join'}
                 </p>
               </div>
 
               {selectedRole === 'admin' ? (
-                <AdminRegisterForm 
+                <AdminRegisterForm
                   onFocusChange={handleFocusChange}
                   onSuccess={handleSuccess}
                   onError={handleError}
                 />
               ) : (
-                <UserRegisterForm 
+                <UserRegisterForm
                   onFocusChange={handleFocusChange}
                   onSuccess={handleSuccess}
                   onError={handleError}

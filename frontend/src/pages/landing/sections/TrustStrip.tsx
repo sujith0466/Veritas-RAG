@@ -20,7 +20,7 @@ export function TrustStrip() {
           Trusted by Enterprise Engineering Teams
         </p>
       </FadeUp>
-      
+
       <Stagger className="flex flex-wrap justify-center gap-4 md:gap-8" staggerDelay={0.1}>
         {BADGES.map((badge) => (
           <FadeUp key={badge.label} yOffset={10}>

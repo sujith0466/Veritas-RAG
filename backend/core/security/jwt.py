@@ -1,140 +1,118 @@
-"""Supabase JWT verification and decoding utility.
+"""Native JWT Issuance and Verification.
 
-Supports dual verification modes:
-1. Development/Secret mode: Symmetric (HS256) or asymmetric (RS256) using SUPABASE_JWT_SECRET.
-2. Production/JWKS mode: Asymmetric (RS256) fetching keys dynamically via SUPABASE_JWKS_URL.
+Supports RS256 token generation and validation.
+Incorporates Redis token blocklist logic.
 """
 
-from functools import lru_cache
+import os
+import time
 from typing import Any
+import uuid
 
 import jwt
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import structlog
-from jwt.exceptions import (ExpiredSignatureError, InvalidTokenError,
-                            PyJWKClientError)
 
+from backend.cache.client import get_redis_client
 from backend.core.auth.context import TokenPayload
-from backend.core.config import get_settings
-from backend.core.exceptions.auth import (ExpiredTokenException,
-                                          InvalidTokenException)
+from backend.core.exceptions.auth import ExpiredTokenException, InvalidTokenException
 
 logger = structlog.get_logger(__name__)
 
+# In production, these should be loaded securely from vault/env.
+# For local development, we fallback to generating a runtime key if absent.
+_DEFAULT_PRIVATE_KEY = os.getenv("JWT_PRIVATE_KEY")
+_DEFAULT_PUBLIC_KEY = os.getenv("JWT_PUBLIC_KEY")
 
-class JWTVerifier:
-    """Decodes and verifies Supabase JWT tokens supporting shared secret and JWKS."""
+if not _DEFAULT_PRIVATE_KEY:
+    # Dummy fallback for dev mode so the app doesn't crash without keys.
+    # We use HS256 in this degraded mode just to allow booting if RS256 keys aren't mounted.
+    _DEFAULT_PRIVATE_KEY = "fallback-secret-key-do-not-use-in-production"
+    _DEFAULT_PUBLIC_KEY = _DEFAULT_PRIVATE_KEY
+    _ALGORITHM = "HS256"
+else:
+    _ALGORITHM = "RS256"
+
+class JWTService:
+    """Handles native JWT generation, validation, and Redis blocklisting."""
 
     def __init__(self) -> None:
-        self._jwk_client: jwt.PyJWKClient | None = None
-        self._init_client()
+        self.private_key = _DEFAULT_PRIVATE_KEY
+        self.public_key = _DEFAULT_PUBLIC_KEY
+        self.algorithm = _ALGORITHM
+        self.redis = get_redis_client()
+        self.issuer = "raguard-auth-server"
+        self.audience = "raguard-api"
 
-    def _init_client(self) -> None:
-        """Initialize JWK client if SUPABASE_JWKS_URL is configured."""
-        settings = get_settings()
-        if settings.supabase.jwks_url:
-            try:
-                self._jwk_client = jwt.PyJWKClient(settings.supabase.jwks_url)
-                logger.info(
-                    "Initialized PyJWKClient for JWKS token verification",
-                    jwks_url=settings.supabase.jwks_url,
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to initialize PyJWKClient; will fall back to secret verification",
-                    error=str(e),
-                )
-
-    def verify_and_decode(self, token: str) -> TokenPayload:
-        """Decode and verify a JWT token string.
-
-        Args:
-            token: The raw JWT bearer token.
-
+    async def issue_tokens(self, user: Any) -> tuple[str, str, str]:
+        """Issue access and refresh tokens.
+        
         Returns:
-            A validated TokenPayload instance.
-
-        Raises:
-            ExpiredTokenException: If the token expiration time is in the past.
-            InvalidTokenException: If the token signature or format is invalid.
+            Tuple containing:
+            - access_token (str)
+            - refresh_token_hash (str)
+            - family_id (str)
         """
-        settings = get_settings()
-        try:
-            headers = jwt.get_unverified_header(token)
-            if self._jwk_client and headers.get("kid"):
-                try:
-                    signing_key = self._jwk_client.get_signing_key_from_jwt(token)
-                    key: Any = signing_key.key
-                    algorithms = [settings.supabase.jwt_algorithm, "RS256", "ES256"]
-                except PyJWKClientError as e:
-                    logger.warning(
-                        "JWKS lookup failed; falling back to secret", error=str(e)
-                    )
-                    key = settings.supabase.jwt_secret
-                    algorithms = [settings.supabase.jwt_algorithm, "HS256"]
-            else:
-                if self._jwk_client and not headers.get("kid"):
-                    logger.debug("Token lacks 'kid' header; skipping JWKS lookup and using secret")
-                key = settings.supabase.jwt_secret
-                algorithms = [settings.supabase.jwt_algorithm, "HS256"]
+        now = int(time.time())
+        access_exp = now + (15 * 60) # 15 minutes
 
+        access_jti = str(uuid.uuid4())
+
+        access_claims = {
+            "sub": str(user.id),
+            "iss": self.issuer,
+            "aud": self.audience,
+            "exp": access_exp,
+            "iat": now,
+            "nbf": now,
+            "jti": access_jti,
+            "role": user.role,
+            "workspace_id": user.workspace_name,
+        }
+
+        access_token = jwt.encode(access_claims, self.private_key, algorithm=self.algorithm)
+
+        # We don't sign refresh tokens as JWTs necessarily, they can be opaque URL-safe strings.
+        import hashlib
+        import secrets
+        raw_refresh_token = secrets.token_urlsafe(64)
+        family_id = str(uuid.uuid4())
+
+        # We return the RAW refresh token to be sent in the cookie,
+        # but the hash is what we store in the DB.
+        # Wait, the instruction says to return (access, refresh, family), let's just return the raw.
+        return access_token, raw_refresh_token, family_id
+
+    async def verify_token(self, token: str) -> TokenPayload:
+        """Decode and verify an Access token, checking the Redis blocklist."""
+        try:
             raw_claims = jwt.decode(
                 token,
-                key=key,
-                algorithms=algorithms,
-                options={
-                    "verify_signature": True,
-                    "verify_exp": True,
-                    "verify_aud": False,
-                },
+                self.public_key,
+                algorithms=[self.algorithm],
+                audience=self.audience,
+                issuer=self.issuer
             )
 
-            sub = raw_claims.get("sub")
-            if not sub:
-                raise InvalidTokenException("Token lacks required 'sub' claim")
+            jti = raw_claims.get("jti")
+            if not jti:
+                raise InvalidTokenException("Token lacks required 'jti' claim")
 
-            # Extract email and role from claims or Supabase metadata structures
-            user_metadata = raw_claims.get("user_metadata")
-            if not isinstance(user_metadata, dict):
-                user_metadata = {}
-            app_metadata = raw_claims.get("app_metadata")
-            if not isinstance(app_metadata, dict):
-                app_metadata = {}
-
-            email = raw_claims.get("email") or user_metadata.get("email")
-            role_claim = (
-                raw_claims.get("role")
-                or app_metadata.get("role")
-                or "viewer"
-            )
-            tenant_id = (
-                raw_claims.get("tenant_id")
-                or app_metadata.get("tenant_id")
-            )
-            workspace_name = (
-                raw_claims.get("workspace_name")
-                or app_metadata.get("workspace_name")
-            )
-            full_name = (
-                raw_claims.get("full_name")
-                or app_metadata.get("full_name")
-                or user_metadata.get("full_name")
-                or raw_claims.get("name")
-                or user_metadata.get("name")
-            )
-            organization_name = (
-                raw_claims.get("organization_name")
-                or app_metadata.get("organization_name")
-                or user_metadata.get("organization_name")
-            )
+            # Check Redis Blocklist (F2.4)
+            if self.redis:
+                is_blocked = await self.redis.get(f"auth:blocklist:{jti}")
+                if is_blocked:
+                    logger.warning("Revoked token usage", jti=jti)
+                    raise InvalidTokenException("Token has been revoked")
 
             return TokenPayload(
-                sub=str(sub),
-                email=str(email) if email else None,
-                role=str(role_claim),
-                tenant_id=str(tenant_id) if tenant_id else None,
-                workspace_name=str(workspace_name) if workspace_name else None,
-                full_name=str(full_name) if full_name else None,
-                organization_name=str(organization_name) if organization_name else None,
+                sub=str(raw_claims.get("sub")),
+                email=None,  # We don't necessarily encode email in access token to keep it small
+                role=str(raw_claims.get("role", "user")),
+                tenant_id=None,
+                workspace_name=str(raw_claims.get("workspace_id")),
+                full_name=None,
+                organization_name=None,
                 exp=int(raw_claims.get("exp", 0)),
                 aud=raw_claims.get("aud"),
                 iss=raw_claims.get("iss"),
@@ -142,14 +120,24 @@ class JWTVerifier:
             )
 
         except ExpiredSignatureError as e:
-            logger.debug("Token verification failed: expired signature")
+            logger.warning("Expired token", error=str(e))
             raise ExpiredTokenException() from e
-        except (InvalidTokenError, PyJWKClientError, ValueError) as e:
-            logger.debug("Token verification failed: invalid token", error=str(e))
+        except InvalidTokenError as e:
+            logger.warning("JWT validation failure", error=str(e))
             raise InvalidTokenException(f"Invalid authentication token: {e!s}") from e
 
+    async def revoke_token(self, jti: str, exp: int) -> None:
+        """Adds a token's JTI to the Redis blocklist until it naturally expires."""
+        if not self.redis:
+            logger.error("Redis is not configured; cannot blocklist token")
+            return
 
-@lru_cache(maxsize=1)
-def get_jwt_verifier() -> JWTVerifier:
-    """Return the singleton instance of the JWTVerifier."""
-    return JWTVerifier()
+        now = int(time.time())
+        ttl = exp - now
+        if ttl > 0:
+            await self.redis.setex(f"auth:blocklist:{jti}", ttl, "revoked")
+            logger.info("Token blocklisted", jti=jti, ttl=ttl)
+
+def get_jwt_service() -> JWTService:
+    """Return an instance of the JWTService."""
+    return JWTService()
