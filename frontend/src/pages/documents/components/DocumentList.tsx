@@ -33,6 +33,8 @@ export interface DocumentListProps {
   isLoading: boolean
   onSelectDocument: (doc: DocumentResponse) => void
   onDeleteDocument: (docId: string) => Promise<void>
+  onArchiveDocument?: (docId: string) => Promise<void>
+  onRestoreDocument?: (docId: string) => Promise<void>
 }
 
 export function DocumentList({
@@ -40,9 +42,13 @@ export function DocumentList({
   isLoading,
   onSelectDocument,
   onDeleteDocument,
+  onArchiveDocument,
+  onRestoreDocument,
 }: DocumentListProps) {
   const [deleteConfirmDoc, setDeleteConfirmDoc] = React.useState<DocumentResponse | null>(null)
+  const [archiveConfirmDoc, setArchiveConfirmDoc] = React.useState<DocumentResponse | null>(null)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [isArchiving, setIsArchiving] = React.useState(false)
 
   const handleDelete = async () => {
     if (!deleteConfirmDoc) return
@@ -52,6 +58,17 @@ export function DocumentList({
       setDeleteConfirmDoc(null)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleArchive = async () => {
+    if (!archiveConfirmDoc || !onArchiveDocument) return
+    setIsArchiving(true)
+    try {
+      await onArchiveDocument(archiveConfirmDoc.id)
+      setArchiveConfirmDoc(null)
+    } finally {
+      setIsArchiving(false)
     }
   }
 
@@ -66,6 +83,8 @@ export function DocumentList({
         return <Badge variant="warning" className="animate-pulse">{status}</Badge>
       case 'FAILED':
         return <Badge variant="destructive">FAILED</Badge>
+      case 'ARCHIVED':
+        return <Badge variant="outline">ARCHIVED</Badge>
       case 'UPLOADED':
       case 'PENDING':
       default:
@@ -165,8 +184,31 @@ export function DocumentList({
                         onClick={() => onSelectDocument(doc)}
                       >
                         <Eye className="mr-2 h-3.5 w-3.5" />
-                        Details & Manifest
+                        Details
                       </Button>
+                      
+                      {doc.status === 'ARCHIVED' && onRestoreDocument ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-success hover:bg-success/10"
+                          onClick={() => onRestoreDocument(doc.id)}
+                        >
+                          Restore
+                        </Button>
+                      ) : (
+                        doc.status !== 'ARCHIVED' && onArchiveDocument && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-warning hover:bg-warning/10"
+                            onClick={() => setArchiveConfirmDoc(doc)}
+                          >
+                            Archive
+                          </Button>
+                        )
+                      )}
+
                       <Button
                         variant="ghost"
                         size="sm"
@@ -198,6 +240,40 @@ export function DocumentList({
           </DialogHeader>
           <DialogFooter className="mt-6">
             <Button variant="outline" onClick={() => setDeleteConfirmDoc(null)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleDelete} isLoading={isDeleting}>
+              Yes, Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive Confirmation Modal */}
+      <Dialog open={!!archiveConfirmDoc} onOpenChange={(open) => !open && setArchiveConfirmDoc(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <AlertCircle className="h-5 w-5" />
+              Confirm Document Archive
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to archive <strong>{archiveConfirmDoc?.filename}</strong>? This will asynchronously purge its vectors from Qdrant, making it unavailable for search, but physical storage is preserved.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setArchiveConfirmDoc(null)} disabled={isArchiving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleArchive} isLoading={isArchiving}>
+              Yes, Archive Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDelete} isLoading={isDeleting}>

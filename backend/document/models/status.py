@@ -18,3 +18,4 @@ class DocumentStatus(str, Enum):
     FAILED = "FAILED"
     PENDING = "PENDING"
     DELETED = "DELETED"
+    ARCHIVED = "ARCHIVED"

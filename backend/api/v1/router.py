@@ -27,6 +27,9 @@ api_v1_router.include_router(users_router)
 # ── Workspace Management (`/workspaces`) ───────────────────────────────────────
 api_v1_router.include_router(workspaces_router)
 
+from .routes.folders import router as folders_router
+api_v1_router.include_router(folders_router)
+
 from .routes.domains import router as domains_router
 
 api_v1_router.include_router(domains_router)

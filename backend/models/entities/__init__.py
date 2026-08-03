@@ -12,6 +12,7 @@ from .workspace import ProvisioningStatus, Workspace, WorkspaceStatus
 from .workspace_invitation import InvitationStatus, WorkspaceInvitation
 from .workspace_member import WorkspaceMember
 from .workspace_settings import WorkspaceSettings
+from .folder import Folder
 
 __all__ = [
     "AuditLog",
@@ -32,4 +33,5 @@ __all__ = [
     "FeatureFlagHistory",
     "WorkspaceInvitation",
     "InvitationStatus",
+    "Folder",
 ]

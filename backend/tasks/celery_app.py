@@ -32,6 +32,7 @@ def create_celery_app() -> Celery:
             "backend.modules.retrieval.workers.tasks",
             "backend.modules.knowledge_health.workers.tasks",
             "backend.modules.reliability.workers.tasks",
+            "backend.tasks.folders",
         ],
     )
 
@@ -50,9 +51,18 @@ def create_celery_app() -> Celery:
         result_expires=86_400,
         # Rate limiting (global default — override per task)
         task_default_rate_limit="100/m",
-        # Routing — tasks go to named queues for worker specialisation
         task_default_queue="default",
+        task_routes={
+            "folders.cascade_soft_delete_subtree": {"queue": "high"},
+            "folders.cascade_restore_subtree": {"queue": "medium"},
+            "folders.cascade_move_subtree": {"queue": "folders.critical"},
+            "folders.hard_delete_folder_subtree": {"queue": "folders.purge"},
+        },
         task_queues={
+            "high": {"exchange": "high", "routing_key": "high"},
+            "medium": {"exchange": "medium", "routing_key": "medium"},
+            "folders.critical": {"exchange": "folders.critical", "routing_key": "folders.critical"},
+            "folders.purge": {"exchange": "folders.purge", "routing_key": "folders.purge"},
             "default": {"exchange": "default", "routing_key": "default"},
             "ingestion": {"exchange": "ingestion", "routing_key": "ingestion"},
             "embeddings": {"exchange": "embeddings", "routing_key": "embeddings"},
@@ -63,11 +73,10 @@ def create_celery_app() -> Celery:
         },
         # Beat schedule (Celery periodic tasks — Phase 3+)
         beat_schedule={
-            # Reserved: knowledge health scan
-            # "knowledge-health-scan": {
-            #     "task": "backend.tasks.schedulers.health_scan",
-            #     "schedule": crontab(hour=2, minute=0),  # 2am UTC daily
-            # },
+            "folder-retention-purge": {
+                "task": "folders.run_retention_cron",
+                "schedule": 21600.0, # Every 6 hours
+            },
         },
     )
 

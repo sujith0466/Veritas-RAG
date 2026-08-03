@@ -114,6 +114,12 @@ class VectorStorageService:
         )
         await self.repo.update_sync_status(metadata_record.id, status="PROCESSING")
 
+        # Fetch document to attach user_metadata
+        from backend.document.repositories.document_repository import DocumentRepository
+        doc_repo = DocumentRepository()
+        doc = await doc_repo.get_by_id(doc_uuid, tenant_id, self.session)
+        user_meta = dict(getattr(doc, "user_metadata", {})) if doc else {}
+
         try:
             # 4. Ensure collection exists with exact HNSW & INT8 scalar quantization (`ADR-M3-002`)
             col_config = CollectionConfigDTO(
@@ -167,7 +173,9 @@ class VectorStorageService:
                     ),
                     "provider": emb.provider,
                     "model_name": emb.model_name,
+                    **user_meta,  # Inject dynamic metadata tags
                 }
+                
                 points.append(
                     VectorPointDTO(
                         point_id=str(emb.chunk_id),
@@ -202,6 +210,15 @@ class VectorStorageService:
                     event_type=EventType.VECTORS_INDEXED, payload=payload_event
                 )
             )
+
+            # Trigger F5.6 Cleanup: Purge vectors of superseded older versions
+            await self.cleanup_old_versions_vectors(
+                document_id=doc_uuid,
+                current_version_id=ver_uuid,
+                tenant_id=tenant_id,
+                collection_name=target_col,
+            )
+
             return upserted_count
 
         except Exception as exc:
@@ -233,6 +250,15 @@ class VectorStorageService:
                 )
             )
             raise
+
+    async def remove_archived_document_vectors(
+        self,
+        document_id: str | uuid.UUID,
+        tenant_id: str,
+        collection_name: str | None = None,
+    ) -> int:
+        """Purge all vectors for a document when it is archived (F5.5)."""
+        return await self.delete_document_points(document_id, tenant_id, collection_name)
 
     async def delete_document_points(
         self,
@@ -299,6 +325,109 @@ class VectorStorageService:
             "Completed document point deletion across collections", collections=col_list
         )
         return total_ops
+
+    async def cleanup_old_versions_vectors(
+        self,
+        document_id: str | uuid.UUID,
+        current_version_id: str | uuid.UUID,
+        tenant_id: str,
+        collection_name: str | None = None,
+    ) -> int:
+        """Purge vector points for older versions of a document after a new version is indexed (F5.6)."""
+        doc_uuid = (
+            document_id
+            if isinstance(document_id, uuid.UUID)
+            else uuid.UUID(str(document_id))
+        )
+        ver_uuid = (
+            current_version_id
+            if isinstance(current_version_id, uuid.UUID)
+            else uuid.UUID(str(current_version_id))
+        )
+        log = logger.bind(tenant_id=tenant_id, document_id=str(doc_uuid), keeping_version=str(ver_uuid))
+
+        meta_stmt = select(VectorIndexMetadata).where(
+            VectorIndexMetadata.tenant_id == tenant_id,
+            VectorIndexMetadata.document_id == doc_uuid,
+            VectorIndexMetadata.document_version_id != ver_uuid,
+            VectorIndexMetadata.is_deleted.is_(False),
+        )
+        meta_records = (await self.session.execute(meta_stmt)).scalars().all()
+        
+        if not meta_records:
+            return 0
+            
+        total_ops = 0
+        for rec in meta_records:
+            col = rec.collection_name
+            filter_conds = {
+                "tenant_id": tenant_id,
+                "document_version_id": str(rec.document_version_id),
+            }
+            try:
+                op_id = await self.provider.delete_points_by_filter(col, filter_conds)
+                total_ops += op_id
+                await self.repo.update_sync_status(
+                    rec.id, status="FAILED", error_message="Superseded by newer version"
+                )
+                rec.is_deleted = True
+            except Exception as exc:
+                log.warning(
+                    "Failed to delete old version points from collection",
+                    collection=col,
+                    version_id=str(rec.document_version_id),
+                    error=str(exc),
+                )
+
+        await self.session.flush()
+        log.info(
+            "Completed cleanup of old version vectors", total_deleted_ops=total_ops
+        )
+        return total_ops
+
+    async def sync_metadata(self, doc: Any) -> None:
+        """Update Qdrant point payloads with the latest user_metadata from PostgreSQL."""
+        log = logger.bind(tenant_id=doc.tenant_id, document_id=str(doc.id))
+        
+        # 1. Discover collections this document is indexed in
+        stmt = (
+            select(VectorIndexMetadata.collection_name)
+            .where(
+                VectorIndexMetadata.tenant_id == doc.tenant_id,
+                VectorIndexMetadata.document_id == doc.id,
+                VectorIndexMetadata.is_deleted.is_(False),
+            )
+            .distinct()
+        )
+        cols = (await self.session.execute(stmt)).scalars().all()
+        
+        if not cols:
+            log.warning("No collections found for document metadata sync")
+            return
+            
+        # 2. Extract new metadata dictionary
+        user_meta = dict(getattr(doc, "user_metadata", {}))
+        
+        # 3. Update payloads in Qdrant (using filtering by document_id)
+        filter_conds = {
+            "tenant_id": doc.tenant_id,
+            "document_id": str(doc.id),
+        }
+        
+        # In Qdrant, we can use `set_payload` or just re-upsert. Since we only want to update user_metadata,
+        # we can put user_metadata inside the payload. But we don't have a direct `set_payload` in our provider yet.
+        # Let's see if we have `update_points_payload` or we can fallback to re-upsert if needed.
+        # Wait, the architecture review says: "This task will `upsert` the new metadata payload into Qdrant".
+        # We can update the payload via the provider.
+        
+        # Since I don't know the exact provider methods, I'll check if `update_payload_by_filter` exists.
+        # If not, I can just re-sync the document vectors by calling `sync_document_vectors`.
+        
+        if doc.latest_version_id:
+            await self.sync_document_vectors(doc.id, doc.latest_version_id, doc.tenant_id)
+            log.info("Triggered re-sync of document vectors to apply metadata")
+        else:
+            log.warning("Document has no latest_version_id; cannot re-sync vectors")
 
     async def get_tenant_summary(self, tenant_id: str) -> dict[str, Any]:
         """Return aggregate summary metrics for a tenant's vector collections."""

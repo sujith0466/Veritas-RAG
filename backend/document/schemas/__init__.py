@@ -17,6 +17,14 @@ from .errors import (
 )
 from .status import JobDTO, ProcessingStatusResponse
 from .upload import UploadResponse
+from .metadata import MetadataUpdatePayload
+from .bulk_upload import (
+    BulkUploadFile,
+    BulkUploadRequest,
+    PresignedUrlDTO,
+    BulkUploadResponse,
+    BatchProgressResponse,
+)
 
 __all__ = [
     "ERROR_SEVERITY_MAP",
@@ -33,4 +41,10 @@ __all__ = [
     "StageMetricDTO",
     "UploadResponse",
     "get_error_severity",
+    "MetadataUpdatePayload",
+    "BulkUploadFile",
+    "BulkUploadRequest",
+    "PresignedUrlDTO",
+    "BulkUploadResponse",
+    "BatchProgressResponse",
 ]

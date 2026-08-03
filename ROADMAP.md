@@ -12,8 +12,8 @@
 | **Epic 1** | Infrastructure & Foundation Layer | ✅ **FROZEN** | 100% | Completed |
 | **Epic 2** | Authentication & Identity Architecture | ✅ **FROZEN** | 100% | Completed |
 | **Epic 3** | Workspace Architecture & Management | ✅ **FROZEN** | 100% | Completed |
-| **Epic 4** | User & Role Management (RBAC & Invitations) | ⏳ **IN QUEUE** | 0% | Next Up |
-| **Epic 5** | Document & Folder Management | ⏳ Scheduled | 0% | Phase 2 |
+| **Epic 4** | User & Role Management (RBAC & Invitations) | ✅ **FROZEN** | 100% | Completed |
+| **Epic 5** | Document & Folder Management | ✅ **FROZEN** | 100% | Completed |
 | **Epic 6** | Document Ingestion Pipeline | ⏳ Scheduled | 0% | Phase 2 |
 | **Epic 7** | Vector Search & Qdrant Integration | ⏳ Scheduled | 0% | Phase 2 |
 | **Epic 8** | Hybrid Search & BM25 Sparse Indexing | ⏳ Scheduled | 0% | Phase 3 |
@@ -60,7 +60,7 @@
 - [x] F3.7 — Workspace Branding (CSS Variables, Tailwind Tokens, WCAG AA Validation)
 - [x] F3.8 — Feature Flags (7-step Evaluation Pipeline, MurmurHash3, L1/L2 Cache)
 
-### ⏳ Epic 4 — User & Role Management (In Progress)
+### ✅ Epic 4 — User & Role Management (100% Frozen)
 - [x] F4.1 — Workspace Invitation (Send, Secure Token, Expiry) - ✅ Frozen (100%)
 - [x] F4.2 — Invitation Acceptance Flow - ✅ Frozen (100%)
 - [x] F4.3 — Workspace Membership Management - ✅ Frozen (100%)
@@ -68,8 +68,18 @@
 - [x] F4.5 — Role Assignment / Reassignment - ✅ Frozen (100%)
 - [x] F4.6 — Member Removal - ✅ Frozen (100%)
 - [x] F4.7 — User Profile Management - ✅ Frozen (100%)
-- [ ] F4.8 — Domain Verification
-- [ ] F4.9 — SSO Configuration per Workspace (`IdentityProvider` Entity)
+- [x] F4.8 — Domain Verification - ✅ Frozen (100%)
+- [x] F4.9 — SSO Configuration per Workspace (`IdentityProvider` Entity) - ✅ Frozen (100%)
+
+### ✅ Epic 5 — Document & Folder Management (100% Frozen)
+- [x] F5.1 — Folder Creation (Hierarchy, Depth Limits) - ✅ Frozen (100%)
+- [x] F5.2 — Folder Rename / Soft Delete - ✅ Frozen (100%)
+- [x] F5.3 — Folder Move (Reparenting, Cycle Prevention) - ✅ Frozen (100%)
+- [x] F5.4 — Folder Hard Delete (Permanent Pruning Background Task) - ✅ Frozen (100%)
+- [x] F5.5 — Document Archival & Restoration - ✅ Frozen (100%)
+- [x] F5.6 — Document Versioning (Upload, Rollback, Sync) - ✅ Frozen (100%)
+- [x] F5.7 — Metadata Management (Key-Value Tagging) - ✅ Frozen (100%)
+- [x] F5.8 — Bulk Upload (Async Batch Jobs) - ✅ Frozen (100%)
 
 ---
 

@@ -43,6 +43,6 @@ export async function patch<T>(url: string, data?: unknown, signal?: AbortSignal
   return request<T>({ method: 'PATCH', url, data }, signal)
 }
 
-export async function del<T>(url: string, signal?: AbortSignal): Promise<T> {
-  return request<T>({ method: 'DELETE', url }, signal)
+export async function del<T>(url: string, data?: unknown, signal?: AbortSignal): Promise<T> {
+  return request<T>({ method: 'DELETE', url, data }, signal)
 }

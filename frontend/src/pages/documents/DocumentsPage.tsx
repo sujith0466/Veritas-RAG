@@ -127,7 +127,24 @@ export function DocumentsPage() {
       await fetchDocuments()
     } catch (err) {
       console.error('Failed to delete document:', err)
-      // Optional: add toast error here if available
+    }
+  }
+
+  const handleArchive = async (docId: string) => {
+    try {
+      await documentService.archiveDocument(docId)
+      await fetchDocuments()
+    } catch (err) {
+      console.error('Failed to archive document:', err)
+    }
+  }
+
+  const handleRestore = async (docId: string) => {
+    try {
+      await documentService.restoreDocument(docId)
+      await fetchDocuments()
+    } catch (err) {
+      console.error('Failed to restore document:', err)
     }
   }
 
@@ -136,7 +153,7 @@ export function DocumentsPage() {
     { label: 'Processed', value: 'PROCESSED' },
     { label: 'Validating', value: 'VALIDATING' },
     { label: 'Extracting', value: 'EXTRACTING' },
-    { label: 'Pending', value: 'PENDING' },
+    { label: 'Archived', value: 'ARCHIVED' },
     { label: 'Failed', value: 'FAILED' },
   ]
 
@@ -224,6 +241,8 @@ export function DocumentsPage() {
           isLoading={isLoading}
           onSelectDocument={(doc) => setSelectedDocId(doc.id)}
           onDeleteDocument={handleDelete}
+          onArchiveDocument={handleArchive}
+          onRestoreDocument={handleRestore}
         />
       </div>
 

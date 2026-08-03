@@ -26,6 +26,15 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
   - F4.7 User Profile Architecture
   - F4.8 Domain Verification Architecture
   - F4.9 SSO Configuration Architecture
+- **Epic 5:**
+  - F5.1 Folder Creation Architecture
+  - F5.2 Folder Rename/Delete Architecture
+  - F5.3 Folder Move Architecture
+  - F5.4 Folder Hard Delete Architecture
+  - F5.5 Document Archive Architecture
+  - F5.6 Document Versioning Architecture
+  - F5.7 Metadata Management Architecture
+  - F5.8 Bulk Upload Architecture
 
 ---
 
@@ -35,6 +44,7 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
 - [Epic 2 Archive (Authentication)](archive/epic2/README.md)
 - [Epic 3 Archive (Workspace & Governance)](archive/epic3/README.md)
 - [Epic 4 Archive (User & Role Management)](archive/epic4/README.md)
+- [Epic 5 Archive (Document & Folder Management)](archive/epic5/README.md)
 - [Implementation Artifacts Archive](archive/implementation/README.md)
 - [Validation & Certification Archive](archive/validation/README.md)
 - [Temporary & Diagnostic Notes](archive/temporary/README.md)

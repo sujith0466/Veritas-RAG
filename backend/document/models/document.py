@@ -3,10 +3,11 @@
 Represents the core document aggregate root and its immutable content revisions.
 """
 
+import datetime
 from typing import Any
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -39,6 +40,21 @@ class Document(BaseModel):
     page_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     language: Mapped[str | None] = mapped_column(String(50), nullable=True)
     relative_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    folder_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    user_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=True), default=dict, server_default='{}', nullable=False
+    )
+    archived_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    archived_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     versions: Mapped[list["DocumentVersion"]] = relationship(
         "DocumentVersion", back_populates="document", cascade="all, delete-orphan"
@@ -66,6 +82,9 @@ class DocumentVersion(BaseModel):
     content_hash: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
     extracted_text_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    is_active_vector: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
 
     document: Mapped["Document"] = relationship("Document", back_populates="versions")
     storage_object: Mapped["StorageObject"] = relationship("StorageObject")

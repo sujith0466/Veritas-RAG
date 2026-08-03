@@ -3,12 +3,16 @@
 from .document import Document, DocumentVersion
 from .event_log import DocumentEventLog
 from .job import ProcessingJob
+from .status import DocumentStatus
 from .storage_object import StorageObject
+from .bulk_batch import BulkBatch
 
 __all__ = [
     "Document",
     "DocumentEventLog",
     "DocumentVersion",
     "ProcessingJob",
+    "DocumentStatus",
     "StorageObject",
+    "BulkBatch",
 ]

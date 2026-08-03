@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-milestone.5] - 2026-08-03
+### Added
+- **Epic 5 (Document & Folder Management):** Folder creation (adjacency list), hierarchical rename/soft delete, reparenting/moves, asynchronous permanent pruning, document archival/restoration, strict versioning (auto-increment and old vector cleanup), metadata management (key-value tagging with JSONB GIN index & Qdrant sync), and S3 presigned URL-based bulk uploads orchestrated by Celery workers.
+
 ## [2.0.0-milestone.4] - 2026-08-02
 ### Added
 - **Epic 1 (Foundation):** SQLAlchemy 2.0 async engine, Redis connection manager & distributed locking, Qdrant vector client, S3 abstraction with WORM audit policies, OpenTelemetry observability, Prometheus metrics, and GitHub Actions CI/CD pipelines.

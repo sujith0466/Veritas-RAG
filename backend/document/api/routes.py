@@ -230,3 +230,258 @@ async def delete_document(
         data={"deleted": True, "document_id": str(document_id)},
         metadata=_build_metadata(request),
     )
+
+
+@router.post(
+    "/{document_id}/archive",
+    response_model=SuccessResponse[dict[str, Any]],
+    summary="Archive a document",
+    description="Archive a document and asynchronously remove its vectors from Qdrant.",
+)
+async def archive_document(
+    request: Request,
+    document_id: uuid.UUID,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    user: Any | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict[str, Any]]:
+    """Archive a document."""
+    tenant_id, owner_id = _resolve_tenant_and_owner(user, x_tenant_id)
+    service = DocumentService()
+
+    try:
+        await service.archive_document(document_id, tenant_id, owner_id, session)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return SuccessResponse(
+        success=True,
+        data={"archived": True, "document_id": str(document_id)},
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/{document_id}/restore",
+    response_model=SuccessResponse[dict[str, Any]],
+    summary="Restore an archived document",
+    description="Restore an archived document and re-sync its vectors to Qdrant.",
+)
+async def restore_document(
+    request: Request,
+    document_id: uuid.UUID,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    user: Any | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict[str, Any]]:
+    """Restore a document."""
+    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    service = DocumentService()
+
+    try:
+        await service.restore_document(document_id, tenant_id, session)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return SuccessResponse(
+        success=True,
+        data={"restored": True, "document_id": str(document_id)},
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/{document_id}/versions",
+    response_model=SuccessResponse[UploadResponse],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Upload a new document version",
+    description="Upload a new file version for an existing document. Older versions will have their vectors removed once processed.",
+)
+async def upload_document_version(
+    request: Request,
+    document_id: uuid.UUID,
+    file: UploadFile = File(...),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    user: Any | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[UploadResponse]:
+    """Upload a new version of a document."""
+    tenant_id, owner_id = _resolve_tenant_and_owner(user, x_tenant_id)
+    service = DocumentService()
+
+    try:
+        doc, version, job = await service.upload_new_version(
+            document_id=document_id,
+            stream=file.file,
+            filename=file.filename or "unknown.txt",
+            declared_mime=file.content_type or "application/octet-stream",
+            tenant_id=tenant_id,
+            owner_user_id=owner_id,
+            session=session,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    file_size = getattr(file, "size", 0) or 0
+
+    return SuccessResponse(
+        success=True,
+        data=UploadResponse(
+            document_id=doc.id,
+            version_id=version.id,
+            job_id=job.id,
+            status=doc.status,
+            filename=doc.filename,
+            original_filename=doc.original_filename,
+            file_size_bytes=file_size,
+            created_at=doc.created_at,
+        ),
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/{document_id}/versions/{version_id}/rollback",
+    response_model=SuccessResponse[UploadResponse],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Rollback to a previous document version",
+    description="Rollback to an older version. Clones the older version as the new active version and processes it.",
+)
+async def rollback_document_version(
+    request: Request,
+    document_id: uuid.UUID,
+    version_id: uuid.UUID,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    user: Any | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[UploadResponse]:
+    """Rollback to a previous version."""
+    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    service = DocumentService()
+
+    try:
+        doc, version, job = await service.rollback_to_version(
+            document_id=document_id,
+            target_version_id=version_id,
+            tenant_id=tenant_id,
+            session=session,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return SuccessResponse(
+        success=True,
+        data=UploadResponse(
+            document_id=doc.id,
+            version_id=version.id,
+            job_id=job.id,
+            status=doc.status,
+            filename=doc.filename,
+            original_filename=doc.original_filename,
+            file_size_bytes=0,
+            created_at=doc.created_at,
+        ),
+        metadata=_build_metadata(request),
+    )
+
+
+from backend.document.schemas.metadata import MetadataUpdatePayload
+
+
+@router.put(
+    "/{document_id}/metadata",
+    response_model=SuccessResponse[dict],
+    summary="Overwrite document user metadata",
+)
+async def update_document_metadata(
+    document_id: uuid.UUID,
+    payload: MetadataUpdatePayload,
+    request: Request,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    user: Any | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict]:
+    """Overwrite all user_metadata keys for a document."""
+    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    
+    from backend.document.services.metadata_service import MetadataService
+    from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
+    
+    service = MetadataService(session)
+    updated_meta = await service.update_metadata(document_id, tenant_id, payload.metadata)
+    
+    sync_document_metadata_to_vectors_job.apply_async(
+        kwargs={"document_id": str(document_id), "tenant_id": tenant_id}
+    )
+    
+    return SuccessResponse(success=True, data=updated_meta, metadata=_build_metadata(request))
+
+
+@router.patch(
+    "/{document_id}/metadata",
+    response_model=SuccessResponse[dict],
+    summary="Patch document user metadata",
+)
+async def patch_document_metadata(
+    document_id: uuid.UUID,
+    payload: MetadataUpdatePayload,
+    request: Request,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    user: Any | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict]:
+    """Merge new keys into the document's user_metadata."""
+    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    
+    from backend.document.services.metadata_service import MetadataService
+    from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
+    
+    service = MetadataService(session)
+    updated_meta = await service.patch_metadata(document_id, tenant_id, payload.metadata)
+    
+    sync_document_metadata_to_vectors_job.apply_async(
+        kwargs={"document_id": str(document_id), "tenant_id": tenant_id}
+    )
+    
+    return SuccessResponse(success=True, data=updated_meta, metadata=_build_metadata(request))
+
+
+@router.delete(
+    "/{document_id}/metadata/{key}",
+    response_model=SuccessResponse[dict],
+    summary="Remove a specific metadata key",
+)
+async def remove_document_metadata_key(
+    document_id: uuid.UUID,
+    key: str,
+    request: Request,
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    user: Any | None = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict]:
+    """Remove a specific key from the document's user_metadata."""
+    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    
+    from backend.document.services.metadata_service import MetadataService
+    from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
+    
+    service = MetadataService(session)
+    updated_meta = await service.remove_metadata_key(document_id, tenant_id, key)
+    
+    sync_document_metadata_to_vectors_job.apply_async(
+        kwargs={"document_id": str(document_id), "tenant_id": tenant_id}
+    )
+    
+    return SuccessResponse(success=True, data=updated_meta, metadata=_build_metadata(request))

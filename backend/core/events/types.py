@@ -49,12 +49,30 @@ class EventType(StrEnum):
     FEATURE_FLAG_KILLSWITCH_TRIGGERED = "feature_flag.killswitch_triggered"
     FEATURE_FLAG_RULE_UPDATED = "feature_flag.rule_updated"
 
+    # ── Folder Lifecycle (Epic 5) ──────────────────────────────────────────────
+    FOLDER_CREATED = "folder.created"
+    FOLDER_RENAMED = "folder.renamed"
+    FOLDER_SOFT_DELETED = "folder.soft_deleted"
+    FOLDER_RESTORED = "folder.restored"
+    FOLDER_CHILDREN_SOFT_DELETED = "folder.children_soft_deleted"
+    FOLDER_CHILDREN_RESTORED = "folder.children_restored"
+    FOLDER_MOVED = "folder.moved"
+    FOLDER_SUBTREE_MOVED = "folder.subtree_moved"
+    FOLDER_MOVE_FAILED = "folder.move_failed"
+    FOLDER_PURGE_STARTED = "folder.purge_started"
+    FOLDER_HARD_DELETED = "folder.hard_deleted"
+    FOLDER_PURGE_FAILED = "folder.purge_failed"
+
     # ── Document Lifecycle ─────────────────────────────────────────────────────
     DOCUMENT_UPLOADED = "document.uploaded"
     DOCUMENT_INGESTION_STARTED = "document.ingestion_started"
     DOCUMENT_INGESTION_COMPLETED = "document.ingestion_completed"
     DOCUMENT_INGESTION_FAILED = "document.ingestion_failed"
     DOCUMENT_DELETED = "document.deleted"
+    DOCUMENT_ARCHIVED = "document.archived"
+    DOCUMENT_RESTORED = "document.restored"
+    DOCUMENT_VERSION_CREATED = "document.version_created"
+    DOCUMENT_ROLLED_BACK = "document.rolled_back"
 
     # ── Chunking Pipeline ──────────────────────────────────────────────────────
     CHUNKING_STARTED = "chunking.started"

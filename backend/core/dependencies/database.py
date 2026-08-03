@@ -45,6 +45,23 @@ async def get_vector_db() -> AsyncGenerator[AsyncQdrantClient, None]:
         yield client
 
 
+async def get_sso_service(
+    session: AsyncSession = Depends(get_db),
+):
+    from backend.services.sso_service import SSOService
+
+    return SSOService(session=session)
+
+
+async def get_folder_service(
+    session: AsyncSession = Depends(get_db),
+):
+    from backend.services.folder_service import FolderService
+    from backend.core.events.dispatcher import EventDispatcher
+
+    return FolderService(session=session, dispatcher=EventDispatcher())
+
+
 async def get_user_repository(
     session: AsyncSession = Depends(get_db),
 ) -> IUserRepository:

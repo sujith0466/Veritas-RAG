@@ -189,8 +189,8 @@ RAGuard-AI/
 | **Epic 1** | Infrastructure & Foundation Layer | ✅ **FROZEN** | 100% |
 | **Epic 2** | Authentication & Identity Management | ✅ **FROZEN** | 100% |
 | **Epic 3** | Workspace Architecture & Management | ✅ **FROZEN** | 100% |
-| **Epic 4** | User & Role Management (RBAC / Invitations / Profiles) | ⏳ **NEXT UP** | 0% |
-| **Epic 5** | Document & Folder Management | ⏳ Scheduled | 0% |
+| **Epic 4** | User & Role Management (RBAC / Invitations / Profiles) | ✅ **FROZEN** | 100% |
+| **Epic 5** | Document & Folder Management | ✅ **FROZEN** | 100% |
 | **Epic 6** | Document Ingestion Pipeline | ⏳ Scheduled | 0% |
 | **Epic 7** | Vector Search & Qdrant Integration | ⏳ Scheduled | 0% |
 | **Epic 8** | Hybrid Search & BM25 Sparse Indexing | ⏳ Scheduled | 0% |

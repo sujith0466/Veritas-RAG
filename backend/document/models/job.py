@@ -24,6 +24,12 @@ class ProcessingJob(BaseModel):
         index=True,
         nullable=False,
     )
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("bulk_batches.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("document_versions.id", ondelete="SET NULL"),

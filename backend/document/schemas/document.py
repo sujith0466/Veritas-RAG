@@ -64,6 +64,7 @@ class DocumentVersionDTO(BaseModel):
     content_hash: str
     extracted_text_path: str | None = None
     metadata_json: dict[str, Any] | None = None
+    is_active_vector: bool = False
     created_at: datetime
 
 
@@ -83,6 +84,7 @@ class DocumentResponse(BaseModel):
     word_count: int = 0
     page_count: int = 0
     language: str | None = None
+    user_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

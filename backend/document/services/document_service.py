@@ -12,7 +12,16 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.document.events import EVENT_DOCUMENT_UPLOADED, create_domain_event
+from backend.cache.locks import acquire_lock
+from backend.document.schemas.errors import DocumentDomainException
+from backend.document.events import (
+    EVENT_DOCUMENT_UPLOADED,
+    EVENT_DOCUMENT_ARCHIVED,
+    EVENT_DOCUMENT_RESTORED,
+    EVENT_DOCUMENT_VERSION_CREATED,
+    EVENT_DOCUMENT_ROLLED_BACK,
+    create_domain_event,
+)
 from backend.document.models import (
     Document,
     DocumentEventLog,
@@ -327,3 +336,252 @@ class DocumentService:
         await self.storage.delete_prefix(prefix)
 
         return True
+
+    async def archive_document(
+        self, document_id: uuid.UUID, tenant_id: str, user_id: uuid.UUID | None, session: AsyncSession
+    ) -> Document:
+        """Archive a document and remove its vectors from Qdrant."""
+        async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
+            doc = await self.doc_repo.get_by_id(document_id, tenant_id, session)
+            if not doc:
+                raise DocumentDomainException("STORE_002", "Document not found")
+            if doc.status in (DocumentStatus.ARCHIVED, DocumentStatus.DELETED):
+                raise DocumentDomainException("VAL_001", f"Cannot archive document in status {doc.status}")
+
+            doc = await self.doc_repo.archive_document(document_id, tenant_id, user_id, session)
+
+            payload = create_domain_event(
+                event_type=EVENT_DOCUMENT_ARCHIVED,
+                tenant_id=tenant_id,
+                document_id=document_id,
+            )
+            event_log = DocumentEventLog(
+                document_id=document_id,
+                event_type=EVENT_DOCUMENT_ARCHIVED,
+                payload=payload.model_dump(mode="json"),
+                triggered_by="archive_api",
+            )
+            await self.event_repo.append_event(event_log, session)
+            await session.commit()
+
+            try:
+                from backend.document.workers.archive import remove_archived_document_vectors_job
+                remove_archived_document_vectors_job.apply_async(args=[str(document_id), tenant_id], queue="ingestion")
+            except Exception as e:
+                import structlog
+                logger = structlog.get_logger(__name__)
+                logger.error("Failed to dispatch remove_archived_document_vectors_job", error=str(e), doc_id=str(document_id))
+
+            return doc
+
+    async def restore_document(
+        self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
+    ) -> Document:
+        """Restore an archived document and re-sync its vectors to Qdrant."""
+        async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
+            doc = await self.doc_repo.restore_document(document_id, tenant_id, session)
+            if not doc:
+                raise DocumentDomainException("STORE_002", "Document not found or parent folder is soft-deleted")
+
+            payload = create_domain_event(
+                event_type=EVENT_DOCUMENT_RESTORED,
+                tenant_id=tenant_id,
+                document_id=document_id,
+            )
+            event_log = DocumentEventLog(
+                document_id=document_id,
+                event_type=EVENT_DOCUMENT_RESTORED,
+                payload=payload.model_dump(mode="json"),
+                triggered_by="restore_api",
+            )
+            await self.event_repo.append_event(event_log, session)
+            await session.commit()
+
+            try:
+                from backend.document.workers.archive import restore_archived_document_vectors_job
+                restore_archived_document_vectors_job.apply_async(args=[str(document_id), str(doc.latest_version_id), tenant_id], queue="ingestion")
+            except Exception as e:
+                import structlog
+                logger = structlog.get_logger(__name__)
+                logger.error("Failed to dispatch restore_archived_document_vectors_job", error=str(e), doc_id=str(document_id))
+
+            return doc
+
+    async def upload_new_version(
+        self,
+        document_id: uuid.UUID,
+        stream: BinaryIO,
+        filename: str,
+        declared_mime: str,
+        tenant_id: str,
+        owner_user_id: uuid.UUID | None,
+        session: AsyncSession,
+    ) -> tuple[Document, DocumentVersion, ProcessingJob]:
+        """Upload a new immutable version of a document."""
+        async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
+            doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+            if not doc:
+                raise DocumentDomainException("STORE_002", "Document not found")
+            if doc.status in (DocumentStatus.ARCHIVED, DocumentStatus.DELETED):
+                raise DocumentDomainException("VAL_001", "Cannot version an archived or deleted document")
+
+            # Validation
+            validation_result = await self.validator.validate(
+                stream=stream,
+                original_filename=filename,
+                declared_mime=declared_mime,
+            )
+
+            # Determine new version number
+            latest_version_num = max(v.version_number for v in doc.versions) if doc.versions else 0
+            new_version_num = latest_version_num + 1
+
+            original_key = get_versioned_path(
+                tenant_id=tenant_id,
+                document_id=document_id,
+                version_number=new_version_num,
+                category="original",
+                filename=validation_result.sanitized_filename,
+            )
+
+            storage_dto = await self.storage.save_stream(stream, original_key)
+
+            storage_obj = StorageObject(
+                provider=storage_dto.provider,
+                bucket_or_container=storage_dto.bucket_or_container,
+                object_key=storage_dto.object_key,
+                file_size_bytes=storage_dto.file_size_bytes,
+                mime_type=validation_result.mime_type,
+                checksum_sha256=storage_dto.checksum_sha256,
+            )
+            storage_obj = await self.storage_repo.create(storage_obj, session)
+
+            version = DocumentVersion(
+                document_id=doc.id,
+                version_number=new_version_num,
+                storage_object_id=storage_obj.id,
+                content_hash=storage_dto.checksum_sha256,
+                is_active_vector=True,
+            )
+            version = await self.doc_repo.add_version(version, session)
+
+            # Deactivate older vectors in DB flag
+            await self.doc_repo.set_active_version(doc.id, version.id, session)
+
+            doc.latest_version_id = version.id
+            doc.status = DocumentStatus.UPLOADED
+            await session.flush()
+
+            job = ProcessingJob(
+                document_id=doc.id,
+                version_id=version.id,
+                status=DocumentStatus.PENDING,
+                current_step="upload",
+                retry_count=0,
+                max_retries=3,
+            )
+            job = await self.job_repo.create(job, session)
+
+            payload = create_domain_event(
+                event_type=EVENT_DOCUMENT_VERSION_CREATED,
+                tenant_id=tenant_id,
+                document_id=doc.id,
+                job_id=job.id,
+                data={
+                    "version_number": new_version_num,
+                    "filename": doc.filename,
+                    "file_size_bytes": storage_dto.file_size_bytes,
+                },
+            )
+            event_log = DocumentEventLog(
+                document_id=doc.id,
+                job_id=job.id,
+                event_type=EVENT_DOCUMENT_VERSION_CREATED,
+                payload=payload.model_dump(mode="json"),
+                triggered_by="version_api",
+            )
+            await self.event_repo.append_event(event_log, session)
+            await session.commit()
+
+            try:
+                from backend.document.workers.ingestion import process_document_job
+                process_document_job.apply_async(args=[str(job.id)], queue="ingestion")
+            except Exception as e:
+                import structlog
+                logger = structlog.get_logger(__name__)
+                logger.error("Failed to dispatch process_document_job for new version", error=str(e), job_id=str(job.id))
+
+            return doc, version, job
+
+    async def rollback_to_version(
+        self, document_id: uuid.UUID, target_version_id: uuid.UUID, tenant_id: str, session: AsyncSession
+    ) -> tuple[Document, DocumentVersion, ProcessingJob]:
+        """Rollback to an older version by cloning it as the newest version."""
+        async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
+            doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+            if not doc:
+                raise DocumentDomainException("STORE_002", "Document not found")
+            if doc.status in (DocumentStatus.ARCHIVED, DocumentStatus.DELETED):
+                raise DocumentDomainException("VAL_001", "Cannot rollback an archived or deleted document")
+
+            target_version = next((v for v in doc.versions if v.id == target_version_id), None)
+            if not target_version:
+                raise DocumentDomainException("STORE_002", "Target version not found")
+
+            latest_version_num = max(v.version_number for v in doc.versions) if doc.versions else 0
+            new_version_num = latest_version_num + 1
+
+            version = DocumentVersion(
+                document_id=doc.id,
+                version_number=new_version_num,
+                storage_object_id=target_version.storage_object_id,
+                content_hash=target_version.content_hash,
+                is_active_vector=True,
+            )
+            version = await self.doc_repo.add_version(version, session)
+
+            await self.doc_repo.set_active_version(doc.id, version.id, session)
+
+            doc.latest_version_id = version.id
+            doc.status = DocumentStatus.UPLOADED
+            await session.flush()
+
+            job = ProcessingJob(
+                document_id=doc.id,
+                version_id=version.id,
+                status=DocumentStatus.PENDING,
+                current_step="upload",
+                retry_count=0,
+                max_retries=3,
+            )
+            job = await self.job_repo.create(job, session)
+
+            payload = create_domain_event(
+                event_type=EVENT_DOCUMENT_ROLLED_BACK,
+                tenant_id=tenant_id,
+                document_id=doc.id,
+                job_id=job.id,
+                data={
+                    "version_number": new_version_num,
+                    "target_version_id": str(target_version_id),
+                },
+            )
+            event_log = DocumentEventLog(
+                document_id=doc.id,
+                job_id=job.id,
+                event_type=EVENT_DOCUMENT_ROLLED_BACK,
+                payload=payload.model_dump(mode="json"),
+                triggered_by="rollback_api",
+            )
+            await self.event_repo.append_event(event_log, session)
+            await session.commit()
+
+            try:
+                from backend.document.workers.ingestion import process_document_job
+                process_document_job.apply_async(args=[str(job.id)], queue="ingestion")
+            except Exception as e:
+                import structlog
+                logger = structlog.get_logger(__name__)
+                logger.error("Failed to dispatch process_document_job for rollback", error=str(e), job_id=str(job.id))
+
+            return doc, version, job
