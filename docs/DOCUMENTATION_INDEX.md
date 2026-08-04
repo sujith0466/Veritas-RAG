@@ -14,40 +14,50 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
 
 ### Epic Architecture Specifications
 - **Epic 1:** [Infrastructure Contract](../infrastructure/docs/infrastructure_contract.md) | [Docker Guide](../infrastructure/docs/docker_guide.md)
-- **Epic 2:** [Authentication & Identity Architecture](archive/epic2/README.md)
-- **Epic 3:** [Workspace Governance Architecture](archive/epic3/README.md)
+- **Epic 2:** [Authentication & Identity Architecture](Archive/epic2/README.md)
+- **Epic 3:** [Workspace Governance Architecture](Archive/epic3/README.md)
 - **Epic 4:**
-  - F4.1 Workspace Invitation Architecture
-  - F4.2 Invitation Acceptance Architecture
-  - F4.3 Workspace Membership Architecture
-  - F4.4 RBAC Permission Architecture
-  - F4.5 Role Assignment Architecture
-  - F4.6 Member Removal Architecture
-  - F4.7 User Profile Architecture
-  - F4.8 Domain Verification Architecture
-  - F4.9 SSO Configuration Architecture
+  - [F4.1 Workspace Invitation Architecture](Archive/epic4/F4.1_Workspace_Invitation_Architecture.md)
+  - [F4.2 Invitation Acceptance Architecture](Archive/epic4/F4.2_Invitation_Acceptance_Architecture.md)
+  - [F4.3 Workspace Membership Architecture](Archive/epic4/F4.3_Workspace_Membership_Architecture.md)
+  - [F4.4 RBAC Permission Architecture](Archive/epic4/F4.4_RBAC_Permission_Architecture.md)
+  - [F4.5 Role Assignment Architecture](Archive/epic4/F4.5_Role_Assignment_Architecture.md)
+  - [F4.6 Member Removal Architecture](Archive/epic4/F4.6_Member_Removal_Architecture.md)
+  - [F4.7 User Profile Architecture](Archive/epic4/F4.7_User_Profile_Architecture.md)
+  - [F4.8 Domain Verification Architecture](Archive/epic4/F4.8_Domain_Verification_Architecture.md)
+  - [F4.9 SSO Configuration Architecture](Archive/epic4/F4.9_SSO_Configuration_Architecture.md)
 - **Epic 5:**
-  - F5.1 Folder Creation Architecture
-  - F5.2 Folder Rename/Delete Architecture
-  - F5.3 Folder Move Architecture
-  - F5.4 Folder Hard Delete Architecture
-  - F5.5 Document Archive Architecture
-  - F5.6 Document Versioning Architecture
-  - F5.7 Metadata Management Architecture
-  - F5.8 Bulk Upload Architecture
+  - [F5.1 Folder Creation Architecture](Archive/epic5/F5.1_Folder_Creation_Architecture.md)
+  - [F5.2 Folder Rename/Delete Architecture](Archive/epic5/F5.2_Folder_Rename_Delete_Architecture.md)
+  - [F5.3 Folder Move Architecture](Archive/epic5/F5.3_Folder_Move_Architecture.md)
+  - [F5.4 Folder Hard Delete Architecture](Archive/epic5/F5.4_Folder_Hard_Delete_Architecture.md)
+  - [F5.5 Document Archive Architecture](Archive/epic5/F5.5_Document_Archive_Architecture.md)
+  - [F5.6 Document Versioning Architecture](Archive/epic5/F5.6_Document_Versioning_Architecture.md)
+  - [F5.7 Metadata Management Architecture](Archive/epic5/F5.7_Metadata_Management_Architecture.md)
+  - [F5.8 Bulk Upload Architecture](Archive/epic5/F5.8_Bulk_Upload_Architecture.md)
+- **Epic 6:**
+  - [F6.1 Redis Worker Queue Architecture](Archive/epic6/F6.1_Redis_Worker_Queue_Architecture.md)
+  - [F6.2 OCR Text Extraction Architecture](Archive/epic6/F6.2_OCR_Text_Extraction_Architecture.md)
+  - [F6.3 Text Chunking Architecture](Archive/epic6/F6.3_Text_Chunking_Architecture.md)
+  - [F6.4 Embedding Generation Architecture](Archive/epic6/F6.4_Embedding_Generation_Architecture.md)
+  - [F6.5 Qdrant Vector Indexing Architecture](Archive/epic6/F6.5_Qdrant_Vector_Indexing_Architecture.md)
+  - [F6.6 ProcessingJob Lifecycle Architecture](Archive/epic6/F6.6_ProcessingJob_Lifecycle_Architecture.md)
+  - [F6.7 Dead Letter Queue Architecture](Archive/epic6/F6.7_Dead_Letter_Queue_Architecture.md)
+  - [F6.8 S3 Event-Driven Pipeline Architecture](Archive/epic6/F6.8_S3_Event_Driven_Pipeline_Architecture.md)
 
 ---
 
 ## 📦 Historical Archives
 
-- [Epic 1 Archive (Foundations)](archive/epic1/README.md)
-- [Epic 2 Archive (Authentication)](archive/epic2/README.md)
-- [Epic 3 Archive (Workspace & Governance)](archive/epic3/README.md)
-- [Epic 4 Archive (User & Role Management)](archive/epic4/README.md)
-- [Epic 5 Archive (Document & Folder Management)](archive/epic5/README.md)
-- [Implementation Artifacts Archive](archive/implementation/README.md)
-- [Validation & Certification Archive](archive/validation/README.md)
-- [Temporary & Diagnostic Notes](archive/temporary/README.md)
+- [Epic 1 Archive (Foundations)](Archive/epic1/README.md)
+- [Epic 2 Archive (Authentication)](Archive/epic2/README.md)
+- [Epic 3 Archive (Workspace & Governance)](Archive/epic3/README.md)
+- [Epic 4 Archive (User & Role Management)](Archive/epic4/README.md)
+- [Epic 5 Archive (Document & Folder Management)](Archive/epic5/README.md)
+- [Epic 6 Archive (Knowledge Processing Pipeline)](Archive/epic6/README.md)
+- [Implementation Artifacts Archive](Archive/implementation/README.md)
+- [Validation & Certification Archive](Archive/validation/README.md)
+- [Temporary & Diagnostic Notes](Archive/temporary/README.md)
 
 ---
 

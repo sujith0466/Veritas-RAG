@@ -4,8 +4,8 @@ Pydantic schemas for the job pipeline endpoints.
 """
 
 from datetime import datetime
-import uuid
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -67,12 +67,40 @@ class ProcessingJobResponse(ProcessingJobBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class FailedJobDiagnosticsResponse(BaseModel):
+    id: uuid.UUID
+    job_id: uuid.UUID
+    tenant_id: str
+    failing_step: str
+    exception_class: str
+    stack_trace: str | None = None
+    worker_context: dict[str, Any] | None = None
+    payload_snapshot: dict[str, Any] | None = None
+    remediation_status: str
+    resolved_by_user_id: uuid.UUID | None = None
+    resolved_at: datetime | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProcessingJobDetailResponse(ProcessingJobResponse):
     steps: list[JobStepResponse] = Field(default_factory=list)
     audits: list[JobAuditResponse] = Field(default_factory=list)
+    diagnostics: FailedJobDiagnosticsResponse | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class RetryJobRequest(BaseModel):
     resume_from_step: str | None = None
+
+
+class BulkRetryRequest(BaseModel):
+    job_ids: list[uuid.UUID] = Field(default_factory=list)
+    error_code_filter: str | None = None
+    resume_from_step: str | None = None
+
+
+class BulkDismissRequest(BaseModel):
+    job_ids: list[uuid.UUID] = Field(default_factory=list)

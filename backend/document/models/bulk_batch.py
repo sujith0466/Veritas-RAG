@@ -3,12 +3,11 @@
 Groups multiple processing jobs into a single logical batch for tracking.
 """
 
-import datetime
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import BaseModel
 
@@ -29,7 +28,7 @@ class BulkBatch(BaseModel):
         String(50), index=True, default="PENDING", nullable=False
     )
     total_jobs: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    
+
     # Progress will be tracked dynamically via Redis, but we can store final states here or track partial success.
 
     def __repr__(self) -> str:

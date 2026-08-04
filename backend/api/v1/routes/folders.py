@@ -5,23 +5,23 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.api.v1.schemas.folder import (
+    DeletionQueuedResponse,
     FolderCreateRequest,
     FolderRenameRequest,
     FolderResponse,
-    DeletionQueuedResponse,
-    RestoreQueuedResponse,
     FolderStatsResponse,
+    RestoreQueuedResponse,
 )
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user, require_role
 from backend.core.dependencies.database import get_folder_service
 from backend.core.permissions.rbac import Role
 from backend.services.folder_service import (
-    FolderService,
     FolderConflictError,
     FolderNotFoundError,
-    FolderRateLimitError,
     FolderParentDeletedError,
+    FolderRateLimitError,
+    FolderService,
 )
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/folders", tags=["Folders"])
@@ -159,7 +159,13 @@ async def get_folder_stats(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-from backend.api.v1.schemas.folder import FolderMoveRequest, FolderMoveResponse, FolderHardDeleteRequest, FolderPurgeStatusResponse
+from backend.api.v1.schemas.folder import (
+    FolderHardDeleteRequest,
+    FolderMoveRequest,
+    FolderMoveResponse,
+    FolderPurgeStatusResponse,
+)
+
 
 @router.post(
     "/{folder_id}/move",
@@ -236,8 +242,9 @@ async def get_purge_status(
     folder = await service.repo.get_by_id_in_workspace(folder_id, workspace_id)
     if folder:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Folder is active.")
-        
+
     from sqlalchemy import select
+
     from backend.models.entities.folder import Folder
     stmt = select(Folder).where(
         Folder.id == folder_id,
@@ -246,16 +253,16 @@ async def get_purge_status(
     )
     result = await service.session.execute(stmt)
     deleted_folder = result.scalar_one_or_none()
-    
+
     if not deleted_folder:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found.")
-        
+
     days_until_purge = None
     if deleted_folder.purge_at:
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
         delta = deleted_folder.purge_at - datetime.now(UTC)
         days_until_purge = max(0, delta.days)
-        
+
     return FolderPurgeStatusResponse(
         folder_id=deleted_folder.id,
         is_deleted=deleted_folder.is_deleted,

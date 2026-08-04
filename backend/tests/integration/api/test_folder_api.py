@@ -1,6 +1,6 @@
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 import uuid
-from datetime import datetime, UTC
 
 from fastapi.testclient import TestClient
 
@@ -10,7 +10,6 @@ from backend.core.dependencies.database import get_folder_service
 from backend.core.permissions.rbac import Role
 from backend.main import create_app
 from backend.models.entities.folder import Folder
-from backend.api.v1.schemas.folder import DeletionQueuedResponse, RestoreQueuedResponse
 
 app = create_app()
 
@@ -50,10 +49,10 @@ def test_create_folder_api():
         f"/api/v1/workspaces/{uuid.uuid4()}/folders",
         json={"name": "API Folder"}
     )
-    
+
     assert response.status_code == 201
     assert response.json()["name"] == "API Folder"
-    
+
     app.dependency_overrides.clear()
 
 def test_rename_folder_api():
@@ -82,10 +81,10 @@ def test_rename_folder_api():
         f"/api/v1/workspaces/{uuid.uuid4()}/folders/{folder_id}",
         json={"name": "Renamed API", "version": 1}
     )
-    
+
     assert response.status_code == 200
     assert response.json()["name"] == "Renamed API"
-    
+
     app.dependency_overrides.clear()
 
 def test_soft_delete_folder_api():
@@ -99,10 +98,10 @@ def test_soft_delete_folder_api():
     response = client.delete(
         f"/api/v1/workspaces/{uuid.uuid4()}/folders/{uuid.uuid4()}?version=1"
     )
-    
+
     assert response.status_code == 200
     assert response.json()["status"] == "deletion_queued"
-    
+
     app.dependency_overrides.clear()
 
 
@@ -118,10 +117,10 @@ def test_move_folder_api():
         f"/api/v1/workspaces/{uuid.uuid4()}/folders/{uuid.uuid4()}/move",
         json={"target_parent_id": str(uuid.uuid4()), "version": 1}
     )
-    
+
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
-    
+
     app.dependency_overrides.clear()
 
 def test_early_hard_delete_folder_api():
@@ -140,10 +139,10 @@ def test_move_folder_api():
         f"/api/v1/workspaces/{uuid.uuid4()}/folders/{uuid.uuid4()}/move",
         json={"target_parent_id": str(uuid.uuid4()), "version": 1}
     )
-    
+
     assert response.status_code == 202
     assert response.json()["status"] == "accepted"
-    
+
     app.dependency_overrides.clear()
 
 def test_early_hard_delete_folder_api():
@@ -159,8 +158,8 @@ def test_early_hard_delete_folder_api():
         f"/api/v1/workspaces/{uuid.uuid4()}/folders/{uuid.uuid4()}/hard-delete",
         json={"confirmation_name": "delete me"}
     )
-    
+
     assert response.status_code == 202
     assert response.json()["status"] == "purge_scheduled"
-    
+
     app.dependency_overrides.clear()

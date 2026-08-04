@@ -27,6 +27,6 @@ class QdrantSettings(BaseSettings):
         "extra": "ignore",
     }
 
-    def collection_name(self, tenant_id: str) -> str:
-        return f"{self.collection_prefix}_{tenant_id}"
+    def collection_name(self, dimension: int) -> str:
+        return f"{self.collection_prefix}_knowledge_{dimension}"
 

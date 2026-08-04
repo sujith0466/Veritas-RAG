@@ -4,7 +4,7 @@ Verifies `CeleryEmbeddingWorker` session orchestration, jittered exponential bac
 Celery state update callbacks (`update_state`), and exact retry boundary differentiation (`RECOVERABLE` vs `FATAL`).
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
 import pytest
@@ -16,6 +16,13 @@ from backend.modules.embedding.schemas.errors import (
     ProviderTimeoutError,
 )
 from backend.modules.embedding.workers.embedding_worker import CeleryEmbeddingWorker
+
+
+class DummyAsyncContextManager:
+    async def __aenter__(self):
+        return self
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 
 class RetrySignal(Exception):
@@ -40,7 +47,8 @@ class TestCeleryEmbeddingWorker:
         b_max = CeleryEmbeddingWorker.calculate_jittered_backoff(retry_count=10, base_seconds=100.0, max_seconds=300.0)
         assert b_max <= 300.0
 
-    async def test_execute_batch_success(self) -> None:
+    @patch("backend.cache.locks.acquire_lock", return_value=DummyAsyncContextManager())
+    async def test_execute_batch_success(self, mock_acquire_lock) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
         worker = CeleryEmbeddingWorker(mock_session)
 
@@ -57,6 +65,7 @@ class TestCeleryEmbeddingWorker:
             total_tokens_consumed=150,
             status="COMPLETED",
         )
+        worker.service.get_job_status = AsyncMock(return_value=mock_job)
         worker.service.process_embedding_batch = AsyncMock(return_value=mock_job)
 
         mock_celery = MagicMock()
@@ -83,11 +92,14 @@ class TestCeleryEmbeddingWorker:
             },
         )
 
-    async def test_execute_batch_retries_recoverable_error(self) -> None:
+    @patch("backend.cache.locks.acquire_lock", return_value=DummyAsyncContextManager())
+    async def test_execute_batch_retries_recoverable_error(self, mock_acquire_lock) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
         worker = CeleryEmbeddingWorker(mock_session)
 
         job_id = uuid.uuid4()
+        mock_job = EmbeddingJob(id=job_id, tenant_id="t1", total_chunks=10, processed_chunks=0, provider="openai", model_name="m")
+        worker.service.get_job_status = AsyncMock(return_value=mock_job)
         # ProviderTimeoutError is RECOVERABLE (EMB_004)
         worker.service.process_embedding_batch = AsyncMock(side_effect=ProviderTimeoutError("Gateway timeout"))
 
@@ -107,11 +119,14 @@ class TestCeleryEmbeddingWorker:
         assert "countdown" in kwargs
         assert kwargs["countdown"] >= 10.0
 
-    async def test_execute_batch_no_retry_on_fatal_error(self) -> None:
+    @patch("backend.cache.locks.acquire_lock", return_value=DummyAsyncContextManager())
+    async def test_execute_batch_no_retry_on_fatal_error(self, mock_acquire_lock) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
         worker = CeleryEmbeddingWorker(mock_session)
 
         job_id = uuid.uuid4()
+        mock_job = EmbeddingJob(id=job_id, tenant_id="t1", total_chunks=10, processed_chunks=0, provider="openai", model_name="m")
+        worker.service.get_job_status = AsyncMock(return_value=mock_job)
         # ProviderAuthenticationError is FATAL (EMB_005)
         worker.service.process_embedding_batch = AsyncMock(side_effect=ProviderAuthenticationError("Invalid API key"))
 

@@ -44,14 +44,21 @@ def require_permission(
 
 
 def require_role(
-    *roles: Role | str,
+    *roles: Any,
 ) -> Callable[..., Coroutine[Any, Any, UserContext]]:
     """Return a dependency requiring the user to possess one of the specified roles."""
+    flat_roles = []
+    for r in roles:
+        if isinstance(r, (list, tuple, set)):
+            flat_roles.extend(r)
+        else:
+            flat_roles.append(r)
+
     async def _role_guard(
         user_context: UserContext = Depends(get_current_user),
     ) -> UserContext:
         user_role = Role.from_str(user_context.role) if isinstance(user_context.role, str) else user_context.role
-        has_role = evaluate_role_access(user_role, roles)
+        has_role = evaluate_role_access(user_role, tuple(flat_roles))
         if not has_role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -7,7 +7,7 @@ recording progress counters (`processed_chunks / total_chunks`), token consumpti
 import uuid
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import BaseModel
@@ -50,6 +50,9 @@ class EmbeddingJob(BaseModel):
         Integer, default=0, nullable=False
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    step_metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fallback_provider: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"<EmbeddingJob(id={self.id}, status='{self.status}', processed={self.processed_chunks}/{self.total_chunks})>"

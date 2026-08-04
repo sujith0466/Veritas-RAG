@@ -11,6 +11,7 @@ from typing import Any
 
 import structlog
 
+from backend.cache.locks import LockAcquisitionError
 from backend.database.engine import get_session_factory
 from backend.modules.vector.schemas.errors import ErrorSeverity, VectorDomainException
 from backend.modules.vector.services.vector_service import VectorStorageService
@@ -19,7 +20,7 @@ from backend.tasks.celery_app import celery_app
 logger = structlog.get_logger(__name__)
 
 
-@celery_app.task(bind=True, queue="ingestion", max_retries=5, acks_late=True)
+@celery_app.task(bind=True, queue="indexing", max_retries=5, acks_late=True)
 def sync_vectors_to_qdrant_task(
     self: Any,
     document_id: str,
@@ -48,6 +49,9 @@ def sync_vectors_to_qdrant_task(
                 collection_name,
             )
         )
+    except LockAcquisitionError as exc:
+        logger.warning("Vector sync lock failed, scheduling short retry", error=str(exc))
+        raise self.retry(exc=exc, countdown=10) from exc
     except VectorDomainException as exc:
         if (
             exc.severity == ErrorSeverity.RECOVERABLE
@@ -88,15 +92,19 @@ async def _async_sync_vectors_task(
 ) -> dict[str, Any]:
     session_factory = get_session_factory()
 
+    from backend.cache.locks import acquire_lock
+
     async with session_factory() as session:
-        service = VectorStorageService(session=session)
-        upserted = await service.sync_document_vectors(
-            document_id=document_id,
-            document_version_id=document_version_id,
-            tenant_id=tenant_id,
-            collection_name=collection_name,
-        )
-        await session.commit()
+        lock_key = f"vector:sync:{document_version_id}"
+        async with acquire_lock(lock_key, timeout=300, acquire_timeout=5):
+            service = VectorStorageService(session=session)
+            upserted = await service.sync_document_vectors(
+                document_id=document_id,
+                document_version_id=document_version_id,
+                tenant_id=tenant_id,
+                collection_name=collection_name,
+            )
+            await session.commit()
 
         from backend.core.events.base import BaseEvent
         from backend.core.events.dispatcher import get_dispatcher

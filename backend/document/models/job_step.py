@@ -6,7 +6,7 @@ Granular per-step execution tracking entity.
 from datetime import datetime
 import uuid
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Index
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 

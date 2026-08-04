@@ -415,17 +415,17 @@ async def update_document_metadata(
 ) -> SuccessResponse[dict]:
     """Overwrite all user_metadata keys for a document."""
     tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
-    
+
     from backend.document.services.metadata_service import MetadataService
     from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
-    
+
     service = MetadataService(session)
     updated_meta = await service.update_metadata(document_id, tenant_id, payload.metadata)
-    
+
     sync_document_metadata_to_vectors_job.apply_async(
         kwargs={"document_id": str(document_id), "tenant_id": tenant_id}
     )
-    
+
     return SuccessResponse(success=True, data=updated_meta, metadata=_build_metadata(request))
 
 
@@ -444,17 +444,17 @@ async def patch_document_metadata(
 ) -> SuccessResponse[dict]:
     """Merge new keys into the document's user_metadata."""
     tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
-    
+
     from backend.document.services.metadata_service import MetadataService
     from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
-    
+
     service = MetadataService(session)
     updated_meta = await service.patch_metadata(document_id, tenant_id, payload.metadata)
-    
+
     sync_document_metadata_to_vectors_job.apply_async(
         kwargs={"document_id": str(document_id), "tenant_id": tenant_id}
     )
-    
+
     return SuccessResponse(success=True, data=updated_meta, metadata=_build_metadata(request))
 
 
@@ -473,15 +473,15 @@ async def remove_document_metadata_key(
 ) -> SuccessResponse[dict]:
     """Remove a specific key from the document's user_metadata."""
     tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
-    
+
     from backend.document.services.metadata_service import MetadataService
     from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
-    
+
     service = MetadataService(session)
     updated_meta = await service.remove_metadata_key(document_id, tenant_id, key)
-    
+
     sync_document_metadata_to_vectors_job.apply_async(
         kwargs={"document_id": str(document_id), "tenant_id": tenant_id}
     )
-    
+
     return SuccessResponse(success=True, data=updated_meta, metadata=_build_metadata(request))

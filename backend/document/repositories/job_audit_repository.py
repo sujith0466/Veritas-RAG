@@ -4,8 +4,8 @@ Append-only audit trail for all job lifecycle events.
 """
 
 from datetime import UTC, datetime
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

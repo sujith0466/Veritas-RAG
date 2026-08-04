@@ -19,7 +19,6 @@ from backend.modules.embedding.events.payloads import (
     EmbeddingDomainEvent,
 )
 from backend.modules.embedding.models.embedding_job import EmbeddingJob
-from backend.modules.embedding.providers.base import EmbeddingBatchResult
 from backend.modules.embedding.providers.factory import register_provider
 from backend.modules.embedding.providers.local_provider import LocalEmbeddingProvider
 from backend.modules.embedding.schemas.errors import (
@@ -110,7 +109,10 @@ class TestEmbeddingService:
                 max_token_quota=50000,
             )
 
-    async def test_process_batch_idempotency_filtering(self) -> None:
+    from unittest.mock import patch
+
+    @patch("backend.cache.rate_limit.RateLimiter.check_limit", return_value={"current": 1, "limit": 600, "remaining": 599})
+    async def test_process_batch_idempotency_filtering(self, mock_rate_limit) -> None:
         mock_repo = AsyncMock()
         job_id = uuid.uuid4()
         doc_ver = uuid.uuid4()
@@ -156,15 +158,10 @@ class TestEmbeddingService:
         assert EventType.EMBEDDING_PROGRESS in event_types
         assert EventType.EMBEDDING_COMPLETED in event_types
 
-    async def test_process_batch_failure_publishes_event_and_updates_job(self) -> None:
-        class FailingProvider(LocalEmbeddingProvider):
-            def __init__(self, **kwargs: Any) -> None:
-                super().__init__(model_name="BAAI/bge-small-en-v1.5", offline=True)
-
-            async def embed_documents(self, texts: list[str]) -> EmbeddingBatchResult:
-                raise ProviderTimeoutError("Simulated provider timeout")
-
-        register_provider("failing", FailingProvider)
+    @patch("backend.modules.embedding.services.embedding_service.EmbeddingManager.vectorize_batch")
+    @patch("backend.cache.rate_limit.RateLimiter.check_limit", return_value={"current": 1, "limit": 600, "remaining": 599})
+    async def test_process_batch_failure_publishes_event_and_updates_job(self, mock_rate_limit, mock_vectorize) -> None:
+        mock_vectorize.side_effect = ProviderTimeoutError("Simulated provider timeout")
 
         mock_repo = AsyncMock()
         job = EmbeddingJob(
@@ -172,7 +169,7 @@ class TestEmbeddingService:
             tenant_id="t1",
             document_id=uuid.uuid4(),
             document_version_id=uuid.uuid4(),
-            provider="failing",
+            provider="local",
             model_name="m",
             status="PROCESSING",
         )

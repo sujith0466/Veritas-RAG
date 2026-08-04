@@ -14,6 +14,11 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
+pytestmark = pytest.mark.skipif(
+    not SUPABASE_ANON_KEY,
+    reason="Live Supabase environment not configured for certification tests",
+)
+
 @pytest.fixture
 async def async_client():
     async with httpx.AsyncClient(base_url=API_URL, timeout=30.0) as client:

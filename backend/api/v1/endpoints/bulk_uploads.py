@@ -1,7 +1,7 @@
 """Bulk Upload REST API endpoints."""
 
-import uuid
 from typing import Any
+import uuid
 
 from fastapi import (
     APIRouter,
@@ -17,13 +17,12 @@ from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.dependencies.auth import get_optional_user
 from backend.core.dependencies.database import get_db
 from backend.document.schemas.bulk_upload import (
+    BatchProgressResponse,
     BulkUploadRequest,
     BulkUploadResponse,
-    BatchProgressResponse,
     PresignedUrlDTO,
 )
 from backend.document.services.bulk_upload_service import BulkUploadService
-
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/bulk-uploads", tags=["Bulk Uploads"])
@@ -61,16 +60,16 @@ async def initiate_bulk_upload(
 ) -> SuccessResponse[BulkUploadResponse]:
     """Initiate a bulk upload and return presigned POST URLs."""
     tenant_id, owner_id = _resolve_tenant_and_owner(user, x_tenant_id)
-    
+
     # In a real implementation we would:
     # 1. Check workspace quotas.
     # 2. Check redis token bucket for rate limits.
     # 3. Create Document / DocumentVersion rows in DB.
     # 4. Generate S3 Presigned URLs for each document.
-    
+
     service = BulkUploadService(session)
     batch = await service.create_batch(tenant_id, owner_id or uuid.uuid4(), len(payload.files))
-    
+
     urls = []
     for file_intent in payload.files:
         doc_id = uuid.uuid4()
@@ -82,7 +81,7 @@ async def initiate_bulk_upload(
                 document_id=doc_id,
             )
         )
-        
+
     return SuccessResponse(
         success=True,
         data=BulkUploadResponse(
@@ -108,11 +107,11 @@ async def get_batch_progress(
     """Get real-time progress for a bulk batch."""
     tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
     service = BulkUploadService(session)
-    
+
     progress = await service.get_progress(batch_id, tenant_id)
     if "error" in progress:
         return SuccessResponse(success=False, data=progress, metadata=_build_metadata(request))
-        
+
     return SuccessResponse(
         success=True,
         data=BatchProgressResponse(**progress),
@@ -135,9 +134,9 @@ async def cancel_bulk_upload(
     """Cancel a pending/processing bulk upload batch."""
     tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
     service = BulkUploadService(session)
-    
+
     success = await service.cancel_batch(batch_id, tenant_id)
-    
+
     return SuccessResponse(
         success=success,
         data={"cancelled": success},

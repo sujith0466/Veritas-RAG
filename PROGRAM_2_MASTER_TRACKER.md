@@ -38,3 +38,8 @@
 | F6.1 - Setup Redis and Celery | ✅ Frozen | Final Production Validation complete |
 | F6.2 - OCR and Text Extraction | ✅ Frozen | Final Production Validation complete |
 | F6.3 - Text Chunking | ✅ Frozen | Final Production Validation complete |
+| F6.4 - Embedding Generation Worker | ✅ Frozen | Final Production Validation complete |
+| F6.5 - Qdrant Vector Indexing | ✅ Frozen | Final Production Validation complete |
+| F6.6 - ProcessingJob Lifecycle Tracking | ✅ Frozen | Final Production Validation complete |
+| F6.7 - Dead Letter Queue Handling | ✅ Frozen | Final Production Validation complete |
+| F6.8 - S3 Event-Driven Pipeline Trigger | ✅ Frozen | Final Production Validation complete |

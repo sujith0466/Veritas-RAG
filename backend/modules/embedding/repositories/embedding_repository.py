@@ -86,6 +86,8 @@ class EmbeddingRepository(BaseRepository[EmbeddingJob], IEmbeddingRepository):
         tokens_delta: int = 0,
         status: str | None = None,
         error_message: str | None = None,
+        step_metrics_update: dict | None = None,
+        fallback_provider: str | None = None,
     ) -> EmbeddingJob | None:
         """Atomically update job progress counters, tokens, and status."""
         job = await self.get_job_by_id_and_tenant(job_id, tenant_id)
@@ -99,7 +101,27 @@ class EmbeddingRepository(BaseRepository[EmbeddingJob], IEmbeddingRepository):
             job.status = status
         if error_message is not None:
             job.error_message = error_message
+        if step_metrics_update:
+            if job.step_metrics is None:
+                job.step_metrics = {}
+            job.step_metrics.update(step_metrics_update)
+            job.step_metrics = job.step_metrics.copy()
+        if fallback_provider:
+            job.fallback_provider = fallback_provider
 
+        await self.session.flush()
+        await self.session.refresh(job)
+        return job
+
+    async def update_job_cancellation(
+        self, job_id: uuid.UUID, tenant_id: str, reason: str
+    ) -> EmbeddingJob | None:
+        """Mark a job as cancelled with a reason."""
+        job = await self.get_job_by_id_and_tenant(job_id, tenant_id)
+        if not job:
+            return None
+        job.status = "CANCELLED"
+        job.cancellation_reason = reason
         await self.session.flush()
         await self.session.refresh(job)
         return job

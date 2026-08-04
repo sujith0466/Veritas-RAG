@@ -69,6 +69,7 @@ def create_celery_app() -> Celery:
             "folders.purge": {"exchange": "folders.purge", "routing_key": "folders.purge"},
             "default": {"exchange": "default", "routing_key": "default"},
             "ingestion": {"exchange": "ingestion", "routing_key": "ingestion"},
+            "indexing": {"exchange": "indexing", "routing_key": "indexing"},
             "embeddings": {"exchange": "embeddings", "routing_key": "embeddings"},
             "retrieval": {"exchange": "retrieval", "routing_key": "retrieval"},
             "evaluation": {"exchange": "evaluation", "routing_key": "evaluation"},

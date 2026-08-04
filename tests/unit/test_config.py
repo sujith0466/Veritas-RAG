@@ -96,7 +96,7 @@ class TestQdrantSettings:
     def test_collection_name_helper(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("QDRANT_COLLECTION_PREFIX", "custom_prefix")
         settings = QdrantSettings()
-        assert settings.collection_name("tenant_123") == "custom_prefix_tenant_123"
+        assert settings.collection_name(1536) == "custom_prefix_knowledge_1536"
 
 
 @pytest.mark.unit

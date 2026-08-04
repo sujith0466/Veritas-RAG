@@ -175,7 +175,7 @@ class VectorStorageService:
                     "model_name": emb.model_name,
                     **user_meta,  # Inject dynamic metadata tags
                 }
-                
+
                 points.append(
                     VectorPointDTO(
                         point_id=str(emb.chunk_id),
@@ -185,7 +185,13 @@ class VectorStorageService:
                 )
 
             # 7. Batch upsert points into Qdrant
-            upserted_count = await self.provider.upsert_points(target_col, points)
+            VECTOR_UPSERT_BATCH_SIZE = 500
+            upserted_count = 0
+            for i in range(0, len(points), VECTOR_UPSERT_BATCH_SIZE):
+                batch = points[i : i + VECTOR_UPSERT_BATCH_SIZE]
+                count = await self.provider.upsert_points(target_col, batch)
+                upserted_count += count
+
             log.info(
                 "Successfully upserted points to Qdrant", upserted_count=upserted_count
             )
@@ -353,10 +359,10 @@ class VectorStorageService:
             VectorIndexMetadata.is_deleted.is_(False),
         )
         meta_records = (await self.session.execute(meta_stmt)).scalars().all()
-        
+
         if not meta_records:
             return 0
-            
+
         total_ops = 0
         for rec in meta_records:
             col = rec.collection_name
@@ -388,7 +394,7 @@ class VectorStorageService:
     async def sync_metadata(self, doc: Any) -> None:
         """Update Qdrant point payloads with the latest user_metadata from PostgreSQL."""
         log = logger.bind(tenant_id=doc.tenant_id, document_id=str(doc.id))
-        
+
         # 1. Discover collections this document is indexed in
         stmt = (
             select(VectorIndexMetadata.collection_name)
@@ -400,29 +406,29 @@ class VectorStorageService:
             .distinct()
         )
         cols = (await self.session.execute(stmt)).scalars().all()
-        
+
         if not cols:
             log.warning("No collections found for document metadata sync")
             return
-            
+
         # 2. Extract new metadata dictionary
         user_meta = dict(getattr(doc, "user_metadata", {}))
-        
+
         # 3. Update payloads in Qdrant (using filtering by document_id)
         filter_conds = {
             "tenant_id": doc.tenant_id,
             "document_id": str(doc.id),
         }
-        
+
         # In Qdrant, we can use `set_payload` or just re-upsert. Since we only want to update user_metadata,
         # we can put user_metadata inside the payload. But we don't have a direct `set_payload` in our provider yet.
         # Let's see if we have `update_points_payload` or we can fallback to re-upsert if needed.
         # Wait, the architecture review says: "This task will `upsert` the new metadata payload into Qdrant".
         # We can update the payload via the provider.
-        
+
         # Since I don't know the exact provider methods, I'll check if `update_payload_by_filter` exists.
         # If not, I can just re-sync the document vectors by calling `sync_document_vectors`.
-        
+
         if doc.latest_version_id:
             await self.sync_document_vectors(doc.id, doc.latest_version_id, doc.tenant_id)
             log.info("Triggered re-sync of document vectors to apply metadata")

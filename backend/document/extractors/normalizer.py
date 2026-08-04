@@ -6,6 +6,7 @@ and detects document primary language.
 
 import re
 import unicodedata
+
 import structlog
 
 # Optional dependency handling for langdetect
@@ -60,11 +61,11 @@ def detect_language(text: str) -> str:
     """
     if not text.strip():
         return "unknown"
-        
+
     if not LANGDETECT_AVAILABLE:
         logger.warning("langdetect not installed, defaulting to 'unknown'")
         return "unknown"
-        
+
     try:
         # Detect on the first 10,000 chars to save time
         return detect(text[:10000])

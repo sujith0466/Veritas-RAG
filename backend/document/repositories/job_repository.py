@@ -99,23 +99,62 @@ class JobRepository:
         return result.scalar_one_or_none()
 
     async def list_dlq_jobs(
-        self, tenant_id: str, page: int, size: int, session: AsyncSession
+        self,
+        tenant_id: str | None,
+        page: int,
+        size: int,
+        session: AsyncSession,
+        error_code: str | None = None,
     ) -> list[ProcessingJob]:
-        """Fetch Dead Letter Queue jobs."""
-        # For simplicity, skipping tenant_id check since ProcessingJob doesn't have it directly. 
-        # (It joins on document_id). Will just query by status.
+        """Fetch Dead Letter Queue jobs with optional tenant and error code filtering."""
+        from backend.document.models.document import Document
+
         stmt = (
             select(ProcessingJob)
+            .join(Document, ProcessingJob.document_id == Document.id)
             .where(
                 ProcessingJob.status == "DLQ",
                 ProcessingJob.is_deleted.is_(False),
+                Document.is_deleted.is_(False),
             )
-            .order_by(ProcessingJob.dlq_at.desc())
+        )
+        if tenant_id:
+            stmt = stmt.where(Document.tenant_id == tenant_id)
+        if error_code:
+            stmt = stmt.where(ProcessingJob.error_code == error_code)
+
+        stmt = (
+            stmt.order_by(ProcessingJob.dlq_at.desc())
             .offset((page - 1) * size)
             .limit(size)
         )
         result = await session.execute(stmt)
         return list(result.scalars().all())
+
+    async def reset_job_for_retry(
+        self,
+        job_id: uuid.UUID,
+        session: AsyncSession,
+        resume_from_step: str | None = None,
+    ) -> ProcessingJob | None:
+        """Reset a failed or DLQ job to QUEUED state for operator retry."""
+        job = await self.get_by_id(job_id, session)
+        if not job:
+            return None
+
+        job.status = "QUEUED"
+        job.retry_count = 0
+        job.dlq_reason = None
+        job.dlq_at = None
+        job.error_code = None
+        job.error_message = None
+        if resume_from_step:
+            job.resume_from_step = resume_from_step
+            job.current_step = resume_from_step
+
+        await session.flush()
+        await session.refresh(job)
+        return job
 
     async def bulk_update_status(
         self, job_ids: list[uuid.UUID], status: str, session: AsyncSession

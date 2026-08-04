@@ -28,9 +28,11 @@ api_v1_router.include_router(users_router)
 api_v1_router.include_router(workspaces_router)
 
 from backend.document.api.v1.jobs import router as jobs_router
+
 api_v1_router.include_router(jobs_router)
 
 from .routes.folders import router as folders_router
+
 api_v1_router.include_router(folders_router)
 
 from .routes.domains import router as domains_router
@@ -43,8 +45,10 @@ api_v1_router.include_router(sso_router)
 
 # ── Storage (`/storage`) ──────────────────────────────────────────
 from .routes.storage import router as storage_router
+from backend.document.api.v1.storage_webhooks import router as storage_webhooks_router
 
 api_v1_router.include_router(storage_router)
+api_v1_router.include_router(storage_webhooks_router)
 
 # ── Document Intelligence Foundation (`/documents`) ────────────────────────────
 api_v1_router.include_router(document_router)

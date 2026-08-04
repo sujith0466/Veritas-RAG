@@ -68,17 +68,28 @@ async def handle_chunking_completed(event) -> None:
             doc.status = DocumentStatus.EMBEDDING
             await session.commit()
 
+            from backend.core.config import get_settings
             from backend.modules.embedding.repositories.embedding_repository import (
                 EmbeddingRepository,
             )
+            settings = get_settings()
+
+            provider = settings.embeddings.default_provider
+            if provider == "openai":
+                model_name = settings.embeddings.openai_model
+            elif provider == "cohere":
+                model_name = settings.embeddings.cohere_model
+            else:
+                model_name = settings.embeddings.local_model
+
             repo = EmbeddingRepository(session)
             emb_service = EmbeddingService(repository=repo)
             job = await emb_service.initiate_embedding_job(
                 tenant_id=doc.tenant_id,
                 document_id=doc.id,
                 document_version_id=doc.latest_version_id,
-                provider="local",
-                model_name="all-MiniLM-L6-v2",
+                provider=provider,
+                model_name=model_name,
                 force_reembed=False
             )
             await session.commit()
@@ -116,7 +127,7 @@ async def handle_embedding_completed(event) -> None:
 
             sync_vectors_to_qdrant_task.apply_async(
                 args=[str(doc.id), str(doc.latest_version_id), doc.tenant_id],
-                queue="ingestion"
+                queue="indexing"
             )
     except Exception as e:
         logger.error("Pipeline Orchestrator: Failed to handle embedding completed", error=str(e))

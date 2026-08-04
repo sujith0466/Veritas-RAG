@@ -13,13 +13,12 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.cache.locks import acquire_lock
-from backend.document.schemas.errors import DocumentDomainException
 from backend.document.events import (
-    EVENT_DOCUMENT_UPLOADED,
     EVENT_DOCUMENT_ARCHIVED,
     EVENT_DOCUMENT_RESTORED,
-    EVENT_DOCUMENT_VERSION_CREATED,
     EVENT_DOCUMENT_ROLLED_BACK,
+    EVENT_DOCUMENT_UPLOADED,
+    EVENT_DOCUMENT_VERSION_CREATED,
     create_domain_event,
 )
 from backend.document.models import (
@@ -43,6 +42,7 @@ from backend.document.schemas import (
     DocumentVersionDTO,
     ProcessingStatusResponse,
 )
+from backend.document.schemas.errors import DocumentDomainException
 from backend.document.storage import LocalStorageProvider, StorageProvider, get_versioned_path
 from backend.document.validators import ValidationPipeline, check_duplicate_content
 

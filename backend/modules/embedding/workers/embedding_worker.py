@@ -46,14 +46,19 @@ class CeleryEmbeddingWorker:
         force_reembed: bool = False,
     ) -> dict[str, Any]:
         """Execute batch vectorization and report status / retries."""
+        from backend.cache.locks import LockAcquisitionError, acquire_lock
+
+        lock_key = f"embedding:job:{job_id}"
+
         try:
-            job = await self.service.process_embedding_batch(
-                job_id=job_id,
-                tenant_id=tenant_id,
-                batch_size=batch_size,
-                force_reembed=force_reembed,
-            )
-            await self.session.commit()
+            async with acquire_lock(lock_key, timeout=600, acquire_timeout=5):
+                job = await self.service.process_embedding_batch(
+                    job_id=job_id,
+                    tenant_id=tenant_id,
+                    batch_size=batch_size,
+                    force_reembed=force_reembed,
+                )
+                await self.session.commit()
 
             if celery_task and hasattr(celery_task, "update_state"):
                 celery_task.update_state(
@@ -90,6 +95,11 @@ class CeleryEmbeddingWorker:
                 "total_chunks": job.total_chunks,
                 "tokens_consumed": job.total_tokens_consumed,
             }
+        except LockAcquisitionError as exc:
+            logger.warning("celery_embedding_worker_lock_failed", job_id=str(job_id))
+            if celery_task and hasattr(celery_task, "retry"):
+                raise celery_task.retry(exc=exc, countdown=10)
+            raise exc
         except Exception as exc:
             await self.session.rollback()
             error_code = getattr(exc, "code", "EMB_004")
@@ -110,6 +120,9 @@ class CeleryEmbeddingWorker:
                 and hasattr(celery_task, "request")
                 and hasattr(celery_task, "retry")
             ):
+                if "Rate limit exceeded" in str(exc):
+                    logger.warning("Rate limit hit, retrying in 60s")
+                    raise celery_task.retry(exc=exc, countdown=60)
                 retries = getattr(celery_task.request, "retries", 0)
                 max_retries = getattr(celery_task, "max_retries", 3)
 

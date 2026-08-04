@@ -3,8 +3,8 @@
 Handles document metadata updates, validation, Redis locking, and Qdrant synchronization triggers.
 """
 
-import uuid
 from typing import Any
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,7 +40,7 @@ class MetadataService:
     ) -> dict[str, Any]:
         """Overwrite the document's metadata entirely."""
         self._validate_metadata(metadata)
-        
+
         async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
             doc = await self.repository.update_metadata(document_id, tenant_id, metadata, self.session)
             if not doc:
@@ -53,7 +53,7 @@ class MetadataService:
     ) -> dict[str, Any]:
         """Merge new keys into the document's metadata."""
         self._validate_metadata(patch_data)
-        
+
         async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
             # Need to get the document first to check the combined size limit, but we can rely on repository patch
             doc = await self.repository.patch_metadata(document_id, tenant_id, patch_data, self.session)

@@ -6,7 +6,7 @@ Append-only audit trail for all job lifecycle events.
 from datetime import datetime
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, String, Index
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 

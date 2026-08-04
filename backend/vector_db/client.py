@@ -4,9 +4,11 @@ Provides singleton management for `AsyncQdrantClient`, dependency injection
 helpers, and health monitoring.
 """
 
+import asyncio
 from collections.abc import AsyncGenerator
 import time
 from typing import Any
+import weakref
 
 import httpx
 from qdrant_client import AsyncQdrantClient
@@ -19,9 +21,6 @@ from backend.vector_db.metrics import QdrantMetrics
 
 logger = structlog.get_logger(__name__)
 
-
-import asyncio
-import weakref
 
 
 class _VectorDbState:

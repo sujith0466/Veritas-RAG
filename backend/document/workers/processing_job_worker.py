@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from celery import shared_task
 
-from backend.cache.redis import get_redis
+from backend.cache.client import get_redis_client
 from backend.database.engine import get_session_factory
 from backend.document.repositories.job_audit_repository import JobAuditRepository
 from backend.document.repositories.job_repository import JobRepository
@@ -18,7 +18,7 @@ from backend.document.services.processing_job_service import ProcessingJobServic
 @asynccontextmanager
 async def _get_job_service():
     """Helper to inject ProcessingJobService."""
-    redis_client = await get_redis()
+    redis_client = get_redis_client()
     session_factory = get_session_factory()
     async with session_factory() as session:
         job_repo = JobRepository()

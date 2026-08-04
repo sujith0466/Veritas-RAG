@@ -170,7 +170,27 @@ class EmbeddingService:
             if missing_chunks:
                 texts = [c.content for c in missing_chunks]
                 try:
+                    from backend.cache.rate_limit import RateLimiter, RateLimitExceeded
+                    from backend.modules.embedding.schemas.errors import RateLimitExceededError
+
+                    try:
+                        await RateLimiter.check_limit(
+                            tenant=tenant_id, domain="embeddings", action="api", entity_id="global", limit=600, window_seconds=60
+                        )
+                    except RateLimitExceeded:
+                        raise RateLimitExceededError("Rate limit exceeded for provider API")
+
                     result = await manager.vectorize_batch(texts, batch_size=batch_size)
+
+                    provider_used = result.provider_metadata.get("fallback_provider", job.provider) if isinstance(result.provider_metadata, dict) else job.provider
+                    cost = 0.0
+                    if provider_used == "openai":
+                        cost = (result.tokens_consumed / 1000) * 0.00013
+                    elif provider_used == "cohere":
+                        cost = (result.tokens_consumed / 1000) * 0.00010
+
+                    step_metrics = {"estimated_cost_usd": cost}
+                    fallback_prov = provider_used if provider_used != job.provider else None
                 except Exception as exc:
                     await self.repository.update_job_progress(
                         job_id,
@@ -222,6 +242,8 @@ class EmbeddingService:
                     tenant_id,
                     processed_delta=len(missing_chunks),
                     tokens_delta=result.tokens_consumed,
+                    step_metrics_update=step_metrics,
+                    fallback_provider=fallback_prov,
                 )
 
             job = (

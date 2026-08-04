@@ -61,25 +61,64 @@ class EmbeddingManager:
         if batch_size < 1:
             raise InvalidInputError("batch_size must be at least 1.")
 
-        if len(texts) <= batch_size:
-            return await self.provider.embed_documents(texts)
+        from backend.core.config import get_settings
+        from backend.modules.embedding.schemas.errors import EmbeddingDomainException
 
-        all_vectors: list[list[float]] = []
-        total_tokens = 0
-        meta_merged: dict[str, Any] = {"sub_batches": []}
+        providers_to_try = [self.provider]
 
-        for i in range(0, len(texts), batch_size):
-            sub_batch = texts[i : i + batch_size]
-            res = await self.provider.embed_documents(sub_batch)
-            all_vectors.extend(res.embeddings)
-            total_tokens += res.tokens_consumed
-            meta_merged["sub_batches"].append(res.provider_metadata)
+        # Build fallback chain
+        settings = get_settings()
+        fallback_names = ["openai", "cohere", "local"]
+        current_name = getattr(self.provider, "provider_name", type(self.provider).__name__.lower().replace("embeddingprovider", ""))
 
-        return EmbeddingBatchResult(
-            embeddings=all_vectors,
-            tokens_consumed=total_tokens,
-            provider_metadata=meta_merged,
-        )
+        for name in fallback_names:
+            if name != current_name:
+                try:
+                    if name == "openai":
+                        model = settings.embeddings.openai_model
+                        api_key = settings.embeddings.openai_api_key
+                    elif name == "cohere":
+                        model = settings.embeddings.cohere_model
+                        api_key = settings.embeddings.cohere_api_key
+                    else:
+                        model = settings.embeddings.local_model
+                        api_key = None
+
+                    if name != "local" and not api_key:
+                        continue # Skip fallback if no API key
+
+                    fallback_prov = EmbeddingProviderFactory.get_provider(
+                        provider_name=name, model_name=model, api_key=api_key
+                    )
+                    providers_to_try.append(fallback_prov)
+                except Exception:
+                    pass
+
+        last_error = None
+        for prov in providers_to_try:
+            try:
+                all_vectors: list[list[float]] = []
+                total_tokens = 0
+                meta_merged: dict[str, Any] = {"sub_batches": [], "fallback_provider": prov.provider_name if hasattr(prov, "provider_name") else type(prov).__name__}
+
+                for i in range(0, len(texts), batch_size):
+                    sub_batch = texts[i : i + batch_size]
+                    res = await prov.embed_documents(sub_batch)
+                    all_vectors.extend(res.embeddings)
+                    total_tokens += res.tokens_consumed
+                    meta_merged["sub_batches"].append(res.provider_metadata)
+
+                return EmbeddingBatchResult(
+                    embeddings=all_vectors,
+                    tokens_consumed=total_tokens,
+                    provider_metadata=meta_merged,
+                )
+            except EmbeddingDomainException as e:
+                logger.warning("Embedding provider failed, attempting fallback", provider=type(prov).__name__, error=str(e))
+                last_error = e
+                continue
+
+        raise last_error or InvalidInputError("All providers failed")
 
     async def vectorize_query(self, query: str) -> list[float]:
         """Generate a single vector for a query string."""

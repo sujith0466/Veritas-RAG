@@ -56,8 +56,8 @@ async def get_sso_service(
 async def get_folder_service(
     session: AsyncSession = Depends(get_db),
 ):
-    from backend.services.folder_service import FolderService
     from backend.core.events.dispatcher import EventDispatcher
+    from backend.services.folder_service import FolderService
 
     return FolderService(session=session, dispatcher=EventDispatcher())
 

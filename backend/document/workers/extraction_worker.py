@@ -11,7 +11,7 @@ import uuid
 from celery import shared_task
 import structlog
 
-from backend.cache.redis import get_redis
+from backend.cache.client import get_redis_client
 from backend.database.engine import get_session_factory
 from backend.document.extractors.normalizer import detect_language, normalize_text
 from backend.document.extractors.unstructured_extractor import UnstructuredExtractor
@@ -32,7 +32,7 @@ def process_extraction(self, job_id_str: str, version_id_str: str, file_path: st
     version_id = uuid.UUID(version_id_str)
 
     async def run():
-        redis_client = await get_redis()
+        redis_client = get_redis_client()
         session_factory = get_session_factory()
         async with session_factory() as session:
             job_repo = JobRepository()

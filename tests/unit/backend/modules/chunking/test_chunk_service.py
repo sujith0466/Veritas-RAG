@@ -40,8 +40,8 @@ class TestChunkingService:
         result_del.rowcount = 0
 
         mock_session.execute.side_effect = [
-            result_doc, 
-            result_ver, 
+            result_doc,
+            result_ver,
             result_del,
             result_doc,
             result_doc,

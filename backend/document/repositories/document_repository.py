@@ -3,17 +3,16 @@
 Isolates all SQLAlchemy ORM operations for the Document domain aggregate root (`ADR-005`).
 """
 
+import datetime
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.document.models.document import Document, DocumentVersion
-from backend.models.entities.folder import Folder
 from backend.document.models.status import DocumentStatus
-from sqlalchemy import or_, update
-import datetime
+from backend.models.entities.folder import Folder
 
 
 class DocumentRepository:
@@ -101,7 +100,7 @@ class DocumentRepository:
     ) -> Document | None:
         """Update the processing status of a document."""
         stmt = select(Document).outerjoin(Folder, Document.folder_id == Folder.id).where(
-            Document.id == document_id, 
+            Document.id == document_id,
             Document.is_deleted.is_(False),
             or_(Document.folder_id.is_(None), Folder.is_deleted.is_(False)),
         )
@@ -155,7 +154,7 @@ class DocumentRepository:
         if not doc:
             return None
         doc.status = DocumentStatus.ARCHIVED.value
-        doc.archived_at = datetime.datetime.now(datetime.timezone.utc)
+        doc.archived_at = datetime.datetime.now(datetime.UTC)
         doc.archived_by_user_id = user_id
         await session.flush()
         await session.refresh(doc)
@@ -207,7 +206,7 @@ class DocumentRepository:
             DocumentVersion.document_id == document_id
         ).values(is_active_vector=False)
         await session.execute(stmt_deactivate)
-        
+
         # Activate the specified one
         stmt_activate = update(DocumentVersion).where(
             DocumentVersion.id == version_id
@@ -261,8 +260,7 @@ class DocumentRepository:
         if not doc:
             return None
         current_metadata = dict(doc.user_metadata)
-        if key in current_metadata:
-            del current_metadata[key]
+        current_metadata.pop(key, None)
         doc.user_metadata = current_metadata
         await session.flush()
         await session.refresh(doc)

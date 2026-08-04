@@ -2,7 +2,7 @@
 
 from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 from .docx_extractor import DOCXExtractor
-from .normalizer import normalize_text, detect_language
+from .normalizer import detect_language, normalize_text
 from .pdf_extractor import PDFExtractor
 from .registry import ExtractorCapabilityRegistry
 from .text_extractor import PlainTextExtractor

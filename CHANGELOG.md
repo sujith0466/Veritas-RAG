@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-milestone.6] - 2026-08-04
+### Added
+- **Epic 6 (Knowledge Processing Pipeline):** Asynchronous Celery + Redis worker queue topology with distributed locking and idempotency tokens (F6.1), OCR and multi-engine text extraction with Tesseract/EasyOCR fallback and extraction contract validation (F6.2), token-aware recursive text chunking and canonical manifest generation (F6.3), embedding generation worker with dimensional validation (F6.4), multi-tenant Qdrant vector indexing and payload enrichment (F6.5), ProcessingJob lifecycle tracking with granular step-level telemetry (F6.6), Dead Letter Queue engine with automated classification and retry remediation (F6.7), and S3 event-driven pipeline triggers with presigned upload lifecycle verification (F6.8).
+
 ## [2.0.0-milestone.5] - 2026-08-03
 ### Added
 - **Epic 5 (Document & Folder Management):** Folder creation (adjacency list), hierarchical rename/soft delete, reparenting/moves, asynchronous permanent pruning, document archival/restoration, strict versioning (auto-increment and old vector cleanup), metadata management (key-value tagging with JSONB GIN index & Qdrant sync), and S3 presigned URL-based bulk uploads orchestrated by Celery workers.

@@ -3,11 +3,16 @@
 Supports complex document structures, tables, images, and OCR.
 """
 
-from typing import BinaryIO
-from unstructured.partition.auto import partition
-from unstructured.documents.elements import Text, Table, Element
+from typing import Any, BinaryIO
 
-from backend.document.extractors.base import BaseExtractor, ExtractionResult
+try:
+    from unstructured.documents.elements import Table
+    from unstructured.partition.auto import partition
+except ImportError:
+    Table = None
+    partition = None
+
+from backend.document.extractors.base import BaseExtractor, ExtractedContent, ExtractorCapability
 
 
 class UnstructuredExtractor(BaseExtractor):
@@ -17,16 +22,35 @@ class UnstructuredExtractor(BaseExtractor):
         self.use_ocr = use_ocr
         self.ocr_languages = ocr_languages or ["eng"]
 
-    def extract(self, file_obj: BinaryIO, metadata: dict | None = None) -> ExtractionResult:
+    @property
+    def capability(self) -> ExtractorCapability:
+        return ExtractorCapability(
+            name="UnstructuredExtractor",
+            supported_mimes={"application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/html"},
+            supported_extensions={".pdf", ".docx", ".html", ".htm"},
+            priority=5,
+            enabled=True,
+        )
+
+    async def extract(
+        self, stream: BinaryIO, filename: str, mime_type: str
+    ) -> ExtractedContent:
         """Extract elements using unstructured."""
-        file_obj.seek(0)
-        
-        # Determine strategy based on OCR requirement
+        if partition is None:
+            return ExtractedContent(
+                text="",
+                word_count=0,
+                page_count=1,
+                metadata={"error": "unstructured library not installed"},
+                needs_ocr=False,
+            )
+
+        stream.seek(0)
         strategy = "hi_res" if self.use_ocr else "fast"
         languages = "+".join(self.ocr_languages) if self.use_ocr else None
 
         elements = partition(
-            file=file_obj,
+            file=stream,
             strategy=strategy,
             languages=languages if self.use_ocr else None,
             pdf_infer_table_structure=True,
@@ -36,18 +60,20 @@ class UnstructuredExtractor(BaseExtractor):
         element_types = set()
 
         for el in elements:
-            # We preserve tables as HTML if available, otherwise just text
-            if isinstance(el, Table) and hasattr(el.metadata, "text_as_html"):
+            if Table is not None and isinstance(el, Table) and hasattr(el.metadata, "text_as_html"):
                 content_parts.append(el.metadata.text_as_html)
             else:
                 content_parts.append(str(el))
-            
+
             element_types.add(type(el).__name__)
 
         raw_text = "\n\n".join(content_parts)
+        words = len(raw_text.split())
 
-        return ExtractionResult(
-            raw_text=raw_text,
+        return ExtractedContent(
+            text=raw_text,
+            word_count=words,
+            page_count=1,
             metadata={
                 "extractor": "unstructured",
                 "strategy": strategy,
@@ -55,4 +81,5 @@ class UnstructuredExtractor(BaseExtractor):
                 "ocr_used": self.use_ocr,
                 "languages": self.ocr_languages,
             },
+            needs_ocr=False,
         )

@@ -42,7 +42,16 @@
 - **Object Storage (S3 / MinIO):** Encrypted object store with presigned URL workflows and WORM / Object Lock audit trails.
 - **Full Observability:** OpenTelemetry distributed tracing, structured JSON logging with PII scrubbing, Prometheus metric scrapers, and Kubernetes health probes (`/health/live`, `/health/ready`, `/health/startup`).
 
-### 4. Advanced RAG & Confidence Engine
+### 4. Knowledge Processing Pipeline (Epic 6 ✅ Frozen)
+- **Redis & Celery Queue Topology (F6.1):** Multi-tier asynchronous priority queues (`critical`, `high`, `normal`, `low`) with distributed locking, idempotency gating, and worker heartbeats.
+- **OCR & Multi-Engine Text Extraction (F6.2):** Unified extraction pipeline with Tesseract/EasyOCR fallback, layout preservation, and extraction contract verification.
+- **Token-Aware Semantic Chunking (F6.3):** Context-aware sliding chunk windows, overlap preservation, and canonical document manifest generation.
+- **Embedding Generation & Vector Indexing (F6.4 & F6.5):** Batch vectorization with dimension validation, payload enrichment, and multi-tenant Qdrant collection indexing.
+- **ProcessingJob Lifecycle & Observability (F6.6):** Granular step duration tracking, error code mapping, and OpenTelemetry trace propagation.
+- **Dead Letter Queue Engine (F6.7):** Automated classification of recoverable vs. fatal ingestion failures with administrative remediation and retry workflows.
+- **S3 Presigned Upload Lifecycle (F6.8):** Secure object lock, checksum validation, and automated asynchronous pipeline triggering upon upload completion.
+
+### 5. Advanced RAG & Confidence Engine
 - **Hybrid Retrieval:** Fuses Dense Vector Search (Qdrant) with Sparse Keyword Search (BM25) using Reciprocal Rank Fusion (RRF).
 - **Contextual Reranking:** Cross-Encoder neural rescoring to maximize precision.
 - **Confidence Evaluation:** Mathematical hallucination prevention that evaluates evidence strength, relevance, and semantic overlap before LLM generation.
@@ -191,9 +200,9 @@ RAGuard-AI/
 | **Epic 3** | Workspace Architecture & Management | ✅ **FROZEN** | 100% |
 | **Epic 4** | User & Role Management (RBAC / Invitations / Profiles) | ✅ **FROZEN** | 100% |
 | **Epic 5** | Document & Folder Management | ✅ **FROZEN** | 100% |
-| **Epic 6** | Document Ingestion Pipeline | ⏳ Scheduled | 0% |
-| **Epic 7** | Vector Search & Qdrant Integration | ⏳ Scheduled | 0% |
-| **Epic 8** | Hybrid Search & BM25 Sparse Indexing | ⏳ Scheduled | 0% |
+| **Epic 6** | Document Ingestion Pipeline | ✅ **FROZEN** | 100% |
+| **Epic 7** | Knowledge Base | ⏳ Scheduled | 0% |
+| **Epic 8** | AI Platform Wrapper | ⏳ Scheduled | 0% |
 | **Epic 9** | Contextual Reranking & Fusion | ⏳ Scheduled | 0% |
 | **Epic 10** | Hallucination Prevention & Confidence Engine | ⏳ Scheduled | 0% |
 | **Epic 11** | Generation & LLM Provider Gateway | ⏳ Scheduled | 0% |

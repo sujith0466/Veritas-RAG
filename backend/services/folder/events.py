@@ -1,7 +1,7 @@
 """Folder Domain Events."""
 
-import uuid
 from dataclasses import dataclass
+import uuid
 
 from backend.core.events.base import BaseEvent
 from backend.core.events.types import EventType

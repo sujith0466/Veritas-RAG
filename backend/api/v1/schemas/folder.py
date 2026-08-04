@@ -1,8 +1,9 @@
 """Folder Pydantic Schemas."""
 
-import uuid
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+import uuid
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FolderCreateRequest(BaseModel):
@@ -40,14 +41,14 @@ class FolderSummaryResponse(BaseModel):
     slug: str
     document_count: int
     is_deleted: bool
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class FolderBreadcrumbResponse(BaseModel):
     id: uuid.UUID
     name: str
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

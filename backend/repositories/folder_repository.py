@@ -1,12 +1,14 @@
 """Folder Repository."""
 
+from collections.abc import Sequence
 import uuid
-from typing import Sequence
 
-from sqlalchemy import select, and_, func, String
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.models.entities.folder import Folder
 from backend.repositories.base import BaseRepository
+
 
 class FolderRepository(BaseRepository[Folder]):
     """Repository for managing folders with tenant isolation."""
@@ -60,15 +62,15 @@ class FolderRepository(BaseRepository[Folder]):
             func.lower(self.model_class.name) == normalized_name,
             self.model_class.is_deleted.is_(False),
         ]
-        
+
         if parent_id is None:
             conditions.append(self.model_class.parent_id.is_(None))
         else:
             conditions.append(self.model_class.parent_id == parent_id)
-            
+
         if exclude_id is not None:
             conditions.append(self.model_class.id != exclude_id)
-            
+
         stmt = select(func.count()).where(and_(*conditions))
         result = await self.session.execute(stmt)
         return result.scalar_one() > 0
@@ -76,15 +78,15 @@ class FolderRepository(BaseRepository[Folder]):
     async def get_subtree_ids(self, folder_id: uuid.UUID, workspace_id: uuid.UUID) -> Sequence[uuid.UUID]:
         """Get all IDs in the subtree using a recursive CTE bounded to workspace."""
         from sqlalchemy.orm import aliased
-        
+
         folders = self.model_class
-        
+
         # Anchor
         anchor = select(folders.id).where(
             folders.id == folder_id,
             folders.workspace_id == workspace_id
         ).cte("subtree", recursive=True)
-        
+
         # Recursive term
         f_alias = aliased(folders)
         recursive = select(f_alias.id).join(
@@ -93,9 +95,9 @@ class FolderRepository(BaseRepository[Folder]):
             f_alias.workspace_id == workspace_id,
             f_alias.is_deleted.is_(False)
         )
-        
+
         subtree = anchor.union_all(recursive)
-        
+
         stmt = select(subtree.c.id).limit(50000)
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -105,7 +107,7 @@ class FolderRepository(BaseRepository[Folder]):
         folder = await self.get_by_id_in_workspace(folder_id, workspace_id)
         if not folder or not folder.path:
             return []
-            
+
         path_ids_str = folder.path.split("/")
         # The path includes the workspace_id at the start potentially, let's just parse UUIDs
         # According to design, path = "ws_id/root_id/.../folder_id"
@@ -115,14 +117,14 @@ class FolderRepository(BaseRepository[Folder]):
                 ancestor_ids.append(uuid.UUID(part))
             except ValueError:
                 pass
-                
+
         # Fetch those that are folders
         stmt = select(self.model_class).where(
             self.model_class.id.in_(ancestor_ids),
             self.model_class.workspace_id == workspace_id,
             self.model_class.is_deleted.is_(False)
         ).order_by(self.model_class.depth)
-        
+
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -135,7 +137,7 @@ class FolderRepository(BaseRepository[Folder]):
         ]
         if parent_id is not None:
             conditions.append(self.model_class.parent_id == parent_id)
-            
+
         stmt = select(self.model_class).where(and_(*conditions)).order_by(self.model_class.name).offset(skip).limit(limit)
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -164,45 +166,45 @@ class FolderRepository(BaseRepository[Folder]):
         """Calculate max depth in subtree relative to root."""
         from sqlalchemy.orm import aliased
         folders = self.model_class
-        
+
         anchor = select(folders.id, folders.depth).where(
             folders.id == folder_id,
             folders.workspace_id == workspace_id
         ).cte("subtree", recursive=True)
-        
+
         f_alias = aliased(folders)
         recursive = select(f_alias.id, f_alias.depth).join(
             anchor, f_alias.parent_id == anchor.c.id
         ).where(
             f_alias.workspace_id == workspace_id
         )
-        
+
         subtree = anchor.union_all(recursive)
-        
+
         # Max depth - base depth gives height
         base_stmt = select(folders.depth).where(folders.id == folder_id)
         base_depth = (await self.session.execute(base_stmt)).scalar_one_or_none() or 0
-        
+
         stmt = select(func.max(subtree.c.depth))
         result = await self.session.execute(stmt)
         max_depth = result.scalar_one_or_none() or base_depth
-        
+
         return max_depth - base_depth
 
     async def get_eligible_for_purge(self, limit: int = 50) -> Sequence[Folder]:
         """Fetch root-level soft-deleted folders eligible for hard deletion."""
         # Find folders where purge_at <= NOW() and purge_status IS NULL
         # and parent_id is either NULL or the parent is NOT soft_deleted.
-        
+
         # We can implement the parent check using a subquery
-        from sqlalchemy import exists, not_
+        from sqlalchemy import exists
         parent_alias = self.model_class.__table__.alias("parent_folder")
-        
+
         parent_is_soft_deleted = select(1).where(
             parent_alias.c.id == self.model_class.parent_id,
             parent_alias.c.is_deleted == True
         )
-        
+
         stmt = select(self.model_class).where(
             self.model_class.is_deleted == True,
             self.model_class.purge_at <= func.now(),
@@ -210,7 +212,7 @@ class FolderRepository(BaseRepository[Folder]):
             # Root folder OR parent is not soft-deleted
             (self.model_class.parent_id.is_(None) | ~exists(parent_is_soft_deleted))
         ).order_by(self.model_class.purge_at.asc()).limit(limit).with_for_update(skip_locked=True)
-        
+
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

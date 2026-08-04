@@ -4,13 +4,12 @@ Handles coordination of multiple file uploads, presigned URLs, and batch progres
 """
 
 import uuid
-from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.redis_client import redis_client
 from backend.document.models.bulk_batch import BulkBatch
 from backend.document.repositories.bulk_batch_repository import BulkBatchRepository
-from backend.core.redis_client import redis_client
 
 
 class BulkUploadService:
@@ -34,14 +33,14 @@ class BulkUploadService:
         self.session.add(batch)
         await self.session.flush()
         await self.session.refresh(batch)
-        
+
         # Initialize progress tracking in Redis
         await redis_client.set(f"batch_progress:{batch.id}", 0)
         return batch
 
     async def get_batch(
         self, batch_id: uuid.UUID, tenant_id: str
-    ) -> Optional[BulkBatch]:
+    ) -> BulkBatch | None:
         """Fetch a batch by ID."""
         return await self.repository.get_by_id_and_tenant(batch_id, tenant_id)
 
@@ -52,7 +51,7 @@ class BulkUploadService:
         batch = await self.get_batch(batch_id, tenant_id)
         if not batch:
             return False
-            
+
         # Set cancellation flag in Redis
         await redis_client.set(f"bulk_cancel:{batch_id}", "1", ex=86400)
         await self.repository.update_status(batch_id, "CANCELLED")
@@ -66,7 +65,7 @@ class BulkUploadService:
         batch = await self.get_batch(batch_id, tenant_id)
         if not batch:
             return {"error": "Not Found"}
-            
+
         progress_str = await redis_client.get(f"batch_progress:{batch_id}")
         completed = int(progress_str) if progress_str else 0
         return {
