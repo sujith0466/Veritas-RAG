@@ -35,6 +35,6 @@
 ## Epic 6: Document Ingestion Pipeline
 | Feature | Status | Notes |
 |---|---|---|
-| F6.1 - Setup Redis and Celery | ? Frozen | Final Production Validation complete |
-| F6.2 - OCR and Text Extraction | ? Frozen | Final Production Validation complete |
-| F6.3 - Text Chunking | ? Frozen | Final Production Validation complete |
+| F6.1 - Setup Redis and Celery | ✅ Frozen | Final Production Validation complete |
+| F6.2 - OCR and Text Extraction | ✅ Frozen | Final Production Validation complete |
+| F6.3 - Text Chunking | ✅ Frozen | Final Production Validation complete |
