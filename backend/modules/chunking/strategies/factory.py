@@ -16,6 +16,7 @@ from .paragraph import ParagraphChunkSplitter
 from .recursive import RecursiveChunkSplitter
 from .semantic import SemanticChunkSplitterPlaceholder
 from .sentence import SentenceChunkSplitter
+from .sliding_window import SlidingWindowChunkSplitter
 from .table import TableChunkSplitter
 
 
@@ -32,6 +33,7 @@ class SplitterStrategyFactory:
             "code": CodeChunkSplitter(),
             "semantic": SemanticChunkSplitterPlaceholder(),
             "fixed_size": FixedSizeChunkSplitterPlaceholder(),
+            "sliding_window": SlidingWindowChunkSplitter(),
         }
 
     def get_splitter(

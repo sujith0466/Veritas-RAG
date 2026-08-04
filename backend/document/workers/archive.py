@@ -5,12 +5,13 @@ re-syncing vectors upon restore (`ADR-005`, `F5.5`).
 """
 
 import asyncio
-from backend.tasks.celery_app import celery_app
+import uuid
+
+import structlog
+
 from backend.database.session import get_session_factory
 from backend.modules.vector.services.vector_service import VectorStorageService
-from backend.document.repositories.document_repository import DocumentRepository
-import structlog
-import uuid
+from backend.tasks.celery_app import celery_app
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +29,7 @@ def remove_archived_document_vectors_job(self, document_id: str, tenant_id: str)
 
         async with get_session_factory()() as session:
             vector_service = VectorStorageService(session=session)
-            
+
             try:
                 deleted_count = await vector_service.remove_archived_document_vectors(
                     document_id=document_id,
@@ -65,7 +66,7 @@ def restore_archived_document_vectors_job(self, document_id: str, version_id: st
 
         async with get_session_factory()() as session:
             vector_service = VectorStorageService(session=session)
-            
+
             try:
                 synced_count = await vector_service.sync_document_vectors(
                     document_id=uuid.UUID(document_id),

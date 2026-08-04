@@ -1,10 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, XCircle, FileText, CheckCircle2, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/components/ui/use-toast';
-import { apiClient } from '@/lib/api';
+import { Button } from '@/components/common/Button';
+import { useToast } from '@/hooks/useToast';
+import { apiClient } from '@/api/client';
 
 interface FileUploadState {
   file: File;
@@ -16,8 +15,6 @@ interface FileUploadState {
 export function BulkUploadDropzone() {
   const [files, setFiles] = useState<FileUploadState[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [batchId, setBatchId] = useState<string | null>(null);
-  const [batchProgress, setBatchProgress] = useState(0);
   const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -61,11 +58,10 @@ export function BulkUploadDropzone() {
 
       const res = await apiClient.post('/api/v1/bulk-uploads', payload);
       const { batch_id, presigned_urls } = res.data.data;
-      setBatchId(batch_id);
-
+      
       // 2. Upload to Presigned URLs concurrently
       await Promise.all(
-        files.map(async (fileState, i) => {
+        files.map(async (_, i) => {
           const urlData = presigned_urls[i];
           if (!urlData) return;
 
@@ -105,12 +101,12 @@ export function BulkUploadDropzone() {
         })
       );
 
-      toast({ title: 'Upload complete', description: 'All files have been uploaded and queued for processing.' });
+      toast({ title: 'Batch Upload Initiated', message: `Batch ID: ${batch_id}`, type: 'success' });
 
       // Start polling for batch progress here if desired.
       
     } catch (err: any) {
-      toast({ title: 'Batch failed', description: err.message, variant: 'destructive' });
+      toast({ title: 'Batch failed', message: err.message, type: 'error' });
     } finally {
       setIsUploading(false);
     }
@@ -149,7 +145,7 @@ export function BulkUploadDropzone() {
                   <p className="text-sm font-medium truncate">{file.file.name}</p>
                   <p className="text-xs text-muted-foreground">{(file.file.size / 1024 / 1024).toFixed(2)} MB</p>
                   {file.status === 'uploading' && (
-                    <Progress value={file.progress} className="h-1 mt-2" />
+                    <div className="h-1 mt-2 bg-primary overflow-hidden rounded-full"><div className="h-full bg-primary-foreground" style={{width: `${file.progress}%`}} /></div>
                   )}
                 </div>
                 

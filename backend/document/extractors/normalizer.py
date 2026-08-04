@@ -1,10 +1,22 @@
-"""Unicode normalization and line break sanitization (`normalizer.py`).
+"""Unicode normalization, language detection, and line break sanitization (`normalizer.py`).
 
-Enforces NFC Unicode form (`ADR-005`), consistent `\\n` line breaks, and strips unparseable control characters.
+Enforces NFC Unicode form (`ADR-005`), consistent `\\n` line breaks, strips unparseable control characters,
+and detects document primary language.
 """
 
 import re
 import unicodedata
+import structlog
+
+# Optional dependency handling for langdetect
+try:
+    from langdetect import detect
+    from langdetect.lang_detect_exception import LangDetectException
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+
+logger = structlog.get_logger(__name__)
 
 # Control characters except standard whitespace (\n, \r, \t)
 CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
@@ -35,3 +47,27 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"\n{3,}", "\n\n", text)
 
     return text.strip()
+
+
+def detect_language(text: str) -> str:
+    """Detect the primary language of the text.
+    
+    Args:
+        text: Normalized document text.
+        
+    Returns:
+        ISO 639-1 language code (e.g., 'en', 'fr') or 'unknown'.
+    """
+    if not text.strip():
+        return "unknown"
+        
+    if not LANGDETECT_AVAILABLE:
+        logger.warning("langdetect not installed, defaulting to 'unknown'")
+        return "unknown"
+        
+    try:
+        # Detect on the first 10,000 chars to save time
+        return detect(text[:10000])
+    except LangDetectException as e:
+        logger.warning("Language detection failed", error=str(e))
+        return "unknown"

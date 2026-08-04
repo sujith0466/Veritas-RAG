@@ -73,11 +73,15 @@ class TestQdrantClient:
         mock_client = AsyncMock(spec=AsyncQdrantClient)
         mock_get_client.return_value = mock_client
 
-        assert await check_vector_db_health() is True
+        result = await check_vector_db_health()
+        assert isinstance(result, dict)
+        assert result.get("status") == "healthy"
         mock_client.get_collections.assert_awaited_once()
 
         mock_client.get_collections.side_effect = Exception("Connection refused")
-        assert await check_vector_db_health() is False
+        result2 = await check_vector_db_health()
+        assert isinstance(result2, dict)
+        assert result2.get("status") == "unhealthy"
 
     @patch("backend.vector_db.client.AsyncQdrantClient")
     @pytest.mark.asyncio

@@ -85,6 +85,8 @@ class DocumentVersion(BaseModel):
     is_active_vector: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False
     )
+    requires_ocr: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ocr_languages: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
     document: Mapped["Document"] = relationship("Document", back_populates="versions")
     storage_object: Mapped["StorageObject"] = relationship("StorageObject")

@@ -2,10 +2,11 @@
 
 from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 from .docx_extractor import DOCXExtractor
-from .normalizer import normalize_text
+from .normalizer import normalize_text, detect_language
 from .pdf_extractor import PDFExtractor
 from .registry import ExtractorCapabilityRegistry
 from .text_extractor import PlainTextExtractor
+from .unstructured_extractor import UnstructuredExtractor
 
 
 def create_default_registry() -> ExtractorCapabilityRegistry:
@@ -14,6 +15,7 @@ def create_default_registry() -> ExtractorCapabilityRegistry:
     registry.register(PlainTextExtractor())
     registry.register(PDFExtractor())
     registry.register(DOCXExtractor())
+    registry.register(UnstructuredExtractor())
     return registry
 
 
@@ -25,6 +27,8 @@ __all__ = [
     "ExtractorCapabilityRegistry",
     "PDFExtractor",
     "PlainTextExtractor",
+    "UnstructuredExtractor",
     "create_default_registry",
     "normalize_text",
+    "detect_language",
 ]

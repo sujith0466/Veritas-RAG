@@ -26,6 +26,8 @@ def create_celery_app() -> Celery:
         backend=settings.redis.celery_result_backend,
         include=[
             "backend.document.workers.ingestion",
+            "backend.document.workers.processing_job_worker",
+            "backend.document.workers.extraction_worker",
             "backend.modules.chunking.workers.tasks",
             "backend.modules.embedding.workers.tasks",
             "backend.modules.vector.workers.tasks",
@@ -57,6 +59,8 @@ def create_celery_app() -> Celery:
             "folders.cascade_restore_subtree": {"queue": "medium"},
             "folders.cascade_move_subtree": {"queue": "folders.critical"},
             "folders.hard_delete_folder_subtree": {"queue": "folders.purge"},
+            "jobs.process_high": {"queue": "jobs.high"},
+            "jobs.process_default": {"queue": "jobs.default"},
         },
         task_queues={
             "high": {"exchange": "high", "routing_key": "high"},
@@ -70,6 +74,9 @@ def create_celery_app() -> Celery:
             "evaluation": {"exchange": "evaluation", "routing_key": "evaluation"},
             "health": {"exchange": "health", "routing_key": "health"},
             "ai": {"exchange": "ai", "routing_key": "ai"},
+            "jobs.high": {"exchange": "jobs.high", "routing_key": "jobs.high"},
+            "jobs.default": {"exchange": "jobs.default", "routing_key": "jobs.default"},
+            "jobs.dlq": {"exchange": "jobs.dlq", "routing_key": "jobs.dlq"},
         },
         # Beat schedule (Celery periodic tasks — Phase 3+)
         beat_schedule={
@@ -77,6 +84,10 @@ def create_celery_app() -> Celery:
                 "task": "folders.run_retention_cron",
                 "schedule": 21600.0, # Every 6 hours
             },
+            "job-stale-monitor": {
+                "task": "jobs.requeue_stale_jobs",
+                "schedule": 300.0, # Every 5 minutes
+            }
         },
     )
 

@@ -242,7 +242,7 @@ export function DocumentList({
             <Button variant="outline" onClick={() => setDeleteConfirmDoc(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleDelete} isLoading={isDeleting}>
+            <Button variant="destructive" onClick={handleDelete} isLoading={isDeleting}>
               Yes, Delete Permanently
             </Button>
           </DialogFooter>
@@ -265,19 +265,8 @@ export function DocumentList({
             <Button variant="outline" onClick={() => setArchiveConfirmDoc(null)} disabled={isArchiving}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleArchive} isLoading={isArchiving}>
+            <Button variant="default" onClick={handleArchive} isLoading={isArchiving}>
               Yes, Archive Document
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} isLoading={isDeleting}>
-              Delete & Purge Storage
             </Button>
           </DialogFooter>
         </DialogContent>

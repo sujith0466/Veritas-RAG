@@ -152,12 +152,31 @@ class ChunkingService:
         repo = DocumentChunkRepository(session)
         await repo.delete_chunks_by_version(tenant_id, version_id)
 
-        # 7. Instantiate ORM entities and link doubly-linked sequence pointers (`prev` <-> `next`)
+        # 7. Instantiate ORM entities and perform cross-version deduplication
         chunk_entities: list[DocumentChunk] = []
+
+        # Calculate hashes independent of version_id
+        content_hashes = [
+            hashlib.sha256(f"{tenant_id}:{document_id}:{idx}:{dto.content}".encode()).hexdigest()
+            for idx, dto in enumerate(dtos)
+        ]
+
+        # Find existing identical chunks across other versions of this document
+        existing_chunks = await repo.find_existing_chunks_by_hashes(
+            tenant_id, document_id, content_hashes
+        )
+
         for idx, dto in enumerate(dtos):
-            content_hash = hashlib.sha256(
-                f"{tenant_id}:{document_id}:{version_id}:{idx}:{dto.content}".encode()
-            ).hexdigest()
+            content_hash = content_hashes[idx]
+
+            # Check for deduplication
+            parent_chunk_id = None
+            metadata = dto.metadata_json or {}
+
+            if content_hash in existing_chunks:
+                parent_chunk_id = existing_chunks[content_hash]
+                metadata["deduplicated"] = True
+
             entity = DocumentChunk(
                 id=uuid.uuid4(),
                 tenant_id=tenant_id,
@@ -171,8 +190,9 @@ class ChunkingService:
                 character_count=dto.character_count,
                 page_numbers=dto.page_numbers or None,
                 section_path=dto.section_path or None,
-                metadata_json=dto.metadata_json or None,
-                is_embedded=False,  # Strictly NO embedding in M1
+                metadata_json=metadata or None,
+                is_embedded=False,
+                parent_chunk_id=parent_chunk_id,
             )
             chunk_entities.append(entity)
 

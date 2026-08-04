@@ -164,6 +164,6 @@ async def _async_process_chunking(
                     and task_instance.request.retries < task_instance.max_retries
             ):
                     backoff_seconds = 2**task_instance.request.retries * 5
-                    raise task_instance.retry(exc=exc, countdown=backoff_seconds)
+                    raise task_instance.retry(exc=exc, countdown=backoff_seconds) from exc
 
             raise exc

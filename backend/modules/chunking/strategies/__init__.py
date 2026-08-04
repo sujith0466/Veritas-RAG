@@ -8,6 +8,7 @@ from .paragraph import ParagraphChunkSplitter
 from .recursive import RecursiveChunkSplitter
 from .semantic import SemanticChunkSplitterPlaceholder
 from .sentence import SentenceChunkSplitter
+from .sliding_window import SlidingWindowChunkSplitter
 from .table import TableChunkSplitter
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "SentenceChunkSplitter",
     "SplitterStrategyFactory",
     "TableChunkSplitter",
+    "SlidingWindowChunkSplitter",
     "estimate_token_count",
 ]

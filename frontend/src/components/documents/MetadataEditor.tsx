@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/common/Card';
+import { Button } from '@/components/common/Button';
+import { Input } from '@/components/common/Input';
+import { Label } from '@/components/common/Label';
 import { Trash2, Plus, Save } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 interface MetadataEditorProps {
   documentId: string;
@@ -14,7 +14,6 @@ interface MetadataEditorProps {
 }
 
 export function MetadataEditor({
-  documentId,
   initialMetadata,
   onSave,
   onDeleteKey,
@@ -27,15 +26,15 @@ export function MetadataEditor({
 
   const handleAdd = () => {
     if (!newKey.trim()) {
-      toast({ title: 'Key required', description: 'Metadata key cannot be empty.', variant: 'destructive' });
+      toast({ title: 'Key required', message: 'Metadata key cannot be empty.', type: 'error' });
       return;
     }
     if (Object.keys(metadata).length >= 100) {
-      toast({ title: 'Limit reached', description: 'Maximum 100 metadata keys allowed.', variant: 'destructive' });
+      toast({ title: 'Limit reached', message: 'Maximum 100 metadata keys allowed.', type: 'error' });
       return;
     }
     if (newKey.startsWith('__')) {
-      toast({ title: 'Reserved key', description: 'Keys starting with "__" are reserved.', variant: 'destructive' });
+      toast({ title: 'Reserved key', message: 'Keys starting with "__" are reserved.', type: 'error' });
       return;
     }
 
@@ -55,7 +54,7 @@ export function MetadataEditor({
         return next;
       });
     } catch (err: any) {
-      toast({ title: 'Failed to remove', description: err.message, variant: 'destructive' });
+      toast({ title: 'Failed to remove', message: err.message, type: 'error' });
     }
   };
 
@@ -63,9 +62,9 @@ export function MetadataEditor({
     setIsSaving(true);
     try {
       await onSave(metadata);
-      toast({ title: 'Metadata updated', description: 'Successfully saved metadata.' });
+      toast({ title: 'Metadata updated', message: 'Successfully saved metadata.', type: 'success' });
     } catch (err: any) {
-      toast({ title: 'Update failed', description: err.message, variant: 'destructive' });
+      toast({ title: 'Update failed', message: err.message, type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -85,7 +84,7 @@ export function MetadataEditor({
             <Label>Key</Label>
             <Input
               value={newKey}
-              onChange={(e) => setNewKey(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewKey(e.target.value)}
               placeholder="e.g. department"
               maxLength={64}
             />
@@ -94,7 +93,7 @@ export function MetadataEditor({
             <Label>Value</Label>
             <Input
               value={newValue}
-              onChange={(e) => setNewValue(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewValue(e.target.value)}
               placeholder="e.g. engineering"
               maxLength={512}
             />

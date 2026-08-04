@@ -7,7 +7,7 @@ from datetime import datetime
 import uuid
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import BaseModel
@@ -51,6 +51,21 @@ class ProcessingJob(BaseModel):
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    priority: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    claimed_by_worker: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    step_metrics: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(128), unique=True, index=True, nullable=True
+    )
+    dlq_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    dlq_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    resume_from_step: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     def __repr__(self) -> str:
         return f"<ProcessingJob(id={self.id}, doc_id={self.document_id}, status='{self.status}', step='{self.current_step}')>"

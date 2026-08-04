@@ -119,8 +119,12 @@ class TestVectorStorageService:
             mock_emb_res,
             mock_chunk_res,
             mock_meta_res,  # get_or_create_metadata
+            mock_meta_res,  # cleanup old versions
+            mock_meta_res,  # update_sync_status check
             mock_meta_res,  # update_sync_status PROCESSING
             mock_meta_res,  # update_sync_status COMPLETED
+            mock_meta_res,
+            mock_meta_res,
         ]
 
         count = await service.sync_document_vectors(doc_id, ver_id, "tenant-1")
@@ -165,6 +169,9 @@ class TestVectorStorageService:
         mock_session.execute.side_effect = [
             mock_emb_res,
             mock_chunk_res,
+            mock_meta_res,
+            mock_meta_res,
+            mock_meta_res,
             mock_meta_res,
             mock_meta_res,
             mock_meta_res,

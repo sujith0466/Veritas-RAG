@@ -60,6 +60,28 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+    async def find_existing_chunks_by_hashes(
+        self, tenant_id: str, document_id: uuid.UUID, content_hashes: list[str]
+    ) -> dict[str, uuid.UUID]:
+        """Find existing chunks by content hash for cross-version deduplication.
+        
+        Returns a mapping of content_hash -> chunk_id.
+        """
+        if not content_hashes:
+            return {}
+
+        stmt = (
+            select(DocumentChunk.content_hash, DocumentChunk.id)
+            .where(
+                DocumentChunk.tenant_id == tenant_id,
+                DocumentChunk.document_id == document_id,
+                DocumentChunk.content_hash.in_(content_hashes),
+                DocumentChunk.is_deleted.is_(False),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return {row.content_hash: row.id for row in result.all()}
+
     async def count_chunks_by_version(
         self,
         tenant_id: str,

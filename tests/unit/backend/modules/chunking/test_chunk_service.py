@@ -39,7 +39,14 @@ class TestChunkingService:
         result_del = MagicMock()
         result_del.rowcount = 0
 
-        mock_session.execute.side_effect = [result_doc, result_ver, result_del]
+        mock_session.execute.side_effect = [
+            result_doc, 
+            result_ver, 
+            result_del,
+            result_doc,
+            result_doc,
+            result_doc
+        ]
 
         # Mock storage provider
         mock_storage = AsyncMock()

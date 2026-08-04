@@ -31,3 +31,10 @@
 | F5.6 - Document Versioning | ✅ Frozen | Final Production Validation complete |
 | F5.7 - Metadata Management | ✅ Frozen | Final Production Validation complete |
 | F5.8 - Bulk Upload | ✅ Frozen | Final Production Validation complete |
+
+## Epic 6: Document Ingestion Pipeline
+| Feature | Status | Notes |
+|---|---|---|
+| F6.1 - Setup Redis and Celery | ? Frozen | Final Production Validation complete |
+| F6.2 - OCR and Text Extraction | ? Frozen | Final Production Validation complete |
+| F6.3 - Text Chunking | ? Frozen | Final Production Validation complete |

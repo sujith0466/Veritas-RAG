@@ -68,13 +68,19 @@ class TestRedisCacheClient:
         mock_get_client.return_value = mock_client
 
         mock_client.ping = AsyncMock(return_value=True)
-        assert await check_cache_health() is True
+        result = await check_cache_health()
+        assert isinstance(result, dict)
+        assert result.get("status") == "healthy"
 
         mock_client.ping = AsyncMock(return_value="PONG")
-        assert await check_cache_health() is True
+        result2 = await check_cache_health()
+        assert isinstance(result2, dict)
+        assert result2.get("status") == "healthy"
 
         mock_client.ping = AsyncMock(side_effect=Exception("Connection refused"))
-        assert await check_cache_health() is False
+        result3 = await check_cache_health()
+        assert isinstance(result3, dict)
+        assert result3.get("status") == "unhealthy"
 
     @patch("backend.cache.client.ConnectionPool.from_url")
     @patch("backend.cache.client.Redis")
