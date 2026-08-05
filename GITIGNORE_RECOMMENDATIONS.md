@@ -1,3 +1,11 @@
+# Git Ignore Recommendations
+
+## Overview
+This document recommends an enterprise-hardened `.gitignore` configuration for RAGuard V2. It expands upon the existing configuration by explicitly accounting for modern frontend frameworks, diverse operating systems, AI assistant scratch pads, and operational data footprints.
+
+## Hardened `.gitignore` Proposal
+
+```gitignore
 # ==============================================================================
 # RAGuard Enterprise - Hardened Git Ignore Specification
 # ==============================================================================
@@ -147,3 +155,4 @@ ruff_output.json
 docs/Archive/retrieval_results.json
 enterprise_demo_dataset.zip
 enterprise_demo_dataset/
+```
