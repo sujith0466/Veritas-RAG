@@ -32,6 +32,7 @@ __all__ = [
     "StorageObject",
     "User",
     "VectorIndexMetadata",
+    "VectorReindexJob",
 ]
 
 
@@ -70,6 +71,10 @@ def __getattr__(name: str) -> Any:
         import backend.modules.knowledge_health.models as kh_models
 
         return getattr(kh_models, name)
+    if name in {"VectorReindexJob"}:
+        import backend.modules.knowledge_base.models.reindex_job as kb_models
+
+        return getattr(kb_models, name)
     if name in {"QueryAnalyticsRecord"}:
         import backend.modules.analytics.models as anl_models
 

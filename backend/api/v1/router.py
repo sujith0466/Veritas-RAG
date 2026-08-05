@@ -27,6 +27,9 @@ api_v1_router.include_router(users_router)
 # ── Workspace Management (`/workspaces`) ───────────────────────────────────────
 api_v1_router.include_router(workspaces_router)
 
+from .routes.knowledge_base import router as knowledge_base_router
+api_v1_router.include_router(knowledge_base_router, prefix="/workspaces/{workspace_id}/knowledge-base")
+
 from backend.document.api.v1.jobs import router as jobs_router
 
 api_v1_router.include_router(jobs_router)

@@ -44,6 +44,11 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
   - [F6.6 ProcessingJob Lifecycle Architecture](Archive/epic6/F6.6_ProcessingJob_Lifecycle_Architecture.md)
   - [F6.7 Dead Letter Queue Architecture](Archive/epic6/F6.7_Dead_Letter_Queue_Architecture.md)
   - [F6.8 S3 Event-Driven Pipeline Architecture](Archive/epic6/F6.8_S3_Event_Driven_Pipeline_Architecture.md)
+- **Epic 7:**
+  - [F7.1 Knowledge Base Inspection Architecture](archive/epic7/F7.1_Knowledge_Base_Inspection_Architecture.md)
+  - [F7.2 Knowledge Health Score Architecture](archive/epic7/F7.2_Knowledge_Health_Score_Architecture.md)
+  - [F7.3 Stale Document Detection Architecture](archive/epic7/F7.3_Stale_Document_Detection_Architecture.md)
+  - [F7.4 Vector Reindex Namespace Swap Architecture](archive/epic7/F7.4_Vector_Reindex_Namespace_Swap_Architecture.md)
 
 ---
 
@@ -55,6 +60,7 @@ Welcome to the comprehensive documentation index for RAGuard AI V2.
 - [Epic 4 Archive (User & Role Management)](Archive/epic4/README.md)
 - [Epic 5 Archive (Document & Folder Management)](Archive/epic5/README.md)
 - [Epic 6 Archive (Knowledge Processing Pipeline)](Archive/epic6/README.md)
+- [Epic 7 Archive (Knowledge Base)](archive/epic7/README.md)
 - [Implementation Artifacts Archive](Archive/implementation/README.md)
 - [Validation & Certification Archive](Archive/validation/README.md)
 - [Temporary & Diagnostic Notes](Archive/temporary/README.md)

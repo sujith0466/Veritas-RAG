@@ -15,7 +15,7 @@
 | **Epic 4** | User & Role Management (RBAC & Invitations) | ✅ **FROZEN** | 100% | Completed |
 | **Epic 5** | Document & Folder Management | ✅ **FROZEN** | 100% | Completed |
 | **Epic 6** | Document Ingestion Pipeline | ✅ **FROZEN** | 100% | Completed |
-| **Epic 7** | Vector Search & Qdrant Integration | ⏳ Scheduled | 0% | Phase 2 |
+| **Epic 7** | Vector Search & Qdrant Integration | ✅ **FROZEN** | 100% | Completed |
 | **Epic 8** | Hybrid Search & BM25 Sparse Indexing | ⏳ Scheduled | 0% | Phase 3 |
 | **Epic 9** | Contextual Reranking & RRF Fusion | ⏳ Scheduled | 0% | Phase 3 |
 | **Epic 10** | Hallucination Prevention & Confidence Engine | ⏳ Scheduled | 0% | Phase 3 |
@@ -90,6 +90,12 @@
 - [x] F6.6 - ProcessingJob Lifecycle Tracking & Step Observability - ✅ Frozen (100%)
 - [x] F6.7 - Dead Letter Queue Handling & Remediation Engine - ✅ Frozen (100%)
 - [x] F6.8 - S3 Event-Driven Pipeline Trigger & Presigned Upload Lifecycle - ✅ Frozen (100%)
+
+### ✅ Epic 7 - Vector Search & Qdrant Integration (100% Frozen)
+- [x] F7.1 - Knowledge Base Inspection UI & API - ✅ Frozen (100%)
+- [x] F7.2 - Knowledge Health Score Calculation - ✅ Frozen (100%)
+- [x] F7.3 - Stale Document Detection - ✅ Frozen (100%)
+- [x] F7.4 - Vector Re-Index Workflow (Namespace Swap) - ✅ Frozen (100%)
 
 ---
 

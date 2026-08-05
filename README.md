@@ -51,7 +51,13 @@
 - **Dead Letter Queue Engine (F6.7):** Automated classification of recoverable vs. fatal ingestion failures with administrative remediation and retry workflows.
 - **S3 Presigned Upload Lifecycle (F6.8):** Secure object lock, checksum validation, and automated asynchronous pipeline triggering upon upload completion.
 
-### 5. Advanced RAG & Confidence Engine
+### 5. Knowledge Base & Vector Infrastructure (Epic 7 ✅ Frozen)
+- **Knowledge Base Inspection (F7.1):** End-to-end workspace statistics and vector parity audits between PostgreSQL chunks and Qdrant.
+- **Knowledge Health Scoring (F7.2):** 4-dimensional mathematical scoring engine (Coverage, Freshness, Quality, Reliability) with automated remediation recommendations.
+- **Staleness Detection (F7.3):** Exponential decay evaluation with background alerting and bulk archiving workflows.
+- **Zero-Downtime Re-Indexing (F7.4):** Atomic Qdrant alias namespace swaps, supporting staging collection parity checks and fallback rollbacks.
+
+### 6. Advanced RAG & Confidence Engine
 - **Hybrid Retrieval:** Fuses Dense Vector Search (Qdrant) with Sparse Keyword Search (BM25) using Reciprocal Rank Fusion (RRF).
 - **Contextual Reranking:** Cross-Encoder neural rescoring to maximize precision.
 - **Confidence Evaluation:** Mathematical hallucination prevention that evaluates evidence strength, relevance, and semantic overlap before LLM generation.

@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0-milestone.7] - 2026-08-05
+### Added
+- **Epic 7 (Knowledge Base):** End-to-end workspace statistics and vector parity audits (F7.1), 4-dimensional mathematical Knowledge Health Scoring engine with coverage/freshness/quality/reliability dimensions (F7.2), exponential and linear Stale Document Detection decay evaluations with bulk archiving workflows (F7.3), and Zero-Downtime Blue/Green Vector Re-Indexing workflows supporting atomic Qdrant alias namespace swaps (F7.4).
+
 ## [2.0.0-milestone.6] - 2026-08-04
 ### Added
 - **Epic 6 (Knowledge Processing Pipeline):** Asynchronous Celery + Redis worker queue topology with distributed locking and idempotency tokens (F6.1), OCR and multi-engine text extraction with Tesseract/EasyOCR fallback and extraction contract validation (F6.2), token-aware recursive text chunking and canonical manifest generation (F6.3), embedding generation worker with dimensional validation (F6.4), multi-tenant Qdrant vector indexing and payload enrichment (F6.5), ProcessingJob lifecycle tracking with granular step-level telemetry (F6.6), Dead Letter Queue engine with automated classification and retry remediation (F6.7), and S3 event-driven pipeline triggers with presigned upload lifecycle verification (F6.8).
