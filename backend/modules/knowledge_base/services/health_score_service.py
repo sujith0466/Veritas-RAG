@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.document.models import Document, DocumentVersion
-from backend.document.models.failed_job import FailedJob
+from backend.document.models.failed_job import FailedJobDiagnostics
 from backend.modules.chunking.models import DocumentChunk
 from backend.modules.knowledge_base.schemas.health_score_dto import (
     DimensionScoreDTO,
@@ -59,7 +59,7 @@ class KnowledgeHealthScoreService:
                 func.cast(Document.status == "INDEXED", func.Integer())  # Assuming INDEXED means processed
             ).label("indexed")
         ).where(
-            Document.tenant_id == workspace_id,
+            Document.tenant_id == str(workspace_id),
             not Document.is_deleted
         )
 
@@ -69,7 +69,7 @@ class KnowledgeHealthScoreService:
             func.count(Document.id).label("total"),
             func.sum(sa_case((Document.status == "INDEXED", 1), else_=0)).label("indexed")
         ).where(
-            Document.tenant_id == workspace_id,
+            Document.tenant_id == str(workspace_id),
             not Document.is_deleted
         )
 
@@ -92,7 +92,7 @@ class KnowledgeHealthScoreService:
         Freshness (25%): Average freshness_score across active documents.
         """
         stmt = select(Document.user_metadata).where(
-            Document.tenant_id == workspace_id,
+            Document.tenant_id == str(workspace_id),
             not Document.is_deleted
         )
         res = await self.session.execute(stmt)
@@ -133,7 +133,7 @@ class KnowledgeHealthScoreService:
             .join(DocumentVersion, DocumentChunk.document_version_id == DocumentVersion.id)
             .join(Document, DocumentVersion.document_id == Document.id)
             .where(
-                Document.tenant_id == workspace_id,
+                Document.tenant_id == str(workspace_id),
                 not Document.is_deleted,
                 Document.active_version_id == DocumentVersion.id
             )
@@ -162,9 +162,9 @@ class KnowledgeHealthScoreService:
         """
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
 
-        stmt_failed = select(func.count(FailedJob.id)).where(
-            FailedJob.workspace_id == workspace_id,
-            FailedJob.created_at >= thirty_days_ago
+        stmt_failed = select(func.count(FailedJobDiagnostics.id)).where(
+            FailedJobDiagnostics.tenant_id == str(workspace_id),
+            FailedJobDiagnostics.created_at >= thirty_days_ago
         )
         res_failed = await self.session.execute(stmt_failed)
         failed_count = res_failed.scalar() or 0

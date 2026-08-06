@@ -15,7 +15,7 @@ from backend.ai.wrapper.namespace import NamespaceResolver
 from backend.ai.wrapper.rate_limit import RateLimiter
 from backend.core.events.dispatcher import EventDispatcher
 from backend.core.events.types import EventType
-from backend.core.exceptions import APIError
+from backend.core.exceptions import AuthorizationException
 from backend.database.engine import get_session_factory
 from backend.document.models.document import Document
 from backend.document.models.status import DocumentStatus
@@ -27,15 +27,15 @@ from backend.modules.generation.services.streaming_generation_service import (
 )
 from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
 from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
-from backend.workspace.models.workspace import Workspace
-from backend.workspace.models.workspace_member import WorkspaceMember
+from backend.models.entities.workspace import Workspace
+from backend.models.entities.workspace_member import WorkspaceMember
 
 logger = structlog.get_logger(__name__)
 
 
-class WorkspaceValidationError(APIError):
+class WorkspaceValidationError(AuthorizationException):
     def __init__(self, message: str):
-        super().__init__(status_code=403, message=message)
+        super().__init__(message=message)
 
 
 class AIWrapperService:

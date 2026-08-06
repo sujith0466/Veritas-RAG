@@ -4,7 +4,7 @@ from uuid import UUID
 from celery import shared_task
 
 from backend.core.database import get_db_session
-from backend.events.dispatcher import EventDispatcher
+from backend.core.events.dispatcher import EventDispatcher
 from backend.modules.knowledge_base.schemas.staleness_dto import StalenessPolicyDTO
 from backend.modules.knowledge_base.services.staleness_service import StalenessService
 

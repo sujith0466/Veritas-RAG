@@ -6,7 +6,7 @@ from backend.core.logger import get_logger
 from backend.database.session import get_session_factory
 from backend.document.repositories.document_repository import DocumentRepository
 from backend.document.services.vector_service import VectorStorageService
-from backend.document.tasks.celery_app import celery_app
+from backend.tasks.celery_app import celery_app
 
 logger = get_logger(__name__)
 

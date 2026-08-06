@@ -5,14 +5,14 @@ from redis.asyncio import Redis
 import structlog
 
 from backend.cache.client import get_redis_client
-from backend.core.exceptions import APIError
+from backend.core.exceptions import RateLimitException
 
 logger = structlog.get_logger(__name__)
 
 
-class RateLimitExceededError(APIError):
+class RateLimitExceededError(RateLimitException):
     def __init__(self, message: str, retry_after: int):
-        super().__init__(status_code=429, message=message)
+        super().__init__(message=message)
         self.retry_after = retry_after
 
 

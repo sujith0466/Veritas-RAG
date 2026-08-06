@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.document.models import Document
-from backend.events.dispatcher import EventDispatcher
+from backend.core.events.dispatcher import EventDispatcher
 from backend.modules.knowledge_base.schemas.staleness_dto import (
     BulkRemediationRequestDTO,
     BulkRemediationResultDTO,

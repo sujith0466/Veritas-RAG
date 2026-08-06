@@ -14,7 +14,8 @@ from backend.ai.wrapper.namespace import NamespaceResolver
 from backend.ai.wrapper.service import AIWrapperService
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.auth.context import UserContext
-from backend.core.dependencies.auth import get_current_user, require_admin
+from backend.core.dependencies.auth import get_current_user, require_role
+from backend.core.permissions.rbac import Role
 
 router = APIRouter(prefix="/ai", tags=["AI Platform Wrapper"])
 
@@ -83,7 +84,7 @@ async def generate_ai_request(
 async def ai_health(
     request: Request,
     manager: LLMProviderManager = Depends(get_llm_manager),
-    user: UserContext = Depends(require_admin)
+    user: UserContext = Depends(require_role(Role.PLATFORM_ADMIN))
 ):
     health_data = await manager.detailed_health_check()
     return SuccessResponse(
@@ -107,7 +108,7 @@ async def ai_capabilities(
 
 @router.delete("/cache/namespace", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_namespace_cache(
-    user: UserContext = Depends(require_admin),
+    user: UserContext = Depends(require_role(Role.PLATFORM_ADMIN)),
     resolver: NamespaceResolver = Depends(get_namespace_resolver)
 ):
     cache_key = f"raguard:{user.tenant_id}:namespace:binding"

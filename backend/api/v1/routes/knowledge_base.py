@@ -4,10 +4,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies.database import get_db
+from backend.core.dependencies.database import get_db
 from backend.core.dependencies.auth import UserContext, require_role
 from backend.core.permissions.rbac import Role
-from backend.events.dispatcher import EventDispatcher
+from backend.core.events.dispatcher import EventDispatcher
 from backend.modules.knowledge_base.schemas.health_score_dto import KnowledgeHealthScoreDTO
 from backend.modules.knowledge_base.schemas.knowledge_base_dto import (
     DocumentKnowledgeStatusDTO,

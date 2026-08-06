@@ -5,7 +5,7 @@ from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from backend.models.entities.base import BaseModel
+from backend.models.base import BaseModel
 
 
 class VectorReindexJob(BaseModel):

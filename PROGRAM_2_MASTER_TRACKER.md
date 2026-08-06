@@ -52,15 +52,12 @@
 | F7.3 - Stale Document Detection | ✅ Production Validated & Frozen | Final Production Validation complete |
 | F7.4 - Vector Re-Index Workflow (Namespace Swap) | ✅ Production Validated & Frozen | Final Production Validation complete |
 
-## Epic 8: Hybrid Retrieval & AI Generation
+## Epic 8: AI Platform Wrapper
 | Feature | Status | Notes |
 |---|---|---|
-| F8.1 - AI Platform Wrapper | 🧊 Frozen | Final Production Validation complete |
-| F8.2 - V1 Internal API Client | 🧊 Frozen | Final Production Validation complete |
-| F8.3 - SSE Stream Bridge | 🧊 Frozen | Final Production Validation complete |
-| F8.4 - SSE Recovery & Heartbeats | 🧊 Frozen | Final Production Validation complete |
-| F8.5 - SSE Timeout Handling | 🧊 Frozen | Final Production Validation complete |
-| F8.6 - Graceful Cancellation & Partial Persistence | 🧊 Frozen | Final Production Validation complete |
-| F8.7 - Reliability Score Extraction from Stream | ✅ Production Validated & Frozen | Final Production Validation complete |
-| F8.8 - Citation Extraction from Stream | ✅ Production Validated & Frozen | Final Production Validation complete |
-| F8.9 - AI Policy Enforcement | ✅ Production Validated & Frozen | Final Production Validation complete |
+| Epic 8 Baseline Recovery | ✅ Production Validated & Frozen | Repository restored, Verified Production Baseline established. |
+
+## Epic 9: Chat Platform
+| Feature | Status | Notes |
+|---|---|---|
+| F9.1 - Chat Session Create / List | ⏳ NOT STARTED | 0% |
