@@ -111,6 +111,14 @@ class EventType(StrEnum):
     RETRIEVAL_FALLBACK_TRIGGERED = "retrieval.fallback_triggered"
     CIRCUIT_BREAKER_TRIPPED = "retrieval.circuit_breaker_tripped"
 
+    # ── AI Platform Wrapper (Epic 8) ─────────────────────────────────────────
+    AI_WRAPPER_REQUEST_STARTED = "ai_wrapper.request_started"
+    AI_WRAPPER_RETRIEVAL_COMPLETED = "ai_wrapper.retrieval_completed"
+    AI_WRAPPER_GENERATION_STARTED = "ai_wrapper.generation_started"
+    AI_WRAPPER_REQUEST_COMPLETED = "ai_wrapper.request_completed"
+    AI_WRAPPER_REQUEST_FAILED = "ai_wrapper.request_failed"
+    AI_WRAPPER_REQUEST_CANCELLED = "ai_wrapper.request_cancelled"
+
     # ── Reflection ─────────────────────────────────────────────────────────────
     REFLECTION_COMPLETED = "reflection.completed"
     REFLECTION_REJECTED = "reflection.rejected"

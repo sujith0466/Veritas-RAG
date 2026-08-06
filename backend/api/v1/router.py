@@ -28,6 +28,7 @@ api_v1_router.include_router(users_router)
 api_v1_router.include_router(workspaces_router)
 
 from .routes.knowledge_base import router as knowledge_base_router
+
 api_v1_router.include_router(knowledge_base_router, prefix="/workspaces/{workspace_id}/knowledge-base")
 
 from backend.document.api.v1.jobs import router as jobs_router
@@ -47,8 +48,9 @@ from .routes.sso import router as sso_router
 api_v1_router.include_router(sso_router)
 
 # ── Storage (`/storage`) ──────────────────────────────────────────
-from .routes.storage import router as storage_router
 from backend.document.api.v1.storage_webhooks import router as storage_webhooks_router
+
+from .routes.storage import router as storage_router
 
 api_v1_router.include_router(storage_router)
 api_v1_router.include_router(storage_webhooks_router)
@@ -111,4 +113,9 @@ from .routes.feature_flags import (
 
 api_v1_router.include_router(feature_flags_router)
 api_v1_router.include_router(workspace_feature_flags_router)
+
+# ── AI Platform Wrapper (`/ai`) ────────────────────────────────────────────────
+from backend.ai.api.routes import router as ai_router
+
+api_v1_router.include_router(ai_router)
 

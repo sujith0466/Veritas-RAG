@@ -147,3 +147,13 @@ ruff_output.json
 docs/Archive/retrieval_results.json
 enterprise_demo_dataset.zip
 enterprise_demo_dataset/
+
+# Temporary Audit and QA Reports
+tracked_files_list.txt
+all_tracked_files.txt
+PRE_EPIC*_REPOSITORY_AUDIT.md
+PRE_BATCH*_REPOSITORY_AUDIT.md
+FINAL_REPOSITORY_CLEANUP_REPORT.md
+SECRET_AUDIT_EPIC*.md
+TRACKED_FILES_REVIEW_EPIC*.md
+EPIC*_FINAL_REPOSITORY_CERTIFICATION.md

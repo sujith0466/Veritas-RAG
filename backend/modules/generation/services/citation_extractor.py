@@ -42,6 +42,45 @@ class CitationExtractor:
     Expects generated text to contain markers like [1], [2], and a reference map
     that associates each index to a source chunk.
     """
+    def __init__(self):
+        self.seen_markers: set[int] = set()
+
+    def extract_single(self, marker: int, evidence_chunks: list[RankedEvidenceDTO]) -> CitationDTO | None:
+        """Extract a single citation from a marker (e.g. 1 for [1]).
+        Returns None if the marker is invalid or already seen.
+        """
+        import hashlib
+
+        if marker in self.seen_markers:
+            return None
+
+        chunk_pos = marker - 1
+        if chunk_pos < 0 or chunk_pos >= len(evidence_chunks):
+            return None
+
+        chunk = evidence_chunks[chunk_pos]
+        # Use first 200 chars of content as the supporting excerpt
+        excerpt = (chunk.content if hasattr(chunk, "content") else chunk.get("content", ""))[:200].strip()
+
+        metadata = chunk.metadata if hasattr(chunk, "metadata") else chunk.get("metadata", {})
+        source_name = metadata.get("source_name") or metadata.get("filename")
+        document_name = metadata.get("document_name")
+        document_id = str(chunk.document_id if hasattr(chunk, "document_id") else chunk.get("document_id", ""))
+
+        cit_id = hashlib.sha256(f"{document_id}:{excerpt}".encode()).hexdigest()
+
+        cit = CitationDTO(
+            id=cit_id,
+            citation_index=marker,
+            chunk_id=str(chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", "")),
+            document_id=document_id,
+            source_name=source_name,
+            document_name=document_name,
+            excerpt=excerpt,
+            relevance_score=(chunk.normalized_relevance_score if hasattr(chunk, "normalized_relevance_score") and chunk.normalized_relevance_score is not None else chunk.get("normalized_relevance_score", 1.0) if not hasattr(chunk, "normalized_relevance_score") else 1.0),
+        )
+        self.seen_markers.add(marker)
+        return cit
 
     def extract(
         self, answer_text: str, evidence_chunks: list[RankedEvidenceDTO]

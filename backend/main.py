@@ -79,6 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     init_tracer(app_name=settings.app.name, environment=settings.app.environment)
 
+    from backend.ai.providers.v1_engine.client import V1EngineClient
     from backend.cache.client import close_cache, get_redis_pool
     from backend.database.engine import close_db
     from backend.database.init_db import init_db
@@ -88,6 +89,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
     get_redis_pool()
     get_qdrant_client()
+
+    logger.info("Initializing V1 Engine Client")
+    await V1EngineClient.initialize()
 
     # ── VALIDATE STARTUP CONTRACTS ──────────────────────────────────────────────
     from backend.core.startup_validator import run_startup_validation
@@ -124,6 +128,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await close_db()
     await close_cache()
     await close_vector_db()
+    await V1EngineClient.close()
 
     logger.info("RAGuard AI shutdown complete")
 

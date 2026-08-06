@@ -51,3 +51,16 @@
 | F7.2 - Knowledge Health Score Calculation | ✅ Production Validated & Frozen | Final Production Validation complete |
 | F7.3 - Stale Document Detection | ✅ Production Validated & Frozen | Final Production Validation complete |
 | F7.4 - Vector Re-Index Workflow (Namespace Swap) | ✅ Production Validated & Frozen | Final Production Validation complete |
+
+## Epic 8: Hybrid Retrieval & AI Generation
+| Feature | Status | Notes |
+|---|---|---|
+| F8.1 - AI Platform Wrapper | 🧊 Frozen | Final Production Validation complete |
+| F8.2 - V1 Internal API Client | 🧊 Frozen | Final Production Validation complete |
+| F8.3 - SSE Stream Bridge | 🧊 Frozen | Final Production Validation complete |
+| F8.4 - SSE Recovery & Heartbeats | 🧊 Frozen | Final Production Validation complete |
+| F8.5 - SSE Timeout Handling | 🧊 Frozen | Final Production Validation complete |
+| F8.6 - Graceful Cancellation & Partial Persistence | 🧊 Frozen | Final Production Validation complete |
+| F8.7 - Reliability Score Extraction from Stream | ✅ Production Validated & Frozen | Final Production Validation complete |
+| F8.8 - Citation Extraction from Stream | ✅ Production Validated & Frozen | Final Production Validation complete |
+| F8.9 - AI Policy Enforcement | ✅ Production Validated & Frozen | Final Production Validation complete |

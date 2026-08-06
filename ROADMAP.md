@@ -16,7 +16,7 @@
 | **Epic 5** | Document & Folder Management | ✅ **FROZEN** | 100% | Completed |
 | **Epic 6** | Document Ingestion Pipeline | ✅ **FROZEN** | 100% | Completed |
 | **Epic 7** | Vector Search & Qdrant Integration | ✅ **FROZEN** | 100% | Completed |
-| **Epic 8** | Hybrid Search & BM25 Sparse Indexing | ⏳ Scheduled | 0% | Phase 3 |
+| **Epic 8** | Hybrid Search & BM25 Sparse Indexing | ✅ **FROZEN** | 100% | Completed |
 | **Epic 9** | Contextual Reranking & RRF Fusion | ⏳ Scheduled | 0% | Phase 3 |
 | **Epic 10** | Hallucination Prevention & Confidence Engine | ⏳ Scheduled | 0% | Phase 3 |
 | **Epic 11** | Generation & LLM Provider Gateway | ⏳ Scheduled | 0% | Phase 4 |
@@ -96,6 +96,17 @@
 - [x] F7.2 - Knowledge Health Score Calculation - ✅ Frozen (100%)
 - [x] F7.3 - Stale Document Detection - ✅ Frozen (100%)
 - [x] F7.4 - Vector Re-Index Workflow (Namespace Swap) - ✅ Frozen (100%)
+
+### 🧊 Epic 8 - Hybrid Search & BM25 Sparse Indexing (100% Frozen)
+- [x] F8.1 - AI Platform Wrapper - 🧊 Frozen (100%)
+- [x] F8.2 - V1 Internal API Client - 🧊 Frozen (100%)
+- [x] F8.3 - SSE Stream Bridge - 🧊 Frozen (100%)
+- [x] F8.4 - SSE Recovery & Heartbeats - 🧊 Frozen (100%)
+- [x] F8.5 - SSE Timeout Handling - 🧊 Frozen (100%)
+- [x] F8.6 - Graceful Cancellation - 🧊 Frozen (100%)
+- [x] F8.7 - Reliability Score Extraction from Stream - 🧊 Frozen (100%)
+- [x] F8.8 - Citation Extraction from Stream - 🧊 Frozen (100%)
+- [x] F8.9 - AI Policy Enforcement - 🧊 Frozen (100%)
 
 ---
 

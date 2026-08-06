@@ -128,6 +128,98 @@ HALLUCINATION_DETECTIONS_TOTAL = Counter(
 )
 
 
+# ── 4. SSE Streaming Resilience Metrics (Epic 8) ──────────────────────────────
+
+SSE_ACTIVE_STREAMS = Gauge(
+    "raguard_sse_active_streams",
+    "Currently active SSE streams.",
+)
+
+SSE_REPLAYED_CHUNKS_TOTAL = Counter(
+    "raguard_sse_replayed_chunks_total",
+    "Total number of SSE chunks replayed from Redis buffer.",
+)
+
+SSE_REDIS_BUFFER_HITS_TOTAL = Counter(
+    "raguard_sse_redis_buffer_hits_total",
+    "Total successful stream resumptions via Redis buffer.",
+)
+
+SSE_REDIS_BUFFER_MISSES_TOTAL = Counter(
+    "raguard_sse_redis_buffer_misses_total",
+    "Total stream resumptions failed due to expired/missing Redis buffer.",
+)
+
+SSE_STREAM_DURATION_SECONDS = Histogram(
+    "raguard_sse_stream_duration_seconds",
+    "Total duration of an SSE stream in seconds.",
+    buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0],
+)
+
+SSE_CHUNKS_PER_STREAM = Histogram(
+    "raguard_sse_chunks_per_stream",
+    "Number of chunks yielded per SSE stream.",
+    buckets=[10, 50, 100, 250, 500, 1000],
+)
+
+SSE_TTFT_SECONDS = Histogram(
+    "raguard_sse_ttft_seconds",
+    "Time to first token (TTFT) in seconds.",
+    buckets=[0.5, 1.0, 2.5, 5.0, 10.0, 15.0],
+)
+
+SSE_CANCELLATIONS_TOTAL = Counter(
+    "raguard_sse_cancellations_total",
+    "Total number of client-initiated stream cancellations.",
+)
+
+SSE_RECONNECTS_TOTAL = Counter(
+    "raguard_sse_reconnects_total",
+    "Total number of stream reconnect attempts (Last-Event-ID provided).",
+)
+
+SSE_TIMEOUTS_TOTAL = Counter(
+    "raguard_sse_timeouts_total",
+    "Total number of timeout events during streaming.",
+    ["timeout_type"],
+)
+
+
+# ── 5. AI Policy & Streaming Extraction Metrics (Epic 8 Batch 3) ────────────────
+
+SSE_RELIABILITY_UPDATES_TOTAL = Counter(
+    "raguard_sse_reliability_updates_total",
+    "Total number of incremental reliability score updates emitted via SSE.",
+)
+
+SSE_CITATIONS_EMITTED_TOTAL = Counter(
+    "raguard_sse_citations_emitted_total",
+    "Total number of citation events streamed progressively via SSE.",
+)
+
+POLICY_VIOLATIONS_TOTAL = Counter(
+    "raguard_policy_violations_total",
+    "Total number of AI policy violations intercepted.",
+    ["violation_type"],
+)
+
+PII_REDACTIONS_TOTAL = Counter(
+    "raguard_pii_redactions_total",
+    "Total number of PII instances redacted from prompts before LLM ingress.",
+)
+
+BLOCKED_PROMPT_TOTAL = Counter(
+    "raguard_blocked_prompt_total",
+    "Total number of prompts blocked due to restricted topics.",
+    ["topic"],
+)
+
+PROMPT_INJECTION_DETECTED_TOTAL = Counter(
+    "raguard_prompt_injection_detected_total",
+    "Total number of prompt injection or jailbreak attempts detected.",
+)
+
+
 # ── Helper Recording Functions ────────────────────────────────────────────────
 
 
@@ -187,6 +279,30 @@ def record_reflection_metric(
         REFLECTION_FAILURES_TOTAL.labels(reason=reason).inc()
     if hallucination_detected:
         HALLUCINATION_DETECTIONS_TOTAL.labels(severity="high").inc()
+
+
+def record_sse_reliability_update() -> None:
+    SSE_RELIABILITY_UPDATES_TOTAL.inc()
+
+
+def record_sse_citation_emitted() -> None:
+    SSE_CITATIONS_EMITTED_TOTAL.inc()
+
+
+def record_policy_violation(violation_type: str) -> None:
+    POLICY_VIOLATIONS_TOTAL.labels(violation_type=violation_type).inc()
+
+
+def record_pii_redaction() -> None:
+    PII_REDACTIONS_TOTAL.inc()
+
+
+def record_blocked_prompt(topic: str) -> None:
+    BLOCKED_PROMPT_TOTAL.labels(topic=topic).inc()
+
+
+def record_prompt_injection() -> None:
+    PROMPT_INJECTION_DETECTED_TOTAL.inc()
 
 
 # ── 8. Workspace Lifecycle & Retention Metrics ───────────────────────────────

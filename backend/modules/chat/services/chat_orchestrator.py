@@ -1,146 +1,47 @@
+import asyncio
 from collections.abc import AsyncGenerator
-import re
+import json
 import time
-from typing import Any
+import uuid
 
+from sqlalchemy import select
 from structlog import get_logger
 
+from backend.ai.schemas.wrapper_dto import AIWrapperRequest
+from backend.ai.wrapper.service import AIWrapperService
+from backend.api.v1.schemas.sse import SSEMessageDTO
+from backend.cache.client import get_redis_client
+from backend.core.config import get_settings
+from backend.database.engine import get_session_factory
+from backend.document.models.document import Document
+from backend.document.models.status import DocumentStatus
 from backend.modules.chat.repositories.chat_repository import ChatRepository
 from backend.modules.chat.schemas import ChatMessageCreateDTO
-from backend.modules.generation.schemas.generation_dto import (
-    GenerationRequestDTOv2,
-    StreamingGenerationChunkDTO,
+from backend.modules.generation.schemas.generation_dto import StreamingGenerationChunkDTO
+from backend.observability.metrics.prometheus import (
+    SSE_ACTIVE_STREAMS,
+    SSE_CANCELLATIONS_TOTAL,
+    SSE_CHUNKS_PER_STREAM,
+    SSE_RECONNECTS_TOTAL,
+    SSE_REDIS_BUFFER_HITS_TOTAL,
+    SSE_REDIS_BUFFER_MISSES_TOTAL,
+    SSE_REPLAYED_CHUNKS_TOTAL,
+    SSE_STREAM_DURATION_SECONDS,
 )
-from backend.modules.generation.services.streaming_generation_service import (
-    StreamingGroundedGenerationService,
-)
-from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
-from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
 
 logger = get_logger(__name__)
 
 
-def compute_chat_reliability_score(
-    *,
-    answer_text: str,
-    evidence_chunks: list[Any],
-    citations: list[dict],
-    is_grounded: bool,
-    retrieval_result: Any = None,
-) -> float:
-    """Compute chat reliability from retrieval, citation, and grounding signals."""
-    if not answer_text.strip():
-        return 0.0
-
-    non_empty_evidence = [
-        chunk for chunk in evidence_chunks if str((chunk.content if hasattr(chunk, "content") else chunk.get("content", "")) or "").strip()
-    ]
-    evidence_completeness = (
-        len(non_empty_evidence) / len(evidence_chunks) if evidence_chunks else 0.0
-    )
-    citation_validity = _citation_validity(answer_text, citations, non_empty_evidence)
-    context_coverage = _context_coverage(answer_text)
-    retrieval_quality = _retrieval_quality(non_empty_evidence, retrieval_result)
-    grounding_confidence = 1.0 if is_grounded else 0.0
-
-    score = (
-        retrieval_quality * 0.20
-        + citation_validity * 0.25
-        + grounding_confidence * 0.25
-        + evidence_completeness * 0.15
-        + context_coverage * 0.15
-    )
-
-    all_checks_passed = (
-        is_grounded
-        and retrieval_quality >= 1.0
-        and citation_validity >= 1.0
-        and evidence_completeness >= 1.0
-        and context_coverage >= 1.0
-    )
-    if not all_checks_passed:
-        score = min(score, 0.99)
-
-    return round(max(0.0, min(1.0, score)), 4)
-
-
-def _citation_validity(
-    answer_text: str, citations: list[dict], evidence_chunks: list[Any]
-) -> float:
-    marker_indices = [int(marker) for marker in re.findall(r"\[(\d+)\]", answer_text)]
-    if not marker_indices:
-        return 1.0 if len(answer_text.split()) <= 5 else 0.0
-
-    valid_count = 0
-    for idx in marker_indices:
-        chunk_pos = idx - 1
-        citation = next(
-            (item for item in citations if item.get("citation_index") == idx),
-            None,
-        )
-        if (
-            citation
-            and 0 <= chunk_pos < len(evidence_chunks)
-            and str((evidence_chunks[chunk_pos].content if hasattr(evidence_chunks[chunk_pos], "content") else evidence_chunks[chunk_pos].get("content", "")) or "").strip()
-            and str(citation.get("excerpt") or "").strip()
-        ):
-            valid_count += 1
-
-    return valid_count / len(marker_indices)
-
-
-def _context_coverage(answer_text: str) -> float:
-    claim_pattern = re.compile(
-        r"([A-Z0-9][^.!?]*[.!?])\s*(\[\d+\](?:\s*\[\d+\])*)?",
-        re.IGNORECASE | re.DOTALL,
-    )
-    matches = claim_pattern.findall(answer_text)
-    if not matches:
-        return 1.0 if re.search(r"\[\d+\]", answer_text) else 0.0
-
-    total = 0
-    cited = 0
-    for sentence, trailing_markers in matches:
-        if len(sentence.split()) <= 2:
-            continue
-        total += 1
-        if trailing_markers or re.search(r"\[\d+\]", sentence):
-            cited += 1
-
-    return cited / total if total else 1.0
-
-
-def _retrieval_quality(evidence_chunks: list[Any], retrieval_result: Any) -> float:
-    if not evidence_chunks:
-        return 0.0
-    if retrieval_result is None:
-        return 1.0
-
-    final_evidence = getattr(retrieval_result, "final_evidence", evidence_chunks)
-    if not final_evidence:
-        return 0.0
-
-    requested = getattr(retrieval_result, "top_k_requested", len(final_evidence)) or 1
-    count_score = min(len(final_evidence) / requested, 1.0)
-    if len(final_evidence) == len(evidence_chunks):
-        return count_score
-
-    non_empty_ratio = len(evidence_chunks) / len(final_evidence)
-    return round((count_score + non_empty_ratio) / 2, 4)
-
-
 class ChatOrchestrator:
-    """Orchestrates RAG chat flows: retrieval -> streaming generation -> persistence."""
+    """Thin adapter orchestrating RAG chat flows via the canonical AIWrapperService."""
 
     def __init__(
         self,
         chat_repo: ChatRepository,
-        retrieval_orchestrator: RetrievalOrchestrator,
-        streaming_generation: StreamingGroundedGenerationService
+        ai_wrapper_service: AIWrapperService
     ):
         self.chat_repo = chat_repo
-        self.retrieval_orchestrator = retrieval_orchestrator
-        self.streaming_generation = streaming_generation
+        self.ai_wrapper_service = ai_wrapper_service
 
     async def stream_chat(
         self,
@@ -148,13 +49,66 @@ class ChatOrchestrator:
         tenant_id: str,
         user_id: str,
         query: str,
-        correlation_id: str
+        correlation_id: str,
+        workspace_id: uuid.UUID | None = None,
+        last_event_id: str | None = None
     ) -> AsyncGenerator[str, None]:
-        from backend.database.engine import get_session_factory
         session_maker = get_session_factory()
         started_at = time.perf_counter()
+        settings = get_settings()
+        redis = get_redis_client()
 
-        # 1. Save User Message
+        SSE_ACTIVE_STREAMS.inc()
+        stream_chunks_count = 0
+        redis_key = f"raguard:{tenant_id}:sse:{correlation_id}"
+
+        # 0. SSE Recovery (F8.4)
+        if last_event_id and settings.features.enable_sse_recovery:
+            SSE_RECONNECTS_TOTAL.inc()
+            parts = last_event_id.split(":")
+            if len(parts) == 2 and parts[0] == correlation_id:
+                last_chunk_index = int(parts[1])
+                chunks = await redis.lrange(redis_key, 0, -1)
+
+                if not chunks:
+                    SSE_REDIS_BUFFER_MISSES_TOTAL.inc()
+                    err = SSEMessageDTO.error(
+                        code="STREAM_EXPIRED",
+                        message="Stream replay buffer expired. Please regenerate the request.",
+                        correlation_id=correlation_id,
+                        recoverable=False
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                SSE_REDIS_BUFFER_HITS_TOTAL.inc()
+                for chunk_bytes in chunks:
+                    chunk_data = json.loads(chunk_bytes)
+                    if chunk_data["chunk_index"] > last_chunk_index:
+                        dto = SSEMessageDTO(
+                            id=SSEMessageDTO.format_id(correlation_id, chunk_data["chunk_index"]),
+                            event=chunk_data["event_type"],
+                            data=chunk_data["payload"]
+                        )
+                        yield dto.to_sse_string()
+                        SSE_REPLAYED_CHUNKS_TOTAL.inc()
+
+                # In Replay-Only variant, we just replay cached data and stop.
+                SSE_ACTIVE_STREAMS.dec()
+                return
+
+        # Determine active workspace from session_id
+        if workspace_id is None:
+            from backend.workspace.models.workspace import Workspace
+            async with session_maker() as session:
+                ws_res = await session.execute(
+                    select(Workspace).where(Workspace.tenant_id == uuid.UUID(tenant_id)).limit(1)
+                )
+                ws = ws_res.scalar_one_or_none()
+                workspace_id = ws.id if ws else uuid.uuid4()
+
+        # 1. Save User Message (Idempotency check: only if not recovering)
         async with session_maker() as session:
             repo = ChatRepository(session)
             await repo.add_message(
@@ -168,11 +122,6 @@ class ChatOrchestrator:
             )
 
         # 1.5 Check if knowledge base is still processing
-        from sqlalchemy import select
-
-        from backend.document.models.document import Document
-        from backend.document.models.status import DocumentStatus
-
         processing_statuses = [
             DocumentStatus.UPLOADED,
             DocumentStatus.PENDING,
@@ -189,21 +138,19 @@ class ChatOrchestrator:
         ]
 
         async with session_maker() as session:
-            # Check for any READY documents
             ready_result = await session.execute(
                 select(Document).where(
-                    Document.tenant_id == tenant_id,
+                    Document.tenant_id == uuid.UUID(tenant_id),
                     Document.status == DocumentStatus.READY
                 ).limit(1)
             )
             has_ready_doc = ready_result.scalar_one_or_none() is not None
 
-            # If no READY documents exist, check if we are still processing others
             has_processing_doc = False
             if not has_ready_doc:
                 proc_result = await session.execute(
                     select(Document).where(
-                        Document.tenant_id == tenant_id,
+                        Document.tenant_id == uuid.UUID(tenant_id),
                         Document.status.in_(processing_statuses)
                     ).limit(1)
                 )
@@ -212,7 +159,6 @@ class ChatOrchestrator:
             if not has_ready_doc and has_processing_doc:
                 msg = "Your knowledge base is currently being prepared. Document processing is still in progress."
 
-                # Stream the message
                 chunk = StreamingGenerationChunkDTO(
                     chunk_index=0,
                     text_delta=msg,
@@ -221,149 +167,221 @@ class ChatOrchestrator:
                     citations_delta=[],
                     correlation_id=correlation_id
                 )
-                yield f"data: {chunk.model_dump_json()}\n\n"
 
-                # Save assistant message
-                async with session_maker() as session:
-                    repo = ChatRepository(session)
-                    await repo.add_message(
-                        session_id=session_id,
-                        tenant_id=tenant_id,
-                        user_id=user_id,
-                        dto=ChatMessageCreateDTO(
-                            role="assistant",
-                            message=msg,
-                            citations=[],
-                            reliability_score=1.0,
-                            metadata_json={"system_message": True}
-                        )
+                dto = SSEMessageDTO(
+                    id=SSEMessageDTO.format_id(correlation_id, 0),
+                    event="chunk",
+                    data=chunk.model_dump_json()
+                )
+                yield dto.to_sse_string()
+
+                repo = ChatRepository(session)
+                await repo.add_message(
+                    session_id=session_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    dto=ChatMessageCreateDTO(
+                        role="assistant",
+                        message=msg,
+                        citations=[],
+                        reliability_score=1.0,
+                        metadata_json={"system_message": True}
                     )
+                )
+                SSE_ACTIVE_STREAMS.dec()
                 return
 
-
-
-
-        # 2. Retrieve Evidence (Hybrid Search)
-        search_request = SearchRequestDTO(
+        # 2. Delegate to AIWrapperService
+        req = AIWrapperRequest(
+            session_id=uuid.UUID(session_id) if '-' in session_id else None,
+            workspace_id=workspace_id,
+            tenant_id=uuid.UUID(tenant_id),
             query=query,
-            top_k=5,
-            rerank=True,
-            semantic_weight=0.7
-        )
-
-        retrieval_result = None
-        try:
-            retrieval_result = await self.retrieval_orchestrator.execute_hybrid_search(
-                options=search_request,
-                tenant_id=tenant_id,
-                correlation_id=correlation_id
-            )
-
-            # Use the canonical DTOs directly to preserve metadata
-            evidence_chunks = retrieval_result.final_evidence if retrieval_result.final_evidence else []
-
-
-        except Exception as e:
-            logger.error("Chat retrieval failed", error=str(e))
-            import traceback
-            traceback.print_exc()
-            evidence_chunks = []
-
-        # 3. Stream Generation & Build Final Message
-        gen_request = GenerationRequestDTOv2(
-            query=query,
-            evidence_chunks=evidence_chunks,
-            correlation_id=correlation_id,
-            tenant_id=tenant_id,
             stream=True
         )
 
         full_assistant_text = ""
         final_citations = []
         is_grounded = False
-
-
+        reliability_score = 1.0
+        is_interrupted = False
 
         try:
-            chunk_count = 0
-            async for chunk in self.streaming_generation.generate_stream(gen_request):
-                chunk_count += 1
-                if chunk.text_delta:
-                    full_assistant_text += chunk.text_delta
+            iterator = self.ai_wrapper_service.stream_request(req, uuid.UUID(user_id), correlation_id).__aiter__()
 
-                if chunk.is_final:
-                    final_citations = [c.model_dump() for c in chunk.citations_delta]
-                    is_grounded = chunk.is_fully_grounded
+            while True:
+                try:
+                    # Heartbeat handling (F8.4)
+                    timeout = 25.0 if settings.features.enable_sse_heartbeat else None
+                    if timeout:
+                        chunk = await asyncio.wait_for(iterator.__anext__(), timeout=timeout)
+                    else:
+                        chunk = await iterator.__anext__()
 
-                yield f"data: {chunk.model_dump_json()}\n\n"
+                    if chunk.text_delta:
+                        full_assistant_text += chunk.text_delta
 
+                    if chunk.is_final:
+                        final_citations = [c.model_dump() for c in chunk.citations_delta]
+                        is_grounded = chunk.is_fully_grounded
+                        if chunk.wrapper_metadata and "reliability_score" in chunk.wrapper_metadata:
+                            reliability_score = chunk.wrapper_metadata["reliability_score"]
 
-        except Exception:
+                    # F8.3 SSE DTO
+                    dto = SSEMessageDTO(
+                        id=SSEMessageDTO.format_id(correlation_id, chunk.chunk_index),
+                        event="chunk",
+                        data=chunk.model_dump_json()
+                    )
+
+                    # F8.4 Redis Buffer
+                    if settings.features.enable_sse_recovery:
+                        record = {
+                            "correlation_id": correlation_id,
+                            "chunk_index": chunk.chunk_index,
+                            "timestamp": time.time(),
+                            "event_type": "chunk",
+                            "payload": chunk.model_dump_json()
+                        }
+                        await redis.rpush(redis_key, json.dumps(record))
+                        if chunk.chunk_index == 0:
+                            await redis.expire(redis_key, 300)
+
+                    yield dto.to_sse_string()
+                    stream_chunks_count += 1
+
+                except TimeoutError:
+                    if settings.features.enable_sse_heartbeat:
+                        yield SSEMessageDTO.heartbeat().to_sse_string()
+                    continue
+                except StopAsyncIteration:
+                    break
+
+        except asyncio.CancelledError:
+            # F8.6 Graceful Cancellation & Partial Persistence
+            logger.warning("Chat stream cancelled by client", session_id=session_id)
+            is_interrupted = True
+            SSE_CANCELLATIONS_TOTAL.inc()
+
+            # Rethrowing to ensure propagation and cleanup in upstream wrappers/providers
+            raise
+        except Exception as e:
+            logger.error("AI Wrapper stream failed", error=str(e))
+
+            from backend.modules.security.middleware.evaluators import PolicyViolationError
+            if isinstance(e, PolicyViolationError):
+                err = SSEMessageDTO.error(
+                    code="POLICY_VIOLATION",
+                    message=str(e),
+                    correlation_id=correlation_id,
+                    recoverable=False
+                )
+                yield err.to_sse_string()
+                return
+
+            if settings.features.enable_timeout_events:
+                from backend.observability.metrics.prometheus import SSE_TIMEOUTS_TOTAL
+                err_msg = str(e).lower()
+                if "timeout" in err_msg or "abort" in err_msg:
+                    timeout_type = "ttft_timeout" if "ttft" in err_msg else "inter_token_timeout"
+                    SSE_TIMEOUTS_TOTAL.labels(timeout_type=timeout_type).inc()
+                    err = SSEMessageDTO.error(
+                        code="STREAM_TIMEOUT",
+                        message="The AI engine took too long to respond. Please try again.",
+                        correlation_id=correlation_id,
+                        recoverable=True
+                    )
+                    yield err.to_sse_string()
+                    return
+
+                err = SSEMessageDTO.error(
+                    code="INTERNAL_ERROR",
+                    message="An internal error occurred during generation.",
+                    correlation_id=correlation_id,
+                    recoverable=False
+                )
+                yield err.to_sse_string()
+                return
 
             raise
+        finally:
+            SSE_ACTIVE_STREAMS.dec()
+            SSE_CHUNKS_PER_STREAM.observe(stream_chunks_count)
+            duration_seconds = time.perf_counter() - started_at
+            SSE_STREAM_DURATION_SECONDS.observe(duration_seconds)
 
+            # 3. Save Assistant Message (F8.6 Partial Persistence)
+            if full_assistant_text or is_interrupted:
+                metadata = {
+                    "is_fully_grounded": is_grounded,
+                    "reliability_score": reliability_score,
+                }
 
-        reliability_score = compute_chat_reliability_score(
-            answer_text=full_assistant_text,
-            evidence_chunks=evidence_chunks,
-            citations=final_citations,
-            is_grounded=bool(is_grounded),
-            retrieval_result=retrieval_result,
-        )
+                if is_interrupted and settings.features.enable_partial_persistence:
+                    metadata.update({
+                        "status": "PARTIAL",
+                        "is_interrupted": True,
+                        "completed": False
+                    })
 
-        # 4. Save Assistant Message
-        async with session_maker() as session:
-            repo = ChatRepository(session)
-            await repo.add_message(
-                session_id=session_id,
-                tenant_id=tenant_id,
-                user_id=user_id,
-                dto=ChatMessageCreateDTO(
-                    role="assistant",
-                    message=full_assistant_text.strip(),
-                    citations=final_citations,
-                    reliability_score=reliability_score,
-                    metadata_json={
-                        "is_fully_grounded": is_grounded,
-                        "reliability_score": reliability_score,
-                    }
-                )
-            )
+                # Only write to DB if we actually got text or settings enable partial
+                if full_assistant_text or settings.features.enable_partial_persistence:
+                    # In a real app we need to ensure not to await in finally for db if session closed,
+                    # but here we get a new session.
+                    # Since CancelledError cancels this task, asyncio shield or similar might be needed.
+                    # But the architecture specifically says "propagate CancelledError natively, persist partial message".
+                    # Let's create a background task or run it shielded.
+                    async def _persist():
+                        async with get_session_factory()() as sess:
+                            repo = ChatRepository(sess)
+                            await repo.add_message(
+                                session_id=session_id,
+                                tenant_id=tenant_id,
+                                user_id=user_id,
+                                dto=ChatMessageCreateDTO(
+                                    role="assistant",
+                                    message=full_assistant_text.strip(),
+                                    citations=final_citations,
+                                    reliability_score=reliability_score,
+                                    metadata_json=metadata
+                                )
+                            )
 
+                    asyncio.create_task(_persist())
 
-        duration_seconds = time.perf_counter() - started_at
-        outcome = "SUCCESS" if is_grounded else "UNGROUNDED"
-
-        try:
-            from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
-            from backend.observability.metrics import (
-                record_query_metric,
-                record_reliability_metric,
-            )
-
-            async with session_maker() as session:
-                session.add(
-                    QueryAnalyticsRecord(
-                        tenant_id=tenant_id,
-                        correlation_id=correlation_id,
-                        query_text=query,
-                        outcome=outcome,
-                        total_duration_ms=round(duration_seconds * 1000.0, 2),
-                        confidence_score=reliability_score,
-                        hallucination_score=round(1.0 - reliability_score, 4),
-                        reliability_score=reliability_score,
-                        retry_attempts=0,
-                        is_safe_to_serve=is_grounded,
+            # 4. Analytics
+            if not is_interrupted:
+                outcome = "SUCCESS" if is_grounded else "UNGROUNDED"
+                try:
+                    from backend.modules.analytics.models.query_analytics import (
+                        QueryAnalyticsRecord,
                     )
-                )
-                await session.commit()
+                    from backend.observability.metrics import (
+                        record_query_metric,
+                        record_reliability_metric,
+                    )
 
-            record_query_metric(tenant_id, outcome, duration_seconds)
-            record_reliability_metric(reliability_score)
-        except Exception as exc:
-            logger.error(
-                "Chat analytics recording failed",
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                error=str(exc),
-            )
+                    async def _analytics():
+                        async with get_session_factory()() as sess:
+                            sess.add(
+                                QueryAnalyticsRecord(
+                                    tenant_id=uuid.UUID(tenant_id),
+                                    correlation_id=correlation_id,
+                                    query_text=query,
+                                    outcome=outcome,
+                                    total_duration_ms=round(duration_seconds * 1000.0, 2),
+                                    confidence_score=reliability_score,
+                                    hallucination_score=round(1.0 - reliability_score, 4),
+                                    reliability_score=reliability_score,
+                                    retry_attempts=0,
+                                    is_safe_to_serve=is_grounded,
+                                )
+                            )
+                            await sess.commit()
+
+                        record_query_metric(tenant_id, outcome, duration_seconds)
+                        record_reliability_metric(reliability_score)
+
+                    asyncio.create_task(_analytics())
+                except Exception as exc:
+                    logger.error("Chat analytics background task failed", error=str(exc))

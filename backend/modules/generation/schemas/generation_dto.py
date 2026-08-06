@@ -4,6 +4,7 @@ from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
 
 
 class CitationDTO(BaseModel):
+    id: str | None = Field(None, description="Deterministic citation ID")
     citation_index: int = Field(
         ...,
         description="1-based index of the citation marker in the answer text, e.g. [1]",
@@ -115,4 +116,5 @@ class StreamingGenerationChunkDTO(BaseModel):
     is_fully_grounded: bool | None = Field(
         default=None, description="Evaluated on final chunk"
     )
+    wrapper_metadata: dict | None = Field(default=None)
     model_config = ConfigDict(from_attributes=True)

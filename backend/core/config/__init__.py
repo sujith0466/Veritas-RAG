@@ -27,6 +27,7 @@ from .retrieval import RetrievalSettings
 from .security import SecuritySettings
 from .startup import StartupSettings
 from .supabase import SupabaseSettings
+from .v1_engine import V1EngineSettings
 
 
 class Settings:
@@ -52,6 +53,7 @@ class Settings:
         self.embeddings = EmbeddingSettings()
         self.retrieval = RetrievalSettings()
         self.startup = StartupSettings()
+        self.v1_engine = V1EngineSettings()
 
     @property
     def is_development(self) -> bool:
@@ -91,5 +93,6 @@ __all__ = [
     "ServerSettings",
     "Settings",
     "SupabaseSettings",
+    "V1EngineSettings",
     "get_settings",
 ]

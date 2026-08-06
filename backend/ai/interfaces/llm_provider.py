@@ -25,6 +25,8 @@ class LLMRequest:
     system_instruction: str | None = None
     temperature: float | None = None
     max_output_tokens: int | None = None
+    tenant_id: str | None = None
+    workspace_id: str | None = None
     # If True, use gemini-2.0-flash-lite for lightweight classification/routing tasks
     use_lite_model: bool = False
 

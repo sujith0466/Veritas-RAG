@@ -115,6 +115,7 @@ async def stream_chat(
     user: UserContext = Depends(get_current_user)
 ):
     correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+    last_event_id = request.headers.get("last-event-id")
 
     return StreamingResponse(
         orchestrator.stream_chat(
@@ -122,7 +123,8 @@ async def stream_chat(
             tenant_id=user.tenant_id,
             user_id=str(user.id),
             query=dto.query,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
+            last_event_id=last_event_id
         ),
         media_type="text/event-stream"
     )

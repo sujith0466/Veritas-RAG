@@ -64,6 +64,45 @@ class FeatureFlagSettings(BaseSettings):
         description="Enable OpenTelemetry distributed tracing",
     )
 
+    # Epic 8 Streaming Resilience
+    enable_sse_recovery: bool = Field(
+        default=False,
+        alias="ENABLE_SSE_RECOVERY",
+        description="Enable SSE Last-Event-ID recovery and Redis caching (F8.4)",
+    )
+    enable_sse_heartbeat: bool = Field(
+        default=False,
+        alias="ENABLE_SSE_HEARTBEAT",
+        description="Enable heartbeat events during long streams (F8.4)",
+    )
+    enable_timeout_events: bool = Field(
+        default=False,
+        alias="ENABLE_TIMEOUT_EVENTS",
+        description="Enable structured timeout error events (F8.5)",
+    )
+    enable_partial_persistence: bool = Field(
+        default=False,
+        alias="ENABLE_PARTIAL_PERSISTENCE",
+        description="Enable partial chat message persistence on disconnect (F8.6)",
+    )
+
+    # Epic 8 Batch 3 Streaming Enhancements & Policy
+    enable_streaming_reliability: bool = Field(
+        default=False,
+        alias="ENABLE_STREAMING_RELIABILITY",
+        description="Enable incremental streaming reliability score updates (F8.7)",
+    )
+    enable_streaming_citations: bool = Field(
+        default=False,
+        alias="ENABLE_STREAMING_CITATIONS",
+        description="Enable progressive streaming of citations (F8.8)",
+    )
+    enable_ai_policy_engine: bool = Field(
+        default=False,
+        alias="ENABLE_AI_POLICY_ENGINE",
+        description="Enable AI Policy Middleware for token/topic/PII enforcement (F8.9)",
+    )
+
     model_config = {
         "populate_by_name": True,
         "env_file": (".env", ".env.local"),

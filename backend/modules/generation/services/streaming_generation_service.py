@@ -62,6 +62,25 @@ class StreamingGroundedGenerationService:
             )
             return
 
+        from backend.core.config import get_settings
+        settings = get_settings()
+        enable_citations = settings.features.enable_streaming_citations
+        enable_reliability = settings.features.enable_streaming_reliability
+
+        window_buffer = ""
+        reliability_engine = None
+        if enable_reliability:
+            from backend.modules.reliability.services.reliability_engine import ReliabilityEngine
+            reliability_engine = ReliabilityEngine()
+
+        reliability_version = 0
+        sentence_count = 0
+        update_interval = 2 # Configurable update interval
+
+        import re
+        citation_pattern = re.compile(r'\[(\d+)\]')
+        sentence_pattern = re.compile(r'[.!?]\s')
+
         if self.llm_provider and hasattr(self.llm_provider, "generate_stream"):
             full_text = ""
             chunk_idx = 0
@@ -70,11 +89,46 @@ class StreamingGroundedGenerationService:
                     request.query, evidence_block
                 ):
                     full_text += delta
+                    window_buffer += delta
+
+                    citations_delta = []
+                    metadata = None
+
+                    # F8.8 Progressive Citation Extraction
+                    if enable_citations:
+                        markers = citation_pattern.findall(window_buffer)
+                        for marker_str in markers:
+                            marker = int(marker_str)
+                            cit = self.citation_extractor.extract_single(marker, safe_chunks)
+                            if cit:
+                                citations_delta.append(cit)
+                        # Clear buffer up to last marker to avoid rescanning
+                        if markers:
+                            last_match = list(citation_pattern.finditer(window_buffer))[-1]
+                            window_buffer = window_buffer[last_match.end():]
+
+                    # F8.7 Reliability Score Extraction
+                    if enable_reliability and reliability_engine and sentence_pattern.search(delta):
+                        sentence_count += 1
+                        if sentence_count >= update_interval:
+                                # In a real implementation this would be asyncio.create_task and a callback
+                                # to not block the stream. Here we simulate it async.
+                                score = await reliability_engine.evaluate_incremental(window_buffer, safe_chunks)
+                                reliability_version += 1
+                                metadata = {
+                                    "reliability_score_update": score,
+                                    "reliability_version": reliability_version
+                                }
+                                sentence_count = 0
+                                window_buffer = "" # Reset for next sentence
+
                     yield StreamingGenerationChunkDTO(
                         chunk_index=chunk_idx,
                         text_delta=delta,
+                        citations_delta=citations_delta,
                         is_final=False,
                         correlation_id=request.correlation_id,
+                        wrapper_metadata=metadata
                     )
                     chunk_idx += 1
                     await asyncio.sleep(0.01)
@@ -106,12 +160,12 @@ class StreamingGroundedGenerationService:
             # Deterministic mock streaming fallback
             parts = []
             for i, chunk in enumerate(safe_chunks[:3], start=1):
-                content = chunk.content or ""
-                period_pos = content.find(". ")
+                content = chunk.content if hasattr(chunk, "content") else chunk.get("content", "")
+                period_pos = str(content).find(". ")
                 sentence = (
-                    content[: period_pos + 1]
+                    str(content)[: period_pos + 1]
                     if period_pos > 0
-                    else content[:80].strip().rstrip(".") + "."
+                    else str(content)[:80].strip().rstrip(".") + "."
                 ) + f" [{i}] "
                 parts.append(sentence)
 
@@ -121,11 +175,40 @@ class StreamingGroundedGenerationService:
             batch_size = 4
             for i in range(0, len(words), batch_size):
                 delta = " ".join(words[i : i + batch_size]) + " "
+                window_buffer += delta
+                citations_delta = []
+                metadata = None
+
+                if enable_citations:
+                    markers = citation_pattern.findall(window_buffer)
+                    for marker_str in markers:
+                        marker = int(marker_str)
+                        cit = self.citation_extractor.extract_single(marker, safe_chunks)
+                        if cit:
+                            citations_delta.append(cit)
+                    if markers:
+                        last_match = list(citation_pattern.finditer(window_buffer))[-1]
+                        window_buffer = window_buffer[last_match.end():]
+
+                if enable_reliability and reliability_engine and sentence_pattern.search(delta):
+                    sentence_count += 1
+                    if sentence_count >= update_interval:
+                            score = await reliability_engine.evaluate_incremental(window_buffer, safe_chunks)
+                            reliability_version += 1
+                            metadata = {
+                                "reliability_score_update": score,
+                                "reliability_version": reliability_version
+                            }
+                            sentence_count = 0
+                            window_buffer = ""
+
                 yield StreamingGenerationChunkDTO(
                     chunk_index=chunk_idx,
                     text_delta=delta,
+                    citations_delta=citations_delta,
                     is_final=False,
                     correlation_id=request.correlation_id,
+                    wrapper_metadata=metadata
                 )
                 chunk_idx += 1
                 await asyncio.sleep(0.01)
@@ -136,6 +219,12 @@ class StreamingGroundedGenerationService:
             full_text, citations, safe_chunks
         )
 
+        final_metadata = None
+        if enable_reliability and reliability_engine:
+            final_metadata = {
+                "reliability_score": reliability_engine.current_score
+            }
+
         yield StreamingGenerationChunkDTO(
             chunk_index=chunk_idx,
             text_delta="",
@@ -143,4 +232,5 @@ class StreamingGroundedGenerationService:
             is_final=True,
             correlation_id=request.correlation_id,
             is_fully_grounded=is_grounded,
+            wrapper_metadata=final_metadata
         )
