@@ -22,8 +22,7 @@ class ChatRepository:
     async def list_sessions(self, tenant_id: str, user_id: str, limit: int = 50, offset: int = 0) -> list[ChatSession]:
         stmt = (
             select(ChatSession)
-            .where(ChatSession.tenant_id == tenant_id, ChatSession.user_id == user_id)
-            .options(selectinload(ChatSession.messages))
+            .where(ChatSession.tenant_id == tenant_id, ChatSession.user_id == user_id, ChatSession.archived == False)
             .order_by(desc(ChatSession.updated_at))
             .limit(limit)
             .offset(offset)

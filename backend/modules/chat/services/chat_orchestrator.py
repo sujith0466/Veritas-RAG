@@ -126,7 +126,10 @@ class ChatOrchestrator:
             from backend.models.entities.workspace import Workspace
             async with session_maker() as session:
                 ws_res = await session.execute(
-                    select(Workspace).where(Workspace.tenant_id == uuid.UUID(tenant_id)).limit(1)
+                    select(Workspace)
+                    .where(Workspace.tenant_id == uuid.UUID(tenant_id))
+                    .order_by(Workspace.created_at.asc())
+                    .limit(1)
                 )
                 ws = ws_res.scalar_one_or_none()
                 workspace_id = ws.id if ws else uuid.uuid4()

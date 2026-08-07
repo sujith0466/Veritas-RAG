@@ -49,8 +49,12 @@ async def run_audit():
 
     # We need a tenant_id. Let's get demoadmin tenant_id
     async with session_maker() as session:
-        admin = (await session.execute(select(User).where(User.email == "demoadmin@gmail.com"))).scalar_one_or_none()
+        qa_email = get_settings().app.qa_email
+        admin = (await session.execute(select(User).where(User.email == qa_email))).scalar_one_or_none()
         if not admin:
+            print(f"User {qa_email} not found. Run 'make qa-bootstrap'.")
+            return
+
             print("No admin user found.")
             return
         tenant_id = admin.tenant_id

@@ -124,7 +124,12 @@ async def stream_chat(
             user_id=str(user.id),
             query=dto.query,
             correlation_id=correlation_id,
+            workspace_id=dto.workspace_id,
             last_event_id=last_event_id
         ),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        }
     )

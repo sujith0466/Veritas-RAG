@@ -69,8 +69,8 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
 
     # 1. Accounts Setup
     accounts = [
-        {"email": "demoadmin@gmail.com", "password": "ChangeMe123!", "role": "admin", "tenant": "demo-tenant-1"},
-        {"email": "demo@gmail.com", "password": "ChangeMe123!", "role": "viewer", "tenant": "demo-tenant-1"}
+        {"email": "qa@raguard.ai", "password": "RaguardQA2026!", "role": "admin", "tenant": "demo-tenant-1"},
+        {"email": "user@raguard.ai", "password": "RaguardQA2026!", "role": "viewer", "tenant": "demo-tenant-1"}
     ]
 
     jwts = {}
@@ -143,20 +143,20 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
     # 2. Seeding Enterprise Data via Real API
     print("\n=== Seeding Enterprise Data ===")
     if not jwts:
-        # If seed_only, we need to login as demoadmin to upload.
+        # If seed_only, we need to login as qa@raguard.ai to upload.
         async with httpx.AsyncClient() as client:
             auth_resp = await client.post(
                 f"{supabase_url}/auth/v1/token?grant_type=password",
                 headers=anon_headers,
-                json={"email": "demoadmin@gmail.com", "password": "ChangeMe123!"}
+                json={"email": "qa@raguard.ai", "password": "RaguardQA2026!"}
             )
             if auth_resp.status_code == 200:
-                jwts["demoadmin@gmail.com"] = auth_resp.json()["access_token"]
+                jwts["qa@raguard.ai"] = auth_resp.json()["access_token"]
             else:
                 print(f"❌ Failed to login to seed data: {auth_resp.text}")
                 sys.exit(1)
 
-    admin_token = jwts["demoadmin@gmail.com"]
+    admin_token = jwts["qa@raguard.ai"]
     headers = {"Authorization": f"Bearer {admin_token}"}
 
     async with httpx.AsyncClient(base_url=api_url, timeout=30.0) as client:

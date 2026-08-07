@@ -136,13 +136,26 @@ cp .env.example .env
 ### 3. Launch with Docker Compose
 ```bash
 docker-compose up --build -d
+make migrate
 ```
 Services initialized:
 - **FastAPI Backend:** `http://localhost:8000` (Swagger UI at `/docs`)
-- **React Frontend:** `http://localhost:3000`
+- **React Frontend:** `http://localhost:5173`
 - **PostgreSQL:** `localhost:5432`
 - **Redis:** `localhost:6379`
 - **Qdrant:** `localhost:6333`
+
+### 4. Developer Onboarding & QA
+To automatically set up a QA Admin account, tenant, and populate sample enterprise data:
+```bash
+make qa-bootstrap
+```
+You can now log in at `http://localhost:5173/auth/login` using the credentials defined in your `.env` file (Default: `QA_EMAIL` and `QA_PASSWORD`).
+
+To reset your environment (wipes the database and restarts from scratch):
+```bash
+make reset
+```
 
 ---
 

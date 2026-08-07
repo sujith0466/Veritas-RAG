@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -48,3 +49,4 @@ class ChatRequestDTO(BaseModel):
     query: str = Field(..., description="The user's chat message")
     stream: bool = Field(default=True, description="Whether to stream the response")
     max_answer_tokens: int = Field(default=1024)
+    workspace_id: uuid.UUID | None = Field(default=None, description="Optional workspace identifier")

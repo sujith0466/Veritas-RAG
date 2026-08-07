@@ -13,6 +13,10 @@ class AppSettings(BaseSettings):
     debug: bool = Field(default=False, alias="APP_DEBUG")
     secret_key: str = Field(alias="APP_SECRET_KEY")
 
+    # QA / Onboarding Default Credentials
+    qa_email: str = Field(default="qa@raguard.ai", alias="QA_EMAIL")
+    qa_password: str = Field(default="RaguardQA2026!", alias="QA_PASSWORD")
+
     model_config = {
         "populate_by_name": True,
         "env_file": (".env", ".env.local"),

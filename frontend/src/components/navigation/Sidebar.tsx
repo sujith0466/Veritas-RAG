@@ -19,7 +19,9 @@ import {
 
   Pencil,
   Trash2,
-  Pin
+  Pin,
+  Archive,
+  ArchiveRestore
 } from 'lucide-react'
 import { isToday, isYesterday, isThisWeek, parseISO } from 'date-fns'
 
@@ -65,7 +67,7 @@ export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const user = useAuthStore((s) => s.user)
 
-  const { sessions, fetchSessions, updateSession, deleteSession } = useChatStore()
+  const { sessions, fetchSessions, updateSession, deleteSession, archiveSession, restoreSession } = useChatStore()
 
   useEffect(() => {
     fetchSessions()
@@ -219,19 +221,21 @@ export function Sidebar() {
                   location={location}
                   onDelete={deleteSession}
                   onUpdate={updateSession}
+                  onArchive={archiveSession}
+                  onRestore={restoreSession}
                 />
               )}
               {groupedSessions.today.length > 0 && (
-                <ChatGroup title="Today" sessions={groupedSessions.today} location={location} onDelete={deleteSession} onUpdate={updateSession} />
+                <ChatGroup title="Today" sessions={groupedSessions.today} location={location} onDelete={deleteSession} onUpdate={updateSession} onArchive={archiveSession} onRestore={restoreSession} />
               )}
               {groupedSessions.yesterday.length > 0 && (
-                <ChatGroup title="Yesterday" sessions={groupedSessions.yesterday} location={location} onDelete={deleteSession} onUpdate={updateSession} />
+                <ChatGroup title="Yesterday" sessions={groupedSessions.yesterday} location={location} onDelete={deleteSession} onUpdate={updateSession} onArchive={archiveSession} onRestore={restoreSession} />
               )}
               {groupedSessions.previous7Days.length > 0 && (
-                <ChatGroup title="Previous 7 Days" sessions={groupedSessions.previous7Days} location={location} onDelete={deleteSession} onUpdate={updateSession} />
+                <ChatGroup title="Previous 7 Days" sessions={groupedSessions.previous7Days} location={location} onDelete={deleteSession} onUpdate={updateSession} onArchive={archiveSession} onRestore={restoreSession} />
               )}
               {groupedSessions.older.length > 0 && (
-                <ChatGroup title="Older" sessions={groupedSessions.older} location={location} onDelete={deleteSession} onUpdate={updateSession} />
+                <ChatGroup title="Older" sessions={groupedSessions.older} location={location} onDelete={deleteSession} onUpdate={updateSession} onArchive={archiveSession} onRestore={restoreSession} />
               )}
             </div>
           )}
@@ -264,7 +268,7 @@ export function Sidebar() {
 }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ChatGroup({ title, sessions, location, onDelete, onUpdate }: { title: string, sessions: ChatSession[], location: any, onDelete: any, onUpdate: any }) {
+function ChatGroup({ title, sessions, location, onDelete, onUpdate, onArchive, onRestore }: { title: string, sessions: ChatSession[], location: any, onDelete: any, onUpdate: any, onArchive: any, onRestore: any }) {
   return (
     <div>
       <div className="text-[10px] font-semibold text-muted-foreground/70 tracking-widest uppercase mb-1.5 px-2">
@@ -272,7 +276,7 @@ function ChatGroup({ title, sessions, location, onDelete, onUpdate }: { title: s
       </div>
       <div className="space-y-0.5">
         {sessions.map(session => (
-          <ChatItem key={session.id} session={session} location={location} onDelete={onDelete} onUpdate={onUpdate} />
+          <ChatItem key={session.id} session={session} location={location} onDelete={onDelete} onUpdate={onUpdate} onArchive={onArchive} onRestore={onRestore} />
         ))}
       </div>
     </div>
@@ -280,7 +284,7 @@ function ChatGroup({ title, sessions, location, onDelete, onUpdate }: { title: s
 }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ChatItem({ session, location, onDelete, onUpdate }: { session: ChatSession, location: any, onDelete: any, onUpdate: any }) {
+function ChatItem({ session, location, onDelete, onUpdate, onArchive, onRestore }: { session: ChatSession, location: any, onDelete: any, onUpdate: any, onArchive: any, onRestore: any }) {
   const isActive = location.pathname === `/chat/${session.id}`
   const [isHovered, setIsHovered] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -327,10 +331,24 @@ function ChatItem({ session, location, onDelete, onUpdate }: { session: ChatSess
           <button onClick={(e) => { e.preventDefault(); onUpdate(session.id, { pinned: !session.pinned }) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title={session.pinned ? "Unpin" : "Pin"}>
             <Pin className={cn("h-3 w-3", session.pinned && "fill-current text-foreground")} />
           </button>
-          <button onClick={(e) => { e.preventDefault(); setIsEditing(true) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors">
+          <button onClick={(e) => { e.preventDefault(); setIsEditing(true) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title="Edit">
             <Pencil className="h-3 w-3" />
           </button>
-          <button onClick={(e) => { e.preventDefault(); onDelete(session.id) }} className="p-1 hover:text-destructive text-muted-foreground transition-colors">
+          {session.archived ? (
+            <button onClick={(e) => { e.preventDefault(); onRestore(session.id) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title="Restore">
+              <ArchiveRestore className="h-3 w-3" />
+            </button>
+          ) : (
+            <button onClick={(e) => { e.preventDefault(); onArchive(session.id) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title="Archive">
+              <Archive className="h-3 w-3" />
+            </button>
+          )}
+          <button onClick={(e) => { 
+            e.preventDefault(); 
+            if (window.confirm('Are you sure you want to permanently delete this chat?')) {
+              onDelete(session.id);
+            }
+          }} className="p-1 hover:text-destructive text-muted-foreground transition-colors" title="Delete">
             <Trash2 className="h-3 w-3" />
           </button>
         </div>

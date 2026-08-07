@@ -14,6 +14,7 @@ help:
 	@echo "                   RAGuard AI — Developer Interface                     "
 	@echo "========================================================================"
 	@echo "  make setup       : One-command turnkey onboarding (build, start, migrate)"
+	@echo "  make qa-bootstrap: Run idempotent QA account creation and data seeding"
 	@echo "  make start       : Start all core services in background (docker compose up -d)"
 	@echo "  make stop        : Stop all containers and clean bridge networks"
 	@echo "  make restart     : Restart all containers"
@@ -28,6 +29,14 @@ help:
 setup:
 	@chmod +x ./infrastructure/scripts/*.sh
 	@./infrastructure/scripts/bootstrap.sh
+
+qa-bootstrap:
+	@echo "========================================================================"
+	@echo "          Bootstrapping QA Environment & Test Data                      "
+	@echo "========================================================================"
+	@docker compose exec api python -m backend.core.bootstrap_qa
+	@docker compose exec api python -m backend.core.seed_enterprise_data
+	@echo "✅ QA Bootstrap complete."
 
 start:
 	@docker compose up -d
