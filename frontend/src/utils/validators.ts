@@ -26,7 +26,7 @@ export const registerSchema = z
     workspaceName: z.string().optional(),
     organizationName: z.string().optional(),
     invitationCode: z.string().optional(),
-    role: z.enum(['admin', 'user']).optional(),
+    role: z.enum(['admin', 'viewer']).optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",

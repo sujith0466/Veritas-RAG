@@ -56,7 +56,7 @@ class TestBaseRepository:
     async def test_update(self) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
         repo = BaseRepository(mock_session, User)
-        user = User(email="old@raguard.ai", role="user")
+        user = User(email="old@raguard.ai", role="viewer")
 
         updated = await repo.update(user, role="superadmin")
         assert updated.role == "superadmin"

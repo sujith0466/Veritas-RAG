@@ -63,7 +63,7 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
                 id=uuid.UUID(token_payload.sub),
                 supabase_id=token_payload.sub,
                 email=token_payload.email or "",
-                role=Role(token_payload.role),
+                role=Role.from_str(token_payload.role),
                 is_active=True,
                 tenant_id=token_payload.tenant_id,
                 workspace_name=token_payload.workspace_name

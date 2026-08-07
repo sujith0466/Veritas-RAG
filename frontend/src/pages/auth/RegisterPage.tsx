@@ -6,8 +6,8 @@ import { ArrowLeft, MailCheck } from 'lucide-react'
 
 export function RegisterPage() {
   const [searchParams] = useSearchParams()
-  const initialRole = (searchParams.get('role') as 'admin' | 'user' | null) || null
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user' | null>(initialRole)
+  const initialRole = (searchParams.get('role') as 'admin' | 'viewer' | null) || null
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'viewer' | null>(initialRole)
   const [aiState, setAiState] = useState<AIAssistantState>('idle')
   const [isSuccess, setIsSuccess] = useState(false)
   const navigate = useNavigate()

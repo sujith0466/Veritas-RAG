@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn'
 
 interface RoleSelectorProps {
   mode: 'login' | 'register'
-  onSelect: (role: 'admin' | 'user') => void
+  onSelect: (role: 'admin' | 'viewer') => void
 }
 
 export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
@@ -77,7 +77,7 @@ export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
         <motion.button
           layoutId="auth-form-user"
           variants={itemVariants}
-          onClick={() => onSelect('user')}
+          onClick={() => onSelect('viewer')}
           whileHover={{ scale: 1.02, y: -4 }}
           whileTap={{ scale: 0.98 }}
           className={cn(

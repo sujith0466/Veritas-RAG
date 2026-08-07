@@ -32,7 +32,7 @@ class User(BaseModel):
     theme_preference: Mapped[str | None] = mapped_column(String(20), nullable=True, default="system")
     version: Mapped[int] = mapped_column(default=1, nullable=False, server_default="1")
 
-    role: Mapped[str] = mapped_column(String(50), default="user", nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="viewer", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # F2.1 Registration Fields

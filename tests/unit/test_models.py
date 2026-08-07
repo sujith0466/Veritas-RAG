@@ -19,7 +19,7 @@ class TestEntityModels:
         # Verify ORM column default definitions for INSERT
         role_col = User.__table__.columns["role"]
         active_col = User.__table__.columns["is_active"]
-        assert role_col.default.arg == "user"
+        assert role_col.default.arg == "viewer"
         assert active_col.default.arg is True
 
     def test_audit_log_model_defaults_and_repr(self) -> None:
@@ -34,7 +34,7 @@ class TestEntityModels:
         assert status_col.default.arg == "success"
 
     def test_base_model_to_dict(self) -> None:
-        user = User(email="test@raguard.ai", role="user")
+        user = User(email="test@raguard.ai", role="viewer")
         user_dict = user.to_dict()
         assert user_dict["email"] == "test@raguard.ai"
-        assert user_dict["role"] == "user"
+        assert user_dict["role"] == "viewer"

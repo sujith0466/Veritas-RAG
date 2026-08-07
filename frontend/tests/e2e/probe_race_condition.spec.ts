@@ -121,7 +121,7 @@ async function injectProbe(page: Page) {
 
 test("RC_PROBE v3: Race condition with existing session precondition", async ({ page }) => {
   test.setTimeout(120000);
-  await login(page, "user");
+  await login(page, "viewer");
 
   if (!page.url().includes("/chat/")) {
     const sessionListResp = await page.waitForResponse(

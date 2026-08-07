@@ -7,7 +7,7 @@ test.describe("Manual Validation Automation", () => {
   test("execute all 5 manual scenarios successfully", async ({ page }) => {
     // SCENARIO 1: New chat
     console.log("=== SCENARIO 1: New Chat ===");
-    await login(page, "user");
+    await login(page, "viewer");
     await page.goto("/chat");
     await expect(page).toHaveURL(/.*\/chat$/);
 

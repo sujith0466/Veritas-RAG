@@ -5,7 +5,7 @@ test.describe('Retrieval Suite @retrieval', () => {
   test.beforeEach(async ({ page }) => {
     setupConsoleListener(page);
     setupNetworkListener(page);
-    await login(page, 'user');
+    await login(page, 'viewer');
   });
 
   test('Citations, Reliability Score, and Metadata Source Names', async ({ page }) => {

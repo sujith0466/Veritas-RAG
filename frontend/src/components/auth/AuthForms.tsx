@@ -26,7 +26,7 @@ const loginSchema = z.object({
 })
 type LoginFormData = z.infer<typeof loginSchema>
 
-export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormProps & { role: 'admin' | 'user' }) {
+export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormProps & { role: 'admin' | 'viewer' }) {
   const { login } = useAuth()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -304,7 +304,7 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
     try {
       await registerAuth({
         ...data,
-        role: 'user',
+        role: 'viewer',
       })
       onSuccess()
     } catch (error: unknown) {

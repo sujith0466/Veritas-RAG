@@ -117,7 +117,7 @@ class JWTService:
             return TokenPayload(
                 sub=sub,
                 email=None,  # We don't necessarily encode email in access token to keep it small
-                role=str(raw_claims.get("role", "user")),
+                role=str(raw_claims.get("role", "viewer")),
                 tenant_id=None,
                 workspace_name=workspace_id if workspace_id else "None",
                 full_name=None,

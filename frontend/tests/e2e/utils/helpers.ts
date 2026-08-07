@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test';
 
-export async function login(page: Page, role: 'admin' | 'user' = 'admin') {
+export async function login(page: Page, role: 'admin' | 'viewer' = 'admin') {
   await page.goto('/auth/login');
   // Click the role card based on role
   await page.locator(`text="${role === 'admin' ? 'Admin Workspace' : 'Workspace Member'}"`).click();

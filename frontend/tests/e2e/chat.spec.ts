@@ -5,7 +5,7 @@ test.describe('Chat Suite @chat', () => {
   test.beforeEach(async ({ page }) => {
     setupConsoleListener(page);
     setupNetworkListener(page);
-    await login(page, 'user');
+    await login(page, 'viewer');
   });
 
   test('Navigate, Send Prompt, Verify Stream and Completion', async ({ page }) => {

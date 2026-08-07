@@ -213,7 +213,7 @@ class AuthService:
                 email=email_normalized,
                 is_verified=True, # Trust OIDC email verification
                 verified_at=datetime.datetime.now(datetime.UTC),
-                role="user",
+                role="viewer",
                 is_active=True
             )
             self.session.add(user)

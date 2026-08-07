@@ -5,7 +5,7 @@ import { RoleSelector, AIAssistant, LoginForm, WorkspaceLoader, type AIAssistant
 import { ArrowLeft } from 'lucide-react'
 
 export function LoginPage() {
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user' | null>(null)
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'viewer' | null>(null)
   const [aiState, setAiState] = useState<AIAssistantState>('idle')
   const [isSuccess, setIsSuccess] = useState(false)
   const navigate = useNavigate()

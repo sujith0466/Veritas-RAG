@@ -2,7 +2,7 @@
  * Auth type definitions — mirror backend UserContext exactly.
  */
 
-export type Role = 'admin' | 'user'
+export type Role = 'owner' | 'admin' | 'member' | 'engineer' | 'analyst' | 'viewer' | 'platform_admin' | 'platform_support' | 'platform_auditor'
 
 export type AuthStatus = 'UNAUTHENTICATED' | 'LOADING' | 'AUTHENTICATED' | 'ERROR'
 

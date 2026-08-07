@@ -13,7 +13,7 @@ import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 BASE = os.path.abspath(".")
-ARTIFACTS_DIR = r"C:\Users\asus\.gemini\antigravity\brain\5126a278-daae-4786-a767-19ae74dba737"
+ARTIFACTS_DIR = os.environ.get("ARTIFACTS_DIR", os.path.join(BASE, "artifacts"))
 ARCHIVE_ROOT = os.path.join(BASE, "archive", "implementation-history")
 
 ARCHIVE_SCRIPTS = os.path.join(ARCHIVE_ROOT, "scripts")
