@@ -59,12 +59,13 @@ class AIWrapperService:
 
     async def _validate_workspace(self, req: AIWrapperRequest, user_id: uuid.UUID) -> None:
         """Step 2: Workspace Validation (6-check gate)."""
+
         # 1-4. DB Checks
         session_maker = get_session_factory()
         async with session_maker() as session:
             # Workspace active & features enabled
             workspace = await session.get(Workspace, req.workspace_id)
-            if not workspace or workspace.tenant_id != req.tenant_id or workspace.status.value != "ACTIVE":
+            if not workspace or str(workspace.id) != str(req.tenant_id) or workspace.status != "ACTIVE":
                 raise WorkspaceValidationError("Workspace not found or inactive.")
 
             # (Assuming settings JSON or similar for ai_enabled check, simplified here)
@@ -84,7 +85,7 @@ class AIWrapperService:
             # Ready KB Check
             docs = await session.execute(
                 select(Document).where(
-                    Document.workspace_id == req.workspace_id,
+                    Document.tenant_id == str(req.tenant_id),
                     Document.status == DocumentStatus.READY
                 ).limit(1)
             )
@@ -137,18 +138,16 @@ class AIWrapperService:
 
             # Step 6: Hybrid Retrieval (Timeout 5s)
             search_req = SearchRequestDTO(
+                tenant_id=request.tenant_id,
+                workspace_id=request.workspace_id,
                 query=request.query,
                 top_k=5,
-                rerank=True,
-                semantic_weight=0.7
             )
 
-            # Use binding.collection_name
-            # In Epic 7 RetrievalOrchestrator uses tenant_id for collection resolution,
-            # we ensure consistency here.
+            # Ensure consistency by passing tenant_id to the RetrievalOrchestrator
             retrieval_result = await self.retrieval_orchestrator.execute_hybrid_search(
                 options=search_req,
-                tenant_id=str(request.tenant_id), # Assumes RetrievalOrchestrator maps this internally
+                tenant_id=str(request.tenant_id),
                 correlation_id=correlation_id
             )
 
@@ -182,8 +181,11 @@ class AIWrapperService:
 
             # Map legacy chunks to new wrapper chunks
             async for chunk in self.streaming_generation.generate_stream(gen_request):
+                chunk_dict = chunk.model_dump()
+                chunk_dict.pop("wrapper_metadata", None)
+                chunk_dict.pop("namespace_used", None)
                 wrapper_chunk = AIWrapperStreamChunk(
-                    **chunk.model_dump(),
+                    **chunk_dict,
                     namespace_used=binding.collection_name,
                     wrapper_metadata={"stage": "generation"}
                 )

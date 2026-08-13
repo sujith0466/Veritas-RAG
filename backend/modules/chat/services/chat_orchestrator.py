@@ -41,6 +41,7 @@ from backend.document.models.status import DocumentStatus
 from backend.modules.chat.repositories.chat_repository import ChatRepository
 from backend.modules.chat.schemas import ChatMessageCreateDTO
 from backend.modules.generation.schemas.generation_dto import StreamingGenerationChunkDTO
+from backend.modules.security.middleware.evaluators import PolicyViolationError
 from backend.observability.metrics.prometheus import (
     SSE_ACTIVE_STREAMS,
     SSE_CANCELLATIONS_TOTAL,
@@ -54,6 +55,8 @@ from backend.observability.metrics.prometheus import (
 
 logger = get_logger(__name__)
 
+
+_background_tasks = set()
 
 class ChatOrchestrator:
     """Thin adapter orchestrating RAG chat flows via the canonical AIWrapperService."""
@@ -80,6 +83,20 @@ class ChatOrchestrator:
         started_at = time.perf_counter()
         settings = get_settings()
         redis = get_redis_client()
+
+        try:
+            tenant_uuid = uuid.UUID(tenant_id) if tenant_id else None
+            if not tenant_uuid:
+                raise ValueError("tenant_id is missing")
+        except (ValueError, AttributeError, TypeError):
+            err = SSEMessageDTO.error(
+                code="UNAUTHORIZED",
+                message="Invalid tenant identifier.",
+                correlation_id=correlation_id,
+                recoverable=False
+            )
+            yield err.to_sse_string()
+            return
 
         SSE_ACTIVE_STREAMS.inc()
         stream_chunks_count = 0
@@ -124,28 +141,59 @@ class ChatOrchestrator:
         # Determine active workspace from session_id
         if workspace_id is None:
             from backend.models.entities.workspace import Workspace
-            async with session_maker() as session:
-                ws_res = await session.execute(
-                    select(Workspace)
-                    .where(Workspace.tenant_id == uuid.UUID(tenant_id))
-                    .order_by(Workspace.created_at.asc())
-                    .limit(1)
+            from backend.models.entities.workspace_member import WorkspaceMember
+            try:
+                async with session_maker() as session:
+                    ws_res = await session.execute(
+                        select(Workspace)
+                        .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
+                        .where(WorkspaceMember.user_id == uuid.UUID(user_id))
+                        .order_by(Workspace.created_at.asc())
+                        .limit(1)
+                    )
+                    ws = ws_res.scalar_one_or_none()
+                    if not ws:
+                        err = SSEMessageDTO.error(
+                            code="WORKSPACE_REQUIRED",
+                            message="User has no active workspaces.",
+                            correlation_id=correlation_id,
+                            recoverable=False
+                        )
+                        yield err.to_sse_string()
+                        return
+                    workspace_id = ws.id
+            except Exception as e:
+                import logging
+                logging.error(f"Failed to determine workspace: {e}")
+                err = SSEMessageDTO.error(
+                    code="INTERNAL_ERROR",
+                    message="Failed to resolve active workspace.",
+                    correlation_id=correlation_id,
+                    recoverable=False
                 )
-                ws = ws_res.scalar_one_or_none()
-                workspace_id = ws.id if ws else uuid.uuid4()
+                yield err.to_sse_string()
+                return
 
         # 1. Save User Message (Idempotency check: only if not recovering)
         async with session_maker() as session:
-            repo = ChatRepository(session)
-            await repo.add_message(
-                session_id=session_id,
-                tenant_id=tenant_id,
-                user_id=user_id,
-                dto=ChatMessageCreateDTO(
-                    role="user",
-                    message=query
+            try:
+                repo = ChatRepository(session)
+                await repo.add_message(
+                    session_id=session_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    dto=ChatMessageCreateDTO(
+                        role="user",
+                        message=query
+                    )
                 )
-            )
+            except Exception as e:
+                import traceback
+                error_trace = traceback.format_exc()
+                import logging
+                logging.error(f"add_message crashed: {error_trace}")
+                yield f"data: {{\"event\": \"error\", \"data\": {{\"message\": \"DB crash: {str(e)}\"}}}}\n\n"
+                return
 
         # 1.5 Check if knowledge base is still processing
         processing_statuses = [
@@ -166,7 +214,7 @@ class ChatOrchestrator:
         async with session_maker() as session:
             ready_result = await session.execute(
                 select(Document).where(
-                    Document.tenant_id == uuid.UUID(tenant_id),
+                    Document.tenant_id == tenant_id,
                     Document.status == DocumentStatus.READY
                 ).limit(1)
             )
@@ -176,7 +224,7 @@ class ChatOrchestrator:
             if not has_ready_doc:
                 proc_result = await session.execute(
                     select(Document).where(
-                        Document.tenant_id == uuid.UUID(tenant_id),
+                        Document.tenant_id == tenant_id,
                         Document.status.in_(processing_statuses)
                     ).limit(1)
                 )
@@ -221,7 +269,7 @@ class ChatOrchestrator:
         req = AIWrapperRequest(
             session_id=uuid.UUID(session_id) if '-' in session_id else None,
             workspace_id=workspace_id,
-            tenant_id=uuid.UUID(tenant_id),
+            tenant_id=tenant_uuid,
             query=query,
             stream=True
         )
@@ -294,7 +342,6 @@ class ChatOrchestrator:
         except Exception as e:
             logger.error("AI Wrapper stream failed", error=str(e))
 
-            from backend.modules.security.middleware.evaluators import PolicyViolationError
             if isinstance(e, PolicyViolationError):
                 err = SSEMessageDTO.error(
                     code="POLICY_VIOLATION",
@@ -352,14 +399,9 @@ class ChatOrchestrator:
 
                 # Only write to DB if we actually got text or settings enable partial
                 if full_assistant_text or settings.features.enable_partial_persistence:
-                    # In a real app we need to ensure not to await in finally for db if session closed,
-                    # but here we get a new session.
-                    # Since CancelledError cancels this task, asyncio shield or similar might be needed.
-                    # But the architecture specifically says "propagate CancelledError natively, persist partial message".
-                    # Let's create a background task or run it shielded.
                     async def _persist():
-                        async with get_session_factory()() as sess:
-                            repo = ChatRepository(sess)
+                        async with session_maker() as final_session:
+                            repo = ChatRepository(final_session)
                             await repo.add_message(
                                 session_id=session_id,
                                 tenant_id=tenant_id,
@@ -373,7 +415,9 @@ class ChatOrchestrator:
                                 )
                             )
 
-                    asyncio.create_task(_persist())
+                    t = asyncio.create_task(_persist())
+                    _background_tasks.add(t)
+                    t.add_done_callback(_background_tasks.discard)
 
             # 4. Analytics
             if not is_interrupted:
@@ -391,7 +435,7 @@ class ChatOrchestrator:
                         async with get_session_factory()() as sess:
                             sess.add(
                                 QueryAnalyticsRecord(
-                                    tenant_id=uuid.UUID(tenant_id),
+                                    tenant_id=tenant_id,
                                     correlation_id=correlation_id,
                                     query_text=query,
                                     outcome=outcome,
@@ -408,6 +452,8 @@ class ChatOrchestrator:
                         record_query_metric(tenant_id, outcome, duration_seconds)
                         record_reliability_metric(reliability_score)
 
-                    asyncio.create_task(_analytics())
+                    t = asyncio.create_task(_analytics())
+                    _background_tasks.add(t)
+                    t.add_done_callback(_background_tasks.discard)
                 except Exception as exc:
                     logger.error("Chat analytics background task failed", error=str(exc))

@@ -157,61 +157,11 @@ class StreamingGroundedGenerationService:
                 )
                 return
         else:
-            # Deterministic mock streaming fallback
-            parts = []
-            for i, chunk in enumerate(safe_chunks[:3], start=1):
-                content = chunk.content if hasattr(chunk, "content") else chunk.get("content", "")
-                period_pos = str(content).find(". ")
-                sentence = (
-                    str(content)[: period_pos + 1]
-                    if period_pos > 0
-                    else str(content)[:80].strip().rstrip(".") + "."
-                ) + f" [{i}] "
-                parts.append(sentence)
-
-            full_text = "".join(parts).strip()
-            words = full_text.split()
-            chunk_idx = 0
-            batch_size = 4
-            for i in range(0, len(words), batch_size):
-                delta = " ".join(words[i : i + batch_size]) + " "
-                window_buffer += delta
-                citations_delta = []
-                metadata = None
-
-                if enable_citations:
-                    markers = citation_pattern.findall(window_buffer)
-                    for marker_str in markers:
-                        marker = int(marker_str)
-                        cit = self.citation_extractor.extract_single(marker, safe_chunks)
-                        if cit:
-                            citations_delta.append(cit)
-                    if markers:
-                        last_match = list(citation_pattern.finditer(window_buffer))[-1]
-                        window_buffer = window_buffer[last_match.end():]
-
-                if enable_reliability and reliability_engine and sentence_pattern.search(delta):
-                    sentence_count += 1
-                    if sentence_count >= update_interval:
-                            score = await reliability_engine.evaluate_incremental(window_buffer, safe_chunks)
-                            reliability_version += 1
-                            metadata = {
-                                "reliability_score_update": score,
-                                "reliability_version": reliability_version
-                            }
-                            sentence_count = 0
-                            window_buffer = ""
-
-                yield StreamingGenerationChunkDTO(
-                    chunk_index=chunk_idx,
-                    text_delta=delta,
-                    citations_delta=citations_delta,
-                    is_final=False,
-                    correlation_id=request.correlation_id,
-                    wrapper_metadata=metadata
-                )
-                chunk_idx += 1
-                await asyncio.sleep(0.01)
+            from backend.core.exceptions import ApplicationException
+            raise ApplicationException(
+                "No LLM provider configured. Deterministic mock generation is disabled in production.",
+                status_code=500
+            )
 
         # Final chunk with evaluated citations and grounding status
         citations = self.citation_extractor.extract(full_text, safe_chunks)
