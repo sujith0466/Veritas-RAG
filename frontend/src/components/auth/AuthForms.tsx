@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/useToast'
 import { Button, Input, Label } from '../common'
 import { Mail, Lock, Eye, EyeOff, Building, User, Hash } from 'lucide-react'
 import { PasswordStrength } from './PasswordStrength'
+import { GoogleAuthButton } from './GoogleAuthButton'
 import { motion } from 'framer-motion'
 
 // Add focus callback props for AI Assistant integration
@@ -58,9 +59,9 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <Label htmlFor="email">{role === 'admin' ? 'Business Email' : 'Email'}</Label>
         <Input
           id="email"
@@ -76,7 +77,7 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
           <button
@@ -107,39 +108,18 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
         />
       </div>
 
-      <div className="flex items-center space-x-2 pt-1 pb-2">
-        <input type="checkbox" id="remember" className="rounded border-border bg-surface text-primary focus:ring-primary" />
-        <label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
+      <div className="flex items-center space-x-2 pt-1 pb-3">
+        <input type="checkbox" id="remember" className="rounded border-border/50 bg-surface text-primary focus:ring-primary shadow-sm" />
+        <label htmlFor="remember" className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
           Remember Me
         </label>
       </div>
 
-      <Button type="submit" className="w-full" isLoading={isLoading}>
+      <Button type="submit" className="w-full h-11 shadow-md shadow-primary/10" isLoading={isLoading}>
         Login
       </Button>
 
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-        </div>
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={() => {
-          window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'}/api/v1/auth/sso/login/google`
-        }}
-      >
-        <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
-          <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
-        </svg>
-        Google
-      </Button>
+      <GoogleAuthButton />
     </motion.form>
   )
 }
@@ -191,7 +171,7 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
     resolver: zodResolver(adminRegisterSchema),
   })
 
-  const passwordVal = watch('password'); console.log('ERRORS:', errors);
+  const passwordVal = watch('password')
 
   const onSubmit = async (data: z.infer<typeof adminRegisterSchema>) => {
     setIsLoading(true)
@@ -215,7 +195,7 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4"
+      className="space-y-5"
     >
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -273,16 +253,18 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
 
       <PasswordStrength password={passwordVal} />
 
-      <div className="flex items-center space-x-2 pt-2 pb-2">
-        <input type="checkbox" id="acceptTermsAdmin" {...register('acceptTerms')} className="rounded border-border bg-surface text-primary focus:ring-primary" />
-        <label htmlFor="acceptTermsAdmin" className="text-sm text-muted-foreground cursor-pointer">
+      <div className="flex items-center space-x-2 pt-2 pb-3">
+        <input type="checkbox" id="acceptTermsAdmin" {...register('acceptTerms')} className="rounded border-border/50 bg-surface text-primary focus:ring-primary shadow-sm" />
+        <label htmlFor="acceptTermsAdmin" className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
           I accept the <span className="text-primary hover:underline">Terms of Service</span>
         </label>
       </div>
 
-      <Button type="submit" className="w-full" isLoading={isLoading}>
+      <Button type="submit" className="w-full h-11 shadow-md shadow-primary/10" isLoading={isLoading}>
         Create Enterprise Workspace
       </Button>
+
+      <GoogleAuthButton />
     </motion.form>
   )
 }
@@ -320,9 +302,9 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4"
+      className="space-y-5"
     >
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         <Label htmlFor="inviteCode">Workspace Invitation Code</Label>
         <Input id="inviteCode" placeholder="Enter join code" onFocus={() => onFocusChange?.('idle')} leftIcon={<Hash className="h-4 w-4" />} error={errors.inviteCode?.message} {...register('inviteCode')} />
       </div>
@@ -372,16 +354,18 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
 
       <PasswordStrength password={passwordVal} />
 
-      <div className="flex items-center space-x-2 pt-2 pb-2">
-        <input type="checkbox" id="acceptTermsUser" {...register('acceptTerms')} className="rounded border-border bg-surface text-primary focus:ring-primary" />
-        <label htmlFor="acceptTermsUser" className="text-sm text-muted-foreground cursor-pointer">
+      <div className="flex items-center space-x-2 pt-2 pb-3">
+        <input type="checkbox" id="acceptTermsUser" {...register('acceptTerms')} className="rounded border-border/50 bg-surface text-primary focus:ring-primary shadow-sm" />
+        <label htmlFor="acceptTermsUser" className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
           I accept the <span className="text-primary hover:underline">Terms of Service</span>
         </label>
       </div>
 
-      <Button type="submit" className="w-full" isLoading={isLoading}>
+      <Button type="submit" className="w-full h-11 shadow-md shadow-primary/10" isLoading={isLoading}>
         Join Existing Workspace
       </Button>
+
+      <GoogleAuthButton />
     </motion.form>
   )
 }

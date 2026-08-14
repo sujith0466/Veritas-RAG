@@ -71,7 +71,7 @@ class StreamingGroundedGenerationService:
         reliability_engine = None
         if enable_reliability:
             from backend.modules.reliability.services.reliability_engine import ReliabilityEngine
-            reliability_engine = ReliabilityEngine()
+            reliability_engine = ReliabilityEngine(llm_provider=self.llm_provider)
 
         reliability_version = 0
         sentence_count = 0
@@ -81,13 +81,19 @@ class StreamingGroundedGenerationService:
         citation_pattern = re.compile(r'\[(\d+)\]')
         sentence_pattern = re.compile(r'[.!?]\s')
 
-        if self.llm_provider and hasattr(self.llm_provider, "generate_stream"):
+        if self.llm_provider and hasattr(self.llm_provider, "stream"):
             full_text = ""
             chunk_idx = 0
+            seen_markers_local = set()
             try:
-                async for delta in self.llm_provider.generate_stream(
-                    request.query, evidence_block
-                ):
+                from backend.ai.interfaces.llm_provider import LLMRequest
+                llm_req = LLMRequest(
+                    prompt=request.query,
+                    system_instruction=evidence_block,
+                    tenant_id=str(request.tenant_id),
+                    workspace_id=str(request.workspace_id)
+                )
+                async for delta in self.llm_provider.stream(llm_req):
                     full_text += delta
                     window_buffer += delta
 
@@ -99,9 +105,15 @@ class StreamingGroundedGenerationService:
                         markers = citation_pattern.findall(window_buffer)
                         for marker_str in markers:
                             marker = int(marker_str)
-                            cit = self.citation_extractor.extract_single(marker, safe_chunks)
+                            cit = self.citation_extractor.extract_single(marker, safe_chunks, seen_markers_local)
                             if cit:
                                 citations_delta.append(cit)
+                            else:
+                                # EP8-030: If invalid/hallucinated and not already seen, scrub it
+                                if marker not in seen_markers_local:
+                                    delta = delta.replace(f"[{marker}]", "")
+                                    window_buffer = window_buffer.replace(f"[{marker}]", "")
+
                         # Clear buffer up to last marker to avoid rescanning
                         if markers:
                             last_match = list(citation_pattern.finditer(window_buffer))[-1]
@@ -132,6 +144,9 @@ class StreamingGroundedGenerationService:
                     )
                     chunk_idx += 1
                     await asyncio.sleep(0.01)
+            except asyncio.CancelledError:
+                logger.warning("Streaming generation cancelled", correlation_id=request.correlation_id)
+                raise
             except Exception as exc:
                 logger.error(
                     "LLM generation failed during stream",
@@ -159,8 +174,7 @@ class StreamingGroundedGenerationService:
         else:
             from backend.core.exceptions import ApplicationException
             raise ApplicationException(
-                "No LLM provider configured. Deterministic mock generation is disabled in production.",
-                status_code=500
+                "No LLM provider configured. Deterministic mock generation is disabled in production."
             )
 
         # Final chunk with evaluated citations and grounding status

@@ -117,6 +117,10 @@ async def stream_chat(
     correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
     last_event_id = request.headers.get("last-event-id")
 
+    if not user.tenant_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Invalid tenant identifier.")
+
     return StreamingResponse(
         orchestrator.stream_chat(
             session_id=session_id,

@@ -38,6 +38,7 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 
 def _handle_retrieval_exception(exc: Exception) -> None:
     from backend.core.exceptions.base import RAGuardException
+    from backend.modules.retrieval.schemas.errors import RetrievalDomainException
 
     if isinstance(exc, RAGuardException):
         raise exc

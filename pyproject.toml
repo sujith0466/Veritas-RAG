@@ -140,10 +140,10 @@ markers = [
 ]
 filterwarnings = [
     "error",
-    "ignore::DeprecationWarning",
-    "ignore::FutureWarning",
-    "ignore::UserWarning",
-    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning:fastapi.testclient.*",
+    "ignore:(?s).*google\\.generativeai.*:FutureWarning",
+    "ignore:.*urllib3.*:Warning",
+    "ignore:.*Call to deprecated close.*:DeprecationWarning"
 ]
 
 # ─── Coverage ─────────────────────────────────────────────────────────────────

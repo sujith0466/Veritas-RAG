@@ -143,8 +143,8 @@ class TestRetrievalRepository:
         assert metrics.stage_latencies_avg.dense_ms == 10.0
 
 
-@pytest.mark.asyncio
 class TestCeleryBatchSearchWorker:
+    @pytest.mark.asyncio
     async def test_async_execute_batch_search_success(self) -> None:
         mock_session = MagicMock()
         mock_factory = MagicMock()

@@ -15,6 +15,7 @@ from backend.modules.reliability.api.dependencies import (
     get_reliability_gateway,
     get_reliability_repository,
 )
+from backend.modules.retrieval.api.dependencies import resolve_tenant
 from backend.modules.reliability.circuit_breaker.states import CircuitState
 from backend.modules.reliability.schemas.errors import CircuitBreakerOpenError
 from backend.modules.reliability.schemas.reliability_dto import (
@@ -89,6 +90,7 @@ def mock_repository() -> MagicMock:
 
 
 def test_execute_reliable_search_200(app: FastAPI, client: TestClient, mock_gateway: MagicMock) -> None:
+    app.dependency_overrides[resolve_tenant] = lambda: "tenant_test"
     app.dependency_overrides[get_reliability_gateway] = lambda: mock_gateway
 
     payload = {
@@ -98,7 +100,7 @@ def test_execute_reliable_search_200(app: FastAPI, client: TestClient, mock_gate
         "enable_fallback": True,
         "enable_zero_result_recovery": True,
     }
-    response = client.post("/api/v1/reliability/search", json=payload, headers={"X-Tenant-ID": "tenant_test"})
+    response = client.post("/api/v1/reliability/search", json=payload)
 
     assert response.status_code == 200
     data = response.json()
@@ -111,10 +113,11 @@ def test_execute_reliable_search_200(app: FastAPI, client: TestClient, mock_gate
 
 
 def test_execute_reliable_search_empty_query_400(app: FastAPI, client: TestClient, mock_gateway: MagicMock) -> None:
+    app.dependency_overrides[resolve_tenant] = lambda: "tenant_test"
     app.dependency_overrides[get_reliability_gateway] = lambda: mock_gateway
 
     payload = {"query": "   ", "top_k": 5}
-    response = client.post("/api/v1/reliability/search", json=payload, headers={"X-Tenant-ID": "tenant_test"})
+    response = client.post("/api/v1/reliability/search", json=payload)
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "RET_001"
@@ -127,10 +130,11 @@ def test_execute_reliable_search_circuit_open_raises_rel_001(
     mock_gateway.execute_reliable_search.side_effect = CircuitBreakerOpenError(
         tenant_id="tenant_test", target="qdrant_hybrid"
     )
+    app.dependency_overrides[resolve_tenant] = lambda: "tenant_test"
     app.dependency_overrides[get_reliability_gateway] = lambda: mock_gateway
 
     payload = {"query": "test query", "top_k": 5}
-    response = client.post("/api/v1/reliability/search", json=payload, headers={"X-Tenant-ID": "tenant_test"})
+    response = client.post("/api/v1/reliability/search", json=payload)
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "REL_001"
@@ -138,9 +142,10 @@ def test_execute_reliable_search_circuit_open_raises_rel_001(
 
 
 def test_get_circuit_breaker_state_200(app: FastAPI, client: TestClient, mock_gateway: MagicMock) -> None:
+    app.dependency_overrides[resolve_tenant] = lambda: "tenant_test"
     app.dependency_overrides[get_reliability_gateway] = lambda: mock_gateway
 
-    response = client.get("/api/v1/reliability/circuit-breakers/qdrant_hybrid", headers={"X-Tenant-ID": "tenant_test"})
+    response = client.get("/api/v1/reliability/circuit-breakers/qdrant_hybrid")
 
     assert response.status_code == 200
     data = response.json()
@@ -152,10 +157,11 @@ def test_get_circuit_breaker_state_200(app: FastAPI, client: TestClient, mock_ga
 
 
 def test_force_reset_circuit_breaker_200(app: FastAPI, client: TestClient, mock_gateway: MagicMock) -> None:
+    app.dependency_overrides[resolve_tenant] = lambda: "tenant_test"
     app.dependency_overrides[get_reliability_gateway] = lambda: mock_gateway
 
     response = client.post(
-        "/api/v1/reliability/circuit-breakers/qdrant_hybrid/reset", headers={"X-Tenant-ID": "tenant_test"}
+        "/api/v1/reliability/circuit-breakers/qdrant_hybrid/reset"
     )
 
     assert response.status_code == 200
@@ -167,9 +173,10 @@ def test_force_reset_circuit_breaker_200(app: FastAPI, client: TestClient, mock_
 
 
 def test_get_sla_summary_200(app: FastAPI, client: TestClient, mock_repository: MagicMock) -> None:
+    app.dependency_overrides[resolve_tenant] = lambda: "tenant_test"
     app.dependency_overrides[get_reliability_repository] = lambda: mock_repository
 
-    response = client.get("/api/v1/reliability/sla-summary", headers={"X-Tenant-ID": "tenant_test"})
+    response = client.get("/api/v1/reliability/sla-summary")
 
     assert response.status_code == 200
     data = response.json()

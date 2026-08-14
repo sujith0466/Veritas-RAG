@@ -68,6 +68,12 @@ def isolated_rate_limiter():
 @pytest.fixture
 def mock_session():
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     # Mock scalars().first() for user queries
     exec_result = MagicMock()
     scalars_mock = MagicMock()

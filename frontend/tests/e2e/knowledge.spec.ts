@@ -135,7 +135,7 @@ Employees must undergo annual security training. We adhere to industry standards
 
       // Wait for the confirmation dialog to appear, then click confirm
       // Button text is exactly: "Delete & Purge Storage"
-      const confirmBtn = page.getByRole('button', { name: /Delete.*Purge|Delete.*Storage|confirm|^delete$|^yes$/i });
+      const confirmBtn = page.getByRole('button', { name: /Delete.*Purge|Delete.*Storage|confirm|^delete$|^yes$|Delete Permanently/i });
       await expect(confirmBtn).toBeVisible({ timeout: 8000 });
       await confirmBtn.click();
 

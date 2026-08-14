@@ -9,7 +9,7 @@ class AppSettings(BaseSettings):
 
     name: str = Field(default="RAGuard AI", alias="APP_NAME")
     version: str = Field(default="1.0.0", alias="APP_VERSION")
-    environment: str = Field(default="development", alias="APP_ENVIRONMENT")
+    environment: str = Field(default="development", alias="ENVIRONMENT")
     debug: bool = Field(default=False, alias="APP_DEBUG")
     secret_key: str = Field(alias="APP_SECRET_KEY")
 

@@ -23,6 +23,8 @@ logger = structlog.get_logger(__name__)
 # Register standard providers in the central registry at module load time.
 ProviderRegistry.register("gemini", GeminiProvider)
 ProviderRegistry.register("openrouter", OpenRouterProvider)
+from .providers.v1_engine.provider import V1EngineProvider
+ProviderRegistry.register("v1_engine", V1EngineProvider)
 
 
 def create_llm_provider(provider_name: str | None = None) -> LLMProvider:

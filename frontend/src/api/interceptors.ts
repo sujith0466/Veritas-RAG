@@ -12,11 +12,11 @@ apiClient.interceptors.request.use(
     // Inject Authorization header from Zustand auth store
     const token = useAuthStore.getState().token
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.set('Authorization', `Bearer ${token}`)
     }
 
     // Inject X-Correlation-ID for distributed tracing
-    config.headers['X-Correlation-ID'] = crypto.randomUUID()
+    config.headers.set('X-Correlation-ID', crypto.randomUUID())
 
     return config
   },
@@ -52,6 +52,12 @@ apiClient.interceptors.response.use(
         detail as Record<string, unknown> | undefined,
       )
 
+      if (error.response.status === 401 && originalRequest.url?.includes('/auth/refresh')) {
+        processRefreshQueue(null)
+        useAuthStore.getState().clearAuth()
+        return Promise.reject(apiError)
+      }
+
       // Handle 401 — attempt token refresh (only once)
       if (error.response.status === 401 && !originalRequest._retried) {
         if (isRefreshing) {
@@ -83,7 +89,6 @@ apiClient.interceptors.response.use(
         } catch {
           processRefreshQueue(null)
           useAuthStore.getState().clearAuth()
-          window.location.replace('/auth/login')
           return Promise.reject(apiError)
         } finally {
           isRefreshing = false

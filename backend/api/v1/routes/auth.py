@@ -27,6 +27,9 @@ from backend.api.v1.schemas.registration import RegistrationRequest, Registratio
 from backend.api.v1.schemas.verification import ResendVerificationRequest
 from backend.core.dependencies.auth import get_current_user, get_optional_user
 from backend.core.dependencies.database import get_db
+from backend.core.dependencies.rate_limit import RateLimit
+from backend.core.config import get_settings
+from backend.core.exceptions.auth import AuthenticationException
 from backend.services.auth.auth_service import AuthService
 from backend.services.auth.email_verification_service import EmailVerificationService
 from backend.services.auth.password_reset_service import PasswordResetService
@@ -49,6 +52,7 @@ def _build_metadata(request: Request) -> ResponseMetadata:
     response_model=SuccessResponse[RegistrationResponse],
     summary="Register a new user",
     description="Registers a new user account. Returns generic success to prevent email enumeration.",
+    dependencies=[Depends(RateLimit("register", 10, 3600))],  # AUTH-011: 10/hr per IP
 )
 async def register(
     request: Request,
@@ -114,6 +118,7 @@ async def resend_verification(
     "/login",
     response_model=SuccessResponse[LoginResponse],
     summary="Login user",
+    dependencies=[Depends(RateLimit("login", 20, 300))],
 )
 async def login(
     request: Request,
@@ -130,12 +135,13 @@ async def login(
         payload.email, payload.password, user_agent, ip_address
     )
 
+    settings = get_settings()
     response.set_cookie(
         key="refresh_token",
         value=raw_refresh_token,
         max_age=7 * 24 * 60 * 60,
         httponly=True,
-        secure=True,
+        secure=settings.app.environment == "production",
         samesite="strict",
         path="/api/v1/auth/refresh"
     )
@@ -161,10 +167,17 @@ async def logout(
     service = AuthService(db)
     jti = request.state.token_payload.jti if hasattr(request.state, "token_payload") else None
     exp = request.state.token_payload.exp if hasattr(request.state, "token_payload") else 0
-    family_id = None
+
+    # AUTH-012: also revoke the refresh token so it cannot be replayed after logout
+    raw_refresh_token = request.cookies.get("refresh_token")
 
     if jti:
-        await service.logout(jti=jti, exp=exp, user_id=user.id, family_id=family_id)
+        await service.logout(
+            jti=jti,
+            exp=exp,
+            user_id=user.id,
+            raw_refresh_token=raw_refresh_token,
+        )
 
     response.delete_cookie("refresh_token", path="/api/v1/auth/refresh")
 
@@ -179,6 +192,7 @@ async def logout(
     "/forgot-password",
     response_model=SuccessResponse[dict],
     summary="Request password reset",
+    dependencies=[Depends(RateLimit("forgot-password", 3, 3600))],
 )
 async def forgot_password(
     request: Request,
@@ -200,6 +214,7 @@ async def forgot_password(
     "/reset-password",
     response_model=SuccessResponse[dict],
     summary="Reset password",
+    dependencies=[Depends(RateLimit("reset-password", 5, 300))],
 )
 async def reset_password(
     request: Request,
@@ -221,6 +236,7 @@ async def reset_password(
     "/password/otp/request",
     response_model=SuccessResponse[dict],
     summary="Request OTP for password reset",
+    dependencies=[Depends(RateLimit("password-otp-request", 3, 3600))],
 )
 async def request_password_otp(
     request: Request,
@@ -242,6 +258,7 @@ async def request_password_otp(
     "/password/otp/verify",
     response_model=SuccessResponse[dict],
     summary="Verify OTP",
+    dependencies=[Depends(RateLimit("password-otp-verify", 5, 300))],
 )
 async def verify_password_otp(
     request: Request,
@@ -368,12 +385,13 @@ async def refresh_token(
         ip_address=ip_address
     )
 
+    settings = get_settings()
     response.set_cookie(
         key="refresh_token",
         value=new_raw_refresh,
         max_age=7 * 24 * 60 * 60,
         httponly=True,
-        secure=True,
+        secure=settings.app.environment == "production",
         samesite="strict",
         path="/api/v1/auth/refresh"
     )
@@ -412,33 +430,43 @@ async def sso_callback(
 ) -> RedirectResponse:
     """Handle OIDC callback and redirect to frontend."""
     import os
-
-    sso_service = get_sso_provider(provider)
-    profile = await sso_service.exchange_code(code, state)
-
-    auth_service = AuthService(db)
-    user_agent = request.headers.get("user-agent")
-    ip_address = request.client.host if request.client else None
-
-    access_token, raw_refresh_token = await auth_service.handle_oidc_login(
-        email=profile["email"],
-        provider=profile["provider"],
-        provider_user_id=profile["provider_user_id"],
-        metadata=profile,
-        user_agent=user_agent,
-        ip_address=ip_address
-    )
-
-    # Set the refresh token cookie
-    response.set_cookie(
-        key="refresh_token",
-        value=raw_refresh_token,
-        max_age=7 * 24 * 60 * 60,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        path="/api/v1/auth/refresh"
-    )
-
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    return RedirectResponse(url=f"{frontend_url}/auth/callback#access_token={access_token}")
+
+    try:
+        sso_service = get_sso_provider(provider)
+        profile = await sso_service.exchange_code(code, state)
+
+        auth_service = AuthService(db)
+        user_agent = request.headers.get("user-agent")
+        ip_address = request.client.host if request.client else None
+
+        access_token, raw_refresh_token = await auth_service.handle_oidc_login(
+            email=profile["email"],
+            provider=profile["provider"],
+            provider_user_id=profile["provider_user_id"],
+            metadata=profile,
+            user_agent=user_agent,
+            ip_address=ip_address
+        )
+
+        # Set the refresh token cookie
+        settings = get_settings()
+        response.set_cookie(
+            key="refresh_token",
+            value=raw_refresh_token,
+            max_age=7 * 24 * 60 * 60,
+            httponly=True,
+            secure=settings.app.environment == "production",
+            samesite="strict",
+            path="/api/v1/auth/refresh"
+        )
+
+        return RedirectResponse(url=f"{frontend_url}/auth/callback#access_token={access_token}")
+
+    except AuthenticationException as e:
+        logger.warning("SSO Callback failed", error=str(e))
+        return RedirectResponse(url=f"{frontend_url}/auth/login?error=sso_failed")
+    except Exception as e:
+        logger.error("SSO Callback unexpected error", error=str(e))
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="SSO provider unavailable or unconfigured.")

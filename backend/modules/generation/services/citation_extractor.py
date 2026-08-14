@@ -45,16 +45,18 @@ class CitationExtractor:
     def __init__(self):
         self.seen_markers: set[int] = set()
 
-    def extract_single(self, marker: int, evidence_chunks: list[RankedEvidenceDTO]) -> CitationDTO | None:
+    def extract_single(self, marker: int, evidence_chunks: list[RankedEvidenceDTO], seen_markers: set[int] | None = None) -> CitationDTO | None:
         """Extract a single citation from a marker (e.g. 1 for [1]).
         Returns None if the marker is invalid or already seen.
         """
         import hashlib
 
-        if marker in self.seen_markers:
-            return None
+        if seen_markers is not None:
+            if marker in seen_markers:
+                return None
 
         chunk_pos = marker - 1
+        # EP8-030: Reject hallucinated chunk IDs
         if chunk_pos < 0 or chunk_pos >= len(evidence_chunks):
             return None
 
@@ -79,7 +81,8 @@ class CitationExtractor:
             excerpt=excerpt,
             relevance_score=(chunk.normalized_relevance_score if hasattr(chunk, "normalized_relevance_score") and chunk.normalized_relevance_score is not None else chunk.get("normalized_relevance_score", 1.0) if not hasattr(chunk, "normalized_relevance_score") else 1.0),
         )
-        self.seen_markers.add(marker)
+        if seen_markers is not None:
+            seen_markers.add(marker)
         return cit
 
     def extract(

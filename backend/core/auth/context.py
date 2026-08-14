@@ -25,6 +25,7 @@ class TokenPayload(BaseModel):
     full_name: str | None = Field(default=None, description="User full name from JWT")
     organization_name: str | None = Field(default=None, description="Organization name from JWT")
     exp: int = Field(description="Expiration timestamp (Unix epoch)")
+    jti: str | None = Field(default=None, description="JWT ID for token revocation")
     aud: str | list[str] | None = Field(default=None, description="Audience claim")
     iss: str | None = Field(default=None, description="Issuer claim")
     metadata: dict[str, Any] = Field(
@@ -37,7 +38,6 @@ class UserContext(BaseModel):
     """Authenticated user context propagated across the request lifecycle."""
 
     id: uuid.UUID = Field(description="Internal PostgreSQL user primary key")
-    supabase_id: str = Field(description="Supabase Auth user ID")
     email: str = Field(description="User email address")
     role: Role = Field(default=Role.VIEWER, description="Assigned platform role")
     is_active: bool = Field(default=True, description="Account active status")

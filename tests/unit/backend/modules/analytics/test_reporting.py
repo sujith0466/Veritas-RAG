@@ -114,7 +114,6 @@ async def test_reporting_endpoints(mock_analytics_service):
         service=service,
         db=mock_db,
         auth=auth,
-        x_tenant_id="tenant_123",
     )
     assert export_res.data.report_type == "knowledge_health"
     report_id = export_res.data.report_id

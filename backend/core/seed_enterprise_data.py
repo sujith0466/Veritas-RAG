@@ -5,6 +5,8 @@ from sqlalchemy import select
 from backend.core.config import get_settings
 from backend.database.engine import get_session_factory
 from backend.models.entities.user import User
+from backend.models.entities.workspace import Workspace
+from backend.models.entities.workspace_member import WorkspaceMember
 from backend.core.demo_seeder import run_seed_for_tenant
 
 logger = structlog.get_logger(__name__)
@@ -25,12 +27,17 @@ async def seed_data():
             logger.error(f"Admin user not found. Please run 'make qa-bootstrap' to provision {qa_email} first.")
             return
             
-        if not admin_user.tenant_id:
-            logger.error("Admin user lacks a tenant_id. Bootstrap failed.")
+        # Fetch primary workspace for user
+        ws_stmt = select(Workspace).join(WorkspaceMember).where(WorkspaceMember.user_id == admin_user.id).limit(1)
+        ws_result = await session.execute(ws_stmt)
+        workspace = ws_result.scalar_one_or_none()
+
+        if not workspace:
+            logger.error("Admin user lacks a workspace. Bootstrap failed.")
             return
 
-        tenant_id = admin_user.tenant_id
-        owner_id = admin_user.id
+        tenant_id = str(workspace.id)
+        owner_id = str(admin_user.id)
         
     # The run_seed_for_tenant function creates its own session and handles duplicates
     await run_seed_for_tenant(tenant_id, owner_id)

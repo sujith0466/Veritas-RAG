@@ -3,7 +3,7 @@ import { Card, Input, Label, Button, SectionHeader } from '@/components/common'
 import { useToast } from '@/hooks/useToast'
 import { userService } from '@/services/userService'
 import { useAuthStore } from '@/stores/authStore'
-import { Briefcase, Database, Users, Loader2 } from 'lucide-react'
+import { Briefcase, Database, Users, Loader2, Download, Calendar } from 'lucide-react'
 
 export function WorkspaceSettings() {
   const { toast } = useToast()
@@ -18,6 +18,60 @@ export function WorkspaceSettings() {
     retention_policy: '90',
     data_region: 'us-east',
   })
+
+  // Export State
+  const [exportFormat, setExportFormat] = useState('json')
+  const [exportStartDate, setExportStartDate] = useState('')
+  const [exportEndDate, setExportEndDate] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    if (!user?.workspace_id && !user?.tenant_id) {
+      toast({ title: 'Error', message: 'No workspace context found', type: 'error' })
+      return
+    }
+
+    setExporting(true)
+    try {
+      const workspaceId = user?.tenant_id || user?.workspace_id
+      const query = new URLSearchParams({ format: exportFormat })
+      if (exportStartDate) query.append('start_date', exportStartDate)
+      if (exportEndDate) query.append('end_date', exportEndDate)
+
+      const res = await fetch(`/api/v1/workspaces/${workspaceId}/chat/export?${query.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Insufficient permissions to export workspace data.")
+        }
+        throw new Error('Export failed')
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      // Use content-disposition filename if available, fallback to default
+      const contentDisposition = res.headers.get('content-disposition')
+      let filename = `chat_export_${workspaceId}.${exportFormat}`
+      if (contentDisposition && contentDisposition.includes('filename=')) {
+        filename = contentDisposition.split('filename=')[1].replace(/"/g, '')
+      }
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+
+      toast({ title: 'Success', message: 'Export completed successfully', type: 'success' })
+    } catch (err: any) {
+      toast({ title: 'Export Error', message: err.message, type: 'error' })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     loadWorkspace()
@@ -142,7 +196,7 @@ export function WorkspaceSettings() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-border">
             <div className="space-y-3">
               <Label htmlFor="retention_policy">Log Retention Policy</Label>
               <select
@@ -174,6 +228,67 @@ export function WorkspaceSettings() {
                 <option value="eu-central">EU Central (Frankfurt)</option>
                 <option value="ap-southeast">AP Southeast (Sydney)</option>
               </select>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">Chat History Export</h4>
+              <p className="text-xs text-muted-foreground mb-4 mt-1">Export full workspace chat history for compliance or analytics. Available to Owners and Admins.</p>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="space-y-2 flex-1 w-full">
+                <Label htmlFor="export_format">Format</Label>
+                <select
+                  id="export_format"
+                  value={exportFormat}
+                  onChange={e => setExportFormat(e.target.value)}
+                  className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="json">JSON</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
+
+              <div className="space-y-2 flex-1 w-full">
+                <Label htmlFor="export_start">Start Date (Optional)</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="export_start"
+                    type="date"
+                    className="pl-9"
+                    value={exportStartDate}
+                    onChange={e => setExportStartDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 flex-1 w-full">
+                <Label htmlFor="export_end">End Date (Optional)</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="export_end"
+                    type="date"
+                    className="pl-9"
+                    value={exportEndDate}
+                    onChange={e => setExportEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="w-full md:w-auto mt-4 md:mt-0">
+                <Button
+                  onClick={handleExport}
+                  disabled={exporting || (user?.role !== 'admin' && user?.role !== 'owner')}
+                  className="w-full"
+                >
+                  {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                  Export
+                </Button>
+              </div>
             </div>
           </div>
         </Card>

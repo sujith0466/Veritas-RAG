@@ -61,13 +61,10 @@ async def get_query_history(
     outcome: str | None = Query(None, description="Optional filter by outcome status"),
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[QueryHistoryListDTO]:
     """Fetch paginated AI query history records for the tenant."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     data = await service.get_query_history(
-        tenant_id=x_tenant_id,
+        tenant_id=str(auth.workspace_name),
         page=page,
         page_size=page_size,
         outcome_filter=outcome,
@@ -89,13 +86,10 @@ async def get_success_rate(
     auth: AnalyticsAuth,
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[SuccessRateDTO]:
     """Calculate overall success percentage and retry rates."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=x_tenant_id, start_time=start_time, end_time=end_time
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
     )
     data = await service.get_success_rate(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -113,13 +107,10 @@ async def get_latency_analytics(
     auth: AnalyticsAuth,
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[LatencyAnalyticsDTO]:
     """Calculate execution latency distribution percentiles."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=x_tenant_id, start_time=start_time, end_time=end_time
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
     )
     data = await service.get_latency_analytics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -137,13 +128,10 @@ async def get_confidence_analytics(
     auth: AnalyticsAuth,
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[ConfidenceAnalyticsDTO]:
     """Calculate pre-generation confidence statistics across queries."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=x_tenant_id, start_time=start_time, end_time=end_time
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
     )
     data = await service.get_confidence_analytics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -164,13 +152,10 @@ async def get_query_trends(
     ),
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[QueryTrendsDTO]:
     """Compute bucketed time-series query counts and average confidence scores."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=x_tenant_id,
+        tenant_id=str(auth.workspace_name),
         interval=interval,
         start_time=start_time,
         end_time=end_time,
@@ -194,13 +179,10 @@ async def get_reliability_history(
     ),
     start_time: datetime | None = Query(None, description="Start timestamp filter"),
     end_time: datetime | None = Query(None, description="End timestamp filter"),
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[ReliabilityHistoryDTO]:
     """Calculate historical unified reliability scores and moving average trendline."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=x_tenant_id,
+        tenant_id=str(auth.workspace_name),
         interval=interval,
         start_time=start_time,
         end_time=end_time,
@@ -219,12 +201,9 @@ async def get_search_analytics(
     request_ctx: Request,
     service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
     auth: AnalyticsAuth,
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[SearchAnalyticsDTO]:
     """Aggregate multi-stage retrieval metrics from hybrid search logs."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
-    data = await service.get_search_analytics(tenant_id=x_tenant_id)
+    data = await service.get_search_analytics(tenant_id=str(auth.workspace_name))
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
 
@@ -239,13 +218,10 @@ async def get_query_trace_detail(
     request_ctx: Request,
     service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
     auth: AnalyticsAuth,
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[QueryTraceDetailDTO]:
     """Fetch complete forensic diagnostics breakdown across stages, candidates, and self-correction steps."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     data = await service.get_query_trace_detail(
-        correlation_id=correlation_id, tenant_id=x_tenant_id
+        correlation_id=correlation_id, tenant_id=str(auth.workspace_name)
     )
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -261,13 +237,10 @@ async def execute_query_sandbox(
     request_ctx: Request,
     service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
     auth: AnalyticsAuth,
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[QuerySandboxResponseDTO]:
     """Execute a test query against the AI pipeline with adjustable parameters and trace diagnostics."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
     data = await service.execute_query_sandbox(
-        request_dto=request_dto, tenant_id=x_tenant_id
+        request_dto=request_dto, tenant_id=str(auth.workspace_name)
     )
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -288,13 +261,10 @@ async def export_enterprise_report(
     service: Annotated[ReportingService, Depends(get_reporting_service)],
     db: Annotated[AsyncSession, Depends(get_db_session)],
     auth: AnalyticsAuth,
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[ReportMetadataDTO]:
     """Generate an SLA compliance, reliability audit, or knowledge health report using ReportLab PDF."""
-    if auth.tenant_id != x_tenant_id and x_tenant_id != "default":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
-    if request_dto.tenant_id == "default" and x_tenant_id != "default_tenant":
-        request_dto.tenant_id = x_tenant_id
+    if request_dto.tenant_id == "default":
+        request_dto.tenant_id = str(auth.workspace_name)
 
     buffer_bytes, metadata = await service.generate_report(request=request_dto, db=db)
     _report_cache[metadata.report_id] = (buffer_bytes, metadata)

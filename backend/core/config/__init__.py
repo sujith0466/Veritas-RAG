@@ -25,8 +25,8 @@ from .qdrant import QdrantSettings
 from .redis import RedisSettings
 from .retrieval import RetrievalSettings
 from .security import SecuritySettings
+from .smtp import SmtpSettings
 from .startup import StartupSettings
-from .supabase import SupabaseSettings
 from .v1_engine import V1EngineSettings
 
 
@@ -43,7 +43,6 @@ class Settings:
         self.database = DatabaseSettings()
         self.redis = RedisSettings()
         self.qdrant = QdrantSettings()
-        self.supabase = SupabaseSettings()
         self.gemini = GeminiSettings()
         self.openrouter = OpenRouterSettings()
         self.ai = LLMManagerSettings()
@@ -52,6 +51,7 @@ class Settings:
         self.features = FeatureFlagSettings()
         self.embeddings = EmbeddingSettings()
         self.retrieval = RetrievalSettings()
+        self.smtp = SmtpSettings()
         self.startup = StartupSettings()
         self.v1_engine = V1EngineSettings()
 
@@ -91,8 +91,8 @@ __all__ = [
     "RetrievalSettings",
     "SecuritySettings",
     "ServerSettings",
+    "SmtpSettings",
     "Settings",
-    "SupabaseSettings",
     "V1EngineSettings",
     "get_settings",
 ]

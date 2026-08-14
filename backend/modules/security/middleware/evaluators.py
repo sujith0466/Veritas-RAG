@@ -1,4 +1,4 @@
-from backend.core.exceptions import APIError
+from backend.core.exceptions import ApplicationException
 from backend.modules.generation.services.prompt_guard import PromptGuard
 from backend.modules.security.schemas.policy_dto import MergedPolicyDTO
 from backend.modules.security.services.dlp import DLPEngine
@@ -10,7 +10,7 @@ from backend.observability.metrics.prometheus import (
 )
 
 
-class PolicyViolationError(APIError):
+class PolicyViolationError(ApplicationException):
     def __init__(self, message: str, violation_type: str = "general"):
         self.violation_type = violation_type
         super().__init__(status_code=403, message=message)

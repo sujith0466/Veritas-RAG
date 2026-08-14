@@ -36,10 +36,10 @@ def _build_metadata(request: Request) -> ResponseMetadata:
     return ResponseMetadata(request_id=req_id)
 
 
-def _resolve_tenant(user: Any | None, header_tenant: str | None) -> str:
-    if user and getattr(user, "tenant_id", None):
-        return user.tenant_id
-    return header_tenant or "default_tenant"
+def _resolve_tenant(user: Any | None) -> str:
+    if not user or not getattr(user, "workspace_name", None) or user.workspace_name == "None":
+        raise HTTPException(status_code=401, detail="Missing workspace context")
+    return str(user.workspace_name)
 
 
 @router.get(
@@ -64,12 +64,11 @@ async def get_chunk_metrics(
     document_id: uuid.UUID | None = Query(
         default=None, description="Optional document ID filter"
     ),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[ChunkMetricsDTO]:
     """Retrieve aggregate KPIs: total chunks, average character/token gauges, and strategy breakdown."""
-    tenant_id = _resolve_tenant(user, x_tenant_id)
+    tenant_id = _resolve_tenant(user)
     service = ChunkingService()
     metrics = await service.get_metrics(
         tenant_id=tenant_id, session=session, document_id=document_id
@@ -93,12 +92,11 @@ async def process_document_chunking(
     version_id: uuid.UUID | None = Query(
         default=None, description="Optional specific version ID to chunk"
     ),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
     """Trigger chunking for a document version using specified or MIME-resolved strategy without embedding (`M1`)."""
-    tenant_id = _resolve_tenant(user, x_tenant_id)
+    tenant_id = _resolve_tenant(user)
     service = ChunkingService()
 
     # Resolve version ID if not provided
@@ -178,12 +176,11 @@ async def list_document_chunks(
     strategy: str | None = Query(default=None, description="Filter by strategy used"),
     page: int = Query(default=1, ge=1, description="Page number (1-indexed)"),
     size: int = Query(default=50, ge=1, le=200, description="Page size"),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[ChunkListResponse]:
     """Retrieve paginated chunks with sequence order, character gauges, and doubly-linked pointer IDs (`prev`/`next`)."""
-    tenant_id = _resolve_tenant(user, x_tenant_id)
+    tenant_id = _resolve_tenant(user)
     service = ChunkingService()
     try:
         chunk_list = await service.get_chunks_by_document(
@@ -208,12 +205,11 @@ async def list_document_chunks(
 async def get_chunk_detail(
     request: Request,
     chunk_id: uuid.UUID,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[ChunkDetailResponse]:
     """Fetch deep inspection view of a chunk including raw content, section breadcrumbs, and parent/child graph pointers."""
-    tenant_id = _resolve_tenant(user, x_tenant_id)
+    tenant_id = _resolve_tenant(user)
     service = ChunkingService()
     try:
         detail = await service.get_chunk_by_id(
@@ -235,12 +231,11 @@ async def delete_document_chunks(
     version_id: uuid.UUID | None = Query(
         default=None, description="Optional version ID to delete specifically"
     ),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
     """Delete chunks belonging to a document or specific version before re-chunking."""
-    tenant_id = _resolve_tenant(user, x_tenant_id)
+    tenant_id = _resolve_tenant(user)
     service = ChunkingService()
     deleted_count = await service.delete_chunks_by_document(
         tenant_id=tenant_id,

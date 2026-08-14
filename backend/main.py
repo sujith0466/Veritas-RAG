@@ -117,7 +117,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     register_retrieval_event_handlers()
     register_workspace_event_handlers()
 
-    logger.info("RAGuard AI startup complete ✓")
+    # Final application initialization log
+    logger.info("RAGuard AI startup complete")
 
     yield  # Application is running
 

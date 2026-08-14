@@ -26,9 +26,13 @@ class V1EngineProvider(LLMProvider):
 
         # We need to construct a dummy AIWrapperRequest since LLMRequest is missing some fields.
         # Note: In Epic 8, generation is ideally routed via stream() instead, but this must be implemented.
+        if not request.workspace_id or not request.tenant_id:
+            from backend.ai.providers.v1_engine.exceptions import V1AuthorizationError
+            raise V1AuthorizationError("Missing workspace_id or tenant_id in V1Engine request")
+
         wrapper_req = AIWrapperRequest(
-            workspace_id=uuid.UUID(request.workspace_id) if request.workspace_id else uuid.uuid4(),
-            tenant_id=uuid.UUID(request.tenant_id) if request.tenant_id else uuid.uuid4(),
+            workspace_id=uuid.UUID(request.workspace_id),
+            tenant_id=uuid.UUID(request.tenant_id),
             query=request.prompt,
             guardrail_config={"system_instruction": request.system_instruction},
             stream=False
@@ -55,9 +59,13 @@ class V1EngineProvider(LLMProvider):
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[str]:
         """Stream generation."""
+        if not request.workspace_id or not request.tenant_id:
+            from backend.ai.providers.v1_engine.exceptions import V1AuthorizationError
+            raise V1AuthorizationError("Missing workspace_id or tenant_id in V1Engine request")
+
         wrapper_req = AIWrapperRequest(
-            workspace_id=uuid.UUID(request.workspace_id) if request.workspace_id else uuid.uuid4(),
-            tenant_id=uuid.UUID(request.tenant_id) if request.tenant_id else uuid.uuid4(),
+            workspace_id=uuid.UUID(request.workspace_id),
+            tenant_id=uuid.UUID(request.tenant_id),
             query=request.prompt,
             guardrail_config={"system_instruction": request.system_instruction},
             stream=True
@@ -67,11 +75,38 @@ class V1EngineProvider(LLMProvider):
             yield chunk.text_delta
 
     async def health_check(self) -> bool:
-        """Fetch health from Redis cache populated by background poller."""
+        """Fetch health from Redis cache populated by background poller, fallback to active probe."""
         settings = get_settings().v1_engine
         if not settings.enabled:
             return False
 
         redis = get_redis_client()
         status = await redis.get("raguard:v1_engine:health_cache")
+
+        # EP8-007: Fallback active probe if cache is unpopulated
+        if not status:
+            from backend.ai.providers.v1_engine.client import V1EngineClient
+            import httpx
+            try:
+                # Use the initialized client to preserve mTLS context
+                if V1EngineClient._client:
+                    res = await V1EngineClient._client.get("/v1/version", timeout=2.0)
+                else:
+                    async with httpx.AsyncClient(verify=False) as client:
+                        res = await client.get(f"{settings.base_url}/v1/version", timeout=2.0)
+
+                if res.status_code == 200:
+                    status = b"healthy"
+                    await redis.set("raguard:v1_engine:health_cache", "healthy", ex=60)
+                else:
+                    status = b"unhealthy"
+            except Exception as e:
+                import structlog
+                import traceback
+                structlog.get_logger(__name__).error("Health check active probe failed", error=str(e), trace=traceback.format_exc())
+                status = b"unhealthy"
+
+        # Handle both bytes and str returns from Redis mock/actual clients
+        if isinstance(status, bytes):
+            return status.decode("utf-8") == "healthy"
         return status == "healthy"

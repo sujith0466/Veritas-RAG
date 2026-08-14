@@ -34,15 +34,15 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 
 
 def _resolve_tenant_and_owner(
-    user: Any | None,
-    header_tenant: str | None,
-) -> tuple[str, uuid.UUID | None]:
-    if user:
-        tenant_id = user.tenant_id or header_tenant or "default_tenant"
-        owner_id = getattr(user, "id", None)
-        return tenant_id, owner_id
-    tenant_id = header_tenant or "default_tenant"
-    return tenant_id, None
+    user: Any | None
+) -> tuple[str, uuid.UUID]:
+    from fastapi import HTTPException
+    if not user or not getattr(user, "workspace_name", None):
+        raise HTTPException(status_code=401, detail="Missing workspace context")
+    owner_id = getattr(user, "id", None)
+    if not owner_id:
+        raise HTTPException(status_code=401, detail="Missing authenticated user identity")
+    return user.workspace_name, owner_id
 
 
 @router.post(
@@ -54,12 +54,11 @@ def _resolve_tenant_and_owner(
 async def initiate_bulk_upload(
     payload: BulkUploadRequest,
     request: Request,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[BulkUploadResponse]:
     """Initiate a bulk upload and return presigned POST URLs."""
-    tenant_id, owner_id = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, owner_id = _resolve_tenant_and_owner(user)
 
     # In a real implementation we would:
     # 1. Check workspace quotas.
@@ -68,7 +67,7 @@ async def initiate_bulk_upload(
     # 4. Generate S3 Presigned URLs for each document.
 
     service = BulkUploadService(session)
-    batch = await service.create_batch(tenant_id, owner_id or uuid.uuid4(), len(payload.files))
+    batch = await service.create_batch(tenant_id, owner_id, len(payload.files))
 
     urls = []
     for file_intent in payload.files:
@@ -100,12 +99,11 @@ async def initiate_bulk_upload(
 async def get_batch_progress(
     batch_id: uuid.UUID,
     request: Request,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[BatchProgressResponse]:
     """Get real-time progress for a bulk batch."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = BulkUploadService(session)
 
     progress = await service.get_progress(batch_id, tenant_id)
@@ -127,12 +125,11 @@ async def get_batch_progress(
 async def cancel_bulk_upload(
     batch_id: uuid.UUID,
     request: Request,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Cancel a pending/processing bulk upload batch."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = BulkUploadService(session)
 
     success = await service.cancel_batch(batch_id, tenant_id)

@@ -45,15 +45,11 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 
 def _resolve_tenant_and_owner(
     user: Any | None,
-    header_tenant: str | None,
 ) -> tuple[str, uuid.UUID | None]:
-    """Resolve effective tenant namespace and owner user ID from auth context or headers."""
-    if user:
-        tenant_id = user.tenant_id or header_tenant or "default_tenant"
-        owner_id = getattr(user, "id", None)
-        return tenant_id, owner_id
-    tenant_id = header_tenant or "default_tenant"
-    return tenant_id, None
+    if not user or not getattr(user, "workspace_name", None) or user.workspace_name == "None":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Missing workspace context")
+    return str(user.workspace_name), getattr(user, "id", None)
 
 
 @router.post(
@@ -67,12 +63,11 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     relative_path: str | None = Form(default=None),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[UploadResponse]:
     """Handle synchronous upload screening, storage persistence, and Celery job dispatch."""
-    tenant_id, owner_id = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, owner_id = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     doc, version, job = await service.upload_document(
@@ -112,12 +107,11 @@ async def upload_document(
 async def get_document_status(
     request: Request,
     document_id: uuid.UUID,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[ProcessingStatusResponse]:
     """Retrieve processing status for a specific document."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     status_resp = await service.get_status(document_id, tenant_id, session)
@@ -142,12 +136,11 @@ async def get_document_status(
 async def get_document_detail(
     request: Request,
     document_id: uuid.UUID,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[DocumentDetailResponse]:
     """Retrieve detailed document metadata and manifest."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     detail_resp = await service.get_document_detail(document_id, tenant_id, session)
@@ -178,12 +171,11 @@ async def list_documents(
         alias="status",
         description="Filter by status (PENDING, VALIDATING, EXTRACTING, PROCESSED, FAILED)",
     ),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[DocumentListResponse]:
     """List documents with pagination."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     list_resp = await service.list_documents(
@@ -210,12 +202,11 @@ async def list_documents(
 async def delete_document(
     request: Request,
     document_id: uuid.UUID,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
     """Delete document entity and clean up physical files."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     success = await service.delete_document(document_id, tenant_id, session)
@@ -241,12 +232,11 @@ async def delete_document(
 async def archive_document(
     request: Request,
     document_id: uuid.UUID,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
     """Archive a document."""
-    tenant_id, owner_id = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, owner_id = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     try:
@@ -273,12 +263,11 @@ async def archive_document(
 async def restore_document(
     request: Request,
     document_id: uuid.UUID,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
     """Restore a document."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     try:
@@ -307,12 +296,11 @@ async def upload_document_version(
     request: Request,
     document_id: uuid.UUID,
     file: UploadFile = File(...),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[UploadResponse]:
     """Upload a new version of a document."""
-    tenant_id, owner_id = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, owner_id = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     try:
@@ -360,12 +348,11 @@ async def rollback_document_version(
     request: Request,
     document_id: uuid.UUID,
     version_id: uuid.UUID,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[UploadResponse]:
     """Rollback to a previous version."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
     try:
@@ -409,12 +396,11 @@ async def update_document_metadata(
     document_id: uuid.UUID,
     payload: MetadataUpdatePayload,
     request: Request,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Overwrite all user_metadata keys for a document."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
 
     from backend.document.services.metadata_service import MetadataService
     from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
@@ -438,12 +424,11 @@ async def patch_document_metadata(
     document_id: uuid.UUID,
     payload: MetadataUpdatePayload,
     request: Request,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Merge new keys into the document's user_metadata."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
 
     from backend.document.services.metadata_service import MetadataService
     from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job
@@ -467,12 +452,11 @@ async def remove_document_metadata_key(
     document_id: uuid.UUID,
     key: str,
     request: Request,
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
     user: Any | None = Depends(get_optional_user),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Remove a specific key from the document's user_metadata."""
-    tenant_id, _ = _resolve_tenant_and_owner(user, x_tenant_id)
+    tenant_id, _ = _resolve_tenant_and_owner(user)
 
     from backend.document.services.metadata_service import MetadataService
     from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job

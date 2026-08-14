@@ -2,12 +2,12 @@
 
 Provides FastAPI dependency injection functions for repository access,
 `RetrievalOrchestrator` instantiation with shared provider singletons, and
-multi-tenant namespace resolution (`X-Tenant-ID`).
+multi-tenant namespace resolution.
 """
 
 from typing import Any
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.dependencies.auth import get_optional_user
@@ -28,12 +28,11 @@ _bm25_provider = BM25SparseSearchProvider()
 
 def resolve_tenant(
     user: Any | None = Depends(get_optional_user),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
 ) -> str:
-    """Resolve active tenant identifier from user session or `X-Tenant-ID` header (`default_tenant` fallback)."""
-    if user and getattr(user, "tenant_id", None):
-        return str(user.tenant_id)
-    return x_tenant_id or "default_tenant"
+    """Resolve active workspace identifier from user session."""
+    if not user or not getattr(user, "workspace_name", None) or user.workspace_name == "None":
+        raise HTTPException(status_code=401, detail="Missing workspace context")
+    return str(user.workspace_name)
 
 
 def get_retrieval_repository(

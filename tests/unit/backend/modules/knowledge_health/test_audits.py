@@ -14,6 +14,12 @@ from backend.modules.vector.schemas.payload import CollectionSummaryDTO
 async def test_integrity_auditor_synced() -> None:
     """Verify that when DB chunks count == Qdrant points count, status is SYNCED."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     mock_pg_res = MagicMock()
     mock_pg_res.scalar_one_or_none.return_value = 50
 
@@ -46,6 +52,12 @@ async def test_integrity_auditor_synced() -> None:
 async def test_integrity_auditor_mismatch_emits_drift_event() -> None:
     """Verify that when count parity fails, event is emitted and mismatch status returned."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     mock_pg_res = MagicMock()
     mock_pg_res.scalar_one_or_none.return_value = 60
 
@@ -78,6 +90,12 @@ async def test_integrity_auditor_mismatch_emits_drift_event() -> None:
 async def test_stale_embedding_scanner_detection_and_reindex() -> None:
     """Verify identification of model configuration drift and creation of shadow re-index job."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     mock_emb = MagicMock()
     mock_emb.chunk_id = uuid4()
     mock_emb.provider = "openai"

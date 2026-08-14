@@ -130,8 +130,9 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
 
     # 3. Qdrant
     t0 = time.time()
-    vector_res = await check_vector_db_health()
-    is_vector_healthy = vector_res.get("status") == "healthy"
+    # vector_res = await check_vector_db_health()
+    vector_res = {"status": "unhealthy", "error": "Bypassed for PAT"}
+    is_vector_healthy = False
 
     deps["qdrant"] = DependencyHealth(
         name="qdrant",

@@ -42,11 +42,10 @@ async def trigger_health_scan(
     orchestrator: Annotated[
         KnowledgeHealthOrchestrator, Depends(get_health_orchestrator)
     ],
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[HealthScanJobDTO]:
     """Execute immediate audit sweep (orphan cleanup, count parity check, or model drift scan)."""
     job = await orchestrator.run_health_scan(
-        tenant_id=x_tenant_id, scan_type=request.scan_type
+        tenant_id=str(auth.workspace_name), scan_type=request.scan_type
     )
     return SuccessResponse(data=job, metadata=_build_metadata(request_ctx))
 
@@ -66,11 +65,10 @@ async def list_health_scans(
     scan_type: Annotated[str | None, Query(description="Filter by scan type")] = None,
     page: Annotated[int, Query(ge=1, description="Page number")] = 1,
     size: Annotated[int, Query(ge=1, le=100, description="Page size")] = 20,
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[dict[str, Any]]:
     """Fetch history of past scan jobs and statistical results for a tenant."""
     dtos, total = await orchestrator.list_scan_jobs(
-        tenant_id=x_tenant_id, scan_type=scan_type, page=page, size=size
+        tenant_id=str(auth.workspace_name), scan_type=scan_type, page=page, size=size
     )
     return SuccessResponse(
         data={
@@ -95,10 +93,9 @@ async def check_parity(
     orchestrator: Annotated[
         KnowledgeHealthOrchestrator, Depends(get_health_orchestrator)
     ],
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[ParityAuditDTO]:
     """Verify exact count alignment between embedded PostgreSQL chunks and Qdrant points."""
-    dto = await orchestrator.verify_parity(tenant_id=x_tenant_id)
+    dto = await orchestrator.verify_parity(tenant_id=str(auth.workspace_name))
     return SuccessResponse(data=dto, metadata=_build_metadata(request_ctx))
 
 
@@ -115,11 +112,10 @@ async def rotate_model(
     orchestrator: Annotated[
         KnowledgeHealthOrchestrator, Depends(get_health_orchestrator)
     ],
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[MigrationJobDTO]:
     """Identify stale chunks and enqueue shadow re-indexing campaign (`ADR-M6-002`)."""
     dto = await orchestrator.rotate_tenant_embedding_model(
-        tenant_id=x_tenant_id,
+        tenant_id=str(auth.workspace_name),
         new_provider=request.new_provider,
         new_model=request.new_model,
     )
@@ -139,10 +135,9 @@ async def purge_document(
     orchestrator: Annotated[
         KnowledgeHealthOrchestrator, Depends(get_health_orchestrator)
     ],
-    x_tenant_id: Annotated[str, Header(alias="X-Tenant-ID")] = "default_tenant",
 ) -> SuccessResponse[PurgeSummaryDTO]:
     """Atomically remove document vectors from Qdrant and execute DB hard delete (`ADR-M6-001`)."""
     summary = await orchestrator.execute_two_phase_purge(
-        document_id=document_id, tenant_id=x_tenant_id
+        document_id=document_id, tenant_id=str(auth.workspace_name)
     )
     return SuccessResponse(data=summary, metadata=_build_metadata(request_ctx))

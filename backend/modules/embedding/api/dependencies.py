@@ -6,7 +6,7 @@ Provides FastAPI dependency injection functions for database session repositorie
 
 from typing import Any
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.dependencies.auth import get_optional_user
@@ -32,9 +32,8 @@ def get_embedding_service(
 
 def resolve_tenant(
     user: Any | None = Depends(get_optional_user),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
 ) -> str:
-    """Resolve active tenant identifier from user session or `X-Tenant-ID` header (`default_tenant` fallback)."""
-    if user and getattr(user, "tenant_id", None):
-        return user.tenant_id
-    return x_tenant_id or "default_tenant"
+    """Resolve active workspace identifier from user session."""
+    if not user or not getattr(user, "workspace_name", None) or user.workspace_name == "None":
+        raise HTTPException(status_code=401, detail="Missing workspace context")
+    return user.workspace_name

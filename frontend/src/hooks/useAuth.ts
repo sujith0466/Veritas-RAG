@@ -10,9 +10,18 @@ export function useAuth() {
 
   const login = async (data: LoginFormData) => {
     const tokenStr = await authService.login(data)
-    // The profile will be fetched manually
-    const profile = await authService.fetchBackendProfile()
-    useAuthStore.getState().setAuth(profile, tokenStr)
+
+    // Temporarily set token in store so the apiClient interceptor uses it
+    useAuthStore.setState({ token: tokenStr })
+
+    try {
+      // The profile will be fetched manually using the token via interceptor
+      const profile = await authService.fetchBackendProfile()
+      useAuthStore.getState().setAuth(profile, tokenStr)
+    } catch (error) {
+      useAuthStore.getState().clearAuth()
+      throw error
+    }
   }
 
   const register = async (data: RegisterFormData) => {

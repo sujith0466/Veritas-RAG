@@ -112,3 +112,23 @@ class ChatRepository:
 
         await self.session.commit()
         return message
+
+    async def stream_workspace_messages(self, tenant_id: str, start_date=None, end_date=None):
+        from sqlalchemy import text
+
+        stmt = (
+            select(ChatMessage, ChatSession.user_id, ChatSession.title)
+            .join(ChatSession, ChatMessage.session_id == ChatSession.id)
+            .where(ChatSession.tenant_id == tenant_id)
+            .order_by(ChatMessage.created_at.asc())
+        )
+
+        if start_date:
+            stmt = stmt.where(ChatMessage.created_at >= start_date)
+        if end_date:
+            stmt = stmt.where(ChatMessage.created_at <= end_date)
+
+        # Using stream to fetch in batches
+        result = await self.session.stream(stmt.execution_options(yield_per=1000))
+        async for row in result:
+            yield row

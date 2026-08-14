@@ -15,6 +15,11 @@ from backend.services.sso_service import SSOService, SSOServiceError
 
 router = APIRouter(prefix="/workspaces/{workspace_slug}/idp", tags=["Workspace SSO"])
 
+from backend.core.auth.context import UserContext
+from backend.core.dependencies.rbac import require_role
+from backend.core.permissions.rbac import Role
+from backend.repositories.workspace import WorkspaceRepository
+
 @router.post(
     "",
     response_model=IdentityProviderResponse,
@@ -27,10 +32,18 @@ async def create_idp(
     payload: IdentityProviderCreateRequest,
     session: AsyncSession = Depends(get_db),
     dispatcher: EventDispatcher = Depends(get_dispatcher),
+    user_context: UserContext = Depends(require_role(Role.OWNER)),
 ) -> dict:
+    repo = WorkspaceRepository(session)
+    workspace = await repo.get_by_slug(workspace_slug)
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+
+    if str(user_context.tenant_id) != str(workspace.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient workspace membership")
+
     service = SSOService(session, dispatcher)
-    # Stub: Retrieve workspace_id from slug
-    workspace_id = uuid.uuid4()
+    workspace_id = workspace.id
     try:
         idp = await service.create_idp(workspace_id, payload.model_dump())
     except SSOServiceError as e:

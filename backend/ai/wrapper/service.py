@@ -57,6 +57,9 @@ class AIWrapperService:
         self.event_dispatcher = event_dispatcher
         self.llm_manager = llm_manager
 
+        # EP8-004 & EP8-013: Bind the real LLM manager to the generation service
+        self.streaming_generation.llm_provider = self.llm_manager
+
     async def _validate_workspace(self, req: AIWrapperRequest, user_id: uuid.UUID) -> None:
         """Step 2: Workspace Validation (6-check gate)."""
 
@@ -65,12 +68,18 @@ class AIWrapperService:
         async with session_maker() as session:
             # Workspace active & features enabled
             workspace = await session.get(Workspace, req.workspace_id)
-            if not workspace or str(workspace.id) != str(req.tenant_id) or workspace.status != "ACTIVE":
+            from backend.models.entities.workspace import WorkspaceStatus
+            if not workspace or str(workspace.id) != str(req.tenant_id) or workspace.status != WorkspaceStatus.ACTIVE.value:
                 raise WorkspaceValidationError("Workspace not found or inactive.")
 
-            # (Assuming settings JSON or similar for ai_enabled check, simplified here)
-            # if not workspace.settings.get("ai_enabled", True):
-            #     raise WorkspaceValidationError("AI features disabled for this workspace.")
+            # EP8-006: AI enabled feature check
+            from backend.models.entities.workspace_settings import WorkspaceSettings
+            ws_settings = await session.execute(
+                select(WorkspaceSettings).where(WorkspaceSettings.workspace_id == req.workspace_id).limit(1)
+            )
+            settings_obj = ws_settings.scalar_one_or_none()
+            if settings_obj and not settings_obj.settings_json.get("ai_enabled", True):
+                raise WorkspaceValidationError("AI features disabled for this workspace.")
 
             # Member check
             member = await session.execute(

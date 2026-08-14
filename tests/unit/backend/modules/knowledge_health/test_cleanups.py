@@ -14,6 +14,12 @@ from backend.modules.knowledge_health.schemas.errors import PurgeSynchronization
 async def test_two_phase_purge_success() -> None:
     """Verify clean execution of two-phase document and vector purge."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     # Mock document select
     mock_doc = MagicMock()
     mock_doc.id = uuid4()
@@ -42,6 +48,12 @@ async def test_two_phase_purge_success() -> None:
 async def test_two_phase_purge_vector_failure_raises_khl_003() -> None:
     """Verify that when finalize_hard_purge raises an unexpected error, PurgeSynchronizationError is thrown while DB remains marked DELETED."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     mock_doc = MagicMock()
     mock_doc.id = uuid4()
 
@@ -72,6 +84,12 @@ async def test_two_phase_purge_vector_failure_raises_khl_003() -> None:
 async def test_orphan_cleanup_engine_sweep() -> None:
     """Verify identification and sweeping of orphaned chunks lacking active parent documents."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     # Mock active documents query returning active doc ID
     active_doc_id = uuid4()
     orphan_doc_id = uuid4()

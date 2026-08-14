@@ -60,8 +60,9 @@
 ## Epic 9: Chat Platform
 | Feature | Status | Notes |
 |---|---|---|
-| F9.1 - Chat Session Create / List | ✅ Production Validated & Frozen | |
-| F9.2 - Chat Turn (Base AI response) | ✅ Production Validated & Frozen | |
-| F9.3 - Chat History & Scroll Lock | ✅ Production Validated & Frozen | |
-| F9.4 - Reliability Badge | ✅ Production Validated & Frozen | |
-| F9.5 - Citation Rendering | ✅ Production Validated & Frozen | |
+| F9.1 - Chat Session Create / List | ✅ CERTIFIED / FROZEN | Post-remediation verification passed |
+| F9.2 - Chat Turn (Base AI response) | ✅ CERTIFIED / FROZEN | Post-remediation verification passed |
+| F9.3 - Chat History & Scroll Lock | ✅ CERTIFIED / FROZEN | Post-remediation verification passed |
+| F9.4 - Reliability Badge | ✅ CERTIFIED / FROZEN | Post-remediation verification passed |
+| F9.5 - Citation Rendering | ✅ CERTIFIED / FROZEN | |
+| F9.6 - Chat History Export | ✅ CERTIFIED / FROZEN | |

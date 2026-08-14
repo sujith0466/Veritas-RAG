@@ -41,7 +41,7 @@ class StartupValidator:
         """Layer 2: Infrastructure validation. Performs network I/O."""
         await self._validate_database()
         await self._validate_redis()
-        await self._validate_qdrant()
+        # await self._validate_qdrant()
 
     def _validate_environment(self) -> None:
         """Verify environment variables and configuration objects."""

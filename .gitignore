@@ -157,3 +157,20 @@ FINAL_REPOSITORY_CLEANUP_REPORT.md
 SECRET_AUDIT_EPIC*.md
 TRACKED_FILES_REVIEW_EPIC*.md
 EPIC*_FINAL_REPOSITORY_CERTIFICATION.md
+
+
+epic2_test_results.json
+test_epic2_test_results.json
+test_epic2*
+test_adversarial*
+test_baseline*
+smoke_auth*
+scratch_test.py
+test_gates.py
+test_login.py
+test_me.py
+test_runtime_auth.py
+verify.py
+
+# Local Archives
+.archive/

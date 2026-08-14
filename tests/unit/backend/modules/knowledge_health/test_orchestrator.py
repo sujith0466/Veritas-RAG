@@ -16,6 +16,12 @@ from backend.modules.knowledge_health.services.health_service import KnowledgeHe
 async def test_orchestrator_run_all_scans() -> None:
     """Verify execution of ScanType.ALL invoking orphan sweep, parity audit, and drift detection."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     vec_service = AsyncMock()
     dispatcher = AsyncMock()
 
@@ -67,6 +73,12 @@ async def test_orchestrator_run_all_scans() -> None:
 async def test_orchestrator_invalid_scan_type_raises_error() -> None:
     """Verify that an unsupported scan string raises InvalidScanTypeError before execution."""
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     orchestrator = KnowledgeHealthOrchestrator(session=session)
 
     with pytest.raises(InvalidScanTypeError) as exc:

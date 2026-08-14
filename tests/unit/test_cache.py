@@ -1,7 +1,7 @@
 """Unit tests for Redis cache client and connection pooling."""
 
 import asyncio
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,11 +17,11 @@ from backend.cache.client import (
 
 
 @pytest.fixture(autouse=True)
-def reset_cache_singletons() -> Generator[None, None, None]:
+async def reset_cache_singletons() -> AsyncGenerator[None, None]:
     """Reset cache singletons cleanly before and after each test."""
-    asyncio.run(close_cache())
+    await close_cache()
     yield
-    asyncio.run(close_cache())
+    await close_cache()
 
 
 @pytest.mark.unit

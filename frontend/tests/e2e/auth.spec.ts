@@ -3,7 +3,7 @@ import { login, setupConsoleListener, setupNetworkListener } from './utils/helpe
 
 test.describe('Authentication Suite @auth', () => {
   test.beforeEach(async ({ page }) => {
-    setupConsoleListener(page);
+    page.on('console', msg => console.log(msg.text())); setupConsoleListener(page);
     setupNetworkListener(page);
   });
 
@@ -31,9 +31,8 @@ test.describe('Authentication Suite @auth', () => {
       await logoutItem.click();
 
       // handleLogout() calls navigate('/') which goes to the landing page root.
-      // The full URL becomes http://127.0.0.1:5173/ — check for either landing or login page.
-      // We use a loose URL check: the path should be '/' or '/auth/login'
-      await expect(page).toHaveURL(/(\/auth\/login|:5173\/)$/, { timeout: 15000 });
+      // We use a loose URL check: the path should end in '/' or '/auth/login'
+      await expect(page).toHaveURL(/(\/auth\/login|\/)$/, { timeout: 15000 });
     });
   });
 

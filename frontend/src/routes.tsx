@@ -1,42 +1,50 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { AppProvider } from '@/providers/AppProvider'
 import { AuthLayout, DashboardLayout, LandingLayout } from '@/components/layouts'
-import { LoginPage, RegisterPage, VerifyPage, ResendVerificationPage, ForgotPasswordPage, ResetPasswordPage } from '@/pages/auth'
-import { LandingPage } from '@/pages/landing/LandingPage'
-import { DashboardPage, KnowledgeIntelligenceDashboardPage } from '@/pages/dashboard'
-import { DocumentsPage } from '@/pages/documents'
-import { ChunksPage } from '@/pages/chunks'
-import { EmbeddingsPage } from '@/pages/embeddings'
-import { VectorsPage } from '@/pages/vectors'
-import { KnowledgeHealthPage } from '@/pages/knowledge_health'
-import { ReliabilityDashboardPage } from '@/pages/analytics'
-import { DeveloperInvestigationPage } from '@/pages/investigation'
-import {
-  SettingsLayout,
-  ProfileSettings,
-  AppearanceSettings,
-  SecuritySettings,
-  NotificationSettings,
-  AIPrefSettings,
-  WorkspaceSettings,
-  DeveloperSettings,
-  PrivacySettings,
-  ActivitySettings
-} from '@/pages/settings'
-import { AIChatPage } from '@/pages/chat'
-import { NotFoundPage } from '@/pages/NotFoundPage'
-import { CreateWorkspace } from '@/pages/workspace/CreateWorkspace'
-import { EditWorkspace } from '@/pages/workspace/EditWorkspace'
-import { AcceptInvitationPage } from '@/pages/workspace/AcceptInvitationPage'
-import { WorkspaceMembersPage } from '@/pages/workspace/WorkspaceMembersPage'
+const LandingPage = lazy(() => import('@/pages/landing/LandingPage').then(m => ({ default: m.LandingPage })))
+const LoginPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.LoginPage })))
+const RegisterPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.RegisterPage })))
+const VerifyPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.VerifyPage })))
+const ResendVerificationPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.ResendVerificationPage })))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.ResetPasswordPage })))
+
+const DashboardPage = lazy(() => import('@/pages/dashboard').then(m => ({ default: m.DashboardPage })))
+const KnowledgeIntelligenceDashboardPage = lazy(() => import('@/pages/dashboard').then(m => ({ default: m.KnowledgeIntelligenceDashboardPage })))
+const DocumentsPage = lazy(() => import('@/pages/documents').then(m => ({ default: m.DocumentsPage })))
+const ChunksPage = lazy(() => import('@/pages/chunks').then(m => ({ default: m.ChunksPage })))
+const EmbeddingsPage = lazy(() => import('@/pages/embeddings').then(m => ({ default: m.EmbeddingsPage })))
+const VectorsPage = lazy(() => import('@/pages/vectors').then(m => ({ default: m.VectorsPage })))
+const KnowledgeHealthPage = lazy(() => import('@/pages/knowledge_health').then(m => ({ default: m.KnowledgeHealthPage })))
+const ReliabilityDashboardPage = lazy(() => import('@/pages/analytics').then(m => ({ default: m.ReliabilityDashboardPage })))
+const DeveloperInvestigationPage = lazy(() => import('@/pages/investigation').then(m => ({ default: m.DeveloperInvestigationPage })))
+
+const SettingsLayout = lazy(() => import('@/pages/settings').then(m => ({ default: m.SettingsLayout })))
+const ProfileSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.ProfileSettings })))
+const AppearanceSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.AppearanceSettings })))
+const SecuritySettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.SecuritySettings })))
+const NotificationSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.NotificationSettings })))
+const AIPrefSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.AIPrefSettings })))
+const WorkspaceSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.WorkspaceSettings })))
+const DeveloperSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.DeveloperSettings })))
+const PrivacySettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.PrivacySettings })))
+const ActivitySettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.ActivitySettings })))
+
+const AIChatPage = lazy(() => import('@/pages/chat').then(m => ({ default: m.AIChatPage })))
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
+const CreateWorkspace = lazy(() => import('@/pages/workspace/CreateWorkspace').then(m => ({ default: m.CreateWorkspace })))
+const EditWorkspace = lazy(() => import('@/pages/workspace/EditWorkspace').then(m => ({ default: m.EditWorkspace })))
+const AcceptInvitationPage = lazy(() => import('@/pages/workspace/AcceptInvitationPage').then(m => ({ default: m.AcceptInvitationPage })))
+const WorkspaceMembersPage = lazy(() => import('@/pages/workspace/WorkspaceMembersPage').then(m => ({ default: m.WorkspaceMembersPage })))
 import { useAuthStore } from '@/stores/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { MarketingThemeProvider } from '@/providers/MarketingThemeProvider'
 
 import { PostAuthenticationRouteResolver } from '@/components/auth/PostAuthenticationRouteResolver'
 import { BackendUnavailableBanner } from '@/components/auth'
-import { Outlet, useLocation } from 'react-router-dom'
+// Outlet & useLocation already imported at the top
 
 // ─── Route Guards ─────────────────────────────────────────────────────────────
 
@@ -62,7 +70,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
     return <Navigate to="/auth/login" replace />
   }
 
-  if (adminOnly && user?.role !== 'admin') {
+  if (adminOnly && !['admin', 'owner', 'platform_admin'].includes(user?.role || '')) {
     return <Navigate to="/dashboard" replace />
   }
 
@@ -78,10 +86,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isAuthenticated) {
-    const lastVisited = localStorage.getItem('raguard-last-page')
-    // If we have a last visited page that isn't auth, use it, else default to dashboard
-    const target = (lastVisited && !lastVisited.startsWith('/auth')) ? lastVisited : '/dashboard'
-    return <Navigate to={target} replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>
@@ -177,6 +182,14 @@ export const router = createBrowserRouter([
   },
 ])
 
+function SuspenseFallback() {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background pointer-events-none">
+      <div className="w-8 h-8 border-[3px] border-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  )
+}
+
 // Helper component for AnimatePresence support across layout boundaries
 function OutletWithAnimation() {
   const location = useLocation()
@@ -187,7 +200,9 @@ function OutletWithAnimation() {
 
   return (
     <AnimatePresence mode="wait">
-      <Outlet key={animationKey} />
+      <Suspense fallback={<SuspenseFallback />}>
+        <Outlet key={animationKey} />
+      </Suspense>
     </AnimatePresence>
   )
 }

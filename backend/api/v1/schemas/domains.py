@@ -3,12 +3,12 @@
 from datetime import datetime
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DomainCreateRequest(BaseModel):
     """Schema for adding a domain to a workspace."""
-    domain_name: str = Field(..., description="The domain to verify", example="acme.com")
+    domain_name: str = Field(..., description="The domain to verify", json_schema_extra={"example": "acme.com"})
 
 class DomainResponse(BaseModel):
     """Schema for representing a workspace domain."""
@@ -24,8 +24,7 @@ class DomainResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class DomainCreateResponse(DomainResponse):
     """Schema for the response when creating a domain, includes the token once."""

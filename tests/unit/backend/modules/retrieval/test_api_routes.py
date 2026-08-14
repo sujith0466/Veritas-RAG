@@ -11,6 +11,7 @@ from backend.main import create_app
 from backend.modules.retrieval.api.dependencies import (
     get_retrieval_orchestrator,
     get_retrieval_repository,
+    resolve_tenant,
 )
 from backend.modules.retrieval.schemas.errors import (
     InvalidQueryError,
@@ -122,12 +123,13 @@ class TestRetrievalApiRoutes:
     def test_post_search_success(
         self, client: TestClient, app: FastAPI, mock_orchestrator: MagicMock
     ) -> None:
+        app.dependency_overrides[resolve_tenant] = lambda: "org_api"
         app.dependency_overrides[get_retrieval_orchestrator] = lambda: mock_orchestrator
         try:
             response = client.post(
                 "/api/v1/retrieval/search",
                 json={"query": "API search query", "top_k": 5},
-                headers={"X-Tenant-ID": "org_api", "X-Correlation-ID": "corr_api_1"},
+                headers={"X-Correlation-ID": "corr_api_1"},
             )
             assert response.status_code == 200
             data = response.json()["data"]
@@ -144,12 +146,12 @@ class TestRetrievalApiRoutes:
         mock_orchestrator.execute_hybrid_search.side_effect = InvalidQueryError(
             "Query empty (`RET_001`)"
         )
+        app.dependency_overrides[resolve_tenant] = lambda: "org_api"
         app.dependency_overrides[get_retrieval_orchestrator] = lambda: mock_orchestrator
         try:
             response = client.post(
                 "/api/v1/retrieval/search",
                 json={"query": "   "},
-                headers={"X-Tenant-ID": "org_api"},
             )
             assert response.status_code == 400
             assert response.json()["error"]["code"] == "RET_001"
@@ -162,12 +164,12 @@ class TestRetrievalApiRoutes:
         mock_orchestrator.execute_hybrid_search.side_effect = SparseIndexNotFoundError(
             "Index missing (`RET_002`)"
         )
+        app.dependency_overrides[resolve_tenant] = lambda: "org_api"
         app.dependency_overrides[get_retrieval_orchestrator] = lambda: mock_orchestrator
         try:
             response = client.post(
                 "/api/v1/retrieval/search",
                 json={"query": "Check index"},
-                headers={"X-Tenant-ID": "org_api"},
             )
             assert response.status_code == 404
             assert response.json()["error"]["code"] == "RET_002"
@@ -180,12 +182,12 @@ class TestRetrievalApiRoutes:
         mock_orchestrator.execute_hybrid_search.side_effect = RerankerTimeoutError(
             "Cohere timeout (`RET_003`)"
         )
+        app.dependency_overrides[resolve_tenant] = lambda: "org_api"
         app.dependency_overrides[get_retrieval_orchestrator] = lambda: mock_orchestrator
         try:
             response = client.post(
                 "/api/v1/retrieval/search",
                 json={"query": "Timeout query"},
-                headers={"X-Tenant-ID": "org_api"},
             )
             assert response.status_code == 503
             assert response.json()["error"]["code"] == "RET_003"
@@ -195,12 +197,12 @@ class TestRetrievalApiRoutes:
     def test_post_sandbox_success(
         self, client: TestClient, app: FastAPI, mock_orchestrator: MagicMock
     ) -> None:
+        app.dependency_overrides[resolve_tenant] = lambda: "org_api"
         app.dependency_overrides[get_retrieval_orchestrator] = lambda: mock_orchestrator
         try:
             response = client.post(
                 "/api/v1/retrieval/sandbox",
                 json={"query": "Sandbox API search", "top_k": 10},
-                headers={"X-Tenant-ID": "org_api"},
             )
             assert response.status_code == 200
             data = response.json()["data"]
@@ -213,11 +215,11 @@ class TestRetrievalApiRoutes:
     def test_get_metrics_success(
         self, client: TestClient, app: FastAPI, mock_repository: MagicMock
     ) -> None:
+        app.dependency_overrides[resolve_tenant] = lambda: "org_api"
         app.dependency_overrides[get_retrieval_repository] = lambda: mock_repository
         try:
             response = client.get(
-                "/api/v1/retrieval/metrics",
-                headers={"X-Tenant-ID": "org_api"},
+                "/api/v1/retrieval/metrics"
             )
             assert response.status_code == 200
             data = response.json()["data"]
@@ -229,11 +231,11 @@ class TestRetrievalApiRoutes:
     def test_get_history_success(
         self, client: TestClient, app: FastAPI, mock_repository: MagicMock
     ) -> None:
+        app.dependency_overrides[resolve_tenant] = lambda: "org_api"
         app.dependency_overrides[get_retrieval_repository] = lambda: mock_repository
         try:
             response = client.get(
-                "/api/v1/retrieval/history?limit=10&offset=0",
-                headers={"X-Tenant-ID": "org_api"},
+                "/api/v1/retrieval/history?limit=10&offset=0"
             )
             assert response.status_code == 200
             assert isinstance(response.json()["data"], list)

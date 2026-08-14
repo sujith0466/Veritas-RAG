@@ -1,8 +1,6 @@
 """Idempotent seed script for development demo user."""
 
 import os
-
-import httpx
 import structlog
 
 from backend.core.config import get_settings
@@ -11,7 +9,7 @@ logger = structlog.get_logger(__name__)
 
 
 async def seed_demo_user() -> None:
-    """Creates a demo user in Supabase if running in development or ENABLE_DEMO_USER=true.
+    """Creates a demo user locally if running in development or ENABLE_DEMO_USER=true.
 
     The demo user is created idempotently (skips if exists).
     Role defaults to 'viewer' unless ENABLE_DEMO_ADMIN=true is set.
@@ -33,51 +31,37 @@ async def seed_demo_user() -> None:
         else "viewer"
     )
 
-    supabase_url = settings.supabase.url.rstrip("/")
-    admin_api_url = f"{supabase_url}/auth/v1/admin/users"
-    headers = {
-        "apikey": settings.supabase.service_role_key,
-        "Authorization": f"Bearer {settings.supabase.service_role_key}",
-        "Content-Type": "application/json",
-    }
-
     try:
-        async with httpx.AsyncClient() as client:
-            # Check if user already exists
-            resp = await client.get(admin_api_url, headers=headers)
-            if resp.status_code == 200:
-                users = resp.json().get("users", [])
-                if any(u.get("email") == demo_email for u in users):
-                    logger.info(
-                        "Demo user already exists in Supabase. Skipping seed.",
-                        email=demo_email,
-                    )
-                    return
+        from backend.database.engine import get_session_factory
+        from backend.core.security.password import get_password_hash
+        from backend.models.entities.user import User
+        from backend.core.permissions.rbac import Role
+        from backend.repositories.implementations.user_repository import UserRepository
 
-            # Create user
-            payload = {
-                "email": demo_email,
-                "password": demo_password,
-                "email_confirm": True,
-                "user_metadata": {"role": demo_role},
-            }
-            logger.info(
-                "Creating demo user in Supabase", email=demo_email, role=demo_role
-            )
-            create_resp = await client.post(
-                admin_api_url, headers=headers, json=payload
-            )
+        async with get_session_factory()() as session:
+            repo = UserRepository(session)
 
-            if create_resp.status_code in (200, 201):
-                logger.info("Demo user created successfully.")
-            elif create_resp.status_code == 422:
-                # E.g. "User already registered"
-                logger.info("Demo user already exists (422). Skipping.")
-            else:
-                logger.error(
-                    "Failed to create demo user",
-                    status=create_resp.status_code,
-                    response=create_resp.text,
+            # Users to seed
+            users_to_seed = [
+                ("demoadmin@gmail.com", "ChangeMe123!", "admin"),
+                ("demo@gmail.com", "ChangeMe123!", "viewer")
+            ]
+
+            for email, password, role in users_to_seed:
+                if await repo.exists_by_email(email):
+                    logger.info("Demo user already exists locally. Skipping seed.", email=email)
+                    continue
+
+                hashed_pw = get_password_hash(password)
+                new_user = User(
+                    email=email,
+                    hashed_password=hashed_pw,
+                    role=Role.from_str(role),
+                    is_verified=True
                 )
+                await repo.create(new_user)
+                logger.info("Demo user created successfully.", email=email, role=role)
+
+            await session.commit()
     except Exception as e:
         logger.error("Exception occurred while seeding demo user", error=str(e))

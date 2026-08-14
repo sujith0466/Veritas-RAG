@@ -67,6 +67,7 @@ class JWTService:
             "nbf": now,
             "jti": access_jti,
             "role": user.role,
+            "email": user.email,  # Required for invitation identity binding (AUTH-009)
             "workspace_id": user.workspace_name,
         }
 
@@ -116,13 +117,14 @@ class JWTService:
 
             return TokenPayload(
                 sub=sub,
-                email=None,  # We don't necessarily encode email in access token to keep it small
+                email=raw_claims.get("email"),  # AUTH-009: read email claim from token payload
                 role=str(raw_claims.get("role", "viewer")),
-                tenant_id=None,
+                tenant_id=raw_claims.get("tenant_id"),
                 workspace_name=workspace_id if workspace_id else "None",
                 full_name=None,
                 organization_name=None,
                 exp=int(raw_claims.get("exp", 0)),
+                jti=jti,
                 aud=raw_claims.get("aud"),
                 iss=raw_claims.get("iss"),
                 metadata=raw_claims,

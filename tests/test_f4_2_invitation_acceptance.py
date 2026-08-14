@@ -56,6 +56,18 @@ async def test_accept_invitation_success(mock_repos):
     workspace_repo = mock_repos["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     raw_token, token_hash = generate_invitation_token()
     workspace_id = uuid.uuid4()
     user_id = uuid.uuid4()
@@ -104,6 +116,18 @@ async def test_accept_invitation_email_mismatch(mock_repos):
     workspace_repo = mock_repos["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     raw_token, token_hash = generate_invitation_token()
     workspace_id = uuid.uuid4()
     user_id = uuid.uuid4()
@@ -141,6 +165,18 @@ async def test_accept_invitation_expired(mock_repos):
     workspace_repo = mock_repos["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     raw_token, token_hash = generate_invitation_token()
     workspace_id = uuid.uuid4()
     user_id = uuid.uuid4()
@@ -180,6 +216,18 @@ async def test_accept_invitation_already_member(mock_repos):
     workspace_repo = mock_repos["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     raw_token, token_hash = generate_invitation_token()
     workspace_id = uuid.uuid4()
     user_id = uuid.uuid4()

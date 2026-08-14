@@ -41,7 +41,7 @@ class PasswordResetService:
         stmt_revoke = (
             update(UserSession)
             .where(UserSession.user_id == user.id, UserSession.is_revoked.is_(False))
-            .values(is_revoked=True, refresh_token_hash=None)
+            .values(is_revoked=True)
         )
         await self.session.execute(stmt_revoke)
 
@@ -129,15 +129,16 @@ class PasswordResetService:
             cooldown_key = f"otp_cooldown:{user_id_str}"
             if await self.redis.get(cooldown_key):
                 logger.warning("OTP requested too frequently", user_id=user_id_str)
-                # Fail silently to user, returning generic response at the API level
-                return
+                from fastapi import HTTPException
+                raise HTTPException(status_code=429, detail="Please wait a minute before requesting another OTP.")
 
             # Rate limit check (3 per 15 mins)
             rate_limit_key = f"otp_requests:{user_id_str}"
             request_count = await self.redis.get(rate_limit_key)
             if request_count and int(request_count) >= 3:
                 logger.warning("OTP request limit exceeded", user_id=user_id_str)
-                return
+                from fastapi import HTTPException
+                raise HTTPException(status_code=429, detail="Too many OTP requests. Please try again later.")
 
             # Apply limits
             await self.redis.setex(cooldown_key, 60, "1")

@@ -41,6 +41,18 @@ async def test_update_member_role_success(mock_membership_service):
     workspace_repo = mock_membership_service["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     workspace_id = uuid.uuid4()
     actor_id = uuid.uuid4()
     target_id = uuid.uuid4()
@@ -76,6 +88,18 @@ async def test_last_owner_protection_on_role_demote(mock_membership_service):
     workspace_repo = mock_membership_service["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     workspace_id = uuid.uuid4()
     actor_id = uuid.uuid4()
     target_id = uuid.uuid4()
@@ -107,6 +131,18 @@ async def test_admin_cannot_promote_to_owner(mock_membership_service):
     workspace_repo = mock_membership_service["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     workspace_id = uuid.uuid4()
     actor_id = uuid.uuid4()
     target_id = uuid.uuid4()
@@ -134,6 +170,18 @@ async def test_suspend_and_restore_member(mock_membership_service):
     workspace_repo = mock_membership_service["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     workspace_id = uuid.uuid4()
     actor_id = uuid.uuid4()
     target_id = uuid.uuid4()
@@ -163,6 +211,18 @@ async def test_remove_member_success(mock_membership_service):
     workspace_repo = mock_membership_service["workspace_repo"]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     workspace_id = uuid.uuid4()
     actor_id = uuid.uuid4()
     target_id = uuid.uuid4()

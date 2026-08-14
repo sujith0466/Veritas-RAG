@@ -11,7 +11,7 @@ Fixture scope strategy:
 from collections.abc import Generator
 import os
 from typing import Any
-
+import warnings
 import pytest
 
 # ─── Environment: force testing mode before any imports ────────────────────────
@@ -29,14 +29,14 @@ os.environ["SUPABASE_SERVICE_ROLE_KEY"] = "test-service-role-key"
 os.environ["SUPABASE_JWT_SECRET"] = "test-jwt-secret"
 
 # Database (scaffold)
-os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost:5432/raguard_test"
-os.environ["ALEMBIC_DATABASE_URL"] = "postgresql://test:test@localhost:5432/raguard_test"
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@127.0.0.1:5432/raguard_test"
+os.environ["ALEMBIC_DATABASE_URL"] = "postgresql://test:test@127.0.0.1:5432/raguard_test"
 
 # Redis (scaffold)
 os.environ["REDIS_URL"] = "redis://localhost:6379/15"
 
 # Qdrant (scaffold)
-os.environ["QDRANT_HOST"] = "localhost"
+os.environ["QDRANT_HOST"] = "127.0.0.1"
 os.environ["QDRANT_PORT"] = "6333"
 # Clear URL to not conflict with Qdrant config
 if "QDRANT_URL" in os.environ:

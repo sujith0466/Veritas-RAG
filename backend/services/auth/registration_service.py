@@ -55,12 +55,14 @@ class RegistrationService:
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
         # 5. Create user
+        import datetime
         try:
             user = await self.user_repo.create(
                 email=email_normalized,
                 hashed_password=hashed_password,
                 is_verified=False,
                 verification_token_hash=token_hash,
+                verification_token_expires_at=datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24),
                 profile_data={"full_name": request.full_name} if request.full_name else {},
             )
             await self.session.commit()

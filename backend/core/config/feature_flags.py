@@ -66,7 +66,7 @@ class FeatureFlagSettings(BaseSettings):
 
     # Epic 8 Streaming Resilience
     enable_sse_recovery: bool = Field(
-        default=False,
+        default=True,
         alias="ENABLE_SSE_RECOVERY",
         description="Enable SSE Last-Event-ID recovery and Redis caching (F8.4)",
     )
@@ -76,14 +76,14 @@ class FeatureFlagSettings(BaseSettings):
         description="Enable heartbeat events during long streams (F8.4)",
     )
     enable_timeout_events: bool = Field(
-        default=False,
+        default=True,
         alias="ENABLE_TIMEOUT_EVENTS",
         description="Enable structured timeout error events (F8.5)",
     )
     enable_partial_persistence: bool = Field(
-        default=False,
+        default=True,
         alias="ENABLE_PARTIAL_PERSISTENCE",
-        description="Enable partial chat message persistence on disconnect (F8.6)",
+        description="Persist partial messages on cancellation or timeout (F8.6)",
     )
 
     # Epic 8 Batch 3 Streaming Enhancements & Policy

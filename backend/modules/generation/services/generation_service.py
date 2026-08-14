@@ -71,7 +71,7 @@ class GroundedGenerationService:
             )
 
         evidence_block = _build_evidence_block(evidence_chunks)
-        model_name = getattr(self.llm_provider, "model_name", "gemini-mock")
+        model_name = getattr(self.llm_provider, "model_name", "unknown_provider_model")
 
         with trace_generation(
             model=model_name, prompt_tokens=len(evidence_block.split())

@@ -28,6 +28,12 @@ def mock_workspace_member_repo():
 @pytest.fixture
 def mock_session():
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     return session
 
 

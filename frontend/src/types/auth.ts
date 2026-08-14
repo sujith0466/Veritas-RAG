@@ -8,10 +8,10 @@ export type AuthStatus = 'UNAUTHENTICATED' | 'LOADING' | 'AUTHENTICATED' | 'ERRO
 
 export interface UserContext {
   id: string
-  supabase_id: string
   email: string
   role: Role
   tenant_id: string | null
+  workspace_id?: string | null
   workspace_name: string | null
   full_name: string | null
   is_active: boolean
@@ -22,6 +22,8 @@ export interface UserContext {
   created_at: string
   updated_at: string
 }
+
+
 
 export interface TokenPayload {
   sub: string

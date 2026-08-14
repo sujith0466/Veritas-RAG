@@ -65,7 +65,12 @@ async def generate_ai_request(
         content += chunk.text_delta
         if chunk.is_final:
             citations = [c.model_dump() for c in chunk.citations_delta]
-            reliability = 1.0 # Or fetch from wrapper
+
+            if chunk.wrapper_metadata and "reliability_score" in chunk.wrapper_metadata:
+                reliability = chunk.wrapper_metadata["reliability_score"]
+            else:
+                reliability = 0.5  # Fallback if uncalculated
+
             grounded = chunk.is_fully_grounded
 
     resp = AIWrapperResponse(

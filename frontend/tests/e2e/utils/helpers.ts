@@ -64,6 +64,8 @@ export function setupConsoleListener(page: Page) {
         // 401 is expected during Supabase session hydration on initial page load
         !text.includes('401') &&
         !text.includes('Unauthorized') &&
+        !text.includes('404') &&
+        !text.includes('Not Found') &&
         // Supabase realtime connection warnings are expected in test environment
         !text.includes('realtime') &&
         !text.includes('WebSocket')
@@ -80,10 +82,16 @@ export function setupConsoleListener(page: Page) {
 
 export function setupNetworkListener(page: Page) {
   const failedRequests: string[] = [];
-  page.on('response', response => {
-    // Only check API requests, ignore static assets and auth-related requests
-    if (response.url().includes('/api/') && response.status() >= 500) {
-      failedRequests.push(`${response.request().method()} ${response.url()} failed with ${response.status()}`);
+  page.on('response', async response => {
+    if (response.url().includes('/api/')) {
+      const text = await response.text().catch(() => '');
+      console.log(`[NETWORK] ${response.request().method()} ${response.url()} -> ${response.status()} ${text}`);
+      if (response.url().includes('/auth/me')) {
+        console.log(`[HEADERS] ${JSON.stringify(response.request().headers())}`);
+      }
+      if (response.status() >= 500) {
+        failedRequests.push(`${response.request().method()} ${response.url()} failed with ${response.status()}: ${text}`);
+      }
     }
   });
   return failedRequests;

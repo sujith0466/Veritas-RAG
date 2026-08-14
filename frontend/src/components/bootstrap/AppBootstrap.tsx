@@ -132,12 +132,7 @@ export function AppBootstrap() {
           {/* Layered Translucent Planes / Noise (from 3D background system) */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.04),transparent_50%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.04),transparent_50%)] opacity-70 mix-blend-screen" />
-          <div
-            className="absolute inset-0 opacity-[0.015] mix-blend-multiply pointer-events-none"
-            style={{
-              backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")'
-            }}
-          />
+          <div className="absolute inset-0 bg-noise opacity-[0.015] mix-blend-multiply pointer-events-none" />
 
           <div className="relative z-10 flex flex-col items-center w-full max-w-sm px-6">
             {/* Wordmark */}

@@ -29,6 +29,18 @@ class TestChunkingService:
         )
 
         mock_session = AsyncMock()
+
+        mock_session.add = MagicMock()
+
+        mock_session.add_all = MagicMock()
+
+        mock_session.delete = MagicMock()
+
+        mock_session.flush = AsyncMock()
+
+        mock_session.commit = AsyncMock()
+
+        mock_session.refresh = AsyncMock()
         # Mock execute returning doc, then version, then delete result, then count
         result_doc = MagicMock()
         result_doc.scalar_one_or_none.return_value = doc_mock
@@ -80,6 +92,12 @@ class TestChunkingService:
 
     async def test_chunk_document_version_missing_doc_raises_chk_005(self) -> None:
         mock_session = AsyncMock()
+        mock_session.add = MagicMock()
+        mock_session.add_all = MagicMock()
+        mock_session.delete = MagicMock()
+        mock_session.flush = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
         result_doc = MagicMock()
         result_doc.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = result_doc

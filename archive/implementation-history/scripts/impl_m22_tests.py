@@ -42,7 +42,7 @@ def test_compliance_auditor():
     # 3. test_middleware.py
     with open("tests/unit/backend/modules/security/test_middleware.py", "w") as f:
         f.write("""import pytest
-from backend.modules.security.middleware import SecurityInterceptor
+from backend.modules.security.security_interceptor import SecurityInterceptor
 from backend.modules.security.services.dlp import DLPEngine
 from backend.modules.security.services.auditor import ComplianceAuditor
 

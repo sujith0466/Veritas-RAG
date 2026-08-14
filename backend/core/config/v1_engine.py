@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class V1EngineSettings(BaseSettings):
@@ -18,5 +18,4 @@ class V1EngineSettings(BaseSettings):
     total_timeout: float = 30.0
     service_token: str | None = None
 
-    class Config:
-        env_prefix = "V1_ENGINE_"
+    model_config = SettingsConfigDict(env_prefix="V1_ENGINE_")

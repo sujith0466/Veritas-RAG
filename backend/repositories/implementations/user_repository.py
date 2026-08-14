@@ -35,15 +35,6 @@ class UserRepository(BaseRepository[User], IUserRepository):
         result = await self.session.execute(stmt)
         return result.first() is not None
 
-    async def get_by_supabase_id(self, supabase_user_id: str) -> User | None:
-        """Fetch an active user by their Supabase Auth ID."""
-        stmt = select(User).where(
-            User.supabase_user_id == supabase_user_id,
-            User.is_deleted.is_(False),
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
     async def get_by_username(self, username: str) -> User | None:
         """Fetch an active user by their username."""
         stmt = select(User).where(

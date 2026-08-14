@@ -30,7 +30,6 @@ class RetrySignal(Exception):
     pass
 
 
-@pytest.mark.asyncio
 class TestCeleryEmbeddingWorker:
     """Test suite verifying worker backoff calculations and Celery task coordination."""
 
@@ -47,6 +46,7 @@ class TestCeleryEmbeddingWorker:
         b_max = CeleryEmbeddingWorker.calculate_jittered_backoff(retry_count=10, base_seconds=100.0, max_seconds=300.0)
         assert b_max <= 300.0
 
+    @pytest.mark.asyncio
     @patch("backend.cache.locks.acquire_lock", return_value=DummyAsyncContextManager())
     async def test_execute_batch_success(self, mock_acquire_lock) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
@@ -92,6 +92,7 @@ class TestCeleryEmbeddingWorker:
             },
         )
 
+    @pytest.mark.asyncio
     @patch("backend.cache.locks.acquire_lock", return_value=DummyAsyncContextManager())
     async def test_execute_batch_retries_recoverable_error(self, mock_acquire_lock) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
@@ -119,6 +120,7 @@ class TestCeleryEmbeddingWorker:
         assert "countdown" in kwargs
         assert kwargs["countdown"] >= 10.0
 
+    @pytest.mark.asyncio
     @patch("backend.cache.locks.acquire_lock", return_value=DummyAsyncContextManager())
     async def test_execute_batch_no_retry_on_fatal_error(self, mock_acquire_lock) -> None:
         mock_session = AsyncMock(spec=AsyncSession)

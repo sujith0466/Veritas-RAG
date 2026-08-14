@@ -3,20 +3,20 @@
 from datetime import datetime
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class IdentityProviderCreateRequest(BaseModel):
     """Schema for creating an IdP."""
-    name: str = Field(..., max_length=100, example="Corporate Okta")
-    type: str = Field(..., example="SAML")
-    entity_id_issuer: str = Field(..., example="http://www.okta.com/exk12345")
-    sso_url: str = Field(..., example="https://org.okta.com/app/app/sso/saml")
-    logout_url: str | None = Field(None, example="https://org.okta.com/app/app/sso/logout")
-    metadata_url: str | None = Field(None, example="https://org.okta.com/app/app/sso/saml/metadata")
+    name: str = Field(..., max_length=100, json_schema_extra={"example": "Corporate Okta"})
+    type: str = Field(..., json_schema_extra={"example": "SAML"})
+    entity_id_issuer: str = Field(..., json_schema_extra={"example": "http://www.okta.com/exk12345"})
+    sso_url: str = Field(..., json_schema_extra={"example": "https://org.okta.com/app/app/sso/saml"})
+    logout_url: str | None = Field(None, json_schema_extra={"example": "https://org.okta.com/app/app/sso/logout"})
+    metadata_url: str | None = Field(None, json_schema_extra={"example": "https://org.okta.com/app/app/sso/saml/metadata"})
     certificates: dict | list | None = Field(None, description="Certificates or JWKS keys")
-    attribute_mapping: dict[str, str] = Field(..., example={"email": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"})
-    domain_restrictions: list[str] | None = Field(None, example=["acme.com"])
+    attribute_mapping: dict[str, str] = Field(..., json_schema_extra={"example": {"email": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"}})
+    domain_restrictions: list[str] | None = Field(None, json_schema_extra={"example": ["acme.com"]})
     jit_enabled: bool = Field(False)
     force_sso: bool = Field(False)
 
@@ -53,5 +53,4 @@ class IdentityProviderResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -10,6 +10,12 @@ from backend.services.folder_service import FolderConflictError, FolderService
 @pytest.fixture
 def service():
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
     dispatcher = AsyncMock()
     svc = FolderService(session, dispatcher)
     svc.repo = AsyncMock()

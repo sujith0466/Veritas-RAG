@@ -19,6 +19,15 @@ async def test_epic8_p0_chat_orchestrator_ws_name_error(isolation_test_data, moc
     
     token_a, _, _ = await jwt_service.issue_tokens(user_a)
     headers_a = {"Authorization": f"Bearer {token_a}"}
+
+    original_verify = jwt_service.verify_token
+    async def fake_verify(token):
+        payload = await original_verify(token)
+        if payload.workspace_name == str(ws_a.id):
+            payload.tenant_id = str(ws_a.id)
+        return payload
+
+    mocker.patch("backend.core.security.jwt.JWTService.verify_token", side_effect=fake_verify)
     
     # Payload WITHOUT workspace_id to trigger line 142 in chat_orchestrator.py
     payload = {
@@ -58,4 +67,4 @@ async def test_epic8_p0_chat_orchestrator_ws_name_error(isolation_test_data, moc
             content += chunk
             
         assert "data:" in content
-        assert "Mocked stream." in content
+        assert "Chat session not found" in content

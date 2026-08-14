@@ -17,16 +17,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           initialMount.current = false
         }
 
-        if (!token) {
-          if (mounted) clearAuth()
-          return
+        let currentToken = token
+
+        if (!currentToken) {
+          try {
+            currentToken = await authService.refresh()
+            // Temporarily store token for apiClient interceptor
+            useAuthStore.setState({ token: currentToken })
+          } catch (e) {
+            if (mounted) clearAuth()
+            return
+          }
         }
 
         // We have a token in memory, sync with backend
         const userContext = await authService.fetchBackendProfile()
 
-        if (mounted) {
-          setAuth(userContext, token)
+        if (mounted && currentToken) {
+          setAuth(userContext, currentToken)
         }
       } catch (error) {
         if (mounted) {

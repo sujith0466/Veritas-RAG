@@ -73,6 +73,12 @@ async def test_evaluation_killswitch_priority():
 
     context = EvaluationContext(workspace_id=uuid.uuid4())
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
 
     service.invalidate_local_cache()
     result = await service.evaluate_flag(session, "critical_feature", context)
@@ -114,6 +120,12 @@ async def test_evaluation_workspace_override_disabled():
 
     context = EvaluationContext(workspace_id=workspace_id)
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
 
     service.invalidate_local_cache()
     result = await service.evaluate_flag(session, "beta_feature", context)
@@ -159,6 +171,12 @@ async def test_evaluation_user_targeting_match():
 
     context = EvaluationContext(workspace_id=workspace_id, user_id=target_user_id)
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
 
     service.invalidate_local_cache()
     result = await service.evaluate_flag(session, "targeted_feature", context)
@@ -204,6 +222,12 @@ async def test_evaluation_role_targeting_match():
 
     context = EvaluationContext(workspace_id=workspace_id, workspace_role="ADMIN")
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
 
     service.invalidate_local_cache()
     result = await service.evaluate_flag(session, "admin_only_feature", context)
@@ -250,6 +274,12 @@ async def test_evaluation_date_window():
 
     context = EvaluationContext(workspace_id=workspace_id)
     session = AsyncMock()
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+    session.delete = MagicMock()
+    session.flush = AsyncMock()
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
 
     service.invalidate_local_cache()
     result = await service.evaluate_flag(session, "scheduled_feature", context)

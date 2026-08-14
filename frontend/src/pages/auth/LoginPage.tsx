@@ -36,11 +36,11 @@ export function LoginPage() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <div className="mb-8 w-full flex justify-center">
+      <div className="mb-4 w-full flex justify-center relative z-20">
         <AIAssistant state={aiState} />
       </div>
 
-      <div className="w-full relative min-h-[400px]">
+      <div className="w-full relative">
         <AnimatePresence mode="wait">
           {isSuccess ? (
             <motion.div
@@ -48,7 +48,7 @@ export function LoginPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0"
+              className="w-full flex flex-col items-center justify-center py-8"
             >
               <WorkspaceLoader onComplete={handleLoaderComplete} />
             </motion.div>
@@ -58,11 +58,11 @@ export function LoginPage() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="absolute inset-0"
+              className="w-full"
             >
               <RoleSelector mode="login" onSelect={setSelectedRole} />
 
-              <div className="text-center text-sm mt-8">
+              <div className="text-center text-sm mt-6">
                 <span className="text-muted-foreground">Don&apos;t have an account? </span>
                 <Link
                   to="/auth/register"
@@ -78,7 +78,7 @@ export function LoginPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="absolute inset-0"
+              className="w-full"
             >
               <button
                 onClick={() => setSelectedRole(null)}
@@ -88,7 +88,7 @@ export function LoginPage() {
                 Back to roles
               </button>
 
-              <div className="space-y-2 mb-6">
+              <div className="space-y-1.5 mb-5">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                   {selectedRole === 'admin' ? 'Admin Login' : 'User Login'}
                 </h2>
@@ -104,7 +104,7 @@ export function LoginPage() {
                 onError={handleError}
               />
 
-              <div className="text-center text-sm mt-6">
+              <div className="text-center text-sm mt-5">
                 <span className="text-muted-foreground">Don&apos;t have an account? </span>
                 <Link
                   to={`/auth/register?role=${selectedRole}`}

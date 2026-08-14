@@ -9,6 +9,8 @@ import { useAuthStore } from '@/stores/authStore'
 
 import { Badge } from '@/components/common/Badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/common/Tooltip'
+import { CitationBadge } from '@/components/chat/CitationBadge'
+import { CitationGrid } from '@/components/chat/CitationGrid'
 
 export function AIChatPage() {
   const { sessionId } = useParams()
@@ -115,7 +117,7 @@ export function AIChatPage() {
     try {
       const token = useAuthStore.getState().token
 
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
       const response = await fetch(`${baseUrl}/api/v1/chat/sessions/${targetSessionId}/stream`, {
         method: 'POST',
         headers: {
@@ -132,10 +134,11 @@ export function AIChatPage() {
       const decoder = new TextDecoder()
       
       let fullAssistantText = ''
-      let accumulatedCitations: any[] = []
+      const accumulatedCitations: any[] = []
       let finalReliability: number | undefined = undefined
       let buffer = ''
 
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
@@ -424,7 +427,17 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
   }
 
   // F9.5 Interactive Citation Links Pre-processing
-  const processedMessage = message.message?.replace(/\[(\d+)\]/g, '[$1](#cite-$1)') || ''
+  let processedMessage = message.message || ''
+  if (message.citations && message.citations.length > 0) {
+    const validCitationIndices = new Set((message.citations as any[]).map(c => c.citation_index))
+    processedMessage = processedMessage.replace(/\[(\d+)\]/g, (match, p1) => {
+      const idx = parseInt(p1, 10)
+      if (validCitationIndices.has(idx)) {
+        return `[${idx}](#cite-${idx})`
+      }
+      return match // Leave invalid citations as raw text
+    })
+  }
 
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mx-auto max-w-4xl`}>
@@ -444,20 +457,14 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  a: ({ node, href, children, ...props }) => {
+                  a: ({ href, children, ...props }) => {
                     if (href?.startsWith('#cite-')) {
-                      return (
-                        <Badge 
-                          variant="secondary" 
-                          className="cursor-pointer text-[10px] px-1 py-0 hover:bg-primary/20 transition-colors mx-0.5" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            document.getElementById(href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }}
-                        >
-                          {children}
-                        </Badge>
-                      )
+                      const citeIndex = parseInt(href.replace('#cite-', ''), 10)
+                      const citation = (message.citations as any[])?.find(c => c.citation_index === citeIndex)
+                      if (citation) {
+                        return <CitationBadge citation={citation} />
+                      }
+                      return <span>[{citeIndex}]</span>
                     }
                     return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
                   }
@@ -505,22 +512,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
 
           {/* Citations block */}
           {!isUser && message.citations && message.citations.length > 0 && (
-            <div className="mt-2 w-full space-y-2">
-              <div className="text-xs font-semibold text-muted-foreground px-1">Sources Cited:</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {(message.citations as { citation_index: number, document_id: string, excerpt: string }[]).map((cite, idx) => (
-                  <div key={idx} id={`cite-${cite.citation_index}`} className="bg-surface border border-border/60 rounded-lg p-2.5 shadow-sm text-xs space-y-1 hover:border-primary/40 transition-colors">
-                    <div className="flex items-center gap-1.5 font-medium text-foreground">
-                      <span className="bg-primary/10 text-primary px-1 rounded inline-flex items-center justify-center h-4 text-[10px]">[{cite.citation_index}]</span>
-                      <span className="truncate">{cite.document_id}</span>
-                    </div>
-                    <p className="text-muted-foreground line-clamp-2 leading-relaxed" title={cite.excerpt}>
-                      "{cite.excerpt}"
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <CitationGrid citations={message.citations as any[]} />
           )}
         </div>
       </div>

@@ -4,12 +4,19 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
+import os
+
+def get_default_cors() -> str:
+    if os.getenv("ENVIRONMENT", "development").lower() == "production":
+        return ""
+    return "http://localhost:5173,http://localhost:3000"
+
 class SecuritySettings(BaseSettings):
     """CORS, rate limiting, and application security configuration."""
 
     # CORS — comma-separated list of allowed origins
     cors_origins_str: str = Field(
-        default="http://localhost:5173,http://localhost:3000",
+        default_factory=get_default_cors,
         alias="CORS_ORIGINS",
     )
     cors_allow_credentials: bool = Field(default=True, alias="CORS_ALLOW_CREDENTIALS")

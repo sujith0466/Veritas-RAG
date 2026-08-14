@@ -46,26 +46,7 @@ DOCUMENTS = {
 async def bootstrap(force: bool, seed_only: bool, verify: bool):
     print("🚀 Starting RAGuard AI Demo Bootstrap...")
 
-    supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
     api_url = "http://127.0.0.1:8000"
-
-    if not supabase_url or not supabase_service_key or not supabase_anon_key:
-        print("❌ Error: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_ANON_KEY must be set.")
-        sys.exit(1)
-
-    admin_headers = {
-        "apikey": supabase_service_key,
-        "Authorization": f"Bearer {supabase_service_key}",
-        "Content-Type": "application/json",
-    }
-
-    anon_headers = {
-        "apikey": supabase_anon_key,
-        "Authorization": f"Bearer {supabase_anon_key}",
-        "Content-Type": "application/json",
-    }
 
     # 1. Accounts Setup
     accounts = [
@@ -76,54 +57,28 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
     jwts = {}
 
     if not seed_only:
-        print("\n=== Provisioning Identity (Supabase) ===")
-        async with httpx.AsyncClient() as client:
+        print("\n=== Provisioning Identity (Local Auth) ===")
+        async with httpx.AsyncClient(base_url=api_url, timeout=30.0) as client:
             for acc in accounts:
                 email = acc["email"]
-                print(f"Checking {email}...")
+                print(f"Ensuring {email} exists...")
 
-                # Check if exists
-                exists = False
-                resp = await client.get(f"{supabase_url}/auth/v1/admin/users", headers=admin_headers)
-                if resp.status_code == 200:
-                    users = resp.json().get("users", [])
-                    if any(u.get("email") == email for u in users):
-                        exists = True
-
-                if exists:
-                    print(f"ℹ️ {email} already exists in Supabase, reusing.")
-                else:
-                    # Create user
-                    create_payload = {
-                        "email": email,
-                        "password": acc["password"],
-                        "email_confirm": True,
-                        "user_metadata": {
-                            "role": acc["role"],
-                            "tenant_id": acc["tenant"]
-                        }
-                    }
-                    create_resp = await client.post(
-                        f"{supabase_url}/auth/v1/admin/users",
-                        headers=admin_headers,
-                        json=create_payload
-                    )
-                    if create_resp.status_code in (200, 201):
-                        print(f"✅ Created {email}")
-                    elif create_resp.status_code == 422:
-                        print(f"ℹ️ {email} already exists (422).")
-                    else:
-                        print(f"❌ Failed to create {email}: {create_resp.text}")
-                        sys.exit(1)
+                # Create user (idempotent generic response)
+                create_payload = {
+                    "email": email,
+                    "password": acc["password"],
+                    "confirm_password": acc["password"],
+                    "tenant_id": acc["tenant"]
+                }
+                await client.post("/api/v1/auth/register", json=create_payload)
 
                 # Sign in to get JWT
                 auth_resp = await client.post(
-                    f"{supabase_url}/auth/v1/token?grant_type=password",
-                    headers=anon_headers,
+                    "/api/v1/auth/login",
                     json={"email": email, "password": acc["password"]}
                 )
                 if auth_resp.status_code == 200:
-                    token = auth_resp.json()["access_token"]
+                    token = auth_resp.json()["data"]["access_token"]
                     jwts[email] = token
                     print(f"✅ Authenticated as {email}")
                 else:
@@ -144,14 +99,13 @@ async def bootstrap(force: bool, seed_only: bool, verify: bool):
     print("\n=== Seeding Enterprise Data ===")
     if not jwts:
         # If seed_only, we need to login as qa@raguard.ai to upload.
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(base_url=api_url, timeout=30.0) as client:
             auth_resp = await client.post(
-                f"{supabase_url}/auth/v1/token?grant_type=password",
-                headers=anon_headers,
+                "/api/v1/auth/login",
                 json={"email": "qa@raguard.ai", "password": "RaguardQA2026!"}
             )
             if auth_resp.status_code == 200:
-                jwts["qa@raguard.ai"] = auth_resp.json()["access_token"]
+                jwts["qa@raguard.ai"] = auth_resp.json()["data"]["access_token"]
             else:
                 print(f"❌ Failed to login to seed data: {auth_resp.text}")
                 sys.exit(1)

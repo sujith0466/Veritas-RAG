@@ -10,7 +10,7 @@ import enum
 from typing import Any
 import uuid
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 # ── 1. Category Models ─────────────────────────────────────────────────────────
 
@@ -55,7 +55,7 @@ class RAGSettings(BaseModel):
     chunk_size: int = Field(512, ge=64, le=4096)
     chunk_overlap: int = Field(64, ge=0, le=512)
 
-    @validator("sparse_weight")
+    @field_validator("sparse_weight")
     def validate_weights(cls, v, values):
         if "dense_weight" in values and abs(values["dense_weight"] + v - 1.0) > 0.05:
             # Normalize or allow reasonable precision
@@ -204,7 +204,7 @@ class BrandingSettings(BaseModel):
     # Custom CSS Variable Overrides
     custom_css_variables: dict[str, str] = Field(default_factory=dict)
 
-    @validator("custom_css_variables")
+    @field_validator("custom_css_variables")
     def validate_custom_css_variables(cls, v):
         for key, value in v.items():
             if not key.replace("-", "").replace("_", "").isalnum():
@@ -213,7 +213,7 @@ class BrandingSettings(BaseModel):
                 raise ValueError(f"Potential injection detected in CSS variable '{key}'.")
         return v
 
-    @validator("primary_color")
+    @field_validator("primary_color")
     def validate_accessibility_contrast(cls, v, values):
         # Validate that primary color when given as hex has acceptable contrast
         if v.startswith("#") and len(v) in (4, 7):

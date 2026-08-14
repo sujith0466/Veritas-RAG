@@ -1,14 +1,13 @@
 import uuid
-
-from pydantic import BaseModel, Field
+from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
 
 
 class CreateWorkspaceRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Name of the workspace")
     description: str | None = Field(None, max_length=1024, description="Optional description of the workspace")
 
-
-from datetime import datetime
 
 
 class UpdateWorkspaceRequest(BaseModel):
@@ -17,7 +16,7 @@ class UpdateWorkspaceRequest(BaseModel):
     expected_updated_at: datetime = Field(..., description="Timestamp for optimistic concurrency")
 
 
-from pydantic import validator
+from pydantic import field_validator
 
 
 class ArchiveWorkspaceRequest(BaseModel):
@@ -25,7 +24,7 @@ class ArchiveWorkspaceRequest(BaseModel):
     confirmation_name: str = Field(..., description="Workspace name confirmation")
     reason: str | None = Field(None, max_length=500, description="Optional reason for archiving")
 
-    @validator("reason")
+    @field_validator("reason")
     def validate_reason(cls, v):
         if v is not None:
             v = v.strip()
@@ -57,7 +56,7 @@ class SuspendWorkspaceRequest(BaseModel):
     reason_code: SuspensionReasonCode = Field(..., description="Standardized suspension reason code")
     reason_text: str | None = Field(None, max_length=500, description="Detailed explanation or justification")
 
-    @validator("reason_text")
+    @field_validator("reason_text")
     def validate_reason_text(cls, v):
         if v is not None:
             v = v.strip()
@@ -70,7 +69,7 @@ class UnsuspendWorkspaceRequest(BaseModel):
     expected_updated_at: datetime = Field(..., description="Timestamp for optimistic concurrency")
     reason_text: str | None = Field(None, max_length=500, description="Optional reason for unsuspension")
 
-    @validator("reason_text")
+    @field_validator("reason_text")
     def validate_reason_text(cls, v):
         if v is not None:
             v = v.strip()
@@ -94,7 +93,7 @@ class SoftDeleteWorkspaceRequest(BaseModel):
     reason_code: DeletionReasonCode = Field(..., description="Standardized deletion reason code")
     reason_text: str | None = Field(None, max_length=500, description="Detailed explanation")
 
-    @validator("reason_text")
+    @field_validator("reason_text")
     def validate_reason_text(cls, v):
         if v is not None:
             v = v.strip()

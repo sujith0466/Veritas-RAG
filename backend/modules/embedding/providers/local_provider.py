@@ -72,13 +72,17 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
                 self._st_model = SentenceTransformer(self._model)
                 logger.info("local_sentence_transformer_loaded", model=self._model)
                 return self._st_model
-            except ImportError:
+            except ImportError as exc:
+                if not self._offline:
+                    raise RuntimeError("sentence_transformers missing in production. Refusing to degrade to pseudo-vectors.") from exc
                 logger.debug(
                     "sentence_transformers_missing_using_deterministic_simulation",
                     model=self._model,
                 )
                 return None
             except Exception as exc:
+                if not self._offline:
+                    raise RuntimeError(f"Failed to load local embedding model {self._model} in production.") from exc
                 logger.warning(
                     "local_model_load_failed_using_deterministic_simulation", error=str(exc)
                 )

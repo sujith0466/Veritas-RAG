@@ -92,23 +92,38 @@ class AuthService:
 
         return access_token, raw_refresh_token
 
-    async def logout(self, jti: str, exp: int, user_id: int, family_id: str | None = None) -> None:
-        """Revokes the current access token and clears the session family."""
+    async def logout(self, jti: str, exp: int, user_id: int,
+                     raw_refresh_token: str | None = None,
+                     family_id: str | None = None) -> None:
+        """Revokes the current access token and invalidates ALL refresh sessions for the user.
+
+        AUTH-012: Logout always revokes all active UserSession records for the user,
+        preventing refresh token replay after logout regardless of which refresh token
+        cookie the client carries at logout time (e.g., when a separate refresh session
+        exists that the logout request doesn't carry as a cookie).
+        """
+        from sqlalchemy import update
+
         # Add JTI to Redis blocklist (F2.4)
         await self.jwt_service.revoke_token(jti, exp)
 
-        # Mark user sessions as revoked if family provided (F2.4 / F2.8 rotation prep)
-        if family_id:
-            from sqlalchemy import update
-            stmt = (
-                update(UserSession)
-                .where(UserSession.family_id == family_id, UserSession.user_id == user_id)
-                .values(is_revoked=True)
+        # AUTH-012: Revoke ALL active sessions for this user on logout.
+        # This is the correct production contract: logging out invalidates any refresh
+        # token issued to this user, regardless of session routing or cookie scope.
+        stmt = (
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.is_revoked.is_(False),
             )
-            await self.session.execute(stmt)
-            await self.session.commit()
+            .values(is_revoked=True)
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()
 
-        logger.info("User logged out successfully", user_id=str(user_id), family_id=str(family_id))
+        logger.info("User logged out successfully — all sessions revoked",
+                    user_id=str(user_id), family_id=str(family_id))
+
 
     async def rotate_refresh_token(self, raw_refresh_token: str, user_agent: str | None = None, ip_address: str | None = None, device: str | None = None) -> tuple[str, str]:
         """Rotates a refresh token for an active session.

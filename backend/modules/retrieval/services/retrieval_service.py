@@ -155,7 +155,13 @@ class RetrievalOrchestrator:
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             return candidates, duration_ms
         except Exception as exc:
-            logger.error("Dense stage execution failed", error=str(exc))
+            err_str = str(exc)
+            if "Not found: Collection" in err_str or (hasattr(exc, "status_code") and exc.status_code == 404):
+                logger.info("Collection missing for workspace, treating as empty knowledge base.", collection_name=collection_name)
+                duration_ms = (time.perf_counter() - start_time) * 1000.0
+                return [], duration_ms
+
+            logger.error("Dense stage execution failed", error=err_str)
             raise VectorStoreUnavailableError(
                 f"Dense vector retrieval failed (`RET_004`): {exc}"
             ) from exc

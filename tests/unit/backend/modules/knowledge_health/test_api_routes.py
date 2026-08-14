@@ -122,7 +122,6 @@ def test_trigger_health_scan_endpoint(client: TestClient, mock_orchestrator: Mag
     response = client.post(
         "/api/v1/knowledge-health/scans",
         json={"scan_type": "ORPHAN_SWEEP"},
-        headers={"X-Tenant-ID": "test_tenant"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -134,7 +133,7 @@ def test_trigger_health_scan_endpoint(client: TestClient, mock_orchestrator: Mag
 
 def test_list_health_scans_endpoint(client: TestClient, mock_orchestrator: MagicMock) -> None:
     """Test GET /api/v1/knowledge-health/scans returns paginated jobs."""
-    response = client.get("/api/v1/knowledge-health/scans?page=1&size=20", headers={"X-Tenant-ID": "test_tenant"})
+    response = client.get("/api/v1/knowledge-health/scans?page=1&size=20")
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
@@ -144,7 +143,7 @@ def test_list_health_scans_endpoint(client: TestClient, mock_orchestrator: Magic
 
 def test_check_parity_endpoint(client: TestClient, mock_orchestrator: MagicMock) -> None:
     """Test GET /api/v1/knowledge-health/parity returns exact 1:1 count status."""
-    response = client.get("/api/v1/knowledge-health/parity", headers={"X-Tenant-ID": "test_tenant"})
+    response = client.get("/api/v1/knowledge-health/parity")
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True
@@ -157,7 +156,6 @@ def test_rotate_model_endpoint(client: TestClient, mock_orchestrator: MagicMock)
     response = client.post(
         "/api/v1/knowledge-health/rotate-model",
         json={"new_provider": "cohere", "new_model": "embed-english-v3.0"},
-        headers={"X-Tenant-ID": "test_tenant"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -169,7 +167,7 @@ def test_rotate_model_endpoint(client: TestClient, mock_orchestrator: MagicMock)
 def test_purge_document_endpoint(client: TestClient, mock_orchestrator: MagicMock) -> None:
     """Test DELETE /api/v1/knowledge-health/purge/{id} executes two-phase purge."""
     doc_id = uuid4()
-    response = client.delete(f"/api/v1/knowledge-health/purge/{doc_id}", headers={"X-Tenant-ID": "test_tenant"})
+    response = client.delete(f"/api/v1/knowledge-health/purge/{doc_id}")
     assert response.status_code == 200
     data = response.json()
     assert data["success"] is True

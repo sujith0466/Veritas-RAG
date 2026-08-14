@@ -44,7 +44,7 @@ class GoogleOIDCProvider:
         self.redis = get_redis_client()
 
         if not self.client_id or not self.client_secret:
-            raise RuntimeError("OIDC_GOOGLE_CLIENT_ID and OIDC_GOOGLE_CLIENT_SECRET environment variables are required.")
+            raise AuthenticationException("OIDC_GOOGLE_CLIENT_ID and OIDC_GOOGLE_CLIENT_SECRET environment variables are required.")
 
     async def _get_oidc_config(self) -> dict[str, Any]:
         """Fetch OIDC discovery document (in a real app, this should be cached)."""

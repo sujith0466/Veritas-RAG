@@ -44,6 +44,18 @@ async def test_create_feature_flag_success():
     flag_repo.create.return_value = mock_flag
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     actor_id = uuid.uuid4()
 
     mock_dispatcher = MagicMock()
@@ -94,6 +106,18 @@ async def test_toggle_killswitch():
     flag_repo.list_active_flags.return_value = [mock_flag]
 
     session = AsyncMock()
+
+    session.add = MagicMock()
+
+    session.add_all = MagicMock()
+
+    session.delete = MagicMock()
+
+    session.flush = AsyncMock()
+
+    session.commit = AsyncMock()
+
+    session.refresh = AsyncMock()
     actor_id = uuid.uuid4()
 
     mock_dispatcher = MagicMock()

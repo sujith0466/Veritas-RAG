@@ -29,6 +29,7 @@ from backend.core.dependencies.database import (
 )
 from backend.services.workspace.invitation_service import (
     InvitationConflictError,
+    InvitationError,
     InvitationInvalidStateError,
     InvitationNotFoundError,
     InvitationRateLimitError,
@@ -284,6 +285,9 @@ async def accept_workspace_invitation(
     except InvitationConflictError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except InvitationInvalidStateError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except InvitationError as e:
+        # AUTH-010: base InvitationError (e.g. empty token) must return 400, not 500
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.exception("Unexpected error accepting workspace invitation", exc_info=e)

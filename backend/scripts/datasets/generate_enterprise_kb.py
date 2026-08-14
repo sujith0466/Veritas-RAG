@@ -41,6 +41,8 @@ from backend.document.models.document import Document
 from backend.document.models.job import ProcessingJob
 from backend.document.services.document_service import DocumentService
 from backend.models.entities.user import User
+from backend.models.entities.workspace import Workspace
+from backend.models.entities.workspace_member import WorkspaceMember
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 
@@ -223,10 +225,19 @@ async def async_main(workspace_email: str, count: int):
             logger.error("Workspace user not found.", email=workspace_email)
             return
 
-        tenant_id = user.tenant_id
-        owner_id = user.id
+        # Fetch primary workspace for user
+        ws_stmt = select(Workspace).join(WorkspaceMember).where(WorkspaceMember.user_id == user.id).limit(1)
+        ws_result = await session.execute(ws_stmt)
+        workspace = ws_result.scalar_one_or_none()
 
-        logger.info("Resolved tenant", tenant_id=tenant_id, user_id=owner_id)
+        if not workspace:
+            logger.error("No active workspace found for user.", email=workspace_email)
+            return
+
+        tenant_id = str(workspace.id)
+        owner_id = str(user.id)
+
+        logger.info("Resolved workspace", workspace_id=tenant_id, user_id=owner_id)
 
         out_dir = Path("backend/demo_data")
         out_dir.mkdir(parents=True, exist_ok=True)

@@ -9,10 +9,10 @@ class LLMManagerSettings(BaseSettings):
 
     # Comma-separated list of provider priorities (e.g. "openrouter,gemini")
     provider_priority_raw: str = Field(
-        default="openrouter,gemini", alias="LLM_PROVIDER_PRIORITY"
+        default="v1_engine,openrouter,gemini", alias="LLM_PROVIDER_PRIORITY"
     )
-    primary_provider: str = Field(default="openrouter", alias="PRIMARY_LLM_PROVIDER")
-    fallback_provider: str = Field(default="gemini", alias="FALLBACK_LLM_PROVIDER")
+    primary_provider: str = Field(default="v1_engine", alias="PRIMARY_LLM_PROVIDER")
+    fallback_provider: str = Field(default="openrouter", alias="FALLBACK_LLM_PROVIDER")
 
     max_retries: int = Field(default=3, alias="LLM_MAX_RETRIES")
     retry_initial_delay: float = Field(default=1.0, alias="LLM_RETRY_INITIAL_DELAY")

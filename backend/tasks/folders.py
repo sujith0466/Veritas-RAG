@@ -9,7 +9,7 @@ import structlog
 
 from backend.cache.client import get_redis_client
 from backend.cache.keys import CacheKeyBuilder
-from backend.core.celery_app import celery_app
+from backend.tasks.celery_app import celery_app
 from backend.core.events.dispatcher import EventDispatcher
 from backend.database.session import AsyncSessionLocal
 from backend.models.entities.audit_log import AuditLog

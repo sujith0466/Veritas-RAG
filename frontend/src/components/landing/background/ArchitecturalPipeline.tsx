@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { motion, useMotionValue, useSpring, useTransform, useScroll, useReducedMotion } from 'framer-motion'
 
 // SVG-based Internal Structure for perfectly crisp, abstract architectural details
 function BlueprintDetails({ layerId }: { layerId: string }) {
@@ -116,12 +116,40 @@ export function ArchitecturalPipeline() {
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [mouseX, mouseY])
 
-  // Base perspective
-  const baseRotateX = 22
-  const baseRotateY = -28
+  // Scroll Storytelling (Section-aware progress)
+  const { scrollYProgress } = useScroll()
 
-  const finalRotateX = useTransform(parallaxX, r => r + baseRotateX)
-  const finalRotateY = useTransform(parallaxY, r => r + baseRotateY)
+  // Smooth the scroll to feel premium and weighty
+  const scrollSpring = useSpring(scrollYProgress, {
+    stiffness: 30,
+    damping: 30,
+    mass: 1.5,
+    restDelta: 0.001
+  })
+
+  // Disable scroll animations if reduced motion is preferred
+  const isReducedMotion = useReducedMotion()
+
+  // Map scroll progress to subtle 3D evolutions
+  // As the user scrolls through the 10 sections, the system slowly rotates and dives slightly forward
+  const scrollRotateX = useTransform(scrollSpring, [0, 1], [22, 10])
+  const scrollRotateY = useTransform(scrollSpring, [0, 1], [-28, -12])
+  const scrollTranslateZ = useTransform(scrollSpring, [0, 1], [0, 450]) // Move forward to focus deeper layers
+
+  // Combine pointer parallax and scroll storytelling
+  // If reduced motion, default back to static base values
+  const finalRotateX = useTransform(
+    [parallaxX, scrollRotateX],
+    ([px, sx]) => isReducedMotion ? 22 : (px as number) + (sx as number)
+  )
+  const finalRotateY = useTransform(
+    [parallaxY, scrollRotateY],
+    ([py, sy]) => isReducedMotion ? -28 : (py as number) + (sy as number)
+  )
+  const finalTranslateZ = useTransform(
+    scrollTranslateZ,
+    (z) => isReducedMotion ? 0 : z
+  )
 
   const layers = [
     { id: 'evidence', label: 'Evidence Layer', z: -360 },
@@ -148,6 +176,7 @@ export function ArchitecturalPipeline() {
           transformStyle: 'preserve-3d',
           rotateX: finalRotateX,
           rotateY: finalRotateY,
+          translateZ: finalTranslateZ,
         }}
       >
         {/* Core architectural connection line passing through the center of all planes */}

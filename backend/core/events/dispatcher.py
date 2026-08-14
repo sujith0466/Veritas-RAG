@@ -104,6 +104,33 @@ class EventDispatcher:
                     exc_info=result,
                 )
 
+    async def dispatch(self, event_type: "Any", payload: dict | None = None, **kwargs) -> None:
+        """Backward compatibility shim for older codebase callers.
+
+        Converts the older (event_type, payload) signature to a BaseEvent and routes
+        it through the modern publish() method.
+        """
+        from backend.core.events.base import BaseEvent
+
+        combined_payload = {}
+        if payload:
+            combined_payload.update(payload)
+        combined_payload.update(kwargs)
+
+        class LegacyEvent(BaseEvent):
+            def __init__(self, etype, **kw):
+                object.__setattr__(self, "event_type", etype)
+                from datetime import datetime, UTC
+                import uuid
+                object.__setattr__(self, "event_id", str(uuid.uuid4()))
+                object.__setattr__(self, "occurred_at", datetime.now(UTC))
+                object.__setattr__(self, "correlation_id", None)
+                for k, v in kw.items():
+                    object.__setattr__(self, k, v)
+
+        event = LegacyEvent(etype=event_type, **combined_payload)
+        await self.publish(event)
+
     def handler_count(self, event_type: EventType) -> int:
         """Return the number of registered handlers for an event type."""
         return len(self._handlers.get(event_type, []))

@@ -30,3 +30,11 @@ Dockerfile*
 docker-compose*.yml
 Makefile
 infrastructure/scripts/
+**/node_modules
+**/venv
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/__pycache__
+**/*.pyc

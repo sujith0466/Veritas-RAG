@@ -1,26 +1,4 @@
 
-def compute_chat_reliability_score(
-    answer_text: str,
-    evidence_chunks: list[dict],
-    citations: list[dict],
-    is_grounded: bool,
-) -> float:
-    """Compute chat reliability score for testing purposes."""
-    if not evidence_chunks or not evidence_chunks[0].get("content"):
-        return 0.4
-    
-    if not is_grounded:
-        import re
-        cits = re.findall(r"\[(\d+)\]", answer_text)
-        if cits:
-            max_cit = max(int(c) for c in cits)
-            valid_cits = [c.get("citation_index") for c in citations]
-            if max_cit not in valid_cits:
-                return 0.5
-        return 0.7
-        
-    return 1.0
-
 import asyncio
 from collections.abc import AsyncGenerator
 import json
@@ -106,37 +84,57 @@ class ChatOrchestrator:
         if last_event_id and settings.features.enable_sse_recovery:
             SSE_RECONNECTS_TOTAL.inc()
             parts = last_event_id.split(":")
-            if len(parts) == 2 and parts[0] == correlation_id:
-                last_chunk_index = int(parts[1])
-                chunks = await redis.lrange(redis_key, 0, -1)
-
-                if not chunks:
-                    SSE_REDIS_BUFFER_MISSES_TOTAL.inc()
-                    err = SSEMessageDTO.error(
-                        code="STREAM_EXPIRED",
-                        message="Stream replay buffer expired. Please regenerate the request.",
-                        correlation_id=correlation_id,
-                        recoverable=False
-                    )
-                    yield err.to_sse_string()
-                    SSE_ACTIVE_STREAMS.dec()
-                    return
-
-                SSE_REDIS_BUFFER_HITS_TOTAL.inc()
-                for chunk_bytes in chunks:
-                    chunk_data = json.loads(chunk_bytes)
-                    if chunk_data["chunk_index"] > last_chunk_index:
-                        dto = SSEMessageDTO(
-                            id=SSEMessageDTO.format_id(correlation_id, chunk_data["chunk_index"]),
-                            event=chunk_data["event_type"],
-                            data=chunk_data["payload"]
-                        )
-                        yield dto.to_sse_string()
-                        SSE_REPLAYED_CHUNKS_TOTAL.inc()
-
-                # In Replay-Only variant, we just replay cached data and stop.
+            if len(parts) != 2 or parts[0] != correlation_id:
+                err = SSEMessageDTO.error(
+                    code="INVALID_CORRELATION",
+                    message="The Last-Event-ID does not match the requested correlation ID.",
+                    correlation_id=correlation_id,
+                    recoverable=False
+                )
+                yield err.to_sse_string()
                 SSE_ACTIVE_STREAMS.dec()
                 return
+
+            last_chunk_index = int(parts[1])
+            chunks = await redis.lrange(redis_key, 0, -1)
+
+            if not chunks:
+                SSE_REDIS_BUFFER_MISSES_TOTAL.inc()
+                err = SSEMessageDTO.error(
+                    code="STREAM_EXPIRED",
+                    message="Stream replay buffer expired. Please regenerate the request.",
+                    correlation_id=correlation_id,
+                    recoverable=False
+                )
+                yield err.to_sse_string()
+                SSE_ACTIVE_STREAMS.dec()
+                return
+
+            SSE_REDIS_BUFFER_HITS_TOTAL.inc()
+            is_stream_finished = False
+            for chunk_bytes in chunks:
+                chunk_data = json.loads(chunk_bytes)
+                if chunk_data.get("is_final", False):
+                    is_stream_finished = True
+                if chunk_data["chunk_index"] > last_chunk_index:
+                    dto = SSEMessageDTO(
+                        id=SSEMessageDTO.format_id(correlation_id, chunk_data["chunk_index"]),
+                        event=chunk_data["event_type"],
+                        data=json.dumps(chunk_data["payload"])
+                    )
+                    yield dto.to_sse_string()
+                    SSE_REPLAYED_CHUNKS_TOTAL.inc()
+
+            if is_stream_finished:
+                # Buffer was complete, we are done
+                SSE_ACTIVE_STREAMS.dec()
+                return
+
+            # If buffer is incomplete, we fall through and re-execute to resume generation.
+            # However, we must skip saving the User Message again, and filter out yielded chunks.
+            is_recovering = True
+        else:
+            is_recovering = False
 
         # Determine active workspace from session_id
         if workspace_id is None:
@@ -175,25 +173,26 @@ class ChatOrchestrator:
                 return
 
         # 1. Save User Message (Idempotency check: only if not recovering)
-        async with session_maker() as session:
-            try:
-                repo = ChatRepository(session)
-                await repo.add_message(
-                    session_id=session_id,
-                    tenant_id=tenant_id,
-                    user_id=user_id,
-                    dto=ChatMessageCreateDTO(
-                        role="user",
-                        message=query
+        if not is_recovering:
+            async with session_maker() as session:
+                try:
+                    repo = ChatRepository(session)
+                    await repo.add_message(
+                        session_id=session_id,
+                        tenant_id=tenant_id,
+                        user_id=user_id,
+                        dto=ChatMessageCreateDTO(
+                            role="user",
+                            message=query
+                        )
                     )
-                )
-            except Exception as e:
-                import traceback
-                error_trace = traceback.format_exc()
-                import logging
-                logging.error(f"add_message crashed: {error_trace}")
-                yield f"data: {{\"event\": \"error\", \"data\": {{\"message\": \"DB crash: {str(e)}\"}}}}\n\n"
-                return
+                except Exception as e:
+                    import traceback
+                    error_trace = traceback.format_exc()
+                    import logging
+                    logging.error(f"add_message crashed: {error_trace}")
+                    yield f"data: {{\"event\": \"error\", \"data\": {{\"message\": \"DB crash: {str(e)}\"}}}}\n\n"
+                    return
 
         # 1.5 Check if knowledge base is still processing
         processing_statuses = [
@@ -310,19 +309,28 @@ class ChatOrchestrator:
 
                     # F8.4 Redis Buffer
                     if settings.features.enable_sse_recovery:
-                        record = {
-                            "correlation_id": correlation_id,
+                        chunk_data = json.loads(chunk.model_dump_json())
+                        payload = {
                             "chunk_index": chunk.chunk_index,
-                            "timestamp": time.time(),
                             "event_type": "chunk",
-                            "payload": chunk.model_dump_json()
+                            "payload": chunk_data,
+                            "is_final": chunk.is_final,
                         }
-                        await redis.rpush(redis_key, json.dumps(record))
-                        if chunk.chunk_index == 0:
-                            await redis.expire(redis_key, 300)
+                        await redis.rpush(redis_key, json.dumps(payload))
+                        # Apply TTL on every chunk to prevent Redis leaks on abort (EP8-018)
+                        await redis.expire(redis_key, 300)
 
                     yield dto.to_sse_string()
                     stream_chunks_count += 1
+
+                    if chunk.is_final:
+                        # Emit terminal `event: done` (EP8-014)
+                        dto_done = SSEMessageDTO(
+                            id=SSEMessageDTO.format_id(correlation_id, chunk.chunk_index + 1),
+                            event="done",
+                            data="{}"
+                        )
+                        yield dto_done.to_sse_string()
 
                 except TimeoutError:
                     if settings.features.enable_sse_heartbeat:
@@ -397,8 +405,8 @@ class ChatOrchestrator:
                         "completed": False
                     })
 
-                # Only write to DB if we actually got text or settings enable partial
-                if full_assistant_text or settings.features.enable_partial_persistence:
+                # Only write to DB if we actually got text or settings enable partial (and text is not empty)
+                if (full_assistant_text.strip() and not is_interrupted) or (is_interrupted and settings.features.enable_partial_persistence and full_assistant_text.strip()):
                     async def _persist():
                         async with session_maker() as final_session:
                             repo = ChatRepository(final_session)

@@ -49,9 +49,6 @@ class User(BaseModel):
     password_changed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Deprecated: Transitioning away from Supabase Auth
-    supabase_user_id: Mapped[str | None] = mapped_column(
-        String(255), unique=True, index=True, nullable=True
-    )
     tenant_id: Mapped[str | None] = mapped_column(
         String(255), index=True, nullable=True
     )

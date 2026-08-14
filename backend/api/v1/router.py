@@ -25,7 +25,16 @@ from .routes.users import router as users_router
 api_v1_router.include_router(users_router)
 
 # ── Workspace Management (`/workspaces`) ───────────────────────────────────────
+from .routes.workspace_invitations import (
+    workspace_invitations_router,
+    invitations_router
+)
+from .routes.workspace_members import workspace_members_router
+
 api_v1_router.include_router(workspaces_router)
+api_v1_router.include_router(workspace_invitations_router)
+api_v1_router.include_router(invitations_router)
+api_v1_router.include_router(workspace_members_router)
 
 from .routes.knowledge_base import router as knowledge_base_router
 
@@ -100,8 +109,10 @@ api_v1_router.include_router(dashboard_router, prefix="/dashboard")
 
 # ── AI Chat & Persistence (`/chat`) ────────────────────────────────────────────
 from backend.modules.chat.api import router as chat_router
+from backend.modules.chat.api.export_routes import router as chat_export_router
 
 api_v1_router.include_router(chat_router)
+api_v1_router.include_router(chat_export_router)
 
 # ── Feature Flags (`/feature-flags` & `/workspaces/{id}/feature-flags`) ────────
 from .routes.feature_flags import (

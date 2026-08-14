@@ -32,10 +32,10 @@ export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
       initial="hidden"
       animate="show"
       exit="exit"
-      className="flex flex-col items-center justify-center space-y-6 w-full max-w-lg mx-auto"
+      className="flex flex-col items-center justify-center space-y-5 w-full max-w-lg mx-auto"
     >
-      <div className="text-center mb-2">
-        <h2 className="text-2xl font-semibold text-foreground tracking-tight mb-2">
+      <div className="text-center mb-1">
+        <h2 className="text-2xl font-semibold text-foreground tracking-tight mb-1.5">
           {mode === 'login' ? 'Welcome to RAGuard AI' : 'Select Workspace Role'}
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -53,7 +53,7 @@ export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
           whileTap={{ scale: 0.98 }}
           className={cn(
             "group relative flex flex-col items-start p-6 rounded-2xl border border-border/50 bg-surface/40 backdrop-blur-md transition-all duration-300 overflow-hidden text-left",
-            "hover:border-primary/50 hover:shadow-[0_8px_30px_rgb(59,130,246,0.12)] hover:bg-surface-elevated/60"
+            "hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:bg-surface-elevated/60"
           )}
         >
           {/* Glass reflection */}
@@ -82,7 +82,7 @@ export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
           whileTap={{ scale: 0.98 }}
           className={cn(
             "group relative flex flex-col items-start p-6 rounded-2xl border border-border/50 bg-surface/40 backdrop-blur-md transition-all duration-300 overflow-hidden text-left",
-            "hover:border-primary/50 hover:shadow-[0_8px_30px_rgb(59,130,246,0.12)] hover:bg-surface-elevated/60"
+            "hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 hover:bg-surface-elevated/60"
           )}
         >
           {/* Glass reflection */}

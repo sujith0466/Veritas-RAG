@@ -57,16 +57,24 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
             jwt_service = get_jwt_service()
             # This verifies signature, expiry, audience, issuer, and queries Redis blocklist
             token_payload = await jwt_service.verify_token(token)
+            request.state.token_payload = token_payload
 
-            # Populate request context with claims mapped to UserContext
+            # Construct the user context from the verified payload to UserContext
+            # NOTE: The JWT stores workspace UUID in the `workspace_id` claim (mapped to
+            # token_payload.workspace_name). The legacy `tenant_id` claim is never populated.
+            # We alias workspace_name → tenant_id so that ChatSession (which stores workspace_id
+            # as tenant_id) works without a NOT NULL violation.
+            ws_name = token_payload.workspace_name
+            effective_tenant_id = (
+                ws_name if ws_name and ws_name != "None" else token_payload.tenant_id
+            )
             request.state.user_context = UserContext(
                 id=uuid.UUID(token_payload.sub),
-                supabase_id=token_payload.sub,
                 email=token_payload.email or "",
                 role=Role.from_str(token_payload.role),
                 is_active=True,
-                tenant_id=token_payload.tenant_id,
-                workspace_name=token_payload.workspace_name
+                tenant_id=effective_tenant_id,
+                workspace_name=ws_name,
             )
 
         except ExpiredTokenException:
