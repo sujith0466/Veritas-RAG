@@ -75,3 +75,13 @@
 | F10.3 - Reliability Analytics & Trends | ✅ CERTIFIED / FROZEN | |
 | F10.4 - Knowledge Health Scoring & UI | ✅ CERTIFIED / FROZEN | |
 | F10.5 - Background Aggregation & Policy Alerts | ✅ CERTIFIED / FROZEN | Remediation for workspace-specific staleness policy defect complete |
+
+## Epic 11: Notifications
+| Feature | Status | Notes |
+|---|---|---|
+| F11.1 - Email Notifications | ? CERTIFIED / FROZEN | |
+| F11.2 - In-App Notifications | ? CERTIFIED / FROZEN | |
+| F11.3 - Webhook Endpoint Management | ? CERTIFIED / FROZEN | |
+| F11.4 - Webhook Delivery Worker | ? CERTIFIED / FROZEN | |
+| F11.5 - Notification Delivery Logs | ? CERTIFIED / FROZEN | |
+
