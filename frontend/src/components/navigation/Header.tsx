@@ -6,6 +6,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import { Badge } from '../common/Badge'
+import { NotificationBell } from '../common/NotificationBell'
 
 export function Header() {
   const { toggleSidebar } = useUIStore()
@@ -33,9 +34,7 @@ export function Header() {
           </Badge>
         )}
 
-        <button className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors">
-          <Bell className="h-4 w-4" />
-        </button>
+        <NotificationBell />
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>

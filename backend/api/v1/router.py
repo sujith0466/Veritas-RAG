@@ -36,9 +36,15 @@ api_v1_router.include_router(workspace_invitations_router)
 api_v1_router.include_router(invitations_router)
 api_v1_router.include_router(workspace_members_router)
 
+from .routes.workspace_webhooks import router as workspace_webhooks_router
+api_v1_router.include_router(workspace_webhooks_router)
+
 from .routes.knowledge_base import router as knowledge_base_router
 
 api_v1_router.include_router(knowledge_base_router, prefix="/workspaces/{workspace_id}/knowledge-base")
+
+from .routes.notifications import router as notifications_router
+api_v1_router.include_router(notifications_router)
 
 from backend.document.api.v1.jobs import router as jobs_router
 

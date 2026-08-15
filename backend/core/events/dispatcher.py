@@ -74,9 +74,52 @@ class EventDispatcher:
             event: The domain event to publish.
         """
         handlers = self._handlers.get(event.event_type, [])
+        
+        # Globally dispatch to webhook worker if tenant_id is present
+        from backend.tasks.webhooks import deliver_webhook_event_task
+        event_dict = event.to_dict()
+        tenant_id = getattr(event, 'tenant_id', event_dict.get('tenant_id'))
+        if tenant_id:
+            try:
+                deliver_webhook_event_task.delay(
+                    tenant_id_str=str(tenant_id),
+                    event_type=event.event_type.value,
+                    payload=event_dict
+                )
+            except Exception as e:
+                logger.error("Failed to enqueue webhook delivery", error=str(e))
+                
+            # Publish to Redis for WebSocket In-App Notifications
+            try:
+                import json
+                from backend.core.config import get_settings
+                import redis.asyncio as aioredis
+                
+                settings = get_settings()
+                channel_name = f"workspace:{tenant_id}:notifications"
+                # We can't easily persist a single redis connection in the dispatcher without lifecycle management,
+                # so we instantiate one briefly or use a global one. For simplicity in this publish method, we connect briefly.
+                # In production, a singleton Redis pool should be used.
+                redis_client = aioredis.from_url(settings.redis.redis_url)
+                # Since publish is called in an async context, we must await it.
+                # Wait, this is an async function, but we don't want to block publish. 
+                # asyncio.create_task is safe here.
+                async def _publish():
+                    try:
+                        await redis_client.publish(channel_name, json.dumps({
+                            "type": event.event_type.value,
+                            "payload": event_dict,
+                            "timestamp": event_dict.get("occurred_at")
+                        }))
+                    finally:
+                        await redis_client.aclose()
+                asyncio.create_task(_publish())
+            except Exception as e:
+                logger.error("Failed to publish to Redis Pub/Sub", error=str(e))
+
         if not handlers:
             logger.debug(
-                "Event published with no subscribers",
+                "Event published with no local subscribers",
                 event_type=event.event_type,
                 event_id=event.event_id,
             )

@@ -29,6 +29,7 @@ const SecuritySettings = lazy(() => import('@/pages/settings').then(m => ({ defa
 const NotificationSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.NotificationSettings })))
 const AIPrefSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.AIPrefSettings })))
 const WorkspaceSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.WorkspaceSettings })))
+const WebhookSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.WebhookSettings })))
 const DeveloperSettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.DeveloperSettings })))
 const PrivacySettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.PrivacySettings })))
 const ActivitySettings = lazy(() => import('@/pages/settings').then(m => ({ default: m.ActivitySettings })))
@@ -157,6 +158,7 @@ export const router = createBrowserRouter([
                   { path: 'notifications', element: <NotificationSettings /> },
                   { path: 'ai', element: <AIPrefSettings /> },
                   { path: 'workspace', element: <WorkspaceSettings /> },
+                  { path: 'webhooks', element: <WebhookSettings /> },
                   { path: 'developer', element: <DeveloperSettings /> },
                   { path: 'privacy', element: <PrivacySettings /> },
                   { path: 'activity', element: <ActivitySettings /> },

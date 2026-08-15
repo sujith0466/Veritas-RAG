@@ -49,57 +49,21 @@ class SMTPEmailProvider(EmailProvider):
             logger.warning("SMTP is not fully configured. Emails will fail if dispatched.")
 
     async def _send_email(self, to_email: EmailStr, subject: str, body: str) -> bool:
-        if not self.settings.is_configured:
-            logger.error("Attempted to send email without SMTP configuration.")
-            return False
-
-        message = EmailMessage()
-        message["From"] = self.settings.from_email
-        message["To"] = to_email
-        message["Subject"] = subject
-        message.set_content(body)
-
+        from backend.tasks.emails import send_email_task
+        
         try:
-            kwargs = {
-                "hostname": self.settings.host,
-                "port": self.settings.port,
-                "timeout": self.settings.timeout,
-            }
-            if self.settings.tls_mode == "ssl":
-                kwargs["use_tls"] = True
-            elif self.settings.tls_mode == "starttls":
-                kwargs["start_tls"] = True
-
-            # Remove password from logs
-            logger.info(
-                f"Dispatching email via SMTP",
-                host=self.settings.host,
-                port=self.settings.port,
-                recipient=to_email,
+            logger.info("Enqueueing email task", recipient=to_email, subject=subject)
+            # Enqueue the Celery task
+            send_email_task.delay(
+                tenant_id_str=None, # Extracted from context in a real multi-tenant app, or None for Auth
                 subject=subject,
+                to_addresses=[to_email],
+                html_content=body,
+                text_content=body
             )
-
-            # Context manager handles connection and quitting
-            async with aiosmtplib.SMTP(**kwargs) as smtp:
-                if self.settings.user and self.settings.password:
-                    await smtp.login(
-                        self.settings.user,
-                        self.settings.password.get_secret_value()
-                    )
-                await smtp.send_message(message)
-
             return True
-
         except Exception as e:
-            # We don't raise an exception because email delivery failure shouldn't crash auth flows,
-            # but we log it extensively.
-            logger.error(
-                "SMTP email dispatch failed",
-                recipient=to_email,
-                subject=subject,
-                error=str(e),
-                exc_info=True,
-            )
+            logger.error("Failed to enqueue email task", error=str(e), exc_info=True)
             return False
 
     async def send_verification_email(self, to_email: EmailStr, raw_token: str) -> bool:

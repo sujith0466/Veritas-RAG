@@ -35,6 +35,9 @@ def create_celery_app() -> Celery:
             "backend.modules.knowledge_health.workers.tasks",
             "backend.modules.reliability.workers.tasks",
             "backend.tasks.folders",
+            "backend.tasks.emails",
+            "backend.tasks.webhooks",
+            "backend.tasks.quota",
         ],
     )
 
@@ -78,6 +81,7 @@ def create_celery_app() -> Celery:
             "jobs.high": {"exchange": "jobs.high", "routing_key": "jobs.high"},
             "jobs.default": {"exchange": "jobs.default", "routing_key": "jobs.default"},
             "jobs.dlq": {"exchange": "jobs.dlq", "routing_key": "jobs.dlq"},
+            "webhooks": {"exchange": "webhooks", "routing_key": "webhooks"},
         },
         # Beat schedule (Celery periodic tasks — Phase 3+)
         beat_schedule={
@@ -92,6 +96,10 @@ def create_celery_app() -> Celery:
             "workspace-staleness-evaluator": {
                 "task": "backend.modules.knowledge_health.workers.tasks.evaluate_all_workspaces_staleness",
                 "schedule": 86400.0, # Every 24 hours
+            },
+            "workspace-quota-evaluator": {
+                "task": "backend.tasks.quota.evaluate_workspace_quotas_task",
+                "schedule": 43200.0, # Every 12 hours
             }
         },
     )
