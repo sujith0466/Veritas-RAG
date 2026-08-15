@@ -209,3 +209,61 @@ async def test_execute_query_sandbox() -> None:
     assert res.correlation_id is not None
     assert res.outcome in ("SUCCESS", "CLARIFICATION_REQUIRED", "ABORTED_LOW_CONFIDENCE")
     assert res.trace_detail is not None
+
+
+@pytest.mark.asyncio
+async def test_get_reliability_trends() -> None:
+    mock_session = MagicMock()
+    mock_execute = MagicMock()
+
+    # Mocking rows returned by session.execute(query).all()
+    class RowMock:
+        def __init__(self, date_val, avg_val):
+            self.date = date_val
+            self.average_score = avg_val
+
+    mock_execute.all.return_value = [
+        RowMock(datetime(2026, 8, 1, tzinfo=UTC), 95.5),
+        RowMock(datetime(2026, 8, 2, tzinfo=UTC), 92.0),
+    ]
+    mock_session.execute = AsyncMock(return_value=mock_execute)
+
+    repo = AnalyticsRepository(session=mock_session)
+    service = QueryAnalyticsService(repository=repo)
+
+    trends = await service.get_reliability_trends(AnalyticsFilterDTO(tenant_id="tenant_1"))
+
+    assert len(trends) == 2
+    assert trends[0]["date"] == "2026-08-01"
+    assert trends[0]["average_score"] == 95.5
+    assert trends[1]["date"] == "2026-08-02"
+    assert trends[1]["average_score"] == 92.0
+
+@pytest.mark.asyncio
+async def test_get_most_cited_documents() -> None:
+    mock_session = MagicMock()
+    mock_execute = MagicMock()
+
+    class RowMock:
+        def __init__(self, doc_id, doc_name, count, last_cited):
+            self.document_id = doc_id
+            self.document_name = doc_name
+            self.citation_count = count
+            self.last_cited_at = last_cited
+
+    mock_execute.all.return_value = [
+        RowMock("doc_1", "Employee Handbook", 15, datetime(2026, 8, 1, tzinfo=UTC)),
+        RowMock("doc_2", "Q3 Financials", 5, datetime(2026, 8, 2, tzinfo=UTC)),
+    ]
+    mock_session.execute = AsyncMock(return_value=mock_execute)
+
+    repo = AnalyticsRepository(session=mock_session)
+    service = QueryAnalyticsService(repository=repo)
+
+    docs = await service.get_most_cited_documents(AnalyticsFilterDTO(tenant_id="tenant_1"))
+
+    assert len(docs) == 2
+    assert docs[0]["document_id"] == "doc_1"
+    assert docs[0]["citation_count"] == 15
+    assert docs[1]["document_id"] == "doc_2"
+    assert docs[1]["citation_count"] == 5

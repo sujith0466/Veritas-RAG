@@ -68,6 +68,10 @@ export type {
   ReportFormat,
   ReportExportRequestDTO,
   ReportMetadataDTO,
+  WorkspaceOverviewDTO,
+  PopularTopicDTO,
+  UnansweredQueryDTO,
+  ReliabilityTrendDTO,
 } from './analytics'
 export type {
   KnowledgeStageMetricDTO,

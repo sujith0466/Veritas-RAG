@@ -49,6 +49,7 @@ const navigation: NavGroup[] = [
   {
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'Workspace Analytics', href: '/workspace-analytics', icon: Activity, adminOnly: true },
       { name: 'Knowledge', href: '/knowledge', icon: Brain, adminOnly: true },
       { name: 'Documents', href: '/documents', icon: FileText, adminOnly: true },
       { name: 'Chunks', href: '/chunks', icon: Layers, adminOnly: true },

@@ -10,11 +10,13 @@ import type {
   QueryHistoryItemDTO,
   QueryTrendsDTO,
   ReliabilityHistoryDTO,
+  ReliabilityTrendDTO,
   SearchAnalyticsDTO,
   SuccessRateDTO,
 } from '@/types'
 import { ReliabilityScoreCard } from './components/ReliabilityScoreCard'
 import { ConfidenceTrendsChart } from './components/ConfidenceTrendsChart'
+import { ReliabilityTrendsChart } from './components/ReliabilityTrendsChart'
 import { RetryAnalysisCard } from './components/RetryAnalysisCard'
 import { RetrievalQualityCard } from './components/RetrievalQualityCard'
 import { LiveQueryMonitorTable } from './components/LiveQueryMonitorTable'
@@ -33,6 +35,7 @@ export function ReliabilityDashboardPage() {
   const [confidence, setConfidence] = useState<ConfidenceAnalyticsDTO | null>(null)
   const [trends, setTrends] = useState<QueryTrendsDTO | null>(null)
   const [relHistory, setRelHistory] = useState<ReliabilityHistoryDTO | null>(null)
+  const [relTrends, setRelTrends] = useState<ReliabilityTrendDTO[] | null>(null)
   const [searchAnalytics, setSearchAnalytics] = useState<SearchAnalyticsDTO | null>(null)
   const [historyItems, setHistoryItems] = useState<QueryHistoryItemDTO[]>([])
   const [historyTotal, setHistoryTotal] = useState(0)
@@ -46,6 +49,7 @@ export function ReliabilityDashboardPage() {
         confData,
         trendsData,
         relData,
+        relTrendsData,
         searchData,
         historyData,
       ] = await Promise.all([
@@ -54,6 +58,7 @@ export function ReliabilityDashboardPage() {
         analyticsService.getConfidenceAnalytics(),
         analyticsService.getQueryTrends(timeInterval),
         analyticsService.getReliabilityHistory(timeInterval),
+        analyticsService.getReliabilityTrends(),
         analyticsService.getSearchAnalytics(),
         analyticsService.getQueryHistory(page, 20, outcomeFilter),
       ])
@@ -63,6 +68,7 @@ export function ReliabilityDashboardPage() {
       setConfidence(confData)
       setTrends(trendsData)
       setRelHistory(relData)
+      setRelTrends(relTrendsData)
       setSearchAnalytics(searchData)
       setHistoryItems(historyData.items)
       setHistoryTotal(historyData.total)
@@ -170,7 +176,15 @@ export function ReliabilityDashboardPage() {
         </div>
       </div>
 
-      {/* Middle Grid: Confidence Dynamics + Retry & Retrieval Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        <div className="lg:col-span-12">
+          <ReliabilityTrendsChart
+            trends={relTrends}
+            isLoading={isLoading}
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
         <div className="lg:col-span-7">
           <ConfidenceTrendsChart

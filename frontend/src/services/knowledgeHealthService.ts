@@ -49,4 +49,12 @@ export const knowledgeHealthService = {
   async purgeDocument(documentId: string): Promise<PurgeSummaryDTO> {
     return del<PurgeSummaryDTO>(`/knowledge-health/purge/${documentId}`)
   },
+
+  async getStalenessReport(workspaceId: string): Promise<any> {
+    return get<any>(`/knowledge-base/staleness/report`, { workspace_id: workspaceId })
+  },
+
+  async executeBulkRemediation(workspaceId: string, payload: any): Promise<any> {
+    return post<any>(`/knowledge-base/staleness/remediate?workspace_id=${workspaceId}`, payload)
+  },
 }

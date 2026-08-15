@@ -88,6 +88,10 @@ def create_celery_app() -> Celery:
             "job-stale-monitor": {
                 "task": "jobs.requeue_stale_jobs",
                 "schedule": 300.0, # Every 5 minutes
+            },
+            "workspace-staleness-evaluator": {
+                "task": "backend.modules.knowledge_health.workers.tasks.evaluate_all_workspaces_staleness",
+                "schedule": 86400.0, # Every 24 hours
             }
         },
     )

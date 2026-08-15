@@ -37,16 +37,35 @@ class StalenessService:
             return 0.0
         return max(0.0, (1.0 - (age_days / max_age_days)) * 100.0)
 
-    async def evaluate_workspace_staleness(self, workspace_id: UUID, policy: StalenessPolicyDTO) -> None:
-        """Evaluates staleness for all documents in a workspace and updates their metadata."""
+    async def evaluate_workspace_staleness(self, workspace_id: UUID, policy: StalenessPolicyDTO | None = None) -> None:
+        """Evaluates staleness for all documents in a workspace and updates their metadata.
+        If policy is not provided, resolves it from WorkspaceSettings.
+        """
+        if policy is None:
+            from backend.repositories.workspace_settings import WorkspaceSettingsRepository
+            from backend.repositories.workspace_settings_history import WorkspaceSettingsHistoryRepository
+            from backend.repositories.workspace import WorkspaceRepository
+            from backend.repositories.workspace_member import WorkspaceMemberRepository
+            from backend.services.workspace.settings_service import WorkspaceSettingsService
+
+            # Since evaluate_workspace_staleness is often run in background, we might not have a user_id
+            # But get_settings takes user_id for authorization. We can just use the repository to bypass auth for internal service.
+            settings_repo = WorkspaceSettingsRepository(self.session)
+            settings = await settings_repo.get_by_workspace_id(workspace_id)
+            if settings and "staleness" in settings.settings_json:
+                policy = StalenessPolicyDTO(**settings.settings_json["staleness"])
+            else:
+                policy = StalenessPolicyDTO()
+
         stmt = select(Document).where(
-            Document.tenant_id == workspace_id,
-            not Document.is_deleted
+            Document.tenant_id == str(workspace_id),
+            Document.is_deleted.is_(False)
         )
         res = await self.session.execute(stmt)
         docs = res.scalars().all()
 
-        now = datetime.utcnow()
+        from datetime import UTC
+        now = datetime.now(UTC)
         for doc in docs:
             age_td = now - (doc.updated_at or doc.created_at)
             age_days = age_td.days
@@ -85,8 +104,8 @@ class StalenessService:
     async def get_staleness_report(self, workspace_id: UUID) -> StalenessReportDTO:
         """Generates a staleness report for the workspace."""
         stmt = select(Document).where(
-            Document.tenant_id == workspace_id,
-            not Document.is_deleted
+            Document.tenant_id == str(workspace_id),
+            Document.is_deleted.is_(False)
         )
         res = await self.session.execute(stmt)
         docs = res.scalars().all()
@@ -114,7 +133,7 @@ class StalenessService:
                 stale_items.append(
                     StaleDocumentItemDTO(
                         document_id=doc.id,
-                        filename=doc.name,
+                        filename=doc.filename,
                         age_days=age,
                         freshness_score=score,
                         is_expired=age >= 90, # default max age assumption

@@ -108,3 +108,50 @@ async def _async_execute_hard_purge(document_id: str, tenant_id: str) -> dict[st
             return summary.model_dump()
     finally:
         await engine.dispose()
+
+
+@celery_app.task(bind=True, queue="health", max_retries=2, acks_late=True)
+def evaluate_all_workspaces_staleness(self: Any) -> dict[str, Any]:
+    """Background Celery task to evaluate staleness for all active workspaces."""
+    return asyncio.run(_async_evaluate_all_workspaces_staleness())
+
+
+async def _async_evaluate_all_workspaces_staleness() -> dict[str, Any]:
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    from backend.core.config import get_settings
+    from backend.models.entities.workspace import Workspace
+    from backend.core.events.dispatcher import EventDispatcher
+    from backend.modules.knowledge_base.services.staleness_service import StalenessService
+    from backend.modules.knowledge_base.schemas.staleness_dto import StalenessPolicyDTO
+
+    settings = get_settings().database
+    engine = create_async_engine(settings.url, pool_pre_ping=True)
+    session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)
+
+    workspaces_processed = 0
+    errors = 0
+
+    try:
+        async with session_factory() as session:
+            stmt = select(Workspace).where(Workspace.status == "ACTIVE", Workspace.deleted_at.is_(None))
+            res = await session.execute(stmt)
+            workspaces = res.scalars().all()
+
+        for ws in workspaces:
+            try:
+                # Use isolated DB/session/workspace context for each workspace
+                async with session_factory() as ws_session:
+                    dispatcher = EventDispatcher()
+                    service = StalenessService(ws_session, dispatcher)
+                    await service.evaluate_workspace_staleness(workspace_id=ws.id)
+                    workspaces_processed += 1
+            except Exception as e:
+                logger.error("Failed to evaluate staleness for workspace", workspace_id=str(ws.id), error=str(e))
+                errors += 1
+
+        logger.info("Completed global staleness evaluation", workspaces_processed=workspaces_processed, errors=errors)
+        return {"workspaces_processed": workspaces_processed, "errors": errors}
+    finally:
+        await engine.dispose()

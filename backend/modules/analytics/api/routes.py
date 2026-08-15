@@ -19,14 +19,19 @@ from backend.modules.analytics.schemas.analytics_dto import (
     AnalyticsFilterDTO,
     ConfidenceAnalyticsDTO,
     LatencyAnalyticsDTO,
+    MostCitedDocumentDTO,
+    PopularTopicDTO,
     QueryHistoryListDTO,
     QuerySandboxRequestDTO,
     QuerySandboxResponseDTO,
     QueryTraceDetailDTO,
     QueryTrendsDTO,
     ReliabilityHistoryDTO,
+    ReliabilityTrendDTO,
     SearchAnalyticsDTO,
     SuccessRateDTO,
+    UnansweredQueryDTO,
+    WorkspaceOverviewDTO,
 )
 from backend.modules.analytics.schemas.reporting_dto import (
     ReportExportRequestDTO,
@@ -44,6 +49,27 @@ def _build_metadata(request: Request) -> ResponseMetadata:
     """Construct standard response envelope metadata from request context."""
     req_id = getattr(request.state, "correlation_id", str(uuid4()))
     return ResponseMetadata(request_id=req_id)
+
+
+@router.get(
+    "/workspace-overview",
+    response_model=SuccessResponse[WorkspaceOverviewDTO],
+    status_code=status.HTTP_200_OK,
+    summary="Get high-level workspace activity snapshot",
+)
+async def get_workspace_overview(
+    request_ctx: Request,
+    service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
+    auth: AnalyticsAuth,
+    start_time: datetime | None = Query(None, description="Start timestamp filter"),
+    end_time: datetime | None = Query(None, description="End timestamp filter"),
+) -> SuccessResponse[WorkspaceOverviewDTO]:
+    """Fetch high-level workspace activity metrics like active users, documents, and queries."""
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+    )
+    data = await service.get_workspace_overview(filter_dto)
+    return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
 
 @router.get(
@@ -114,6 +140,92 @@ async def get_latency_analytics(
     )
     data = await service.get_latency_analytics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
+
+
+@router.get(
+    "/popular-topics",
+    response_model=SuccessResponse[list[PopularTopicDTO]],
+    status_code=status.HTTP_200_OK,
+    summary="Get popular query topics using full-text lexemes",
+)
+async def get_popular_topics(
+    request_ctx: Request,
+    service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
+    auth: AnalyticsAuth,
+    start_time: datetime | None = Query(None, description="Start timestamp filter"),
+    end_time: datetime | None = Query(None, description="End timestamp filter"),
+) -> SuccessResponse[list[PopularTopicDTO]]:
+    """Fetch the most frequent meaningful lexemes for the workspace."""
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+    )
+    data = await service.get_popular_topics(filter_dto)
+    return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
+
+
+@router.get(
+    "/unanswered-queries",
+    response_model=SuccessResponse[list[UnansweredQueryDTO]],
+    status_code=status.HTTP_200_OK,
+    summary="Get unresolved or aborted queries",
+)
+async def get_unanswered_queries(
+    request_ctx: Request,
+    service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
+    auth: AnalyticsAuth,
+    start_time: datetime | None = Query(None, description="Start timestamp filter"),
+    end_time: datetime | None = Query(None, description="End timestamp filter"),
+) -> SuccessResponse[list[UnansweredQueryDTO]]:
+    """Fetch queries that did not receive a final successful outcome."""
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+    )
+    data = await service.get_unanswered_queries(filter_dto)
+    return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
+
+
+@router.get(
+    "/reliability-trends",
+    response_model=SuccessResponse[list[ReliabilityTrendDTO]],
+    status_code=status.HTTP_200_OK,
+    summary="Get aggregated daily reliability score trends",
+)
+async def get_reliability_trends(
+    request_ctx: Request,
+    service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
+    auth: AnalyticsAuth,
+    start_time: datetime | None = Query(None, description="Start timestamp filter"),
+    end_time: datetime | None = Query(None, description="End timestamp filter"),
+) -> SuccessResponse[list[ReliabilityTrendDTO]]:
+    """Fetch daily aggregated average reliability scores for the workspace."""
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+    )
+    data = await service.get_reliability_trends(filter_dto)
+    return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
+
+
+@router.get(
+    "/most-cited-documents",
+    response_model=SuccessResponse[list[MostCitedDocumentDTO]],
+    status_code=status.HTTP_200_OK,
+    summary="Get most cited documents based on chat history",
+)
+async def get_most_cited_documents(
+    request_ctx: Request,
+    service: Annotated[QueryAnalyticsService, Depends(get_analytics_service)],
+    auth: AnalyticsAuth,
+    limit: int = Query(10, ge=1, le=50, description="Max number of documents to return"),
+    start_time: datetime | None = Query(None, description="Start timestamp filter"),
+    end_time: datetime | None = Query(None, description="End timestamp filter"),
+) -> SuccessResponse[list[MostCitedDocumentDTO]]:
+    """Fetch the documents most frequently cited in successful chat interactions."""
+    filter_dto = AnalyticsFilterDTO(
+        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+    )
+    data = await service.get_most_cited_documents(filter_dto, limit=limit)
+    return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
+
 
 
 @router.get(

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.dependencies.database import get_db
-from backend.core.dependencies.auth import UserContext, require_role
+from backend.core.dependencies.auth import UserContext, require_role, get_current_user
 from backend.core.permissions.rbac import Role
 from backend.core.events.dispatcher import EventDispatcher
 from backend.modules.knowledge_base.schemas.health_score_dto import KnowledgeHealthScoreDTO
@@ -94,17 +94,51 @@ async def get_staleness_report(
     return await service.get_staleness_report(workspace_id)
 
 
+from datetime import datetime
+from pydantic import BaseModel
+
+class StalenessPolicyUpdateRequest(BaseModel):
+    expected_updated_at: datetime
+    policy: StalenessPolicyDTO
+
 @router.put("/staleness/policy", response_model=dict)
 async def update_staleness_policy(
     workspace_id: UUID,
-    policy: StalenessPolicyDTO,
+    request: StalenessPolicyUpdateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserContext = Depends(require_role(Role.ADMIN)),
+    current_user: UserContext = Depends(get_current_user),
 ) -> Any:
-    dispatcher = EventDispatcher(db)
+    from backend.repositories.workspace_settings import WorkspaceSettingsRepository
+    from backend.repositories.workspace_settings_history import WorkspaceSettingsHistoryRepository
+    from backend.repositories.workspace import WorkspaceRepository
+    from backend.repositories.workspace_member import WorkspaceMemberRepository
+    from backend.services.workspace.settings_service import WorkspaceSettingsService
+
+    settings_service = WorkspaceSettingsService(
+        settings_repo=WorkspaceSettingsRepository(db),
+        history_repo=WorkspaceSettingsHistoryRepository(db),
+        workspace_repo=WorkspaceRepository(db),
+        member_repo=WorkspaceMemberRepository(db)
+    )
+
+    # Persist the policy
+    # We pass is_platform_admin=True since the route already enforces Role.ADMIN for the workspace or platform.
+    # Actually, the user context might be an admin of the workspace.
+    # Since current_user.id is the user's UUID, we pass it.
+    await settings_service.patch_settings(
+        session=db,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        expected_updated_at=request.expected_updated_at,
+        patch_data={"staleness": request.policy.model_dump()}
+    )
+
+    dispatcher = EventDispatcher()
     service = StalenessService(db, dispatcher)
-    # Apply policy and trigger immediate evaluation
-    await service.evaluate_workspace_staleness(workspace_id, policy)
+
+    # Trigger immediate evaluation using the persisted policy
+    await service.evaluate_workspace_staleness(workspace_id, request.policy)
+
     return {"message": "Policy updated and evaluation triggered."}
 
 

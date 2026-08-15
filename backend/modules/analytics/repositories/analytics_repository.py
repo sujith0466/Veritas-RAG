@@ -7,6 +7,7 @@ and computing aggregations across query outcomes, confidence, latency, and relia
 from collections.abc import Sequence
 from datetime import UTC, datetime
 import math
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
@@ -21,8 +22,12 @@ from backend.modules.analytics.schemas.analytics_dto import (
     ReliabilityHistoryDTO,
     SearchAnalyticsDTO,
     SuccessRateDTO,
+    WorkspaceOverviewDTO,
 )
 from backend.modules.retrieval.models.retrieval_log import RetrievalQueryLog
+from backend.document.models.document import Document
+from backend.document.models.status import DocumentStatus
+from backend.modules.chat.models.chat_session import ChatSession
 from backend.repositories.base import BaseRepository
 
 logger = structlog.get_logger(__name__)
@@ -53,6 +58,48 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
             reliability=record.reliability_score,
         )
         return record.id
+
+    async def get_workspace_overview(
+        self,
+        tenant_id: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> WorkspaceOverviewDTO:
+        """Calculate high-level snapshot metrics for the workspace."""
+
+        # 1. Active Users (distinct user_ids from ChatSession)
+        user_query = select(func.count(func.distinct(ChatSession.user_id))).where(
+            ChatSession.tenant_id == tenant_id,
+        )
+        if start_time:
+            user_query = user_query.where(ChatSession.created_at >= start_time)
+        if end_time:
+            user_query = user_query.where(ChatSession.created_at <= end_time)
+        active_users = (await self.session.scalar(user_query)) or 0
+
+        # 2. Document Count (active documents)
+        doc_query = select(func.count(Document.id)).where(
+            Document.tenant_id == tenant_id,
+            Document.status == DocumentStatus.READY,
+        )
+        document_count = (await self.session.scalar(doc_query)) or 0
+
+        # 3. Total Queries
+        queries_query = select(func.count(QueryAnalyticsRecord.id)).where(
+            QueryAnalyticsRecord.tenant_id == tenant_id,
+            QueryAnalyticsRecord.is_deleted.is_(False),
+        )
+        if start_time:
+            queries_query = queries_query.where(QueryAnalyticsRecord.created_at >= start_time)
+        if end_time:
+            queries_query = queries_query.where(QueryAnalyticsRecord.created_at <= end_time)
+        total_queries = (await self.session.scalar(queries_query)) or 0
+
+        return WorkspaceOverviewDTO(
+            active_users=active_users,
+            document_count=document_count,
+            total_queries=total_queries,
+        )
 
     async def list_query_history(
         self,
@@ -336,6 +383,162 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
             scores=scores,
             moving_average_scores=moving_avg,
         )
+
+    async def get_popular_topics(
+        self,
+        tenant_id: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Extract the most frequent lexemes/topics from query_text."""
+        lexeme = func.unnest(func.tsvector_to_array(func.to_tsvector('english', QueryAnalyticsRecord.query_text))).label('topic')
+        query = select(
+            lexeme,
+            func.count().label('count')
+        ).where(
+            QueryAnalyticsRecord.tenant_id == tenant_id,
+            QueryAnalyticsRecord.is_deleted.is_(False)
+        )
+
+        if start_time:
+            query = query.where(QueryAnalyticsRecord.created_at >= start_time)
+        if end_time:
+            query = query.where(QueryAnalyticsRecord.created_at <= end_time)
+
+        query = query.group_by(lexeme).order_by(desc('count')).limit(limit)
+
+        result = await self.session.execute(query)
+        return [{"topic": row.topic, "count": row.count} for row in result.all()]
+
+    async def get_unanswered_queries(
+        self,
+        tenant_id: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """List queries that failed to produce a final successful outcome."""
+        unanswered_outcomes = [
+            "CLARIFICATION_REQUIRED",
+            "ABORTED_LOW_CONFIDENCE",
+            "ABORTED_HALLUCINATION",
+            "ABORTED_MAX_RETRIES",
+        ]
+
+        query = select(
+            QueryAnalyticsRecord.query_text,
+            QueryAnalyticsRecord.outcome,
+            func.count().label('count'),
+            func.max(QueryAnalyticsRecord.created_at).label('last_seen')
+        ).where(
+            QueryAnalyticsRecord.tenant_id == tenant_id,
+            QueryAnalyticsRecord.outcome.in_(unanswered_outcomes),
+            QueryAnalyticsRecord.is_deleted.is_(False)
+        )
+
+        if start_time:
+            query = query.where(QueryAnalyticsRecord.created_at >= start_time)
+        if end_time:
+            query = query.where(QueryAnalyticsRecord.created_at <= end_time)
+
+        query = query.group_by(
+            QueryAnalyticsRecord.query_text,
+            QueryAnalyticsRecord.outcome
+        ).order_by(desc('count')).limit(limit)
+
+        result = await self.session.execute(query)
+        return [
+            {
+                "query_text": row.query_text,
+                "outcome": row.outcome,
+                "count": row.count,
+                "last_seen": row.last_seen
+            } for row in result.all()
+        ]
+
+    async def get_reliability_trends(
+        self,
+        tenant_id: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Compute the average reliability score per day."""
+        date_bucket = func.date_trunc('day', QueryAnalyticsRecord.created_at).label('date')
+        query = select(
+            date_bucket,
+            func.avg(QueryAnalyticsRecord.reliability_score).label('average_score')
+        ).where(
+            QueryAnalyticsRecord.tenant_id == tenant_id,
+            QueryAnalyticsRecord.reliability_score.is_not(None),
+            QueryAnalyticsRecord.is_deleted.is_(False)
+        )
+
+        if start_time:
+            query = query.where(QueryAnalyticsRecord.created_at >= start_time)
+        if end_time:
+            query = query.where(QueryAnalyticsRecord.created_at <= end_time)
+
+        query = query.group_by(date_bucket).order_by(date_bucket.asc())
+
+        result = await self.session.execute(query)
+        return [
+            {
+                "date": row.date.strftime("%Y-%m-%d") if row.date else "",
+                "average_score": round(row.average_score, 2) if row.average_score is not None else 0.0
+            } for row in result.all()
+        ]
+
+    async def get_most_cited_documents(
+        self,
+        tenant_id: str,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Aggregate citation counts from chat message JSONB."""
+        from backend.modules.chat.models.chat_message import ChatMessage
+        from backend.modules.chat.models.chat_session import ChatSession
+
+        citation_elem = func.jsonb_array_elements(
+            func.cast(ChatMessage.citations, func.jsonb())
+        ).label('citation')
+
+        query = select(
+            citation_elem.op('->>')('document_id').label('document_id'),
+            citation_elem.op('->>')('document_name').label('document_name'),
+            func.count().label('citation_count'),
+            func.max(ChatMessage.created_at).label('last_cited_at')
+        ).select_from(
+            ChatMessage
+        ).join(
+            ChatSession, ChatMessage.session_id == ChatSession.id
+        ).where(
+            ChatSession.tenant_id == tenant_id,
+            ChatMessage.citations.is_not(None)
+        )
+
+        if start_time:
+            query = query.where(ChatMessage.created_at >= start_time)
+        if end_time:
+            query = query.where(ChatMessage.created_at <= end_time)
+
+        query = query.group_by(
+            citation_elem.op('->>')('document_id'),
+            citation_elem.op('->>')('document_name')
+        ).order_by(
+            desc('citation_count')
+        ).limit(limit)
+
+        result = await self.session.execute(query)
+        return [
+            {
+                "document_id": row.document_id,
+                "document_title": row.document_name or "Unknown Document",
+                "citation_count": row.citation_count,
+                "last_cited_at": row.last_cited_at
+            } for row in result.all() if row.document_id
+        ]
 
     async def get_search_analytics(self, tenant_id: str) -> SearchAnalyticsDTO:
         """Aggregate retrieval stage performance across `RetrievalQueryLog` table."""

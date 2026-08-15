@@ -65,6 +65,56 @@ class QueryHistoryListDTO(BaseModel):
     page_size: int = Field(50, description="Number of items per page")
 
 
+class WorkspaceOverviewDTO(BaseModel):
+    """High-level snapshot of workspace activity."""
+
+    model_config = ConfigDict(frozen=True)
+
+    active_users: int = Field(0, description="Number of unique users active in the given period")
+    document_count: int = Field(0, description="Total number of active, processed documents")
+    total_queries: int = Field(0, description="Total number of AI queries processed in the period")
+
+
+class PopularTopicDTO(BaseModel):
+    """Represents a frequently occurring query term/lexeme."""
+
+    model_config = ConfigDict(frozen=True)
+
+    topic: str = Field(..., description="The normalized query term or lexeme")
+    count: int = Field(..., description="Frequency of occurrence")
+
+
+class UnansweredQueryDTO(BaseModel):
+    """Represents a query that resulted in a non-success outcome."""
+
+    model_config = ConfigDict(frozen=True)
+
+    query_text: str = Field(..., description="The original query text")
+    outcome: str = Field(..., description="The non-success outcome (e.g. CLARIFICATION_REQUIRED)")
+    count: int = Field(1, description="Number of times this exact query text occurred with this outcome")
+    last_seen: datetime | None = Field(None, description="Most recent timestamp this query occurred")
+
+
+class ReliabilityTrendDTO(BaseModel):
+    """Represents the daily aggregated reliability score trend."""
+
+    model_config = ConfigDict(frozen=True)
+
+    date: str = Field(..., description="The ISO date string (YYYY-MM-DD) for the aggregated bucket")
+    average_score: float = Field(..., description="The average reliability score for that day")
+
+
+class MostCitedDocumentDTO(BaseModel):
+    """Represents a document that was frequently cited in chat messages."""
+
+    model_config = ConfigDict(frozen=True)
+
+    document_id: str = Field(..., description="The unique identifier of the document")
+    document_title: str = Field(..., description="The title or name of the document")
+    citation_count: int = Field(..., description="The total number of citations across chat messages")
+    last_cited_at: datetime | None = Field(None, description="The most recent timestamp this document was cited")
+
+
 class QueryTrendsDTO(BaseModel):
     """Time-series query trend aggregations over a specified interval."""
 

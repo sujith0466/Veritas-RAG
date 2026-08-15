@@ -35,6 +35,12 @@ export interface QueryTrendsDTO {
   avg_reliability_scores: number[]
 }
 
+export interface WorkspaceOverviewDTO {
+  active_users: number
+  document_count: number
+  total_queries: number
+}
+
 export interface SuccessRateDTO {
   total_queries: number
   success_count: number
@@ -155,4 +161,21 @@ export interface ReportMetadataDTO {
   status: string
   download_url: string
   summary_metrics: Record<string, unknown>
+}
+
+export interface PopularTopicDTO {
+  topic: string
+  count: number
+}
+
+export interface UnansweredQueryDTO {
+  query_text: string
+  outcome: string
+  count: number
+  last_seen: string | null
+}
+
+export interface ReliabilityTrendDTO {
+  date: string
+  average_score: number
 }

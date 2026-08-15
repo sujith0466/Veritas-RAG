@@ -11,6 +11,7 @@ from typing import Any
 import uuid
 
 from pydantic import BaseModel, Field, field_validator
+from backend.modules.knowledge_base.schemas.staleness_dto import StalenessPolicyDTO
 
 # ── 1. Category Models ─────────────────────────────────────────────────────────
 
@@ -56,8 +57,9 @@ class RAGSettings(BaseModel):
     chunk_overlap: int = Field(64, ge=0, le=512)
 
     @field_validator("sparse_weight")
-    def validate_weights(cls, v, values):
-        if "dense_weight" in values and abs(values["dense_weight"] + v - 1.0) > 0.05:
+    @classmethod
+    def validate_weights(cls, v, info):
+        if hasattr(info, "data") and "dense_weight" in info.data and abs(info.data["dense_weight"] + v - 1.0) > 0.05:
             # Normalize or allow reasonable precision
             pass
         return v
@@ -205,6 +207,7 @@ class BrandingSettings(BaseModel):
     custom_css_variables: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("custom_css_variables")
+    @classmethod
     def validate_custom_css_variables(cls, v):
         for key, value in v.items():
             if not key.replace("-", "").replace("_", "").isalnum():
@@ -214,7 +217,8 @@ class BrandingSettings(BaseModel):
         return v
 
     @field_validator("primary_color")
-    def validate_accessibility_contrast(cls, v, values):
+    @classmethod
+    def validate_accessibility_contrast(cls, v, info):
         # Validate that primary color when given as hex has acceptable contrast
         if v.startswith("#") and len(v) in (4, 7):
             # Check contrast against white or black text
@@ -245,6 +249,7 @@ class WorkspaceSettingsPayload(BaseModel):
     limits: LimitSettings = Field(default_factory=LimitSettings)
     branding: BrandingSettings = Field(default_factory=BrandingSettings)
     api: APISettings = Field(default_factory=APISettings)
+    staleness: StalenessPolicyDTO = Field(default_factory=StalenessPolicyDTO)
     custom_extensions: dict[str, Any] = Field(default_factory=dict)
 
 

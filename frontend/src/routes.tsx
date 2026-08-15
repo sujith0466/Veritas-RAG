@@ -19,6 +19,7 @@ const EmbeddingsPage = lazy(() => import('@/pages/embeddings').then(m => ({ defa
 const VectorsPage = lazy(() => import('@/pages/vectors').then(m => ({ default: m.VectorsPage })))
 const KnowledgeHealthPage = lazy(() => import('@/pages/knowledge_health').then(m => ({ default: m.KnowledgeHealthPage })))
 const ReliabilityDashboardPage = lazy(() => import('@/pages/analytics').then(m => ({ default: m.ReliabilityDashboardPage })))
+const WorkspaceAnalyticsPage = lazy(() => import('@/pages/analytics/WorkspaceAnalyticsPage').then(m => ({ default: m.WorkspaceAnalyticsPage })))
 const DeveloperInvestigationPage = lazy(() => import('@/pages/investigation').then(m => ({ default: m.DeveloperInvestigationPage })))
 
 const SettingsLayout = lazy(() => import('@/pages/settings').then(m => ({ default: m.SettingsLayout })))
@@ -134,6 +135,7 @@ export const router = createBrowserRouter([
               { path: 'chat/:sessionId', element: <AIChatPage /> },
 
               // Admin Only
+              { path: 'workspace-analytics', element: <ProtectedRoute adminOnly><WorkspaceAnalyticsPage /></ProtectedRoute> },
               { path: 'knowledge', element: <ProtectedRoute adminOnly><KnowledgeIntelligenceDashboardPage /></ProtectedRoute> },
               { path: 'documents', element: <ProtectedRoute adminOnly><DocumentsPage /></ProtectedRoute> },
               { path: 'analytics', element: <ProtectedRoute adminOnly><ReliabilityDashboardPage /></ProtectedRoute> },

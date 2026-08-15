@@ -5,6 +5,7 @@ latency analytics, confidence trends, and search metrics.
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -28,6 +29,7 @@ from backend.modules.analytics.schemas.analytics_dto import (
     SelfCorrectionTraceDTO,
     StageTraceDTO,
     SuccessRateDTO,
+    WorkspaceOverviewDTO,
 )
 from backend.modules.analytics.schemas.errors import InvalidDateRange, RecordNotFound
 
@@ -39,6 +41,21 @@ class QueryAnalyticsService:
 
     def __init__(self, repository: AnalyticsRepository) -> None:
         self.repository = repository
+
+    async def get_workspace_overview(self, filter_dto: AnalyticsFilterDTO) -> WorkspaceOverviewDTO:
+        """Fetch high-level workspace activity metrics."""
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
+            raise InvalidDateRange("start_time cannot be greater than end_time")
+
+        return await self.repository.get_workspace_overview(
+            tenant_id=filter_dto.tenant_id,
+            start_time=filter_dto.start_time,
+            end_time=filter_dto.end_time,
+        )
 
     async def record_query_execution(
         self,
@@ -195,6 +212,75 @@ class QueryAnalyticsService:
     async def get_search_analytics(self, tenant_id: str) -> SearchAnalyticsDTO:
         """Fetch multi-stage hybrid search performance and candidate counts."""
         return await self.repository.get_search_analytics(tenant_id=tenant_id)
+
+    async def get_popular_topics(
+        self, filter_dto: AnalyticsFilterDTO
+    ) -> list[dict[str, Any]]:
+        """Fetch the most frequent meaningful query lexemes as popular topics."""
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
+            raise InvalidDateRange("start_time cannot be greater than end_time")
+
+        return await self.repository.get_popular_topics(
+            tenant_id=filter_dto.tenant_id,
+            start_time=filter_dto.start_time,
+            end_time=filter_dto.end_time,
+        )
+
+    async def get_unanswered_queries(
+        self, filter_dto: AnalyticsFilterDTO
+    ) -> list[dict[str, Any]]:
+        """Fetch queries that failed to produce a final successful outcome."""
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
+            raise InvalidDateRange("start_time cannot be greater than end_time")
+
+        return await self.repository.get_unanswered_queries(
+            tenant_id=filter_dto.tenant_id,
+            start_time=filter_dto.start_time,
+            end_time=filter_dto.end_time,
+        )
+
+    async def get_reliability_trends(
+        self, filter_dto: AnalyticsFilterDTO
+    ) -> list[dict[str, Any]]:
+        """Fetch aggregated daily reliability score trends."""
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
+            raise InvalidDateRange("start_time cannot be greater than end_time")
+
+        return await self.repository.get_reliability_trends(
+            tenant_id=filter_dto.tenant_id,
+            start_time=filter_dto.start_time,
+            end_time=filter_dto.end_time,
+        )
+
+    async def get_most_cited_documents(
+        self, filter_dto: AnalyticsFilterDTO, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        """Fetch the most cited documents for the given workspace and time range."""
+        if (
+            filter_dto.start_time
+            and filter_dto.end_time
+            and filter_dto.start_time > filter_dto.end_time
+        ):
+            raise InvalidDateRange("start_time cannot be greater than end_time")
+
+        return await self.repository.get_most_cited_documents(
+            tenant_id=filter_dto.tenant_id,
+            start_time=filter_dto.start_time,
+            end_time=filter_dto.end_time,
+            limit=limit,
+        )
 
     async def get_query_trace_detail(
         self, correlation_id: str, tenant_id: str

@@ -66,3 +66,12 @@
 | F9.4 - Reliability Badge | ✅ CERTIFIED / FROZEN | Post-remediation verification passed |
 | F9.5 - Citation Rendering | ✅ CERTIFIED / FROZEN | |
 | F9.6 - Chat History Export | ✅ CERTIFIED / FROZEN | |
+
+## Epic 10: RAG Health & Analytics
+| Feature | Status | Notes |
+|---|---|---|
+| F10.1 - Analytics Repository & Logging Middleware | ✅ CERTIFIED / FROZEN | |
+| F10.2 - RAG Health Dashboard UI Base | ✅ CERTIFIED / FROZEN | |
+| F10.3 - Reliability Analytics & Trends | ✅ CERTIFIED / FROZEN | |
+| F10.4 - Knowledge Health Scoring & UI | ✅ CERTIFIED / FROZEN | |
+| F10.5 - Background Aggregation & Policy Alerts | ✅ CERTIFIED / FROZEN | Remediation for workspace-specific staleness policy defect complete |

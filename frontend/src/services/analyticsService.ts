@@ -12,9 +12,19 @@ import type {
   QuerySandboxResponseDTO,
   ReportExportRequestDTO,
   ReportMetadataDTO,
+  WorkspaceOverviewDTO,
+  PopularTopicDTO,
+  UnansweredQueryDTO,
 } from '@/types'
 
 export const analyticsService = {
+  async getWorkspaceOverview(startTime?: string, endTime?: string): Promise<WorkspaceOverviewDTO> {
+    const params: Record<string, unknown> = {}
+    if (startTime) params.start_time = startTime
+    if (endTime) params.end_time = endTime
+    return get<WorkspaceOverviewDTO>('/analytics/workspace-overview', params)
+  },
+
   async getQueryHistory(
     page = 1,
     pageSize = 50,
@@ -90,5 +100,41 @@ export const analyticsService = {
 
   async listGeneratedReports(): Promise<ReportMetadataDTO[]> {
     return get<ReportMetadataDTO[]>('/analytics/reports/history')
+  },
+
+  async getPopularTopics(startTime?: string, endTime?: string): Promise<PopularTopicDTO[]> {
+    const params: Record<string, unknown> = {}
+    if (startTime) params.start_time = startTime
+    if (endTime) params.end_time = endTime
+    return get<PopularTopicDTO[]>('/analytics/popular-topics', params)
+  },
+
+  async getUnansweredQueries(startTime?: string, endTime?: string): Promise<UnansweredQueryDTO[]> {
+    const params: Record<string, unknown> = {}
+    if (startTime) params.start_time = startTime
+    if (endTime) params.end_time = endTime
+    return get<UnansweredQueryDTO[]>('/analytics/unanswered-queries', params)
+  },
+
+  async getReliabilityTrends(
+    startTime?: string,
+    endTime?: string
+  ): Promise<any[]> {
+    const params: Record<string, string> = {}
+    if (startTime) params.start_time = startTime
+    if (endTime) params.end_time = endTime
+    return get<any[]>('/analytics/reliability-trends', params)
+  },
+
+  async getMostCitedDocuments(
+    startTime?: string,
+    endTime?: string,
+    limit?: number
+  ): Promise<any[]> {
+    const params: Record<string, string | number> = {}
+    if (startTime) params.start_time = startTime
+    if (endTime) params.end_time = endTime
+    if (limit) params.limit = limit
+    return get<any[]>('/analytics/most-cited-documents', params)
   },
 }
