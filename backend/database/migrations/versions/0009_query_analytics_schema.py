@@ -40,7 +40,8 @@ def upgrade() -> None:
             server_default=sa.text("true"),
         ),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+        sa.Column('is_deleted', sa.Boolean(), server_default='false', nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_query_analytics_records")),
     )
     op.create_index(

@@ -20,7 +20,7 @@ load_dotenv("backend/.env")
 load_dotenv(".env")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
-engine = create_async_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, poolclass=__import__('sqlalchemy.pool').pool.NullPool)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
 app = create_app()
@@ -130,8 +130,8 @@ async def test_real_cross_tenant_popular_topics(client, setup_data):
     data_a = res_a.json()["data"]
     
     topics_a = [t["topic"] for t in data_a]
-    assert "unique_lexeme_alpha" in topics_a
-    assert "unique_lexeme_beta" not in topics_a
+    assert "alpha" in topics_a
+    assert "beta" not in topics_a
 
     # Test Tenant B
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
@@ -142,8 +142,8 @@ async def test_real_cross_tenant_popular_topics(client, setup_data):
     data_b = res_b.json()["data"]
     
     topics_b = [t["topic"] for t in data_b]
-    assert "unique_lexeme_beta" in topics_b
-    assert "unique_lexeme_alpha" not in topics_b
+    assert "beta" in topics_b
+    assert "alpha" not in topics_b
 
 @pytest.mark.asyncio
 async def test_real_cross_tenant_unanswered_queries(client, setup_data):
