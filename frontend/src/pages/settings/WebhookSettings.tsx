@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Input, Label, Button, SectionHeader } from '@/components/common'
 import { useToast } from '@/hooks/useToast'
 import { useAuthStore } from '@/stores/authStore'
-import { Webhook, Plus, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Webhook, Plus, Trash2, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface WebhookEndpoint {

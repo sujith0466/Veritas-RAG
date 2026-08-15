@@ -18,6 +18,9 @@ class AuditLog(BaseModel):
 
     __tablename__ = "audit_logs"
 
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
     action: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True

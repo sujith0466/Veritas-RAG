@@ -11,6 +11,10 @@ from .routes.workspaces import router as workspaces_router
 
 api_v1_router = APIRouter()
 
+# ── Platform Admin (`/platform-admin`) ─────────────────────────────────────────
+from .routes.platform_admin import router as platform_admin_router
+api_v1_router.include_router(platform_admin_router)
+
 # ── Health, Readiness & Prometheus Metrics ─────────────────────────────────────
 api_v1_router.include_router(health_router)
 api_v1_router.include_router(metrics_router)
@@ -45,6 +49,10 @@ api_v1_router.include_router(knowledge_base_router, prefix="/workspaces/{workspa
 
 from .routes.notifications import router as notifications_router
 api_v1_router.include_router(notifications_router)
+
+# ── Audit Logs (`/audit-logs`) ────────────────────────────────────────────────
+from .routes.audit_logs import router as audit_logs_router
+api_v1_router.include_router(audit_logs_router)
 
 from backend.document.api.v1.jobs import router as jobs_router
 

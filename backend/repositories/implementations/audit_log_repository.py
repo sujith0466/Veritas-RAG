@@ -51,3 +51,20 @@ class AuditLogRepository(BaseRepository[AuditLog], IAuditLogRepository):
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
+
+    async def get_by_tenant_id(
+        self, tenant_id: uuid.UUID, skip: int = 0, limit: int = 100
+    ) -> Sequence[AuditLog]:
+        """Fetch audit logs scoped to a specific workspace/tenant."""
+        stmt = (
+            select(AuditLog)
+            .where(
+                AuditLog.tenant_id == tenant_id,
+                AuditLog.is_deleted.is_(False),
+            )
+            .order_by(AuditLog.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

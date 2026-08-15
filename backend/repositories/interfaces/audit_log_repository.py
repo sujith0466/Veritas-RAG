@@ -42,3 +42,10 @@ class IAuditLogRepository(ABC):
     ) -> Sequence[AuditLog]:
         """Fetch audit logs associated with a specific user."""
         ...
+
+    @abstractmethod
+    async def get_by_tenant_id(
+        self, tenant_id: uuid.UUID, skip: int = 0, limit: int = 100
+    ) -> Sequence[AuditLog]:
+        """Fetch audit logs scoped to a specific workspace/tenant."""
+        ...

@@ -20,6 +20,7 @@ async def log_auth_event(
     resource_type: str,
     user_id: uuid.UUID | None = None,
     resource_id: str | None = None,
+    tenant_id: uuid.UUID | None = None,
     metadata: dict[str, Any] | None = None,
     ip_address: str | None = None,
 ) -> None:
@@ -31,6 +32,7 @@ async def log_auth_event(
         resource_type: Category of resource (e.g., 'auth', 'endpoint', 'role').
         user_id: Internal primary key of the acting user if known.
         resource_id: Optional identifier of the targeted resource.
+        tenant_id: Optional identifier of the tenant the action occurred under.
         metadata: Optional structured context payload.
         ip_address: Client IP address if available from request headers.
     """
@@ -45,6 +47,7 @@ async def log_auth_event(
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
+            tenant_id=tenant_id,
             details=details_payload,
         )
     except Exception as e:

@@ -2,7 +2,7 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { AppProvider } from '@/providers/AppProvider'
-import { AuthLayout, DashboardLayout, LandingLayout } from '@/components/layouts'
+import { AuthLayout, DashboardLayout, LandingLayout, AdminLayout } from '@/components/layouts'
 const LandingPage = lazy(() => import('@/pages/landing/LandingPage').then(m => ({ default: m.LandingPage })))
 const LoginPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.RegisterPage })))
@@ -40,6 +40,11 @@ const CreateWorkspace = lazy(() => import('@/pages/workspace/CreateWorkspace').t
 const EditWorkspace = lazy(() => import('@/pages/workspace/EditWorkspace').then(m => ({ default: m.EditWorkspace })))
 const AcceptInvitationPage = lazy(() => import('@/pages/workspace/AcceptInvitationPage').then(m => ({ default: m.AcceptInvitationPage })))
 const WorkspaceMembersPage = lazy(() => import('@/pages/workspace/WorkspaceMembersPage').then(m => ({ default: m.WorkspaceMembersPage })))
+
+const AuditLogsPage = lazy(() => import('@/pages/admin').then(m => ({ default: m.AuditLogsPage })))
+const QuotaBillingPage = lazy(() => import('@/pages/admin').then(m => ({ default: m.QuotaBillingPage })))
+const PlatformAdminPage = lazy(() => import('@/pages/admin').then(m => ({ default: m.PlatformAdminPage })))
+
 import { useAuthStore } from '@/stores/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { MarketingThemeProvider } from '@/providers/MarketingThemeProvider'
@@ -170,6 +175,20 @@ export const router = createBrowserRouter([
               { path: 'w/:slug/edit', element: <EditWorkspace /> },
               { path: 'workspaces/:workspaceId/members', element: <WorkspaceMembersPage /> },
               { path: 'w/:workspaceId/members', element: <WorkspaceMembersPage /> },
+              
+              // Admin Portal (Epic 12)
+              {
+                path: 'admin',
+                element: <ProtectedRoute adminOnly><AdminLayout /></ProtectedRoute>,
+                children: [
+                  { index: true, element: <Navigate to="workspace" replace /> },
+                  { path: 'workspace', element: <WorkspaceSettings /> },
+                  { path: 'members', element: <WorkspaceMembersPage /> },
+                  { path: 'quota', element: <QuotaBillingPage /> },
+                  { path: 'audit', element: <AuditLogsPage /> },
+                  { path: 'platform', element: <PlatformAdminPage /> },
+                ]
+              },
             ],
           }
         ],

@@ -269,11 +269,11 @@ async def readiness() -> JSONResponse:
     summary="Detailed health (admin)",
     description=(
         "Full dependency health breakdown. "
-        "Requires ADMIN role via authentication and authorization dependencies."
+        "Requires PLATFORM_ADMIN role via authentication and authorization dependencies."
     ),
 )
 async def detailed_health(
-    _user: UserContext = Depends(require_role(Role.ADMIN)),
+    _user: UserContext = Depends(require_role(Role.PLATFORM_ADMIN)),
 ) -> DetailedHealthResponse:
     """Full dependency breakdown for operator dashboards."""
     settings = get_settings()

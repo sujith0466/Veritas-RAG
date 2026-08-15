@@ -1,4 +1,4 @@
-import { Menu, Moon, Sun, Monitor, Bell } from 'lucide-react'
+import { Menu, Moon, Sun, Monitor } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Breadcrumbs } from './Breadcrumbs'
 import { UserMenu } from './UserMenu'

@@ -58,6 +58,7 @@ const navigation: NavGroup[] = [
       { name: 'AI Reliability', href: '/analytics', icon: BarChart3, adminOnly: true },
       { name: 'System Health', href: '/health', icon: Activity, adminOnly: true },
       { name: 'Diagnostics', href: '/diagnostics', icon: Terminal, adminOnly: true },
+      { name: 'Admin Portal', href: '/admin', icon: Shield, adminOnly: true, matchPrefix: true },
     ],
   },
 ]
@@ -146,7 +147,7 @@ export function Sidebar() {
         {/* Main Navigation */}
         <nav className="px-2 space-y-1 pb-4">
           {navigation.map((section, i) => {
-            const items = section.items.filter(item => !item.adminOnly || user?.role === 'admin')
+            const items = section.items.filter(item => !item.adminOnly || ['admin', 'owner', 'platform_admin'].includes(user?.role || ''))
             if (items.length === 0) return null
 
             return (
