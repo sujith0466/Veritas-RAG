@@ -169,13 +169,13 @@ export const router = createBrowserRouter([
                   { path: 'activity', element: <ActivitySettings /> },
                 ]
               },
-              
+
               // Workspace Management
               { path: 'workspaces/new', element: <CreateWorkspace /> },
               { path: 'w/:slug/edit', element: <EditWorkspace /> },
               { path: 'workspaces/:workspaceId/members', element: <WorkspaceMembersPage /> },
               { path: 'w/:workspaceId/members', element: <WorkspaceMembersPage /> },
-              
+
               // Admin Portal (Epic 12)
               {
                 path: 'admin',

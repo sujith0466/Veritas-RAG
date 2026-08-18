@@ -21,7 +21,7 @@ class KnowledgeIntelligenceSummaryDTO(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    tenant_id: str = Field(..., description="Tenant identifier")
+    tenant_id: str | None = Field(default=None, description="Tenant identifier")
     total_documents: int = Field(default=0, description="Total documents ingested")
     processed_documents: int = Field(
         default=0, description="Successfully processed documents"
@@ -111,7 +111,7 @@ class ExecutiveDashboardDTO(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    tenant_id: str = Field(..., description="Tenant identifier")
+    tenant_id: str | None = Field(default=None, description="Tenant identifier")
     active_tenants: int = Field(default=1, description="Number of active tenants")
     total_queries_last_24h: int = Field(
         default=0, description="Total AI queries executed over last 24 hours"

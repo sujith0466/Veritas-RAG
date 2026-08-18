@@ -11,12 +11,12 @@ export function PlatformAdminPage() {
 
   useEffect(() => {
     if (!isPlatformAdmin) return
-    
+
     const fetchData = async () => {
       setLoading(true)
       try {
         const res = await adminService.getGlobalWorkspaces(1, 50)
-        setWorkspaces(res.data)
+        setWorkspaces((res as any)?.items || (res as any)?.data || [])
       } catch (e) {
         console.error('Failed to load global workspaces', e)
       } finally {
@@ -49,7 +49,7 @@ export function PlatformAdminPage() {
           Global system overview, cross-workspace aggregations, and platform maintenance.
         </p>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-card border border-border rounded-lg p-6 flex flex-col">
           <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">

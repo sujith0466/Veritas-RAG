@@ -1,7 +1,6 @@
 import type { AxiosRequestConfig } from 'axios'
 import { apiClient } from './client'
 import { ApiError } from '@/types'
-import type { SuccessResponse } from '@/types'
 
 /**
  * Type-safe request wrapper that enforces SuccessResponse<T> envelope handling.
@@ -10,21 +9,30 @@ export async function request<T>(
   config: AxiosRequestConfig,
   signal?: AbortSignal,
 ): Promise<T> {
-  const response = await apiClient.request<SuccessResponse<T>>({
+  let url = config.url
+  if (url && url.startsWith('/api/v1')) {
+    url = url.substring('/api/v1'.length)
+  }
+  const response = await apiClient.request<any>({
     ...config,
+    url,
     signal,
   })
 
-  if (!response.data.success) {
+  if (response.data && response.data.success === false) {
     throw new ApiError(
-      'Unexpected response format',
-      'PARSE_ERROR',
-      500,
-      'unknown',
+      response.data.error?.message || 'Request failed',
+      response.data.error?.code || 'ERROR',
+      response.status,
+      response.data.metadata?.request_id || 'unknown',
     )
   }
 
-  return response.data.data
+  if (response.data && typeof response.data === 'object' && 'data' in response.data && response.data.data !== undefined) {
+    return response.data.data as T
+  }
+
+  return response.data as T
 }
 
 export async function get<T>(url: string, params?: Record<string, unknown>, signal?: AbortSignal): Promise<T> {

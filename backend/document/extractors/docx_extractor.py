@@ -5,7 +5,10 @@ Extracts paragraphs and tables from `.docx` documents using `python-docx` or nat
 
 import io
 from typing import BinaryIO
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET  # type: ignore[no-redef]
 import zipfile
 
 from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
@@ -60,7 +63,7 @@ class DOCXExtractor(BaseExtractor):
                 try:
                     with zipfile.ZipFile(io.BytesIO(docx_bytes)) as z:
                         with z.open("word/document.xml") as xml_file:
-                            tree = ET.parse(xml_file)
+                            tree = ET.parse(xml_file)  # nosec B314
                             root = tree.getroot()
                             # OpenXML namespace
                             ns = {

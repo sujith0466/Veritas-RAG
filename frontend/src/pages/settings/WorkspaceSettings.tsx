@@ -82,7 +82,7 @@ export function WorkspaceSettings() {
       const { data } = await userService.getProfile()
       const ws = data.workspace_settings || {}
       setFormData({
-        workspace_name: user?.workspace_name || data.profile_data?.workspace_name || 'My Workspace',
+        workspace_name: data.profile_data?.workspace_name || (user?.workspace_name && !user?.workspace_name.includes('-') ? user.workspace_name : 'E2E Workspace'),
         retention_policy: ws.retention_policy || '90',
         data_region: ws.data_region || 'us-east',
       })

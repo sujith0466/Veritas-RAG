@@ -37,7 +37,6 @@ import structlog
 from backend.core.auth.context import UserContext
 from backend.core.exceptions.auth import ExpiredTokenException, InvalidTokenException
 from backend.core.permissions.rbac import Role
-from backend.core.security.jwt import get_jwt_service
 
 logger = structlog.get_logger(__name__)
 
@@ -54,6 +53,7 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
 
         # 2. & 3. Valid/Invalid Authorization header
         try:
+            from backend.core.security.jwt import get_jwt_service
             jwt_service = get_jwt_service()
             # This verifies signature, expiry, audience, issuer, and queries Redis blocklist
             token_payload = await jwt_service.verify_token(token)

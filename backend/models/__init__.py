@@ -30,6 +30,7 @@ __all__ = [
     "RetrievalSLALog",
     "StaleEmbeddingRecord",
     "StorageObject",
+    "TenantQuotaORM",
     "User",
     "VectorIndexMetadata",
     "VectorReindexJob",
@@ -75,7 +76,7 @@ def __getattr__(name: str) -> Any:
         import backend.modules.knowledge_base.models.reindex_job as kb_models
 
         return getattr(kb_models, name)
-    if name in {"QueryAnalyticsRecord"}:
+    if name in {"QueryAnalyticsRecord", "TenantQuotaORM"}:
         import backend.modules.analytics.models as anl_models
 
         return getattr(anl_models, name)

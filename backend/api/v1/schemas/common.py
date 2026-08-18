@@ -106,3 +106,13 @@ class DetailedHealthResponse(BaseModel):
     environment: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     dependencies: list[DependencyHealth]
+
+class PaginationMetadata(BaseModel):
+    page: int
+    size: int
+    total_elements: int
+    total_pages: int
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    pagination: PaginationMetadata

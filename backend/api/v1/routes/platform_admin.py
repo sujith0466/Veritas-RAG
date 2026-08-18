@@ -3,9 +3,10 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
+import sqlalchemy as sa
 
 from backend.api.v1.schemas.common import PaginatedResponse, ResponseMetadata
 from backend.core.auth.context import UserContext
@@ -35,6 +36,7 @@ class WorkspaceSummaryDTO(BaseModel):
     summary="List all workspaces with aggregated metrics",
 )
 async def list_all_workspaces(
+    request: Request,
     auth: Annotated[UserContext, Depends(require_role(Role.PLATFORM_ADMIN))],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     page: int = Query(1, ge=1, description="Page number"),
@@ -42,7 +44,7 @@ async def list_all_workspaces(
 ) -> PaginatedResponse[WorkspaceSummaryDTO]:
     """Retrieve global workspace aggregations (Platform Admin only)."""
     skip = (page - 1) * page_size
-    
+
     # Efficient grouping query
     stmt = (
         select(
@@ -53,7 +55,7 @@ async def list_all_workspaces(
         )
         .outerjoin(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
         .outerjoin(
-            QueryAnalyticsRecord, 
+            QueryAnalyticsRecord,
             func.cast(Workspace.id, sa.String) == QueryAnalyticsRecord.tenant_id
         )
         .where(Workspace.is_deleted.is_(False))
@@ -62,18 +64,14 @@ async def list_all_workspaces(
         .offset(skip)
         .limit(page_size)
     )
-    
-    import sqlalchemy as sa
-    # Need to import sa for the func.cast above to match string tenant_id with UUID.
-    # Actually, we can fix the query structure.
-    
+
     # Total count query
     count_stmt = select(func.count(Workspace.id)).where(Workspace.is_deleted.is_(False))
     total = (await session.scalar(count_stmt)) or 0
-    
+
     result = await session.execute(stmt)
     rows = result.all()
-    
+
     items = [
         WorkspaceSummaryDTO(
             id=row.id,
@@ -82,11 +80,18 @@ async def list_all_workspaces(
             total_queries=row.total_queries or 0,
         ) for row in rows
     ]
-    
+
+    import uuid
+    req_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+
+    from backend.api.v1.schemas.common import PaginationMetadata
     return PaginatedResponse(
-        data=items,
-        total=total,
-        page=page,
-        page_size=page_size,
-        metadata=ResponseMetadata(),
+        items=items,
+        pagination=PaginationMetadata(
+            page=page,
+            size=page_size,
+            total_elements=total,
+            total_pages=(total + page_size - 1) // page_size if page_size > 0 else 1
+        ),
+        metadata=ResponseMetadata(request_id=req_id),
     )

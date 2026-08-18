@@ -14,7 +14,7 @@ export function AuditLogsPage() {
       setLoading(true)
       try {
         const res = await adminService.getAuditLogs(page, 50)
-        setLogs(res.data)
+        setLogs((res as any)?.items || (res as any)?.data || [])
       } catch (e) {
         console.error(e)
       } finally {
@@ -36,9 +36,9 @@ export function AuditLogsPage() {
       <div className="flex items-center justify-between gap-4 bg-card border border-border p-3 rounded-lg">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search by action, user, or resource..." 
+          <input
+            type="text"
+            placeholder="Search by action, user, or resource..."
             className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-md text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
           />
         </div>
@@ -47,7 +47,7 @@ export function AuditLogsPage() {
           Filter
         </button>
       </div>
-      
+
       <div className="border border-border rounded-lg bg-card text-card-foreground overflow-hidden">
         {loading ? (
           <div className="p-8 flex justify-center">

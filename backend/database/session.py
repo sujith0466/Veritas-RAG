@@ -33,3 +33,9 @@ async def rls_session(tenant_id: str | uuid.UUID) -> AsyncGenerator[AsyncSession
         except Exception:
             await session.rollback()
             raise
+
+
+def SessionLocal() -> AsyncSession:
+    """Return a new AsyncSession from the current engine session factory."""
+    factory = get_session_factory()
+    return factory()

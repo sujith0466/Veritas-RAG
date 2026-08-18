@@ -42,8 +42,10 @@ from backend.modules.analytics.services.reporting_service import ReportingServic
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(tags=["Query Analytics & Reliability"])
+from backend.modules.analytics.api.quota_routes import router as quota_router
 
+router = APIRouter(tags=["Query Analytics & Reliability"])
+router.include_router(quota_router)
 
 def _build_metadata(request: Request) -> ResponseMetadata:
     """Construct standard response envelope metadata from request context."""

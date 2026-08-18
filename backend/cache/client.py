@@ -6,8 +6,10 @@ for distributed caching, rate limiting, and session state.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import TYPE_CHECKING, Any
+import weakref
 
 from redis.asyncio import ConnectionPool, Redis
 from redis.exceptions import ConnectionError, TimeoutError
@@ -24,39 +26,65 @@ logger = structlog.get_logger(__name__)
 
 
 class _CacheState:
-    pool: ConnectionPool[Any] | None = None
-    client: Redis[Any] | None = None
+    pools: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+    clients: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+    fallback_pool: ConnectionPool[Any] | None = None
+    fallback_client: Redis[Any] | None = None
 
 
 _state = _CacheState()
 
 
 def get_redis_pool() -> ConnectionPool[Any]:
-    """Return the singleton Redis ConnectionPool instance, creating it if needed."""
-    if _state.pool is not None:
-        return _state.pool
+    """Return the Redis ConnectionPool instance, isolated per event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        if loop in _state.pools:
+            return _state.pools[loop]
+    elif _state.fallback_pool is not None:
+        return _state.fallback_pool
 
     settings = get_settings()
     url = settings.redis.test_url if settings.is_testing else settings.redis.url
 
-    logger.info("Initializing Redis connection pool")
-    _state.pool = ConnectionPool.from_url(
+    logger.info("Initializing Redis connection pool", loop_id=id(loop) if loop else 0)
+    pool = ConnectionPool.from_url(
         url,
         max_connections=settings.redis.max_connections,
         socket_timeout=settings.redis.socket_timeout,
         decode_responses=True,
     )
-    return _state.pool
+    if loop is not None:
+        _state.pools[loop] = pool
+    else:
+        _state.fallback_pool = pool
+    return pool
 
 
 def get_redis_client() -> Redis[Any]:
-    """Return the singleton async Redis client instance."""
-    if _state.client is not None:
-        return _state.client
+    """Return the async Redis client instance, isolated per event loop."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        if loop in _state.clients:
+            return _state.clients[loop]
+    elif _state.fallback_client is not None:
+        return _state.fallback_client
 
     pool = get_redis_pool()
-    _state.client = Redis(connection_pool=pool)
-    return _state.client
+    client = Redis(connection_pool=pool)
+    if loop is not None:
+        _state.clients[loop] = client
+    else:
+        _state.fallback_client = client
+    return client
 
 
 async def get_cache() -> AsyncGenerator[Redis[Any], None]:
@@ -103,12 +131,30 @@ async def check_cache_health() -> dict[str, Any]:
 
 async def close_cache() -> None:
     """Close the Redis client and disconnect the connection pool."""
-    if _state.client is not None:
-        logger.info("Closing async Redis client")
-        await _state.client.close()
-        _state.client = None
+    for loop, client in list(_state.clients.items()):
+        try:
+            await client.close()
+        except Exception:
+            pass
+    _state.clients.clear()
 
-    if _state.pool is not None:
-        logger.info("Disconnecting Redis connection pool")
-        await _state.pool.disconnect()
-        _state.pool = None
+    for loop, pool in list(_state.pools.items()):
+        try:
+            await pool.disconnect()
+        except Exception:
+            pass
+    _state.pools.clear()
+
+    if _state.fallback_client:
+        try:
+            await _state.fallback_client.close()
+        except Exception:
+            pass
+        _state.fallback_client = None
+
+    if _state.fallback_pool:
+        try:
+            await _state.fallback_pool.disconnect()
+        except Exception:
+            pass
+        _state.fallback_pool = None

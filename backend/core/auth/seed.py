@@ -53,13 +53,12 @@ async def seed_demo_user() -> None:
                     continue
 
                 hashed_pw = get_password_hash(password)
-                new_user = User(
+                await repo.create(
                     email=email,
                     hashed_password=hashed_pw,
                     role=Role.from_str(role),
-                    is_verified=True
+                    is_verified=True,
                 )
-                await repo.create(new_user)
                 logger.info("Demo user created successfully.", email=email, role=role)
 
             await session.commit()

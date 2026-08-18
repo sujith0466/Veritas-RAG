@@ -10,8 +10,8 @@ from backend.api.v1.schemas.workspace_webhook import (
     WorkspaceWebhookSecretResponseDTO,
     WorkspaceWebhookUpdateDTO,
 )
-from backend.core.security.auth_middleware import get_current_user
-from backend.database.session import get_db
+from backend.core.dependencies.auth import get_current_user
+from backend.core.dependencies.database import get_db
 from backend.models.entities.user import User
 from backend.services.workspace_webhooks import (
     WebhookNotFoundException,

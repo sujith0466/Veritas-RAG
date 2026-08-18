@@ -92,7 +92,7 @@ class V1EngineProvider(LLMProvider):
                 if V1EngineClient._client:
                     res = await V1EngineClient._client.get("/v1/version", timeout=2.0)
                 else:
-                    async with httpx.AsyncClient(verify=False) as client:
+                    async with httpx.AsyncClient(verify=True) as client:
                         res = await client.get(f"{settings.base_url}/v1/version", timeout=2.0)
 
                 if res.status_code == 200:

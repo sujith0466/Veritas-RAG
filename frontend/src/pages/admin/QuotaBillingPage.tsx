@@ -8,13 +8,17 @@ export function QuotaBillingPage() {
   const [quota, setQuota] = useState<TenantQuota | null>(null)
   const [loading, setLoading] = useState(true)
   const user = useAuthStore(s => s.user)
+  const tenantId = user?.tenant_id || user?.workspace_name || (user as any)?.workspace_id
 
   useEffect(() => {
     const fetchQuota = async () => {
-      if (!user?.tenant_id) return
+      if (!tenantId) {
+        setLoading(false)
+        return
+      }
       setLoading(true)
       try {
-        const data = await adminService.getQuota(user.tenant_id)
+        const data = await adminService.getQuota(tenantId)
         setQuota(data)
       } catch (e) {
         console.error('Failed to load quota', e)
@@ -23,7 +27,7 @@ export function QuotaBillingPage() {
       }
     }
     fetchQuota()
-  }, [user?.tenant_id])
+  }, [tenantId])
 
   if (loading) {
     return (
@@ -57,7 +61,7 @@ export function QuotaBillingPage() {
           Manage workspace token limits and billing subscriptions.
         </p>
       </div>
-      
+
       <div className="grid gap-6 md:grid-cols-2">
         <div className="bg-card border border-border rounded-lg p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -66,7 +70,7 @@ export function QuotaBillingPage() {
             </div>
             <h3 className="font-medium text-lg">Token Usage</h3>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-end justify-between">
               <div>
@@ -87,15 +91,15 @@ export function QuotaBillingPage() {
             </div>
 
             <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-              <div 
+              <div
                 className={cn(
                   "h-full transition-all duration-1000 ease-out",
                   isCritical ? "bg-destructive" : isWarning ? "bg-amber-500" : "bg-primary"
-                )} 
+                )}
                 style={{ width: `${Math.min(100, Math.max(0, usagePct))}%` }}
               />
             </div>
-            
+
             {isCritical && (
               <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20 flex gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -112,7 +116,7 @@ export function QuotaBillingPage() {
             </div>
             <h3 className="font-medium text-lg">Current Plan</h3>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>

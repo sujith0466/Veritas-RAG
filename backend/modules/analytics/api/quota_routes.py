@@ -9,8 +9,7 @@ from backend.core.permissions.rbac import Role
 from backend.modules.analytics.schemas.analytics_dto import TenantQuotaDTO, TenantQuotaUpdateDTO
 from backend.modules.analytics.repositories.quota_repository import QuotaRepository
 from backend.modules.analytics.services.quota import QuotaGovernor
-
-router = APIRouter(prefix="/analytics/v1/quotas", tags=["Quota"])
+router = APIRouter(prefix="/v1/quotas", tags=["Quota"])
 
 
 @router.get("/{tenant_id}", response_model=TenantQuotaDTO)
@@ -23,10 +22,10 @@ async def get_quota(
     # Ensure authorization isolation
     if auth.tenant_id != tenant_id and Role.from_str(auth.role) != Role.PLATFORM_ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access quota of another tenant.")
-        
+
     repo = QuotaRepository(session)
     quota = await repo.get_by_tenant_id(tenant_id)
-    
+
     if not quota:
         # Default initialization if missing
         quota = await repo.create_or_update(
@@ -36,10 +35,10 @@ async def get_quota(
             warning_threshold_pct=0.8,
             is_hard_enforced=True,
         )
-        
+
     governor = QuotaGovernor()
     remaining = await governor.get_remaining_tokens(tenant_id)
-    
+
     # If uninitialized in redis, sync it from DB
     if remaining == 0:
         await governor.set_remaining_tokens(tenant_id, quota.monthly_token_limit)
@@ -58,7 +57,7 @@ async def get_quota(
 
 @router.put("/{tenant_id}", response_model=TenantQuotaDTO)
 async def update_quota(
-    tenant_id: str, 
+    tenant_id: str,
     req: TenantQuotaUpdateDTO,
     auth: Annotated[UserContext, Depends(require_role(Role.OWNER, Role.PLATFORM_ADMIN))],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -72,7 +71,7 @@ async def update_quota(
     # Fetch old quota to adjust remaining tokens difference safely
     old_quota = await repo.get_by_tenant_id(tenant_id)
     old_limit = old_quota.monthly_token_limit if old_quota else req.monthly_token_limit
-    
+
     quota = await repo.create_or_update(
         tenant_id=tenant_id,
         monthly_token_limit=req.monthly_token_limit,
@@ -80,11 +79,11 @@ async def update_quota(
         warning_threshold_pct=req.warning_threshold_pct,
         is_hard_enforced=req.is_hard_enforced,
     )
-    
+
     governor = QuotaGovernor()
     diff = req.monthly_token_limit - old_limit
     await governor.adjust_reservation_diff(tenant_id, diff)
-    
+
     remaining = await governor.get_remaining_tokens(tenant_id)
 
     return TenantQuotaDTO(

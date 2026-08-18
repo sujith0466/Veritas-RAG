@@ -1,7 +1,7 @@
 """Unit tests for Feature Flag Evaluation Engine (7-step resolution pipeline)."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 import uuid
 
 import pytest

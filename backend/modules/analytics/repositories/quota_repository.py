@@ -39,7 +39,7 @@ class QuotaRepository:
             quota.monthly_budget_usd = monthly_budget_usd
             quota.warning_threshold_pct = warning_threshold_pct
             quota.is_hard_enforced = is_hard_enforced
-            
+
         await self.session.commit()
         await self.session.refresh(quota)
         return quota

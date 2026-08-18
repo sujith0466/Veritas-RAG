@@ -64,8 +64,10 @@ class UserWorkspaceUpdate(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+import uuid
+
 class UserResponse(BaseModel):
-    id: str
+    id: uuid.UUID | str
     email: str
     username: str | None
     display_name: str | None = None

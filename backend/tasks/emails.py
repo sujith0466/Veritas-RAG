@@ -10,7 +10,7 @@ import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from backend.database.session import SessionLocal
+from backend.database.engine import get_session_factory
 from backend.services.email.provider import SMTPEmailProvider, EmailMessage
 from backend.models.entities.notification_delivery_log import NotificationDeliveryLog
 
@@ -36,7 +36,7 @@ async def _async_send_email(task, tenant_id: uuid.UUID | None, subject: str, to_
     logger.info(f"Attempting email delivery to {to_addresses} for tenant {tenant_id}")
     
     # Pre-record pending state
-    async with SessionLocal() as session:
+    async with get_session_factory()() as session:
         log = NotificationDeliveryLog(
             tenant_id=tenant_id,
             type="EMAIL",
@@ -66,7 +66,7 @@ async def _async_send_email(task, tenant_id: uuid.UUID | None, subject: str, to_
         error_msg = str(e)
         
     # Update delivery log
-    async with SessionLocal() as session:
+    async with get_session_factory()() as session:
         log_obj = await session.get(NotificationDeliveryLog, log.id)
         if log_obj:
             log_obj.status = status

@@ -19,12 +19,16 @@ def evaluate_role_access(
     if isinstance(user_role, str):
         user_role = Role.from_str(user_role)
 
-    if user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
-        return True
-
     parsed_allowed = [
         Role.from_str(r) if isinstance(r, str) else r for r in allowed_roles
     ]
+
+    if Role.PLATFORM_ADMIN in parsed_allowed and len(parsed_allowed) == 1:
+        return user_role == Role.PLATFORM_ADMIN
+
+    if user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        return True
+
     return user_role in parsed_allowed
 
 

@@ -313,6 +313,13 @@ async def change_password(
     service = PasswordResetService(db)
     await service.change_password(user.id, payload.current_password, payload.new_password)
 
+    # Revoke the access token used to make this request
+    from backend.core.security.jwt import get_jwt_service
+    jwt_service = get_jwt_service()
+    payload_ctx = getattr(request.state, "token_payload", None)
+    if payload_ctx and payload_ctx.jti:
+        await jwt_service.revoke_token(payload_ctx.jti, payload_ctx.exp)
+
     return SuccessResponse(
         success=True,
         data={"message": "Password updated successfully. Please log in again."},

@@ -1,9 +1,10 @@
 """Email Provider Abstractions."""
 
 from abc import ABC, abstractmethod
-
 import asyncio
 from email.message import EmailMessage
+import os
+import tempfile
 
 from pydantic import EmailStr
 import structlog
@@ -111,7 +112,7 @@ class MockEmailProvider(EmailProvider):
     """File-based mock email provider for automated testing."""
 
     def __init__(self) -> None:
-        self.mock_file = "C:\\Windows\\Temp\\mock_emails.json" if os.name == 'nt' else "/tmp/mock_emails.json"
+        self.mock_file = os.path.join(tempfile.gettempdir(), "mock_emails.json")
 
     def _record_email(self, email_type: str, to_email: EmailStr, token: str, details: dict = None) -> bool:
         record = {

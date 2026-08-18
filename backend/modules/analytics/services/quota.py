@@ -3,13 +3,13 @@ from backend.modules.analytics.schemas.errors import QuotaExceededError
 
 class QuotaGovernor:
     """Manages workspace token quotas using Redis-backed token buckets."""
-    
+
     async def get_remaining_tokens(self, tenant_id: str) -> int:
         """Fetch the current remaining tokens for the tenant."""
         redis = get_redis_client()
         key = f"quota:tokens:{tenant_id}"
         current = await redis.get(key)
-        
+
         # If no quota is set in Redis, we default to 0 to trigger an update/fetch from DB
         # But for robust default fallback, F12.5 will initialize these buckets.
         return int(current) if current is not None else 0
@@ -24,7 +24,7 @@ class QuotaGovernor:
         """Atomically check if quota exists and subtract estimated tokens."""
         redis = get_redis_client()
         key = f"quota:tokens:{tenant_id}"
-        
+
         # We use a simple Lua script to ensure atomicity
         lua_script = """
         local current = redis.call('get', KEYS[1])
@@ -40,13 +40,13 @@ class QuotaGovernor:
         return 1
         """
         result = await redis.eval(lua_script, 1, key, est_tokens)
-        
+
         if result == -1:
             # Uninitialized bucket, fallback to DB logic (temporarily we can assume exhausted until initialized)
             raise QuotaExceededError(f"Quota uninitialized for tenant {tenant_id}")
         elif result == 0:
             raise QuotaExceededError(f"Quota exhausted for tenant {tenant_id}")
-            
+
         return True
 
     async def adjust_reservation_diff(self, tenant_id: str, diff_tokens: int):

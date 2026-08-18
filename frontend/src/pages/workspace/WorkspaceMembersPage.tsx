@@ -18,8 +18,14 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import { useAuthStore } from '@/stores/authStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
+
 export const WorkspaceMembersPage: React.FC = () => {
-  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const { workspaceId: paramWorkspaceId } = useParams<{ workspaceId: string }>();
+  const user = useAuthStore(s => s.user);
+  const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace);
+  const workspaceId = paramWorkspaceId || currentWorkspace?.id || user?.tenant_id || user?.workspace_name;
   const {
     members,
     total,

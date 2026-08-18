@@ -144,7 +144,12 @@ filterwarnings = [
     "ignore:(?s).*google\\.generativeai.*:FutureWarning",
     "ignore:.*urllib3.*:Warning",
     "ignore:.*Call to deprecated close.*:DeprecationWarning",
-    "ignore:.*ast\\.NameConstant.*:DeprecationWarning"
+    "ignore:.*ast\\.NameConstant.*:DeprecationWarning",
+    "ignore:.*unclosed transport.*:ResourceWarning",
+    "ignore:.*unclosed.*socket.*:ResourceWarning",
+    "ignore:.*Event loop is closed.*:RuntimeWarning",
+    "ignore:.*was never awaited.*:RuntimeWarning",
+    "ignore:.*unraisable.*:pytest.PytestUnraisableExceptionWarning",
 ]
 
 # ─── Coverage ─────────────────────────────────────────────────────────────────

@@ -95,7 +95,7 @@ async def validation_exception_handler(
     )
     return _error_response(
         request=request,
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         error_code="VAL_002",
         message="Request body validation failed",
         detail={"errors": errors},

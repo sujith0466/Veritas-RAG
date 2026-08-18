@@ -8,9 +8,9 @@ from pydantic import ValidationError
 import redis.asyncio as redis
 
 from backend.core.config import get_settings
-from backend.services.auth.jwt_service import decode_access_token
+from backend.core.security.jwt import get_jwt_service
 from backend.models.entities.user import User
-from backend.database.session import get_db_session
+from backend.core.dependencies.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -20,8 +20,9 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 async def get_user_from_token(token: str, session: AsyncSession) -> Optional[User]:
     try:
-        payload = decode_access_token(token)
-        user_id = payload.get("sub")
+        jwt_service = get_jwt_service()
+        payload = await jwt_service.verify_token(token)
+        user_id = payload.sub
         if not user_id:
             return None
         
@@ -42,10 +43,9 @@ async def websocket_notifications(
     await websocket.accept()
     
     # 1. Authenticate the WebSocket connection
-    session_gen = get_db_session()
-    session = await anext(session_gen)
-    
-    user = await get_user_from_token(token, session)
+    async for session in get_db():
+        user = await get_user_from_token(token, session)
+        break
     if not user or not user.tenant_id:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token or missing tenant")
         return
