@@ -1,9 +1,9 @@
 # PROGRAM 2 MASTER TRACKER
 
 **Program**: RAGuard V2 Multi-Tenant AI Platform
-**Milestone 3**: Epics 1 – 12 Completed & Frozen (75.0% Overall Program 2 Completion)
-**Current Active Epic**: None (Epic 12 Certified & Frozen)
-**Next Active Epic**: **Epic 13 — Contextual Reranking & Fusion (0%)**
+**Milestone 3**: Epics 1 – 13 Completed & Frozen (81.25% Overall Program 2 Completion)
+**Current Active Epic**: None (Epic 13 Certified & Frozen)
+**Next Active Epic**: **Epic 14 — Security, Rate Limiting & Enterprise Governance (0%)**
 
 ---
 
@@ -130,33 +130,66 @@
 
 ---
 
-## Epic 13: Contextual Reranking & Fusion
+## Epic 13: Policy & Configuration
 | Feature | Status | Notes |
 |---|---|---|
-| F13.1 - Cross-Encoder Model Integration | ⏳ NOT STARTED | Next Active Feature Scope |
-| F13.2 - Hybrid Search Fusion (RRF / Reciprocal Rank Fusion) | ⏳ NOT STARTED | Scheduled |
-| F13.3 - Dynamic Scoring & Thresholding Pipeline | ⏳ NOT STARTED | Scheduled |
-| F13.4 - Context Window Optimization & Compression | ⏳ NOT STARTED | Scheduled |
-| F13.5 - Reranking Analytics & Precision Metrics | ⏳ NOT STARTED | Scheduled |
+| F13.1 - Workspace Quota Enforcement | ✅ CERTIFIED / FROZEN | Enforces hard limit HTTP 429 (`Retry-After: 3600`) on token exhaustion across chat streams & upload pipelines |
+| F13.2 - Usage Accounting & Aggregation | ✅ CERTIFIED / FROZEN | Durable PostgreSQL `workspace_usages` with atomic `ON CONFLICT DO UPDATE`, fail-safe Redis caching |
+| F13.3 - Document Retention Lifecycles | ✅ CERTIFIED / FROZEN | 4-phase distributed purge via Celery Beat (Soft-delete -> Vectors -> Storage Blobs -> Hard-delete) |
+| F13.4 - Chat Retention Lifecycles | ✅ CERTIFIED / FROZEN | Workspace-specific retention sweep with strict pinned conversation exemption (`pinned == True`) |
+| F13.5 - Policy Configuration UI | ✅ CERTIFIED / FROZEN | UI retention settings dropdown and live quota & usage meters on `/admin/quota` |
 
 ### Epic 13 Detailed Feature Breakdown
 
-#### F13.1 — Cross-Encoder Model Integration
+#### F13.1 — Workspace Quota Enforcement
+[x] Architecture Reviewed | [x] Database | [x] Migration | [x] Models | [x] Repository | [x] Service | [x] API | [x] Frontend | [x] Integration | [x] Unit Tests | [x] Integration Tests | [x] E2E Tests | [x] Documentation | [x] Security Review | [x] Performance Review | [x] Code Review | [x] Merged | [x] Feature Frozen
+**Status**: ✅ COMPLETED / FROZEN | **Progress**: 100%
+
+#### F13.2 — Usage Accounting & Aggregation
+[x] Architecture Reviewed | [x] Database | [x] Migration | [x] Models | [x] Repository | [x] Service | [x] API | [x] Frontend | [x] Integration | [x] Unit Tests | [x] Integration Tests | [x] E2E Tests | [x] Documentation | [x] Security Review | [x] Performance Review | [x] Code Review | [x] Merged | [x] Feature Frozen
+**Status**: ✅ COMPLETED / FROZEN | **Progress**: 100%
+
+#### F13.3 — Document Retention Lifecycles
+[x] Architecture Reviewed | [x] Database | [x] Migration | [x] Models | [x] Repository | [x] Service | [x] API | [x] Frontend | [x] Integration | [x] Unit Tests | [x] Integration Tests | [x] E2E Tests | [x] Documentation | [x] Security Review | [x] Performance Review | [x] Code Review | [x] Merged | [x] Feature Frozen
+**Status**: ✅ COMPLETED / FROZEN | **Progress**: 100%
+
+#### F13.4 — Chat Retention Lifecycles
+[x] Architecture Reviewed | [x] Database | [x] Migration | [x] Models | [x] Repository | [x] Service | [x] API | [x] Frontend | [x] Integration | [x] Unit Tests | [x] Integration Tests | [x] E2E Tests | [x] Documentation | [x] Security Review | [x] Performance Review | [x] Code Review | [x] Merged | [x] Feature Frozen
+**Status**: ✅ COMPLETED / FROZEN | **Progress**: 100%
+
+#### F13.5 — Policy Configuration UI
+[x] Architecture Reviewed | [x] Database | [x] Migration | [x] Models | [x] Repository | [x] Service | [x] API | [x] Frontend | [x] Integration | [x] Unit Tests | [x] Integration Tests | [x] E2E Tests | [x] Documentation | [x] Security Review | [x] Performance Review | [x] Code Review | [x] Merged | [x] Feature Frozen
+**Status**: ✅ COMPLETED / FROZEN | **Progress**: 100%
+
+---
+
+## Epic 14: Security, Rate Limiting & Enterprise Governance
+| Feature | Status | Notes |
+|---|---|---|
+| F14.1 - Distributed Rate Limiting (Token Bucket / Sliding Window) | ⏳ NOT STARTED | Next Active Feature Scope |
+| F14.2 - Advanced Audit Log Export & SIEM Integration | ⏳ NOT STARTED | Scheduled |
+| F14.3 - Session Management & Device Revocation | ⏳ NOT STARTED | Scheduled |
+| F14.4 - Data Loss Prevention (DLP) & PII Redaction Engine | ⏳ NOT STARTED | Scheduled |
+| F14.5 - Enterprise Compliance Controls & Attestation | ⏳ NOT STARTED | Scheduled |
+
+### Epic 14 Detailed Feature Breakdown
+
+#### F14.1 — Distributed Rate Limiting (Token Bucket / Sliding Window)
 [ ] Architecture Reviewed | [ ] Database | [ ] Migration | [ ] Models | [ ] Repository | [ ] Service | [ ] API | [ ] Frontend | [ ] Integration | [ ] Unit Tests | [ ] Integration Tests | [ ] E2E Tests | [ ] Documentation | [ ] Security Review | [ ] Performance Review | [ ] Code Review | [ ] Merged | [ ] Feature Frozen
 **Status**: ⏳ NOT STARTED | **Progress**: 0%
 
-#### F13.2 — Hybrid Search Fusion (RRF / Reciprocal Rank Fusion)
+#### F14.2 — Advanced Audit Log Export & SIEM Integration
 [ ] Architecture Reviewed | [ ] Database | [ ] Migration | [ ] Models | [ ] Repository | [ ] Service | [ ] API | [ ] Frontend | [ ] Integration | [ ] Unit Tests | [ ] Integration Tests | [ ] E2E Tests | [ ] Documentation | [ ] Security Review | [ ] Performance Review | [ ] Code Review | [ ] Merged | [ ] Feature Frozen
 **Status**: ⏳ NOT STARTED | **Progress**: 0%
 
-#### F13.3 — Dynamic Scoring & Thresholding Pipeline
+#### F14.3 — Session Management & Device Revocation
 [ ] Architecture Reviewed | [ ] Database | [ ] Migration | [ ] Models | [ ] Repository | [ ] Service | [ ] API | [ ] Frontend | [ ] Integration | [ ] Unit Tests | [ ] Integration Tests | [ ] E2E Tests | [ ] Documentation | [ ] Security Review | [ ] Performance Review | [ ] Code Review | [ ] Merged | [ ] Feature Frozen
 **Status**: ⏳ NOT STARTED | **Progress**: 0%
 
-#### F13.4 — Context Window Optimization & Compression
+#### F14.4 — Data Loss Prevention (DLP) & PII Redaction Engine
 [ ] Architecture Reviewed | [ ] Database | [ ] Migration | [ ] Models | [ ] Repository | [ ] Service | [ ] API | [ ] Frontend | [ ] Integration | [ ] Unit Tests | [ ] Integration Tests | [ ] E2E Tests | [ ] Documentation | [ ] Security Review | [ ] Performance Review | [ ] Code Review | [ ] Merged | [ ] Feature Frozen
 **Status**: ⏳ NOT STARTED | **Progress**: 0%
 
-#### F13.5 — Reranking Analytics & Precision Metrics
+#### F14.5 — Enterprise Compliance Controls & Attestation
 [ ] Architecture Reviewed | [ ] Database | [ ] Migration | [ ] Models | [ ] Repository | [ ] Service | [ ] API | [ ] Frontend | [ ] Integration | [ ] Unit Tests | [ ] Integration Tests | [ ] E2E Tests | [ ] Documentation | [ ] Security Review | [ ] Performance Review | [ ] Code Review | [ ] Merged | [ ] Feature Frozen
 **Status**: ⏳ NOT STARTED | **Progress**: 0%

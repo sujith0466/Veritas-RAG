@@ -36,7 +36,9 @@ async def init_db() -> None:
     else:
         # Verify connection by executing a quick check
         try:
+            from sqlalchemy import text
             async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
                 logger.info("Database connection established successfully")
         except Exception as exc:
             logger.warning("Database connection failed during init_db", error=str(exc))

@@ -391,3 +391,18 @@ class TrendForecastDTO(BaseModel):
     tenant_id: str
     projected_cost_90d_usd: float
     projected_tokens_90d: int
+
+
+class WorkspaceUsageDTO(BaseModel):
+    workspace_id: UUID
+    billing_period_start: str
+    used_tokens: int
+    used_queries: int
+    monthly_token_limit: int
+    monthly_budget_usd: float
+    warning_threshold_pct: float
+    is_hard_enforced: bool
+    remaining_tokens: int
+    remaining_budget_usd: float
+    is_warning: bool
+    is_exceeded: bool

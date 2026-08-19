@@ -29,6 +29,21 @@ export interface TenantQuota {
   remaining_budget_usd: number
 }
 
+export interface WorkspaceUsage {
+  workspace_id: string
+  billing_period_start: string
+  used_tokens: number
+  used_queries: number
+  monthly_token_limit: number
+  monthly_budget_usd: number
+  warning_threshold_pct: number
+  is_hard_enforced: boolean
+  remaining_tokens: number
+  remaining_budget_usd: number
+  is_warning: boolean
+  is_exceeded: boolean
+}
+
 export interface WorkspaceSummary {
   id: string
   name: string
@@ -49,6 +64,11 @@ export const adminService = {
 
   updateQuota: async (tenantId: string, payload: Partial<TenantQuota>): Promise<TenantQuota> => {
     return put<TenantQuota>(`/analytics/v1/quotas/${tenantId}`, payload)
+  },
+
+  // F13.2 Workspace Usage
+  getWorkspaceUsage: async (workspaceId: string): Promise<WorkspaceUsage> => {
+    return get<WorkspaceUsage>(`/analytics/v1/workspace-usage/${workspaceId}`)
   },
 
   // F12.2 Platform Admin

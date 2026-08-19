@@ -460,6 +460,22 @@ class ChatOrchestrator:
                         record_query_metric(tenant_id, outcome, duration_seconds)
                         record_reliability_metric(reliability_score)
 
+                        # Epic-13 F13.2 Durable Usage Accounting
+                        ws_uuid = workspace_id or tenant_uuid
+                        if ws_uuid:
+                            try:
+                                from backend.modules.analytics.services.quota import QuotaGovernor
+                                prompt_tok = max(1, len(query.split()) * 2)
+                                comp_tok = max(1, len(full_assistant_text.split()) * 2)
+                                governor = QuotaGovernor()
+                                await governor.record_usage(
+                                    workspace_id=ws_uuid,
+                                    tokens=prompt_tok + comp_tok,
+                                    queries=1,
+                                )
+                            except Exception as q_exc:
+                                logger.warning("Failed recording durable quota usage: %s", q_exc)
+
                     t = asyncio.create_task(_analytics())
                     _background_tasks.add(t)
                     t.add_done_callback(_background_tasks.discard)

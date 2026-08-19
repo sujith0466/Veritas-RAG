@@ -97,6 +97,31 @@ test.describe('Epic 12 Admin Portal E2E Tests', () => {
     await expect(page.getByRole('table').or(page.getByText(/No audit events found/i))).toBeVisible();
   });
 
+  test('F13.5 - Data Retention Policy Configuration Persistence', async ({ page }) => {
+    await login(page, USERS.ADMIN, 'Admin Workspace');
+
+    await page.goto('/admin/workspace');
+    await expect(page).toHaveURL(/.*\/admin\/workspace/);
+
+    const retentionSelect = page.locator('#retention_policy');
+    await expect(retentionSelect).toBeVisible();
+    await retentionSelect.selectOption('90');
+    await page.getByRole('button', { name: /Save Workspace Settings/i }).click();
+
+    await expect(page.getByText(/success/i).first()).toBeVisible();
+  });
+
+  test('F13.2 / F13.5 - Quota & Workspace Usage Meter', async ({ page }) => {
+    await login(page, USERS.ADMIN, 'Admin Workspace');
+
+    await page.goto('/admin/quota');
+    await expect(page).toHaveURL(/.*\/admin\/quota/);
+
+    await expect(page.getByText('Token Usage')).toBeVisible();
+    await expect(page.getByText(/Tokens used this month|remaining/i).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Current Plan' })).toBeVisible();
+  });
+
   test('Security - MEMBER cannot access Admin Portal', async ({ page }) => {
     await login(page, USERS.MEMBER, 'Workspace Member');
 

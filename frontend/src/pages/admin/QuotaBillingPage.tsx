@@ -1,33 +1,50 @@
-import { useState, useEffect } from 'react'
-import { Zap, Server, AlertTriangle } from 'lucide-react'
-import { adminService, TenantQuota } from '@/services/adminService'
+﻿import { useState, useEffect } from 'react'
+import { Zap, Server, AlertTriangle, Activity } from 'lucide-react'
+import { adminService, TenantQuota, WorkspaceUsage } from '@/services/adminService'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/utils/cn'
 
 export function QuotaBillingPage() {
   const [quota, setQuota] = useState<TenantQuota | null>(null)
+  const [usage, setUsage] = useState<WorkspaceUsage | null>(null)
   const [loading, setLoading] = useState(true)
   const user = useAuthStore(s => s.user)
-  const tenantId = user?.tenant_id || user?.workspace_name || (user as any)?.workspace_id
+  const workspaceId = user?.workspace_id || (user as any)?.workspace_id || user?.tenant_id || user?.workspace_name
 
   useEffect(() => {
-    const fetchQuota = async () => {
-      if (!tenantId) {
+    const fetchQuotaAndUsage = async () => {
+      if (!workspaceId) {
         setLoading(false)
         return
       }
       setLoading(true)
       try {
-        const data = await adminService.getQuota(tenantId)
-        setQuota(data)
+        // Attempt fetching full workspace usage first
+        try {
+          const usageData = await adminService.getWorkspaceUsage(String(workspaceId))
+          setUsage(usageData)
+          setQuota({
+            tenant_id: usageData.workspace_id,
+            monthly_token_limit: usageData.monthly_token_limit,
+            monthly_budget_usd: usageData.monthly_budget_usd,
+            warning_threshold_pct: usageData.warning_threshold_pct,
+            is_hard_enforced: usageData.is_hard_enforced,
+            remaining_tokens: usageData.remaining_tokens,
+            remaining_budget_usd: usageData.remaining_budget_usd,
+          })
+        } catch {
+          // Fallback to legacy quota endpoint if needed
+          const data = await adminService.getQuota(String(workspaceId))
+          setQuota(data)
+        }
       } catch (e) {
-        console.error('Failed to load quota', e)
+        console.error('Failed to load quota/usage data', e)
       } finally {
         setLoading(false)
       }
     }
-    fetchQuota()
-  }, [tenantId])
+    fetchQuotaAndUsage()
+  }, [workspaceId])
 
   if (loading) {
     return (
@@ -49,7 +66,8 @@ export function QuotaBillingPage() {
     )
   }
 
-  const usagePct = ((quota.monthly_token_limit - quota.remaining_tokens) / quota.monthly_token_limit) * 100
+  const usedTokens = usage ? usage.used_tokens : (quota.monthly_token_limit - quota.remaining_tokens)
+  const usagePct = (usedTokens / Math.max(1, quota.monthly_token_limit)) * 100
   const isWarning = usagePct >= quota.warning_threshold_pct * 100
   const isCritical = usagePct >= 95
 
@@ -58,7 +76,7 @@ export function QuotaBillingPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Quota & Billing</h2>
         <p className="text-muted-foreground">
-          Manage workspace token limits and billing subscriptions.
+          Manage workspace token limits, billing subscriptions, and usage analytics.
         </p>
       </div>
 
@@ -75,7 +93,7 @@ export function QuotaBillingPage() {
             <div className="flex items-end justify-between">
               <div>
                 <div className="text-3xl font-bold">
-                  {((quota.monthly_token_limit - quota.remaining_tokens) / 1000000).toFixed(1)}M
+                  {(usedTokens / 1000000).toFixed(2)}M
                 </div>
                 <div className="text-sm text-muted-foreground">Tokens used this month</div>
               </div>
@@ -99,6 +117,13 @@ export function QuotaBillingPage() {
                 style={{ width: `${Math.min(100, Math.max(0, usagePct))}%` }}
               />
             </div>
+
+            {usage && (
+              <div className="flex items-center gap-2 pt-2 text-xs text-muted-foreground">
+                <Activity className="h-3.5 w-3.5" />
+                <span>Total Queries processed: <strong>{usage.used_queries.toLocaleString()}</strong></span>
+              </div>
+            )}
 
             {isCritical && (
               <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20 flex gap-2">

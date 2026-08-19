@@ -38,6 +38,7 @@ def create_celery_app() -> Celery:
             "backend.tasks.emails",
             "backend.tasks.webhooks",
             "backend.tasks.quota",
+            "backend.tasks.retention",
         ],
     )
 
@@ -64,6 +65,7 @@ def create_celery_app() -> Celery:
             "folders.hard_delete_folder_subtree": {"queue": "folders.purge"},
             "jobs.process_high": {"queue": "jobs.high"},
             "jobs.process_default": {"queue": "jobs.default"},
+            "backend.tasks.retention.*": {"queue": "retention"},
         },
         task_queues={
             "high": {"exchange": "high", "routing_key": "high"},
@@ -82,6 +84,7 @@ def create_celery_app() -> Celery:
             "jobs.default": {"exchange": "jobs.default", "routing_key": "jobs.default"},
             "jobs.dlq": {"exchange": "jobs.dlq", "routing_key": "jobs.dlq"},
             "webhooks": {"exchange": "webhooks", "routing_key": "webhooks"},
+            "retention": {"exchange": "retention", "routing_key": "retention"},
         },
         # Beat schedule (Celery periodic tasks — Phase 3+)
         beat_schedule={
@@ -100,7 +103,17 @@ def create_celery_app() -> Celery:
             "workspace-quota-evaluator": {
                 "task": "backend.tasks.quota.evaluate_workspace_quotas_task",
                 "schedule": 43200.0, # Every 12 hours
-            }
+            },
+            "doc-retention-sweep": {
+                "task": "backend.tasks.retention.run_document_retention_sweep_task",
+                "schedule": 86400.0, # Every 24 hours
+                "options": {"queue": "retention"},
+            },
+            "chat-retention-sweep": {
+                "task": "backend.tasks.retention.run_chat_retention_sweep_task",
+                "schedule": 86400.0, # Every 24 hours
+                "options": {"queue": "retention"},
+            },
         },
     )
 

@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
+from backend.core.dependencies.quota import enforce_workspace_quota
 from backend.modules.chat.api.dependencies import get_chat_orchestrator, get_chat_repository
 from backend.modules.chat.repositories.chat_repository import ChatRepository
 from backend.modules.chat.schemas.chat_dto import (
@@ -112,7 +113,8 @@ async def stream_chat(
     dto: ChatRequestDTO,
     request: Request,
     orchestrator: ChatOrchestrator = Depends(get_chat_orchestrator),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(get_current_user),
+    _quota: None = Depends(enforce_workspace_quota()),
 ):
     correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
     last_event_id = request.headers.get("last-event-id")

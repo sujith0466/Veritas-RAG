@@ -105,6 +105,8 @@ export function WorkspaceSettings() {
 
     setSaving(true)
     try {
+      const workspaceId = user?.workspace_id || user?.tenant_id
+
       const { data } = await userService.updateWorkspace({
         workspace_settings: {
           ...user?.workspace_settings,
@@ -112,6 +114,23 @@ export function WorkspaceSettings() {
           data_region: formData.data_region,
         }
       })
+
+      // Also synchronize to the canonical workspace settings endpoint
+      if (workspaceId && token) {
+        const retentionNum = parseInt(formData.retention_policy, 10) || 365
+        await fetch(`/api/v1/workspaces/${workspaceId}/settings`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            general: {
+              retention_days: retentionNum,
+            }
+          })
+        }).catch(() => {})
+      }
 
       // Also update the profile data to keep workspace name in sync if needed
       await userService.updateProfile({

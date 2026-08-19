@@ -68,6 +68,23 @@ async def upload_document(
 ) -> SuccessResponse[UploadResponse]:
     """Handle synchronous upload screening, storage persistence, and Celery job dispatch."""
     tenant_id, owner_id = _resolve_tenant_and_owner(user)
+
+    ws_uuid = None
+    try:
+        ws_uuid = uuid.UUID(tenant_id)
+    except (ValueError, TypeError):
+        pass
+
+    from backend.modules.analytics.services.quota import QuotaGovernor
+    governor = QuotaGovernor()
+    is_exceeded, _, _, _ = await governor.check_quota(workspace_id=ws_uuid, tenant_id=tenant_id, session=session)
+    if is_exceeded:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Workspace token quota exceeded",
+            headers={"Retry-After": "3600"},
+        )
+
     service = DocumentService()
 
     doc, version, job = await service.upload_document(
