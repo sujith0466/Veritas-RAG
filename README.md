@@ -226,9 +226,9 @@ RAGuard-AI/
 | **Epic 10** | RAG Health & Analytics | ✅ **FROZEN** | 100% |
 | **Epic 11** | Notifications (Email, Webhooks, In-App) | ✅ **FROZEN** | 100% |
 | **Epic 12** | Admin Portal (Workspace & Platform Admin, RBAC, Quotas, Audit Logs) | ✅ **FROZEN** | 100% |
-| **Epic 13** | Contextual Reranking & Fusion | ⏳ **NEXT ACTIVE** | 0% |
-| **Epic 14** | Hallucination Prevention & Confidence Engine | ⏳ Scheduled | 0% |
-| **Epic 15** | Enterprise Security & Compliance | ⏳ Scheduled | 0% |
+| **Epic 13** | Policy & Configuration (Quotas, Usages, Retention Lifecycles) | ✅ **FROZEN** | 100% |
+| **Epic 14** | Observability & Production Monitoring (OTel, Metrics, Grafana, Alerts, Health Probes) | ✅ **FROZEN** | 100% |
+| **Epic 15** | Enterprise Security & Compliance | ⏳ **NEXT ACTIVE** | 0% |
 | **Epic 16** | Cloud Deployment, Helm & Scalability | ⏳ Scheduled | 0% |
 
 ---

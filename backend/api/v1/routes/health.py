@@ -33,10 +33,28 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/health", tags=["Health"])
 
 _START_TIME = time.time()
+_startup_complete: bool = False
 
 
 def _get_uptime_seconds() -> float:
     return time.time() - _START_TIME
+
+
+def mark_startup_complete() -> None:
+    """Mark the application startup phase as complete (called by lifespan)."""
+    global _startup_complete
+    _startup_complete = True
+
+
+def reset_startup_state() -> None:
+    """Reset the startup state for testing or lifecycle reset."""
+    global _startup_complete
+    _startup_complete = False
+
+
+def is_startup_complete() -> bool:
+    """Check if the application startup phase has completed."""
+    return _startup_complete
 
 
 # ── GET /health ────────────────────────────────────────────────────────────────
@@ -76,6 +94,31 @@ async def liveness() -> dict[str, Any]:
         "uptime_seconds": round(_get_uptime_seconds(), 2),
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
+# ── GET /health/startup ────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/startup",
+    summary="Startup probe",
+    description=(
+        "Startup probe. Returns 200 once application initialization and startup validations "
+        "are complete. Returns 503 while initialization is in progress."
+    ),
+)
+async def startup() -> JSONResponse:
+    """Startup probe — returns 200 once application initialization is complete."""
+    now_iso = datetime.now(UTC).isoformat()
+    if _startup_complete:
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"status": "started", "timestamp": now_iso},
+        )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"status": "starting", "timestamp": now_iso},
+    )
 
 
 async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHealth]:  # noqa: PLR0915
@@ -130,9 +173,8 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
 
     # 3. Qdrant
     t0 = time.time()
-    # vector_res = await check_vector_db_health()
-    vector_res = {"status": "unhealthy", "error": "Bypassed for PAT"}
-    is_vector_healthy = False
+    vector_res = await check_vector_db_health()
+    is_vector_healthy = vector_res.get("status") == "healthy"
 
     deps["qdrant"] = DependencyHealth(
         name="qdrant",

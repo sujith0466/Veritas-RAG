@@ -8,6 +8,7 @@ Logs every incoming request and its response with:
 """
 
 import time
+import urllib.parse
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -22,10 +23,51 @@ _SKIP_LOG_PATHS: frozenset[str] = frozenset(
     {
         "/api/v1/health/live",
         "/api/v1/health/ready",
+        "/health/live",
+        "/health/ready",
+        "/health/startup",
+        "/api/v1/health/startup",
         "/favicon.ico",
         "/metrics",
+        "/api/v1/metrics",
     }
 )
+
+_SENSITIVE_QUERY_PARAMS: frozenset[str] = frozenset(
+    {
+        "token",
+        "access_token",
+        "refresh_token",
+        "api_key",
+        "apikey",
+        "key",
+        "secret",
+        "password",
+        "code",
+        "auth",
+        "authorization",
+        "state",
+        "session",
+        "signature",
+    }
+)
+
+
+def _sanitize_query_string(raw_query: str) -> str | None:
+    """Mask sensitive query parameters to prevent credential leaks in access logs."""
+    if not raw_query:
+        return None
+    try:
+        parsed_params = urllib.parse.parse_qsl(raw_query, keep_blank_values=True)
+        sanitized: list[tuple[str, str]] = []
+        for param_key, param_val in parsed_params:
+            if param_key.lower() in _SENSITIVE_QUERY_PARAMS:
+                sanitized.append((param_key, "[MASKED]"))
+            else:
+                sanitized.append((param_key, param_val))
+        return urllib.parse.urlencode(sanitized)
+    except Exception:
+        return "[INVALID_QUERY_MASKED]"
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -44,15 +86,26 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         correlation_id = getattr(request.state, "correlation_id", "unknown")
         start_time = time.perf_counter()
 
-        # Bind correlation ID into structlog context for this request's duration
+        # Bind context variables for this request's duration
         structlog.contextvars.clear_contextvars()
-        structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
+        ctx_vars: dict[str, str] = {"correlation_id": correlation_id}
+
+        user_ctx = getattr(request.state, "user_context", None)
+        if user_ctx:
+            if hasattr(user_ctx, "workspace_id") and user_ctx.workspace_id:
+                ctx_vars["workspace_id"] = str(user_ctx.workspace_id)
+            if hasattr(user_ctx, "id") and user_ctx.id:
+                ctx_vars["user_id"] = str(user_ctx.id)
+
+        structlog.contextvars.bind_contextvars(**ctx_vars)
+
+        sanitized_query = _sanitize_query_string(str(request.url.query)) if request.url.query else None
 
         logger.info(
             "Request started",
             method=request.method,
             path=request.url.path,
-            query=str(request.url.query) or None,
+            query=sanitized_query,
             client=request.client.host if request.client else None,
         )
 

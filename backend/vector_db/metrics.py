@@ -5,9 +5,9 @@ These functions will eventually interface with the OpenTelemetry metrics API
 (Epic 14). For now, they provide a standardized logging and counting interface.
 """
 
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class QdrantMetrics:
@@ -27,12 +27,24 @@ class QdrantMetrics:
         """Record a dense search operation and its latency."""
         cls._searches += 1
         cls._search_latency += latency_ms
+        try:
+            from backend.observability.metrics.prometheus import record_qdrant_search
+
+            record_qdrant_search(latency_ms / 1000.0)
+        except Exception:
+            pass
 
     @classmethod
     def record_upsert(cls, latency_ms: float) -> None:
         """Record a batch upsert operation and its latency."""
         cls._upserts += 1
         cls._upsert_latency += latency_ms
+        try:
+            from backend.observability.metrics.prometheus import record_qdrant_upsert
+
+            record_qdrant_upsert(latency_ms / 1000.0)
+        except Exception:
+            pass
 
     @classmethod
     def record_collection_creation(cls) -> None:
@@ -53,6 +65,12 @@ class QdrantMetrics:
     def record_error(cls) -> None:
         """Record an infrastructure or validation error."""
         cls._errors += 1
+        try:
+            from backend.observability.metrics.prometheus import record_qdrant_error
+
+            record_qdrant_error("general")
+        except Exception:
+            pass
 
     @classmethod
     def get_stats(cls) -> dict[str, float]:

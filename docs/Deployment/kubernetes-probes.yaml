@@ -1,0 +1,57 @@
+﻿# RAGuard AI Kubernetes Health Probes Configuration
+# Epic-14 (F14.6) Production Probes Specification
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raguard-api
+  labels:
+    app.kubernetes.io/name: raguard-api
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: raguard-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: raguard-api
+    spec:
+      containers:
+        - name: api
+          image: raguard:1.0.0
+          ports:
+            - containerPort: 8000
+              name: http
+
+          # 1. Startup Probe: Monotonically verifies application initialization
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 24  # Allows up to 120s for DB migrations/warmup
+
+          # 2. Liveness Probe: Verifies process runtime health (restarts container on failure)
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # 3. Readiness Probe: Checks critical dependencies (removes from load balancer on failure)
+          # Requires: PostgreSQL, Redis, Qdrant Vector DB, Object Storage
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3

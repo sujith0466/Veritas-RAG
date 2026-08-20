@@ -1,4 +1,4 @@
-import logging
+import structlog
 
 from backend.modules.confidence.schemas.confidence_dto import ConfidenceEvalRequestDTO
 from backend.modules.confidence.services.confidence_engine import ConfidenceEngine
@@ -18,7 +18,7 @@ from backend.modules.scoring.schemas.scoring_dto import (
 )
 from backend.modules.scoring.services.reliability_scorer import ReliabilityScorer
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class ExecutionGateway:

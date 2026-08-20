@@ -4,9 +4,9 @@ Provides instrumentation hooks for Object Storage observability.
 These functions will interface with OpenTelemetry metrics in Epic 14.
 """
 
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class StorageMetrics:
@@ -28,6 +28,12 @@ class StorageMetrics:
         cls._upload_count += 1
         cls._bytes_uploaded += bytes_count
         cls._upload_latency += latency_ms
+        try:
+            from backend.observability.metrics.prometheus import record_storage_upload
+
+            record_storage_upload(bytes_count, latency_ms / 1000.0)
+        except Exception:
+            pass
 
     @classmethod
     def record_download(cls, bytes_count: int, latency_ms: float) -> None:
@@ -35,11 +41,23 @@ class StorageMetrics:
         cls._download_count += 1
         cls._bytes_downloaded += bytes_count
         cls._download_latency += latency_ms
+        try:
+            from backend.observability.metrics.prometheus import record_storage_download
+
+            record_storage_download(bytes_count, latency_ms / 1000.0)
+        except Exception:
+            pass
 
     @classmethod
     def record_delete(cls) -> None:
         """Record a storage deletion operation."""
         cls._delete_count += 1
+        try:
+            from backend.observability.metrics.prometheus import record_storage_delete
+
+            record_storage_delete()
+        except Exception:
+            pass
 
     @classmethod
     def record_retry(cls) -> None:
@@ -50,6 +68,12 @@ class StorageMetrics:
     def record_failure(cls) -> None:
         """Record an infrastructure or validation failure."""
         cls._failures += 1
+        try:
+            from backend.observability.metrics.prometheus import record_storage_failure
+
+            record_storage_failure("general")
+        except Exception:
+            pass
 
     @classmethod
     def get_stats(cls) -> dict[str, float]:

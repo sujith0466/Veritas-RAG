@@ -1,9 +1,9 @@
-﻿import datetime
-import logging
+import datetime
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.cache.client import get_redis_client
 from backend.database.engine import get_session_factory
@@ -12,7 +12,7 @@ from backend.modules.analytics.models.workspace_usage import WorkspaceUsage
 from backend.modules.analytics.repositories.usage_repository import UsageRepository
 from backend.modules.analytics.schemas.errors import QuotaExceededError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class QuotaGovernor:

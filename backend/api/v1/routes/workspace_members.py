@@ -4,11 +4,11 @@ Provides endpoints for listing, updating role, suspending, restoring, removing,
 and bulk managing members within a workspace.
 """
 
-import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.workspace_member import (
     BulkMemberActionRequest,
@@ -33,7 +33,7 @@ from backend.services.workspace.membership_service import (
     WorkspaceMembershipService,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 workspace_members_router = APIRouter(
     prefix="/workspaces/{workspace_id}/members",

@@ -7,10 +7,10 @@ infrastructure connections (Redis, PostgreSQL, Qdrant, OpenRouter, etc.).
 import asyncio
 from collections.abc import Callable
 import functools
-import logging
 from typing import Any, TypeVar
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 T = TypeVar("T")
 

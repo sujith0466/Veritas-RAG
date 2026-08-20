@@ -82,7 +82,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         debug=settings.app.debug,
     )
 
-    init_tracer(app_name=settings.app.name, environment=settings.app.environment)
+    init_tracer(
+        app_name=settings.observability.service_name,
+        environment=settings.app.environment,
+        otlp_endpoint=settings.observability.otlp_endpoint,
+        sample_rate=settings.observability.sample_rate,
+    )
+
+    if settings.observability.tracing_enabled:
+        from backend.observability.tracing.tracer import auto_instrument_clients
+
+        auto_instrument_clients()
 
     from backend.ai.providers.v1_engine.client import V1EngineClient
     from backend.cache.client import close_cache, get_redis_pool
@@ -123,11 +133,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     register_workspace_event_handlers()
 
     # Final application initialization log
+    from backend.api.v1.routes.health import mark_startup_complete, reset_startup_state
+
+    mark_startup_complete()
     logger.info("RAGuard AI startup complete")
 
     yield  # Application is running
 
     # ── SHUTDOWN ───────────────────────────────────────────────────────────────
+    reset_startup_state()
     logger.info("RAGuard AI shutting down")
 
     logger.info("Closing infrastructure connections")
@@ -135,6 +149,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await close_cache()
     await close_vector_db()
     await V1EngineClient.close()
+
+    from backend.observability.tracing.tracer import shutdown_tracer
+
+    shutdown_tracer()
 
     logger.info("RAGuard AI shutdown complete")
 
@@ -212,6 +230,12 @@ def create_app() -> FastAPI:
 
     # ── 5. Mount API routers ──────────────────────────────────────────────────
     _register_routes(app)
+
+    # ── 6. Auto-instrument FastAPI if tracing enabled ─────────────────────────
+    if settings.observability.tracing_enabled:
+        from backend.observability.tracing.tracer import auto_instrument_app
+
+        auto_instrument_app(app)
 
     return app
 

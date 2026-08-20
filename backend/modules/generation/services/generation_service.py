@@ -1,4 +1,4 @@
-import logging
+import structlog
 
 from backend.modules.generation.schemas.generation_dto import (
     GenerationRequestDTO,
@@ -6,7 +6,7 @@ from backend.modules.generation.schemas.generation_dto import (
 )
 from backend.modules.generation.services.citation_extractor import CitationExtractor
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Grounded generation prompt template.
 # In production this is sent to the LLM provider. For M4 baseline it creates

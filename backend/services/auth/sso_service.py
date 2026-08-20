@@ -129,7 +129,11 @@ class GoogleOIDCProvider:
             )
 
             if token_response.status_code != 200:
-                logger.error("OIDC token exchange failed", error=token_response.text)
+                logger.error(
+                    "OIDC token exchange failed",
+                    status_code=token_response.status_code,
+                    error_type="oidc_token_exchange_failure",
+                )
                 raise AuthenticationException("Failed to exchange authorization code.")
 
             tokens = token_response.json()

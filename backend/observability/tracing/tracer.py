@@ -12,9 +12,20 @@ import structlog
 
 try:
     from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.propagate import set_global_textmap
+    from opentelemetry.propagators.composite import CompositePropagator
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.trace.sampling import (
+        ALWAYS_OFF,
+        ALWAYS_ON,
+        ParentBased,
+        TraceIdRatioBased,
+    )
     from opentelemetry.trace import Span, Status, StatusCode
+    from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
     OTEL_AVAILABLE = True
 except ImportError:
@@ -29,33 +40,164 @@ logger = structlog.get_logger(__name__)
 _tracer: Any = None
 
 
-def init_tracer(app_name: str = "raguard-ai", environment: str = "development") -> Any:
-    """Initialize OpenTelemetry tracer provider with resource metadata."""
+def init_tracer(
+    app_name: str = "raguard-ai",
+    environment: str = "development",
+    otlp_endpoint: str | None = None,
+    sample_rate: float = 1.0,
+) -> Any:
+    """Initialize OpenTelemetry tracer provider with resource metadata, exporters, and propagators.
+
+    Fail-open design: if any step fails (unreachable collector, invalid config), tracing runs
+    safely in no-op mode without breaking application startup or request flows.
+    """
     global _tracer  # noqa: PLW0603
     if not OTEL_AVAILABLE:
-        logger.warning("OpenTelemetry not installed; tracing will run in no-op mode.")
+        logger.warning("OpenTelemetry SDK not installed; tracing running in no-op mode.")
         return None
 
-    resource = Resource.create(
-        {
-            "service.name": app_name,
-            "deployment.environment": environment,
-        }
-    )
-    provider = TracerProvider(resource=resource)
+    try:
+        # 1. Resource Attributes
+        resource = Resource.create(
+            {
+                "service.name": app_name,
+                "deployment.environment": environment,
+            }
+        )
 
-    # In development or when no OLTP collector is configured, we attach Console/Memory processor
-    # or leave clean so tests run without network blocking
-    if environment == "development":
-        # Can add ConsoleSpanExporter if verbose tracing desired, or keep light for unit tests
-        pass
+        # 2. Trace Sampling
+        if sample_rate >= 1.0:
+            sampler = ALWAYS_ON
+        elif sample_rate <= 0.0:
+            sampler = ALWAYS_OFF
+        else:
+            sampler = ParentBased(TraceIdRatioBased(sample_rate))
 
-    trace.set_tracer_provider(provider)
-    _tracer = trace.get_tracer(app_name)
-    logger.info(
-        "OpenTelemetry tracer initialized", app_name=app_name, environment=environment
-    )
-    return _tracer
+        provider = TracerProvider(resource=resource, sampler=sampler)
+
+        # 3. Span Exporter (OTLP gRPC)
+        if otlp_endpoint and otlp_endpoint.strip():
+            try:
+                exporter = OTLPSpanExporter(endpoint=otlp_endpoint.strip(), insecure=True)
+                processor = BatchSpanProcessor(
+                    exporter,
+                    max_queue_size=2048,
+                    max_export_batch_size=512,
+                    schedule_delay_millis=5000,
+                )
+                provider.add_span_processor(processor)
+                logger.info("OTLP span exporter attached", endpoint=otlp_endpoint)
+            except Exception as exp_err:
+                logger.warning(
+                    "Failed to attach OTLP span exporter; continuing in-memory",
+                    error=str(exp_err),
+                    endpoint=otlp_endpoint,
+                )
+
+        # 4. Set Global TracerProvider
+        try:
+            from opentelemetry.util._once import Once
+
+            trace._TRACER_PROVIDER_SET_ONCE = Once()
+        except Exception:
+            pass
+        trace._TRACER_PROVIDER = None
+        trace.set_tracer_provider(provider)
+        _tracer = provider.get_tracer(app_name)
+
+        # 5. Configure Global TextMap Propagators (W3C tracecontext)
+        try:
+            set_global_textmap(CompositePropagator([TraceContextTextMapPropagator()]))
+        except Exception as prop_err:
+            logger.warning("Failed to configure composite propagator", error=str(prop_err))
+
+        logger.info(
+            "OpenTelemetry tracer initialized successfully",
+            app_name=app_name,
+            environment=environment,
+            sample_rate=sample_rate,
+            otlp_enabled=bool(otlp_endpoint),
+        )
+        return _tracer
+    except Exception as exc:
+        logger.error("Failed to initialize OpenTelemetry TracerProvider", error=str(exc))
+        return None
+
+
+def shutdown_tracer() -> None:
+    """Flush and cleanly shut down the TracerProvider on application shutdown."""
+    global _tracer
+    if not OTEL_AVAILABLE or trace is None:
+        return
+    try:
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "shutdown"):
+            provider.shutdown()
+            logger.info("OpenTelemetry tracer provider shutdown complete.")
+        try:
+            from opentelemetry.util._once import Once
+
+            trace._TRACER_PROVIDER_SET_ONCE = Once()
+        except Exception:
+            pass
+        trace._TRACER_PROVIDER = None
+        _tracer = None
+    except Exception as exc:
+        logger.warning("Error during OpenTelemetry tracer provider shutdown", error=str(exc))
+
+
+def get_tracer() -> Any:
+    """Return the global OpenTelemetry tracer instance from the active provider."""
+    if not OTEL_AVAILABLE or trace is None:
+        return None
+    provider = trace.get_tracer_provider()
+    return provider.get_tracer("raguard-ai")
+
+
+def auto_instrument_app(app: Any) -> None:
+    """Safely apply FastAPI auto-instrumentation without crashing on error."""
+    if not OTEL_AVAILABLE:
+        return
+    try:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls="/health/live,/health/ready,/health/startup,/api/v1/health/*,/metrics,/api/v1/metrics,/favicon.ico",
+        )
+        logger.info("FastAPI OpenTelemetry auto-instrumentation active.")
+    except Exception as exc:
+        logger.warning("FastAPI OpenTelemetry auto-instrumentation skipped", error=str(exc))
+
+
+def auto_instrument_clients() -> None:
+    """Safely apply HTTPX, Redis, SQLAlchemy auto-instrumentation for outgoing client calls."""
+    if not OTEL_AVAILABLE:
+        return
+
+    # HTTPX
+    try:
+        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+
+        HTTPXClientInstrumentor().instrument()
+    except Exception as exc:
+        logger.debug("HTTPX auto-instrumentation skipped", error=str(exc))
+
+    # Redis
+    try:
+        from opentelemetry.instrumentation.redis import RedisInstrumentor
+
+        RedisInstrumentor().instrument()
+    except Exception as exc:
+        logger.debug("Redis auto-instrumentation skipped", error=str(exc))
+
+    # Celery
+    try:
+        from opentelemetry.instrumentation.celery import CeleryInstrumentor
+
+        CeleryInstrumentor().instrument()
+    except Exception as exc:
+        logger.debug("Celery auto-instrumentation skipped", error=str(exc))
 
 
 def get_tracer() -> Any:

@@ -3,11 +3,11 @@
 Provides endpoints for sending, listing, resending, revoking, and verifying invitations.
 """
 
-import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.workspace_invitation import (
     AcceptInvitationData,
@@ -37,7 +37,7 @@ from backend.services.workspace.invitation_service import (
     WorkspaceInvitationService,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Workspace-scoped invitation routes
 workspace_invitations_router = APIRouter(

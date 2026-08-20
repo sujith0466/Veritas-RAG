@@ -1,17 +1,13 @@
 from datetime import datetime
 import json
-import logging
+import structlog
 
 from backend.modules.security.schemas.security_dto import AuditEventDTO
 
 
 class ComplianceAuditor:
     def __init__(self):
-        self.logger = logging.getLogger("compliance_audit")
-        self.logger.setLevel(logging.INFO)
-        if not self.logger.handlers:
-            handler = logging.StreamHandler()
-            self.logger.addHandler(handler)
+        self.logger = structlog.get_logger("compliance_audit")
 
     def log_event(
         self,

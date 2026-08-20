@@ -1,10 +1,10 @@
 from collections.abc import Callable, Coroutine
-import logging
 from typing import Any
 import uuid
 
 from fastapi import Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
@@ -12,7 +12,7 @@ from backend.core.dependencies.database import get_db
 from backend.core.dependencies.workspace import get_workspace_member_or_raise
 from backend.modules.analytics.services.quota import QuotaGovernor
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def enforce_workspace_quota(est_tokens: int = 0) -> Callable[..., Coroutine[Any, Any, None]]:

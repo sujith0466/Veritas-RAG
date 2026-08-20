@@ -79,7 +79,7 @@ HTTP_REQUEST_DURATION_SECONDS = Histogram(
 QUERIES_PROCESSED_TOTAL = Counter(
     "raguard_queries_processed_total",
     "Total AI queries executed through the pipeline.",
-    ["tenant_id", "outcome"],
+    ["outcome"],
 )
 
 PIPELINE_STAGE_DURATION_SECONDS = Histogram(
@@ -238,7 +238,7 @@ def record_http_request(
 
 def record_query_metric(tenant_id: str, outcome: str, duration_seconds: float) -> None:
     """Record an AI query execution metric and total pipeline duration."""
-    QUERIES_PROCESSED_TOTAL.labels(tenant_id=tenant_id, outcome=outcome).inc()
+    QUERIES_PROCESSED_TOTAL.labels(outcome=outcome).inc()
     PIPELINE_STAGE_DURATION_SECONDS.labels(stage="total_pipeline").observe(
         duration_seconds
     )
@@ -406,6 +406,191 @@ def record_feature_flag_duration(tier: str, duration_seconds: float) -> None:
 
 def set_active_killswitches_count(count: int) -> None:
     FEATURE_FLAG_KILLSWITCHES_ACTIVE.set(count)
+
+
+# ── 10. Redis Cache Metrics (Reconciliation) ──────────────────────────────────
+
+REDIS_HITS_TOTAL = Counter(
+    "raguard_redis_hits_total",
+    "Total Redis cache hits.",
+)
+
+REDIS_MISSES_TOTAL = Counter(
+    "raguard_redis_misses_total",
+    "Total Redis cache misses.",
+)
+
+REDIS_RETRIES_TOTAL = Counter(
+    "raguard_redis_retries_total",
+    "Total Redis command or connection retry attempts.",
+)
+
+REDIS_RECONNECTS_TOTAL = Counter(
+    "raguard_redis_reconnects_total",
+    "Total Redis connection pool reconnect events.",
+)
+
+
+def record_redis_hit() -> None:
+    REDIS_HITS_TOTAL.inc()
+
+
+def record_redis_miss() -> None:
+    REDIS_MISSES_TOTAL.inc()
+
+
+def record_redis_retry() -> None:
+    REDIS_RETRIES_TOTAL.inc()
+
+
+def record_redis_reconnect() -> None:
+    REDIS_RECONNECTS_TOTAL.inc()
+
+
+# ── 11. Qdrant Vector DB Metrics (Reconciliation) ─────────────────────────────
+
+QDRANT_SEARCHES_TOTAL = Counter(
+    "raguard_qdrant_searches_total",
+    "Total Qdrant vector search operations executed.",
+)
+
+QDRANT_SEARCH_DURATION_SECONDS = Histogram(
+    "raguard_qdrant_search_duration_seconds",
+    "Qdrant vector search latency in seconds.",
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5],
+)
+
+QDRANT_UPSERTS_TOTAL = Counter(
+    "raguard_qdrant_upserts_total",
+    "Total Qdrant batch upsert operations executed.",
+)
+
+QDRANT_UPSERT_DURATION_SECONDS = Histogram(
+    "raguard_qdrant_upsert_duration_seconds",
+    "Qdrant batch upsert latency in seconds.",
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+)
+
+QDRANT_ERRORS_TOTAL = Counter(
+    "raguard_qdrant_errors_total",
+    "Total Qdrant errors encountered.",
+    ["operation"],
+)
+
+
+def record_qdrant_search(duration_seconds: float) -> None:
+    QDRANT_SEARCHES_TOTAL.inc()
+    QDRANT_SEARCH_DURATION_SECONDS.observe(duration_seconds)
+
+
+def record_qdrant_upsert(duration_seconds: float) -> None:
+    QDRANT_UPSERTS_TOTAL.inc()
+    QDRANT_UPSERT_DURATION_SECONDS.observe(duration_seconds)
+
+
+def record_qdrant_error(operation: str = "general") -> None:
+    QDRANT_ERRORS_TOTAL.labels(operation=operation).inc()
+
+
+# ── 12. Object Storage (MinIO) Metrics (Reconciliation) ───────────────────────
+
+STORAGE_UPLOADS_TOTAL = Counter(
+    "raguard_storage_uploads_total",
+    "Total storage upload operations.",
+)
+
+STORAGE_DOWNLOADS_TOTAL = Counter(
+    "raguard_storage_downloads_total",
+    "Total storage download operations.",
+)
+
+STORAGE_DELETES_TOTAL = Counter(
+    "raguard_storage_deletes_total",
+    "Total storage delete operations.",
+)
+
+STORAGE_BYTES_UPLOADED_TOTAL = Counter(
+    "raguard_storage_bytes_uploaded_total",
+    "Total bytes uploaded to object storage.",
+)
+
+STORAGE_BYTES_DOWNLOADED_TOTAL = Counter(
+    "raguard_storage_bytes_downloaded_total",
+    "Total bytes downloaded from object storage.",
+)
+
+STORAGE_UPLOAD_DURATION_SECONDS = Histogram(
+    "raguard_storage_upload_duration_seconds",
+    "Storage upload duration in seconds.",
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+)
+
+STORAGE_DOWNLOAD_DURATION_SECONDS = Histogram(
+    "raguard_storage_download_duration_seconds",
+    "Storage download duration in seconds.",
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+)
+
+STORAGE_FAILURES_TOTAL = Counter(
+    "raguard_storage_failures_total",
+    "Total storage operation failures.",
+    ["operation"],
+)
+
+
+def record_storage_upload(bytes_count: int, duration_seconds: float) -> None:
+    STORAGE_UPLOADS_TOTAL.inc()
+    STORAGE_BYTES_UPLOADED_TOTAL.inc(bytes_count)
+    STORAGE_UPLOAD_DURATION_SECONDS.observe(duration_seconds)
+
+
+def record_storage_download(bytes_count: int, duration_seconds: float) -> None:
+    STORAGE_DOWNLOADS_TOTAL.inc()
+    STORAGE_BYTES_DOWNLOADED_TOTAL.inc(bytes_count)
+    STORAGE_DOWNLOAD_DURATION_SECONDS.observe(duration_seconds)
+
+
+def record_storage_delete() -> None:
+    STORAGE_DELETES_TOTAL.inc()
+
+
+def record_storage_failure(operation: str = "general") -> None:
+    STORAGE_FAILURES_TOTAL.labels(operation=operation).inc()
+
+
+# ── 13. Token Accounting Metrics ──────────────────────────────────────────────
+
+TOKENS_CONSUMED_TOTAL = Counter(
+    "raguard_tokens_consumed_total",
+    "Total LLM tokens consumed across models.",
+    ["model", "type"],
+)
+
+
+def record_tokens_consumed(model: str, token_type: str, count: int) -> None:
+    TOKENS_CONSUMED_TOTAL.labels(model=model, type=token_type).inc(count)
+
+
+# ── 14. Celery Worker Metrics ─────────────────────────────────────────────────
+
+CELERY_TASKS_TOTAL = Counter(
+    "raguard_celery_tasks_total",
+    "Total Celery background tasks processed.",
+    ["task_name", "status"],
+)
+
+CELERY_TASK_DURATION_SECONDS = Histogram(
+    "raguard_celery_task_duration_seconds",
+    "Celery background task duration in seconds.",
+    ["task_name"],
+    buckets=[0.1, 0.5, 1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0],
+)
+
+
+def record_celery_task(task_name: str, status: str, duration_seconds: float | None = None) -> None:
+    CELERY_TASKS_TOTAL.labels(task_name=task_name, status=status).inc()
+    if duration_seconds is not None:
+        CELERY_TASK_DURATION_SECONDS.labels(task_name=task_name).observe(duration_seconds)
 
 
 def get_metrics_output() -> bytes:

@@ -1,4 +1,4 @@
-import logging
+import structlog
 
 from backend.modules.confidence.schemas.confidence_dto import (
     ConfidenceAction,
@@ -12,7 +12,7 @@ from backend.modules.confidence.services.contradiction_detector import Contradic
 from backend.modules.confidence.services.coverage_analyzer import CoverageAnalyzer
 from backend.modules.confidence.services.freshness_scorer import FreshnessScorer
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 import time

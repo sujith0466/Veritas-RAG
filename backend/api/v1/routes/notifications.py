@@ -1,11 +1,11 @@
 import asyncio
 import json
-import logging
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, status
 from pydantic import ValidationError
 import redis.asyncio as redis
+import structlog
 
 from backend.core.config import get_settings
 from backend.core.security.jwt import get_jwt_service
@@ -14,7 +14,7 @@ from backend.core.dependencies.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 

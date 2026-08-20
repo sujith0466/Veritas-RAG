@@ -1,9 +1,9 @@
-import logging
 from typing import Any
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+import structlog
 
 from backend.api.v1.schemas.workspace import (
     ArchiveWorkspaceRequest,
@@ -53,7 +53,7 @@ from backend.services.workspace.provisioning_service import WorkspaceProvisionin
 from backend.services.workspace.settings_service import WorkspaceSettingsService
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @router.post(

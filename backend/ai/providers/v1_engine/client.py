@@ -150,10 +150,15 @@ class V1EngineClient:
             "X-Request-Signature": f"HMAC-SHA256={signature}",
             "X-Client-Version": "raguard-v2/1.0",
             "Content-Type": "application/json",
-            "Accept": "text/event-stream"
+            "Accept": "text/event-stream",
         }
         if settings.service_token:
             headers["Authorization"] = f"Bearer {settings.service_token}"
+
+        # Inject W3C traceparent and tracestate for distributed tracing
+        from backend.observability.tracing.propagation import inject_trace_context
+
+        inject_trace_context(headers)
 
         max_attempts = 4
         base_delay = 0.5

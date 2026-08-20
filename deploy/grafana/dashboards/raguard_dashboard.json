@@ -1,34 +1,270 @@
-{
-  "title": "RAGuard Executive Dashboard",
+﻿{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
   "panels": [
     {
-      "title": "Total API Requests",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Active In-Flight HTTP Requests",
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(raguard_http_requests_total[5m]))"
+          "expr": "sum(raguard_http_requests_active)",
+          "legendFormat": "Active Requests"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 200 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "title": "Request Throughput (QPS)",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_http_requests_total[1m]))",
+          "legendFormat": "Total QPS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "title": "HTTP 5xx Error Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "(sum(rate(raguard_http_requests_total{status_code=~\"5.*\"}[5m])) or vector(0)) / (sum(rate(raguard_http_requests_total[5m])) > 0 or vector(1)) * 100",
+          "legendFormat": "5xx Error %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1.0 },
+              { "color": "red", "value": 5.0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "title": "Active SSE Streams",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(raguard_sse_active_streams)",
+          "legendFormat": "Active SSE Streams"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "title": "API Request Latency (P50, P95, P99)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(raguard_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P99 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(raguard_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P95 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(raguard_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P50 Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "title": "AI Pipeline Stage Latency Breakdown (P95)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(raguard_pipeline_stage_duration_seconds_bucket[5m])) by (le, stage))",
+          "legendFormat": "{{stage}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "title": "AI Query Outcomes (Success vs Degraded vs Failed)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(raguard_queries_processed_total[5m]))",
+          "legendFormat": "{{outcome}}"
         }
       ]
     },
     {
-      "title": "P95 Latency",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "title": "AI Reliability & Self-Correction Interventions",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(raguard_http_request_duration_seconds_bucket[5m])) by (le))"
+          "expr": "sum by (strategy) (rate(raguard_self_correction_retries_total[5m]))",
+          "legendFormat": "Retry: {{strategy}}"
+        },
+        {
+          "expr": "sum by (reason) (rate(raguard_reflection_failures_total[5m]))",
+          "legendFormat": "Reflection Failure: {{reason}}"
+        },
+        {
+          "expr": "sum by (severity) (rate(raguard_hallucination_detections_total[5m]))",
+          "legendFormat": "Hallucination (severity={{severity}})"
         }
       ]
     },
     {
-      "title": "Token Consumption",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "id": 9,
+      "title": "Pre-Generation Grounding Confidence Distribution",
+      "type": "heatmap",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_pre_gen_confidence_score_bucket[5m])) by (le)",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "id": 10,
+      "title": "Post-Generation Reliability Score Distribution",
+      "type": "heatmap",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_post_gen_reliability_score_bucket[5m])) by (le)",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 28 },
+      "id": 11,
+      "title": "Redis Cache Hit vs Miss Ratio",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(rate(raguard_tokens_consumed_total[1h])) by (tenant_id)"
+          "expr": "sum(rate(raguard_redis_hits_total[5m]))",
+          "legendFormat": "Cache Hits"
+        },
+        {
+          "expr": "sum(rate(raguard_redis_misses_total[5m]))",
+          "legendFormat": "Cache Misses"
+        }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 28 },
+      "id": 12,
+      "title": "Qdrant Vector DB Search Latency (P95)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(raguard_qdrant_search_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P95 Search Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 28 },
+      "id": 13,
+      "title": "Object Storage Throughput (Bytes/sec)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(raguard_storage_bytes_uploaded_total[5m]))",
+          "legendFormat": "Uploaded Bytes/s"
+        },
+        {
+          "expr": "sum(rate(raguard_storage_bytes_downloaded_total[5m]))",
+          "legendFormat": "Downloaded Bytes/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "Bps" }
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 28 },
+      "id": 14,
+      "title": "LLM Token Consumption by Model",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (model) (rate(raguard_tokens_consumed_total[1h]))",
+          "legendFormat": "{{model}}"
         }
       ]
     }
   ],
   "schemaVersion": 38,
-  "refresh": "10s"
+  "style": "dark",
+  "tags": ["raguard-ai", "observability", "prometheus", "opentelemetry"],
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"] },
+  "timezone": "utc",
+  "title": "RAGuard AI Enterprise Observability Dashboard",
+  "uid": "raguard-enterprise-obs",
+  "version": 1
 }

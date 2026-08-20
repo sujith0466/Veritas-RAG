@@ -1,5 +1,5 @@
-import logging
 import re
+import structlog
 
 from backend.modules.reflection.schemas.reflection_dto import (
     ClaimValidationResultDTO,
@@ -9,7 +9,7 @@ from backend.modules.reflection.schemas.reflection_dto import (
 )
 from backend.modules.reflection.services.claim_validator import ClaimValidator
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Sentence extraction pattern for claim splitting
 _SENTENCE_PATTERN = re.compile(r"([A-Z][^.!?]*[.!?])", re.DOTALL)

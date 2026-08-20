@@ -120,13 +120,48 @@ def create_celery_app() -> Celery:
     return app
 
 
-from celery.signals import worker_process_init
+from celery.signals import before_task_publish, task_postrun, task_prerun, worker_process_init
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 @worker_process_init.connect
 def init_worker(**kwargs):
     from backend.tasks.listeners import register_pipeline_listeners
+
     register_pipeline_listeners()
+
+
+@before_task_publish.connect
+def inject_task_trace_context(headers=None, body=None, **kwargs):
+    """Inject active W3C trace context into Celery task headers before publishing."""
+    if headers is not None:
+        from backend.observability.tracing.propagation import inject_trace_context
+
+        inject_trace_context(headers)
+
+
+@task_prerun.connect
+def extract_task_trace_context(task_id=None, task=None, *args, **kwargs):
+    """Extract W3C trace context and bind task metadata upon worker task execution."""
+    if task and hasattr(task, "request") and task.request:
+        headers = getattr(task.request, "headers", None) or {}
+        from backend.observability.tracing.propagation import extract_trace_context
+
+        ctx = extract_trace_context(headers)
+        correlation_id = headers.get("correlation_id") or task_id or "unknown"
+        structlog.contextvars.bind_contextvars(
+            celery_task_id=str(task_id),
+            correlation_id=str(correlation_id),
+        )
+
+
+@task_postrun.connect
+def cleanup_task_trace_context(task_id=None, task=None, **kwargs):
+    """Clean up structlog contextvars after task finishes."""
+    structlog.contextvars.clear_contextvars()
+
 
 # Application-level singleton
 celery_app: Celery = create_celery_app()

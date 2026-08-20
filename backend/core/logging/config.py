@@ -15,6 +15,9 @@ import structlog
 from structlog.types import EventDict, Processor
 
 
+from backend.observability.logging.pii_masker import mask_pii
+
+
 def _add_app_context(
     logger: Any,
     method_name: str,
@@ -22,6 +25,27 @@ def _add_app_context(
 ) -> EventDict:
     """Add application-level context to every log line."""
     event_dict.setdefault("service", "raguard-ai")
+    return event_dict
+
+
+def _add_otel_context(
+    logger: Any,
+    method_name: str,
+    event_dict: EventDict,
+) -> EventDict:
+    """Inject active OpenTelemetry trace_id and span_id into structured logs."""
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        if span and span.is_recording():
+            ctx = span.get_span_context()
+            if ctx and ctx.trace_id:
+                event_dict["trace_id"] = format(ctx.trace_id, "032x")
+                event_dict["span_id"] = format(ctx.span_id, "016x")
+    except Exception:
+        # Fallback cleanly if OpenTelemetry is not installed or active
+        pass
     return event_dict
 
 
@@ -39,6 +63,8 @@ def configure_logging(log_level: str = "INFO", log_format: str = "console") -> N
     shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         _add_app_context,
+        _add_otel_context,
+        mask_pii,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso", utc=True),

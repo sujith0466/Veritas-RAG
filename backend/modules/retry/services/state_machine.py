@@ -1,4 +1,4 @@
-import logging
+import structlog
 
 from backend.modules.confidence.schemas.confidence_dto import ConfidenceAction
 from backend.modules.retry.schemas.errors import (
@@ -8,7 +8,7 @@ from backend.modules.retry.schemas.errors import (
 )
 from backend.modules.retry.schemas.retry_dto import RetryAttemptDTO, RetryContextDTO, RetryState
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Minimum improvement threshold to consider a retry monotonically beneficial
 MIN_IMPROVEMENT_DELTA = 2.0

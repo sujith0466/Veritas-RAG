@@ -5,9 +5,9 @@ These functions will eventually interface with the OpenTelemetry metrics API
 (Epic 14). For now, they provide a standardized logging and counting interface.
 """
 
-import logging
+import structlog
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 class RedisMetrics:
     """Singleton tracking Redis cache performance and health metrics."""
@@ -21,21 +21,45 @@ class RedisMetrics:
     def record_hit(cls) -> None:
         """Record a cache hit."""
         cls._hits += 1
+        try:
+            from backend.observability.metrics.prometheus import record_redis_hit
+
+            record_redis_hit()
+        except Exception:
+            pass
 
     @classmethod
     def record_miss(cls) -> None:
         """Record a cache miss."""
         cls._misses += 1
+        try:
+            from backend.observability.metrics.prometheus import record_redis_miss
+
+            record_redis_miss()
+        except Exception:
+            pass
 
     @classmethod
     def record_retry(cls) -> None:
         """Record a connection or command retry attempt."""
         cls._retries += 1
+        try:
+            from backend.observability.metrics.prometheus import record_redis_retry
+
+            record_redis_retry()
+        except Exception:
+            pass
 
     @classmethod
     def record_reconnect(cls) -> None:
         """Record a connection pool reconnect event."""
         cls._reconnects += 1
+        try:
+            from backend.observability.metrics.prometheus import record_redis_reconnect
+
+            record_redis_reconnect()
+        except Exception:
+            pass
 
     @classmethod
     def get_stats(cls) -> dict[str, int]:

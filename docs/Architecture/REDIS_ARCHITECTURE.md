@@ -62,4 +62,4 @@ The codebase strictly enforces the separation of infrastructure mechanisms from 
 ## 7. Observability and Health
 
 - **Health Checks:** Evaluates `PING`, round-trip latency, connection status, and reconnect success.
-- **Metrics Foundation:** Tracks hits, misses, retries, and reconnects internally (to be exported to Prometheus/OpenTelemetry in Epic 14).
+- **Metrics Foundation:** Tracks hits, misses, retries, and reconnects internally (exported to Prometheus & OpenTelemetry in Epic 14).

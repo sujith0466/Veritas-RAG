@@ -17,6 +17,12 @@ router = APIRouter(tags=["Monitoring & Metrics"])
     description="Expose production Prometheus text format metrics across all RAGuard AI modules.",
     response_class=Response,
 )
+@router.get(
+    "/api/v1/metrics",
+    summary="Prometheus Metrics Scraper (API v1 Alias)",
+    description="Expose production Prometheus text format metrics at canonical /api/v1/metrics path.",
+    response_class=Response,
+)
 async def get_prometheus_metrics() -> Response:
     """Return latest system and AI pipeline metrics in Prometheus format."""
     output = get_metrics_output()

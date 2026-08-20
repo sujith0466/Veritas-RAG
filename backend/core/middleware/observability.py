@@ -18,6 +18,7 @@ from backend.observability.metrics import (
     record_http_request,
 )
 from backend.observability.tracing import get_tracer
+from backend.observability.tracing.propagation import extract_trace_context
 
 logger = structlog.get_logger(__name__)
 
@@ -41,12 +42,13 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         ):
             endpoint = request.route.path
 
-        # Ignore metrics endpoint itself from skewing latency stats if desired, or include
-        if endpoint in ("/metrics", "/api/v1/metrics", "/health"):
+        # Ignore metrics and health endpoints from skewing stats if desired
+        if endpoint in ("/metrics", "/api/v1/metrics", "/health", "/health/live", "/health/ready", "/health/startup"):
             return await call_next(request)
 
         correlation_id = getattr(request.state, "correlation_id", "unknown")
         tracer = get_tracer()
+        parent_ctx = extract_trace_context(dict(request.headers))
 
         HTTP_REQUESTS_ACTIVE.labels(method=method, endpoint=endpoint).inc()
         start_time = time.perf_counter()
@@ -54,15 +56,22 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
         try:
             if tracer is not None and hasattr(tracer, "start_as_current_span"):
-                with tracer.start_as_current_span(f"{method} {endpoint}") as span:
+                with tracer.start_as_current_span(
+                    f"{method} {endpoint}", context=parent_ctx
+                ) as span:
                     span.set_attribute("http.method", method)
                     span.set_attribute("http.target", endpoint)
                     span.set_attribute("correlation_id", str(correlation_id))
+
+                    ctx = span.get_span_context() if hasattr(span, "get_span_context") else None
+                    trace_id_hex = format(ctx.trace_id, "032x") if ctx and ctx.trace_id else None
 
                     try:
                         response = await call_next(request)
                         status_code = response.status_code
                         span.set_attribute("http.status_code", status_code)
+                        if trace_id_hex:
+                            response.headers["X-Trace-ID"] = trace_id_hex
                         return response
                     except Exception as exc:
                         status_code = 500

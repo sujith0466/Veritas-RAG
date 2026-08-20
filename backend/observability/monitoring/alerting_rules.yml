@@ -1,60 +1,200 @@
-groups:
-  - name: RAGuardAIElevatedAlerts
+﻿groups:
+  - name: RAGuard_SEV1_Critical_Alerts
     rules:
-      - alert: HighAPIErrorRate
-        expr: |
-          sum(rate(raguard_errors_total{status=~"5.*"}[5m]))
-          / max(sum(rate(raguard_requests_total[5m])), 1) * 100 > 5
-        for: 5m
-        labels:
-          severity: critical
-          service: raguard-ai-backend
-        annotations:
-          summary: "High API Error Rate (> 5%) detected"
-          description: "RAGuard AI API is returning 5xx status codes for more than 5% of requests over the past 5 minutes."
-
-      - alert: HighQueryProcessingLatency
-        expr: |
-          histogram_quantile(0.95, sum(rate(raguard_pipeline_stage_duration_seconds_bucket{stage="query_processing"}[5m])) by (le)) > 3.0
-        for: 5m
-        labels:
-          severity: warning
-          service: raguard-ai-backend
-        annotations:
-          summary: "Elevated P95 Query Processing Latency (> 3.0s)"
-          description: "The 95th percentile query processing latency has exceeded 3.0 seconds for over 5 minutes."
-
-      - alert: ElevatedHallucinationRate
-        expr: |
-          sum(rate(raguard_reflection_total{hallucination_detected="True"}[15m]))
-          / max(sum(rate(raguard_reflection_total[15m])), 1) * 100 > 10
-        for: 15m
-        labels:
-          severity: warning
-          service: raguard-ai-backend
-        annotations:
-          summary: "Elevated Hallucination Detection Rate (> 10%)"
-          description: "Post-generation reflection is detecting unsupported claims or contradictions in > 10% of answers over the last 15 minutes."
-
-      - alert: CircuitBreakerTripped
-        expr: |
-          sum(rate(raguard_errors_total{error_type="CircuitBreakerOpenError"}[1m])) > 0
+      - alert: ServiceUnavailable
+        expr: up{job="raguard-backend"} == 0
         for: 1m
         labels:
-          severity: critical
+          severity: SEV-1
+          tier: critical
           service: raguard-ai-backend
         annotations:
-          summary: "Circuit Breaker is OPEN and tripping queries"
-          description: "One or more domain circuit breakers are OPEN, causing traffic failover or rejection."
+          summary: "RAGuard AI Backend Service Unavailable"
+          description: "RAGuard FastAPI instance is unreachable by Prometheus scraper for > 1 minute."
+          runbook_url: "https://docs.raguard.ai/runbooks/service-down"
 
-      - alert: HighRetryExhaustionRate
+      - alert: CriticalAPIErrorRate
         expr: |
-          sum(rate(raguard_retries_total{success="False"}[10m]))
-          / max(sum(rate(raguard_queries_total[10m])), 1) * 100 > 5
+          (sum(rate(raguard_http_requests_total{status_code=~"5.*"}[5m])) or vector(0))
+          / (sum(rate(raguard_http_requests_total[5m])) > 0 or vector(1)) * 100 > 15
+        for: 2m
+        labels:
+          severity: SEV-1
+          tier: critical
+          service: raguard-ai-backend
+        annotations:
+          summary: "Critical API 5xx Error Spike (> 15%)"
+          description: "HTTP 5xx server error rate has exceeded 15% over a 5-minute sliding window."
+          runbook_url: "https://docs.raguard.ai/runbooks/high-error-rate"
+
+      - alert: QdrantVectorDBUnavailable
+        expr: up{job="raguard-qdrant"} == 0
+        for: 1m
+        labels:
+          severity: SEV-1
+          tier: critical
+          service: qdrant-vector-db
+        annotations:
+          summary: "Qdrant Vector Database Cluster Unreachable"
+          description: "Vector database instance is down, blocking dense retrieval and knowledge indexing."
+          runbook_url: "https://docs.raguard.ai/runbooks/qdrant-down"
+
+      - alert: SevereHallucinationRate
+        expr: |
+          (sum(rate(raguard_hallucination_detections_total{severity="high"}[5m])) or vector(0))
+          / (sum(rate(raguard_queries_processed_total[5m])) > 0 or vector(1)) * 100 > 25
+        for: 5m
+        labels:
+          severity: SEV-1
+          tier: critical
+          service: raguard-ai-reflection
+        annotations:
+          summary: "Severe Hallucination Rate (> 25%) Detected"
+          description: "Over 25% of generated answers are failing post-generation entailment checks with high severity."
+          runbook_url: "https://docs.raguard.ai/runbooks/hallucination-spike"
+
+      - alert: CircuitBreakerTripped
+        expr: sum(rate(raguard_errors_total{error_code="CIRCUIT_BREAKER_OPEN"}[1m])) > 0
+        for: 1m
+        labels:
+          severity: SEV-1
+          tier: critical
+          service: raguard-ai-reliability
+        annotations:
+          summary: "LLM Circuit Breaker Is OPEN"
+          description: "One or more domain circuit breakers are OPEN, rejecting or shedding AI pipeline traffic."
+          runbook_url: "https://docs.raguard.ai/runbooks/circuit-breaker"
+
+  - name: RAGuard_SEV2_Major_Alerts
+    rules:
+      - alert: ElevatedAPIErrorRate
+        expr: |
+          (sum(rate(raguard_http_requests_total{status_code=~"5.*"}[5m])) or vector(0))
+          / (sum(rate(raguard_http_requests_total[5m])) > 0 or vector(1)) * 100 > 5
+        for: 5m
+        labels:
+          severity: SEV-2
+          tier: major
+          service: raguard-ai-backend
+        annotations:
+          summary: "Elevated API 5xx Error Rate (> 5%)"
+          description: "HTTP 5xx error rate has exceeded 5% for over 5 minutes."
+          runbook_url: "https://docs.raguard.ai/runbooks/elevated-errors"
+
+      - alert: HighAPIRequestLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(raguard_http_request_duration_seconds_bucket[5m])) by (le)) > 2.5
+        for: 5m
+        labels:
+          severity: SEV-2
+          tier: major
+          service: raguard-ai-backend
+        annotations:
+          summary: "High API Latency (P95 > 2.5s)"
+          description: "95th percentile HTTP request latency is exceeding 2.5 seconds."
+          runbook_url: "https://docs.raguard.ai/runbooks/high-latency"
+
+      - alert: HighPipelineStageLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(raguard_pipeline_stage_duration_seconds_bucket[5m])) by (le, stage)) > 3.0
+        for: 5m
+        labels:
+          severity: SEV-2
+          tier: major
+          service: raguard-ai-pipeline
+        annotations:
+          summary: "High Pipeline Stage Latency (P95 > 3.0s)"
+          description: "One or more AI pipeline stages are exceeding 3.0s P95 latency."
+          runbook_url: "https://docs.raguard.ai/runbooks/pipeline-latency"
+
+      - alert: QdrantSearchLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(raguard_qdrant_search_duration_seconds_bucket[5m])) by (le)) > 1.0
+        for: 5m
+        labels:
+          severity: SEV-2
+          tier: major
+          service: qdrant-vector-db
+        annotations:
+          summary: "Qdrant Vector Search Latency High (P95 > 1.0s)"
+          description: "Dense vector retrieval latency is degraded, exceeding 1 second."
+          runbook_url: "https://docs.raguard.ai/runbooks/vector-latency"
+
+      - alert: ObjectStorageHighFailureRate
+        expr: sum(rate(raguard_storage_failures_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: SEV-2
+          tier: major
+          service: object-storage
+        annotations:
+          summary: "Object Storage Elevated Failure Rate"
+          description: "MinIO / S3 document storage operations are failing at elevated rates (> 5 failures/sec)."
+          runbook_url: "https://docs.raguard.ai/runbooks/storage-failures"
+
+      - alert: HighSelfCorrectionRetryRate
+        expr: |
+          (sum(rate(raguard_self_correction_retries_total[5m])) or vector(0))
+          / (sum(rate(raguard_queries_processed_total[5m])) > 0 or vector(1)) * 100 > 15
         for: 10m
         labels:
-          severity: warning
+          severity: SEV-2
+          tier: major
+          service: raguard-ai-reliability
+        annotations:
+          summary: "Excessive Self-Correction Interventions (> 15%)"
+          description: "Over 15% of queries require self-correction rewrites or retrieval adjustments."
+          runbook_url: "https://docs.raguard.ai/runbooks/retry-rate"
+
+  - name: RAGuard_SEV3_Warning_Alerts
+    rules:
+      - alert: LowCacheHitRatio
+        expr: |
+          (sum(rate(raguard_redis_hits_total[10m])) or vector(0))
+          / ((sum(rate(raguard_redis_hits_total[10m])) + sum(rate(raguard_redis_misses_total[10m]))) > 0 or vector(1)) * 100 < 50
+        for: 15m
+        labels:
+          severity: SEV-3
+          tier: warning
+          service: redis-cache
+        annotations:
+          summary: "Low Redis Cache Hit Ratio (< 50%)"
+          description: "Redis caching efficiency has dropped below 50% over the last 15 minutes."
+          runbook_url: "https://docs.raguard.ai/runbooks/cache-hit-ratio"
+
+      - alert: RedisConnectionRetriesElevated
+        expr: sum(rate(raguard_redis_retries_total[5m])) > 2
+        for: 5m
+        labels:
+          severity: SEV-3
+          tier: warning
+          service: redis-cache
+        annotations:
+          summary: "Redis Connection Retries Detected"
+          description: "Redis client is experiencing transient connection retries."
+          runbook_url: "https://docs.raguard.ai/runbooks/redis-retries"
+
+      - alert: EarlyLatencyDegradation
+        expr: |
+          histogram_quantile(0.95, sum(rate(raguard_http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+        for: 10m
+        labels:
+          severity: SEV-3
+          tier: warning
           service: raguard-ai-backend
         annotations:
-          summary: "Self-Correction Loop Retry Exhaustion Rate (> 5%)"
-          description: "More than 5% of queries are failing self-correction and retry attempts after exhausting retry budgets."
+          summary: "Early API Latency Warning (P95 > 1.0s)"
+          description: "HTTP P95 latency is trending upward and has exceeded 1.0 second for 10 minutes."
+          runbook_url: "https://docs.raguard.ai/runbooks/latency-trend"
+
+      - alert: WorkspaceCleanupFailureDetected
+        expr: sum(rate(raguard_workspace_cleanup_failures_total[15m])) > 0
+        for: 15m
+        labels:
+          severity: SEV-3
+          tier: warning
+          service: workspace-retention
+        annotations:
+          summary: "Workspace Cleanup Background Worker Failure"
+          description: "One or more soft-deleted workspace purges failed during asynchronous execution."
+          runbook_url: "https://docs.raguard.ai/runbooks/workspace-cleanup"
