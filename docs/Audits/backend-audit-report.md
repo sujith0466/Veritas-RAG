@@ -1,4 +1,4 @@
-# RAGuard Backend — Repository Audit Report
+# Veritas RAG Backend — Repository Audit Report
 
 **Date:** July 21, 2026
 **Scope:** Phase A1 — Backend Production Verification

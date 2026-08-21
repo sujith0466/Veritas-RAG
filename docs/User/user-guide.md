@@ -1,8 +1,8 @@
 # User Guide
 
-## What is RAGuard?
+## What is Veritas RAG?
 
-RAGuard AI is an enterprise reliability layer that sits between your
+Veritas RAG is an enterprise reliability layer that sits between your
 application and its AI model, ensuring every AI response is:
 - **Grounded** in actual retrieved documents
 - **Validated** via natural language inference
@@ -43,7 +43,7 @@ Authorization: Bearer <token>
 
 ## Feedback Submission
 
-Help RAGuard improve by submitting feedback:
+Help Veritas RAG improve by submitting feedback:
 
 ```http
 POST /api/v1/intelligence/v1/feedback

@@ -1,6 +1,6 @@
 # Product Requirements Document
 
-**Project:** RAGuard AI
+**Project:** Veritas RAG
 **Tagline:** Enterprise Self-Correcting RAG Reliability Platform
 **Document Type:** Enterprise PRD — Hackathon Round-1 Submission / Architecture Review / Staff Engineer Review
 **Status:** Frozen for Round-1 Submission — Enterprise Review Enhancement Applied
@@ -63,11 +63,11 @@
 
 ## 1. Executive Summary
 
-RAGuard AI is a reliability layer that sits between retrieval and generation in enterprise Retrieval-Augmented Generation systems. It does not generate answers itself in the way a chatbot does; it decides whether an answer should be generated at all, under what conditions, and with what evidence, and it validates the result before it reaches a user.
+Veritas RAG is a reliability layer that sits between retrieval and generation in enterprise Retrieval-Augmented Generation systems. It does not generate answers itself in the way a chatbot does; it decides whether an answer should be generated at all, under what conditions, and with what evidence, and it validates the result before it reaches a user.
 
 The product directly targets Problem Statement 1 of the OneInbox AI Internship Hackathon 2026: a RAG system that identifies insufficient or conflicting context and intelligently re-queries or requests clarification instead of hallucinating, with measurable hallucination reduction as the acceptance criterion.
 
-RAGuard AI is built as infrastructure, not as an application. It is designed to be placed in front of any existing retriever and any existing LLM, and to return either a validated, cited, reliability-scored answer, or an explicit request for clarification — never a silent guess. Every design decision in this document is filtered through one question: does this feature directly strengthen self-correcting RAG. Features that did not pass that filter during design review were removed; the resulting scope is deliberately narrower than the full universe of possible AI-reliability features, in exchange for being fully implementable and fully defensible within a hackathon timeline.
+Veritas RAG is built as infrastructure, not as an application. It is designed to be placed in front of any existing retriever and any existing LLM, and to return either a validated, cited, reliability-scored answer, or an explicit request for clarification — never a silent guess. Every design decision in this document is filtered through one question: does this feature directly strengthen self-correcting RAG. Features that did not pass that filter during design review were removed; the resulting scope is deliberately narrower than the full universe of possible AI-reliability features, in exchange for being fully implementable and fully defensible within a hackathon timeline.
 
 The remainder of this document specifies the product in enterprise PRD form: requirements, modules, workflows, business rules, risks, and the evaluation methodology that will be used to prove the platform's core claim — that self-correction measurably reduces hallucination relative to a baseline RAG pipeline on the same corpus, same queries, same base model.
 
@@ -77,7 +77,7 @@ The remainder of this document specifies the product in enterprise PRD form: req
 
 **Official problem statement (verbatim intent):** Build a Retrieval-Augmented Generation system that identifies insufficient or conflicting context and intelligently re-queries or asks users for clarification instead of hallucinating. Measure hallucination reduction before and after introducing the self-correction layer.
 
-**Restated as a product problem:** Enterprise RAG systems today have no mechanism to know when they should not answer. They retrieve whatever the search index returns, above whatever similarity threshold was configured, and pass it to an LLM that will produce a fluent answer regardless of whether the retrieved evidence actually supports one. The system has no concept of "I don't have enough information" or "my sources disagree" — it has only "here is my best guess, phrased confidently." RAGuard AI exists to give the system that missing concept, and to act on it correctly: retry with a better query, ask the user a precise clarifying question, or refuse — instead of guessing.
+**Restated as a product problem:** Enterprise RAG systems today have no mechanism to know when they should not answer. They retrieve whatever the search index returns, above whatever similarity threshold was configured, and pass it to an LLM that will produce a fluent answer regardless of whether the retrieved evidence actually supports one. The system has no concept of "I don't have enough information" or "my sources disagree" — it has only "here is my best guess, phrased confidently." Veritas RAG exists to give the system that missing concept, and to act on it correctly: retry with a better query, ask the user a precise clarifying question, or refuse — instead of guessing.
 
 ---
 
@@ -125,19 +125,19 @@ That same simplicity is the source of the industry's current reliability problem
 | Proactive knowledge base health monitoring tied to the same conflict/freshness signals used at query time | Not covered | Corpus quality tooling, where it exists, is disconnected from the query-time reliability engine |
 | Repeatable, automated before/after hallucination measurement | Partially | Golden-set evaluation exists as a practice but is rarely built as a first-class, always-on product capability |
 
-RAGuard AI's scope is defined precisely as the set of rows in this table — it exists to close these specific gaps, not to replace the categories above wholesale.
+Veritas RAG's scope is defined precisely as the set of rows in this table — it exists to close these specific gaps, not to replace the categories above wholesale.
 
 ---
 
 ## 7. Why Existing RAG Systems Fail
 
-Existing RAG systems fail for a structural reason, not an implementation-quality reason: they treat retrieval as a black box and generation as unconditional. There is no decision point between the two where the system asks "is this good enough to answer from." Confidence, where it exists at all, is usually a single similarity score, which conflates several distinct failure modes (insufficiency, conflict, staleness, ambiguity) into one number that cannot distinguish them and therefore cannot drive a correct corrective action. Without that distinction, the only available behaviors are "answer" or "refuse everything below a threshold" — neither of which is what a production system needs. RAGuard AI is precisely designed around: separate detection of each failure mode, and a distinct corrective action mapped to each one.
+Existing RAG systems fail for a structural reason, not an implementation-quality reason: they treat retrieval as a black box and generation as unconditional. There is no decision point between the two where the system asks "is this good enough to answer from." Confidence, where it exists at all, is usually a single similarity score, which conflates several distinct failure modes (insufficiency, conflict, staleness, ambiguity) into one number that cannot distinguish them and therefore cannot drive a correct corrective action. Without that distinction, the only available behaviors are "answer" or "refuse everything below a threshold" — neither of which is what a production system needs. Veritas RAG is precisely designed around: separate detection of each failure mode, and a distinct corrective action mapped to each one.
 
 ---
 
 ## 8. Product Vision
 
-Enterprise AI systems should never answer with more confidence than their evidence supports. RAGuard AI's vision is a reliability layer, adoptable by any RAG application, that continuously evaluates retrieval quality, resolves what can be resolved automatically, asks for clarification when it cannot, validates every generated claim against cited evidence, and reports a transparent, explainable reliability score for every response — turning "can the AI answer" into "should the AI answer," as the default operating question of enterprise RAG.
+Enterprise AI systems should never answer with more confidence than their evidence supports. Veritas RAG's vision is a reliability layer, adoptable by any RAG application, that continuously evaluates retrieval quality, resolves what can be resolved automatically, asks for clarification when it cannot, validates every generated claim against cited evidence, and reports a transparent, explainable reliability score for every response — turning "can the AI answer" into "should the AI answer," as the default operating question of enterprise RAG.
 
 ---
 
@@ -188,9 +188,9 @@ Each principle below is stated as an operating rule, paired with the design rati
 
 ## 12. Definition of Success *(new in v1.1)*
 
-Success for RAGuard AI is defined narrowly and deliberately, so it cannot be satisfied by activity that doesn't move the actual needle:
+Success for Veritas RAG is defined narrowly and deliberately, so it cannot be satisfied by activity that doesn't move the actual needle:
 
-**Product success** means an enterprise team can place RAGuard AI in front of an existing retriever and LLM, with integration effort proportional to wiring one API call, and observe a measurable reduction in hallucination rate on their own traffic without materially degrading response latency below an interactive-use threshold.
+**Product success** means an enterprise team can place Veritas RAG in front of an existing retriever and LLM, with integration effort proportional to wiring one API call, and observe a measurable reduction in hallucination rate on their own traffic without materially degrading response latency below an interactive-use threshold.
 
 **Engineering success** means the self-correction loop is provably bounded (verified by automated tests, not convention), every reliability claim the platform surfaces traces to a specific, inspectable signal rather than an opaque model output, and no module violates its documented input/output contract — meaning any single module (the reranker, the NLI model, the LLM provider) can be swapped without redesigning adjacent layers.
 
@@ -242,12 +242,12 @@ Evaluates the submission for engineering rigor, correctness of the self-correcti
 
 | ID | As a... | I want... | So that... |
 |---|---|---|---|
-| US-01 | Platform Engineer | to place RAGuard AI in front of my existing retriever | I don't have to rebuild my retrieval stack to gain reliability guarantees |
+| US-01 | Platform Engineer | to place Veritas RAG in front of my existing retriever | I don't have to rebuild my retrieval stack to gain reliability guarantees |
 | US-02 | Platform Engineer | to see why a query was rejected or sent to retry | I can debug retrieval quality issues instead of guessing |
 | US-03 | Knowledge Manager | to see a decomposed reliability score for every answer | I can audit which answers are trustworthy without re-reading source documents myself |
 | US-04 | Knowledge Manager | to be notified when the knowledge base has stale or conflicting documents | I can fix the source problem instead of only patching symptoms downstream |
 | US-05 | Product Manager | to configure the clarification threshold for my tenant | I can balance answer availability against hallucination risk for my specific use case |
-| US-06 | End User (via the application built on RAGuard) | to receive a precise clarifying question instead of a wrong confident answer | I get the right answer faster instead of acting on incorrect information |
+| US-06 | End User (via the application built on Veritas RAG) | to receive a precise clarifying question instead of a wrong confident answer | I get the right answer faster instead of acting on incorrect information |
 | US-07 | Hackathon Judge | to see hallucination rate measured before and after the self-correction layer on the same query set | I can verify the core claim of the submission rather than take it on faith |
 | US-08 | Platform Engineer | to see retry attempts capped and monotonically justified | I know the system cannot enter a runaway cost loop in production |
 | US-09 | Compliance Stakeholder | to see every citation validated against its claim before the answer is returned | I can trust that "cited" means "actually supported," not just "was in context" |
@@ -622,7 +622,7 @@ All resolutions — successful answer, clarification, or refusal — flow into A
 
 ## 36. Why This Project Is Different
 
-RAGuard AI is infrastructure, not an application — it is designed to sit in front of an existing retriever and LLM rather than replace them, and its entire value proposition is the decision layer between retrieval and generation that most RAG systems do not have at all. It does not compete on answer quality or conversational polish; it competes on making the difference between "the system answered" and "the system should have answered" visible, measurable, and enforced.
+Veritas RAG is infrastructure, not an application — it is designed to sit in front of an existing retriever and LLM rather than replace them, and its entire value proposition is the decision layer between retrieval and generation that most RAG systems do not have at all. It does not compete on answer quality or conversational polish; it competes on making the difference between "the system answered" and "the system should have answered" visible, measurable, and enforced.
 
 ---
 
@@ -650,9 +650,9 @@ RAGuard AI is infrastructure, not an application — it is designed to sit in fr
 
 ## 39. Business KPIs
 
-- Reduction in hallucination-driven support escalations for applications built on RAGuard AI
+- Reduction in hallucination-driven support escalations for applications built on Veritas RAG
 - Reduction in time-to-resolution for compliance/audit reviews of AI-generated answers, enabled by the Reliability Score breakdown
-- Adoption ease, measured as integration time for a team placing RAGuard AI in front of an existing retriever
+- Adoption ease, measured as integration time for a team placing Veritas RAG in front of an existing retriever
 - Clarification rate trending toward an acceptable balance point per tenant (neither over-triggering nor under-triggering)
 
 ---

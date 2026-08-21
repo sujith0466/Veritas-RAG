@@ -46,7 +46,7 @@ class JWTService:
 
     async def issue_tokens(self, user: Any) -> tuple[str, str, str]:
         """Issue access and refresh tokens.
-        
+
         Returns:
             Tuple containing:
             - access_token (str)
@@ -151,7 +151,7 @@ class JWTService:
 
     async def revoke_user_workspace_tokens(self, user_id: str, workspace_id: str) -> None:
         """Revokes all active tokens for a user in a specific workspace.
-        
+
         This satisfies F4.5 and F4.6 active session invalidation.
         Sets an invalid_before timestamp in Redis that tokens must be issued after.
         """

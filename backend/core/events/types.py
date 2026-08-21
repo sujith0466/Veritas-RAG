@@ -1,4 +1,4 @@
-"""Event type enumeration for RAGuard AI.
+"""Event type enumeration for Veritas RAG.
 
 All internal domain events are registered here. This is the canonical list
 of events the system can emit. Handlers are registered per EventType in the
@@ -11,7 +11,7 @@ from enum import StrEnum
 
 
 class EventType(StrEnum):
-    """All domain events that can be emitted by the RAGuard AI platform."""
+    """All domain events that can be emitted by the Veritas RAG platform."""
 
     # ── Workspace Lifecycle ────────────────────────────────────────────────────
     WORKSPACE_ARCHIVED = "workspace.archived"

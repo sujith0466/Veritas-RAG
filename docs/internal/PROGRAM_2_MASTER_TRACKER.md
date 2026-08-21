@@ -1,6 +1,6 @@
 # PROGRAM 2 MASTER TRACKER
 
-**Program**: RAGuard V2 Multi-Tenant AI Platform
+**Program**: Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Milestone 3**: Epics 1 – 14 Completed & Frozen | Epic 15 Certified Implementation Baseline (93.75% Overall Program 2 Completion)
 **Current Active Epic**: None (Epic 15 Certified Baseline Established)
 **Next Active Epic**: **Epic 16 — Production Launch & Final Handover**

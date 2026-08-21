@@ -141,7 +141,7 @@ class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
     ) -> tuple[list[WorkspaceMember], int, str | None]:
         """
         List members with search, filters, total count, and cursor/offset support.
-        
+
         Returns:
             Tuple[List[WorkspaceMember], int, Optional[str]]: (items, total_count, next_cursor)
         """

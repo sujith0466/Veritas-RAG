@@ -1,5 +1,5 @@
 # ==============================================================================
-# RAGuard AI — Development Docker Compose Profile Overrides
+# Veritas RAG — Development Docker Compose Profile Overrides
 # ==============================================================================
 # Extends docker-compose.base.yml with local port exposures, hot-reload mounts,
 # and developer debugging GUI tools (pgAdmin + Redis Commander).
@@ -44,7 +44,7 @@ services:
   pgadmin:
     profiles: ["dev-tools"]
     image: dpage/pgadmin4:8.12
-    container_name: raguard-pgadmin
+    container_name: veritas-rag-pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@raguard.ai}
@@ -54,12 +54,12 @@ services:
     depends_on:
       - postgres
     networks:
-      - raguard-network
+      - veritas-rag-network
 
   redis-commander:
     profiles: ["dev-tools"]
     image: rediscommander/redis-commander:latest
-    container_name: raguard-redis-commander
+    container_name: veritas-rag-redis-commander
     restart: unless-stopped
     environment:
       REDIS_HOSTS: "local:redis:6379"
@@ -68,4 +68,4 @@ services:
     depends_on:
       - redis
     networks:
-      - raguard-network
+      - veritas-rag-network

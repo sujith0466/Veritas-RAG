@@ -1,5 +1,5 @@
 # 15_FINAL_ENGINEERING_VERIFICATION
-## RAGuard AI v1.0.1 - Final Certification Report
+## Veritas RAG v1.0.1 - Final Certification Report
 
 ### 1. Runtime Validation
 - **Docker Stack**: Rebuilt and restarted successfully (`docker compose down && docker compose up -d --build`).
@@ -58,4 +58,4 @@ An automated API-level verification script validated the critical data flows aga
 **Risk Level**: Low
 
 ## 🚀 Production Certification Verdict
-RAGuard AI v1.0.1 is certified as the official Production Baseline. This baseline is now frozen, and all future Version 2 development should branch from this release. Any future fixes to Version 1 should be delivered as controlled maintenance releases.
+Veritas RAG v1.0.1 is certified as the official Production Baseline. This baseline is now frozen, and all future Version 2 development should branch from this release. Any future fixes to Version 1 should be delivered as controlled maintenance releases.

@@ -1,4 +1,4 @@
-# RAGuard AI — Infrastructure Architecture & Service Topology
+# Veritas RAG — Infrastructure Guide
 
 **Document Version**: 1.0.0
 **Phase**: Phase 1 — Foundation & Enterprise Setup
@@ -9,7 +9,7 @@
 
 ## 1. Architectural Overview
 
-The RAGuard AI infrastructure is designed from day one to operate as a distributed, highly resilient microservices and data engine platform. It utilizes strict container boundaries, private internal networking (`raguard-network`), named persistent volumes, and a unified Infrastructure Contract to support seamless local development via Docker Compose while guaranteeing zero-refactor compatibility with Kubernetes and enterprise container platforms.
+The Veritas RAG infrastructure is designed from day one to operate as a distributed, highly resilient microservices and data engine platform. It utilizes strict container boundaries, private internal networking (`veritas-rag-network`), named persistent volumes, and a unified Infrastructure Contract to support seamless local development via Docker Compose while guaranteeing zero-refactor compatibility with Kubernetes and enterprise container platforms.
 
 ---
 
@@ -17,7 +17,7 @@ The RAGuard AI infrastructure is designed from day one to operate as a distribut
 
 ```
 +--------------------------------------------------------------------------------------------------------------------+
-| Private Bridge Network: raguard-network (Isolated Internal DNS & Port Isolation)                                  |
+| Private Bridge Network: veritas-rag-network (Isolated Internal DNS & Port Isolation)                                  |
 |                                                                                                                    |
 |   +--------------------------+          +---------------------------+          +-------------------------------+   |
 |   | nginx (Reverse Proxy)    | -------> | frontend (React/Vite Dev) |          | backend (FastAPI Application) |   |
@@ -63,7 +63,7 @@ The RAGuard AI infrastructure is designed from day one to operate as a distribut
 
 ## 4. Volume Strategy & Data Persistence
 
-To prevent data loss while enabling rapid environment resets when required, RAGuard AI separates persistent storage from ephemeral runtime storage using named volumes and anonymous overlays:
+To prevent data loss while enabling rapid environment resets when required, Veritas RAG separates persistent storage from ephemeral runtime storage using named volumes and anonymous overlays:
 
 ### 4.1 Persistent Named Volumes
 - **`postgres-data`**: Stores the raw PostgreSQL 16 table schemas, users, indexes, and write-ahead logs (`/var/lib/postgresql/data`).
@@ -78,12 +78,12 @@ To prevent data loss while enabling rapid environment resets when required, RAGu
 
 ## 5. Network Isolation Architecture
 
-All core application and database containers reside on a single custom bridge network: `raguard-network`.
+All core application and database containers reside on a single custom bridge network: `veritas-rag-network`.
 
 1. **Internal DNS Resolution**: Containers address each other exclusively via their Docker Compose service names (`postgres`, `redis`, `qdrant`, `backend`, `frontend`). Hardcoding IP addresses (`127.0.0.1` or `192.168.x.x`) inside application code is strictly prohibited.
 2. **Port Exposure Rules**:
    - In **Development Profile (`docker-compose.dev.yml`)**: All ports (`8000`, `5173`, `5432`, `6379`, `6333`, `5050`, `8081`) are exposed to `localhost` to allow local IDE debugging, visual database inspection (`pgadmin`), and direct API testing (`curl` / Postman).
-   - In **Production Profile (`docker-compose.prod.yml`)**: Only the reverse proxy (`nginx:80/443`) is exposed to the host network. Database (`5432`), cache (`6379`), and vector store (`6333`) ports remain strictly internal to `raguard-network`, blocking all external access attempts.
+   - In **Production Profile (`docker-compose.prod.yml`)**: Only the reverse proxy (`nginx:80/443`) is exposed to the host network. Database (`5432`), cache (`6379`), and vector store (`6333`) ports remain strictly internal to `veritas-rag-network`, blocking all external access attempts.
 
 ---
 
@@ -98,18 +98,18 @@ The service topology enforces fail-safe startup synchronization:
 
 ## 7. Cloud-Native Topology (Phase 2/F1.8 Setup)
 
-The RAGuard infrastructure supports transitioning from Docker Compose to distributed cloud orchestration.
+The Veritas RAG infrastructure supports transitioning from Docker Compose to distributed cloud orchestration.
 
 ### 7.1 Kubernetes Raw Manifests
 The foundation for Kubernetes is constructed strictly with raw YAML manifests (Helm is intentionally bypassed for foundational simplicity).
-- **Namespaces**: `raguard-dev`, `raguard-staging`, `raguard-production` to enforce multi-environment isolation.
+- **Namespaces**: `raguard-dev`, `veritas-rag-staging`, `veritas-rag-production` to enforce multi-environment isolation.
 - **Resource Constraints**: Every deployment enforces strict CPU and Memory `requests` and `limits`.
 - **Ingress Strategy**: Designed to be ingress-controller agnostic, removing hard dependencies on Nginx.
 - **Resilience**: Placeholders for `HorizontalPodAutoscaler` (HPA), `PodDisruptionBudget` (PDB), and Controller-Agnostic `NetworkPolicies` and `StorageClasses`.
 - **Disaster Recovery**: Pre-built Kubernetes `CronJob` and `VolumeSnapshot` placeholder manifests for PostgreSQL, MinIO, Qdrant, and generic PVs to satisfy RTO/RPO SLAs.
 
 ### 7.2 Terraform IaC Modules
-RAGuard strictly provisions underlying cloud resources using a cloud-agnostic modular Terraform architecture (with AWS as the primary reference implementation).
+Veritas RAG strictly provisions underlying cloud resources using a cloud-agnostic modular Terraform architecture (with AWS as the primary reference implementation).
 - **Modules Directory Structure**:
   - `/network`
   - `/compute`

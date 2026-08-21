@@ -1,6 +1,6 @@
 # Coding Standards
 
-RAGuard AI adheres to strict engineering guidelines to maintain enterprise reliability.
+Veritas RAG adheres to strict engineering guidelines to maintain enterprise reliability.
 
 ## 1. Type Hinting
 - Every function signature **must** include type hints for parameters and return types.

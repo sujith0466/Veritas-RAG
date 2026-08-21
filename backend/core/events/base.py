@@ -1,4 +1,4 @@
-"""Base event class for the RAGuard AI internal event system.
+"""Base event class for the Veritas RAG internal event system.
 
 Events are immutable value objects that describe something that has happened
 in the domain. They carry no behaviour — they only carry data.
@@ -24,7 +24,7 @@ from .types import EventType
 
 @dataclass(frozen=True)
 class BaseEvent:
-    """Immutable base class for all RAGuard domain events.
+    """Immutable base class for all Veritas RAG domain events.
 
     Attributes:
         event_id: Unique identifier for this event instance.

@@ -1,13 +1,13 @@
 # Database Schema
 
 **Version:** 1.0.0
-**Purpose:** Define the Database Schema for RAGuard AI.
+**Purpose:** Define the Database Schema for Veritas RAG.
 **Scope:** Core system capabilities for v1.0.
 **Audience:** Developers, DevOps, and Maintainers.
 **Prerequisites:** Familiarity with the system architecture.
 
 ## Overview
-This document outlines the Database Schema configuration and standards for the RAGuard AI platform.
+This document outlines the Database Schema configuration and standards for the Veritas RAG platform.
 
 ## Architecture Notes
 - Maintains separation of concerns.

@@ -35,7 +35,7 @@ async def setup_data():
         # Create unique tenant IDs for this test run
         tenant_a = f"Workspace-A-{uuid.uuid4()}"
         tenant_b = f"Workspace-B-{uuid.uuid4()}"
-        
+
         # Workspace A Data
         record_a1 = QueryAnalyticsRecord(
             tenant_id=tenant_a,
@@ -102,7 +102,7 @@ async def setup_data():
 
         db.add_all([record_a1, record_a2, record_a3, record_b1, record_b2])
         await db.commit()
-        
+
         yield tenant_a, tenant_b
 
 def get_mock_user(workspace: str, role: Role):
@@ -124,11 +124,11 @@ async def test_real_cross_tenant_popular_topics(client, setup_data):
     # Test Tenant A
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
-    
+
     res_a = client.get("/api/v1/analytics/popular-topics")
     assert res_a.status_code == 200
     data_a = res_a.json()["data"]
-    
+
     topics_a = [t["topic"] for t in data_a]
     assert "alpha" in topics_a
     assert "beta" not in topics_a
@@ -136,11 +136,11 @@ async def test_real_cross_tenant_popular_topics(client, setup_data):
     # Test Tenant B
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
-    
+
     res_b = client.get("/api/v1/analytics/popular-topics")
     assert res_b.status_code == 200
     data_b = res_b.json()["data"]
-    
+
     topics_b = [t["topic"] for t in data_b]
     assert "beta" in topics_b
     assert "alpha" not in topics_b
@@ -152,11 +152,11 @@ async def test_real_cross_tenant_unanswered_queries(client, setup_data):
     # Test Tenant A
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
-    
+
     res_a = client.get("/api/v1/analytics/unanswered-queries")
     assert res_a.status_code == 200
     data_a = res_a.json()["data"]
-    
+
     queries_a = [t["query_text"] for t in data_a]
     assert "unique_lexeme_alpha" in queries_a # CLARIFICATION_REQUIRED
     assert "unrelated_term" in queries_a # ABORTED_LOW_CONFIDENCE
@@ -165,11 +165,11 @@ async def test_real_cross_tenant_unanswered_queries(client, setup_data):
     # Test Tenant B
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
-    
+
     res_b = client.get("/api/v1/analytics/unanswered-queries")
     assert res_b.status_code == 200
     data_b = res_b.json()["data"]
-    
+
     queries_b = [t["query_text"] for t in data_b]
     assert "unique_lexeme_beta" in queries_b # ABORTED_HALLUCINATION
     assert "unique_lexeme_alpha" not in queries_b
@@ -203,7 +203,7 @@ async def test_authorization_matrix(client, setup_data):
 async def test_popular_topics_correctness(client):
     async with TestingSessionLocal() as db:
         tenant_id = f"Workspace-C-{uuid.uuid4()}"
-        
+
         # Contains stop words ("the", "is", "a"), should be filtered out
         # "running" should stem to "run"
         record = QueryAnalyticsRecord(
@@ -219,11 +219,11 @@ async def test_popular_topics_correctness(client):
 
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
-    
+
     res = client.get("/api/v1/analytics/popular-topics")
     assert res.status_code == 200
     data = res.json()["data"]
-    
+
     topics = [t["topic"] for t in data]
     # 'run', 'quick', 'fox', 'fast' should be here. 'the', 'is' should not.
     assert "run" in topics
@@ -234,7 +234,7 @@ async def test_popular_topics_correctness(client):
 async def test_unanswered_query_correctness(client):
     async with TestingSessionLocal() as db:
         tenant_id = f"Workspace-D-{uuid.uuid4()}"
-        
+
         # This one should NOT appear (SUCCESS)
         record1 = QueryAnalyticsRecord(
             tenant_id=tenant_id,
@@ -267,13 +267,12 @@ async def test_unanswered_query_correctness(client):
 
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
-    
+
     res = client.get("/api/v1/analytics/unanswered-queries")
     assert res.status_code == 200
     data = res.json()["data"]
-    
+
     queries = [t["query_text"] for t in data]
     assert "aborted_query" in queries
     assert "success_query" not in queries
     assert "random_query" not in queries
-

@@ -9,7 +9,7 @@
 
 ## Context
 
-RAGuard AI requires a production-grade authentication system that supports email/password login, JWT-based session management, and future extensibility (OAuth, SSO). The system must be operable by a small team without managing an auth server from scratch, and must integrate with the chosen PostgreSQL database (Supabase).
+Veritas RAG requires a production-grade authentication system that supports email/password login, JWT-based session management, and future extensibility (OAuth, SSO). The system must be operable by a small team without managing an auth server from scratch, and must integrate with the chosen PostgreSQL database (Supabase).
 
 ## Decision
 

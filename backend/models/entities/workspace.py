@@ -50,4 +50,3 @@ class Workspace(BaseModel):
     storage_prefix: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     qdrant_namespace: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
-

@@ -9,7 +9,7 @@
 
 ## Context
 
-RAGuard AI's core value proposition is detecting insufficient or conflicting context before generation. The retrieval quality directly determines whether the Confidence Engine has meaningful signals to evaluate. A single-strategy retrieval (dense-only or sparse-only) has well-documented failure modes that prevent accurate confidence scoring.
+Veritas RAG's core value proposition is detecting insufficient or conflicting context before generation. The retrieval quality directly determines whether the Confidence Engine has meaningful signals to evaluate. A single-strategy retrieval (dense-only or sparse-only) has well-documented failure modes that prevent accurate confidence scoring.
 
 ## Decision
 

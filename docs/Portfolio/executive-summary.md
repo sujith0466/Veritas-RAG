@@ -1,8 +1,8 @@
-# RAGuard AI — Executive Summary
+# Veritas RAG — Executive Summary
 
 ## Product
 
-**RAGuard AI** is an enterprise-grade Reliability, Validation, and Governance
+**Veritas RAG** is an enterprise-grade Reliability, Validation, and Governance
 platform for Retrieval-Augmented Generation (RAG) systems. It wraps any RAG
 pipeline with multi-layer reliability controls, ensuring AI outputs are
 trustworthy, grounded, and auditable.
@@ -17,7 +17,7 @@ Modern enterprise RAG systems suffer from:
 
 ## Solution
 
-RAGuard AI provides:
+Veritas RAG provides:
 - **Hybrid Retrieval** — Combines semantic (dense) and keyword (sparse) search.
 - **Confidence Engine** — Scores retrieved context coverage and conflict levels.
 - **Retry Controller** — Automatically rewrites low-confidence queries.

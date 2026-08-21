@@ -4,7 +4,7 @@
 terraform {
   # Placeholder remote backend configuration for future state management
   # backend "s3" {
-  #   bucket = "raguard-terraform-state"
+  #   bucket = "veritas-rag-terraform-state"
   #   key    = "network/terraform.tfstate"
   #   region = "us-east-1"
   # }

@@ -1,7 +1,7 @@
-# Product Requirements Document (PRD): RAGuard AI
+# Product Requirements Document (PRD): Veritas RAG
 
 ## 1. Executive Summary
-RAGuard AI is an enterprise-grade AI reliability platform designed to sit between retrieval and generation in Retrieval-Augmented Generation (RAG) systems. Unlike standard RAG wrappers, RAGuard AI acts as a reliability gatekeeper, ensuring that LLM generation only occurs when evidence is sufficient, grounded, and non-contradictory. It features a deterministic self-correction loop that rewrites queries, seeks clarification, or returns transparent low-confidence responses to eliminate silent hallucinations.
+Veritas RAG is an enterprise-grade AI reliability platform designed to sit between retrieval and generation in Retrieval-Augmented Generation (RAG) systems. Unlike standard RAG wrappers, Veritas RAG acts as a reliability gatekeeper, ensuring that LLM generation only occurs when evidence is sufficient, grounded, and non-contradictory. It features a deterministic self-correction loop that rewrites queries, seeks clarification, or returns transparent low-confidence responses to eliminate silent hallucinations.
 
 ## 2. Problem Statement
 Enterprise RAG systems often struggle with "messy" unstructured data (PDFs, OCR errors, inconsistent formatting), leading to:

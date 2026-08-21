@@ -1,7 +1,7 @@
 # Chaos Engineering & Resilience Runbook (F15.3)
 
 **Target Audience:** Reliability Engineers, SRE On-Call, QA
-**System:** RAGuard V2 Multi-Tenant AI Platform
+**System:** Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Classification:** Resilience Verification Framework
 **Status:** PRODUCTION READY
 

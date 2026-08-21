@@ -1,4 +1,4 @@
-"""Feature flags package for RAGuard AI."""
+"""Feature flags package for Veritas RAG."""
 
 from backend.core.config import get_settings
 

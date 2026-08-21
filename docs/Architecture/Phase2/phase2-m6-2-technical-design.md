@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Milestone 6: Knowledge Health & Lifecycle Management
+# Veritas RAG — Phase 2 Milestone 6: Knowledge Health & Lifecycle Management
 ## Document 2: Technical Design
 
 **Document Version**: 1.0.0

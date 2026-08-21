@@ -1,1 +1,1 @@
-"""RAGuard AI — Infrastructure client initialization and management."""
+"""Veritas RAG — Infrastructure client initialization and management."""

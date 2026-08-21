@@ -9,7 +9,7 @@
 
 ## Context
 
-RAGuard AI stores document embeddings for dense retrieval and must support: metadata filtering for tenant isolation, efficient approximate nearest-neighbor search, and a Python-native async client. The vector store must be self-hostable for hackathon deployment without a cloud dependency.
+Veritas RAG stores document embeddings for dense retrieval and must support: metadata filtering for tenant isolation, efficient approximate nearest-neighbor search, and a Python-native async client. The vector store must be self-hostable for hackathon deployment without a cloud dependency.
 
 ## Decision
 

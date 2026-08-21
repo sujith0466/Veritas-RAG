@@ -1,4 +1,4 @@
-"""RAGuard AI — Application Factory.
+"""Veritas RAG — Application Factory.
 
 The create_app() function is the single entry point for constructing the
 FastAPI application. It is responsible for:
@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # ── STARTUP ────────────────────────────────────────────────────────────────
     logger.info(
-        "RAGuard AI starting",
+        "Veritas RAG starting",
         app_name=settings.app.name,
         version=settings.app.version,
         environment=settings.app.environment,
@@ -136,13 +136,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from backend.api.v1.routes.health import mark_startup_complete, reset_startup_state
 
     mark_startup_complete()
-    logger.info("RAGuard AI startup complete")
+    logger.info("Veritas RAG startup complete")
 
     yield  # Application is running
 
     # ── SHUTDOWN ───────────────────────────────────────────────────────────────
     reset_startup_state()
-    logger.info("RAGuard AI shutting down")
+    logger.info("Veritas RAG shutting down")
 
     logger.info("Closing infrastructure connections")
     await close_db()
@@ -154,7 +154,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     shutdown_tracer()
 
-    logger.info("RAGuard AI shutdown complete")
+    logger.info("Veritas RAG shutdown complete")
 
 
 # ── Application Factory ────────────────────────────────────────────────────────
@@ -178,10 +178,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app.name,
         description=(
-            "Enterprise Self-Correcting RAG Reliability Platform. "
-            "Detects insufficient or conflicting context, performs intelligent "
-            "self-correction, validates generated answers, and assigns explainable "
-            "reliability scores."
+            "Veritas RAG — An Enterprise Knowledge Reliability Platform for "
+            "Self-Correcting Retrieval-Augmented Generation."
         ),
         version=settings.app.version,
         docs_url="/docs",

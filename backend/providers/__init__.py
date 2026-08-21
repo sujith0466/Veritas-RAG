@@ -1,1 +1,1 @@
-"""RAGuard AI — External service provider abstraction layer."""
+"""Veritas RAG — External service provider abstraction layer."""

@@ -1,1 +1,1 @@
-"""RAGuard AI — API routes package."""
+"""Veritas RAG — API routes package."""

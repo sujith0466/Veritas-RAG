@@ -3,7 +3,7 @@
 **Phase Name:** Phase 14 — Knowledge Health & Automated Cleanup Engine
 **Target Module:** `backend/modules/knowledge_health/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 

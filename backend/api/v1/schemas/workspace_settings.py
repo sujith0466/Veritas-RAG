@@ -348,4 +348,3 @@ class WorkspaceBrandingDiffResponse(BaseModel):
     from_version: int
     to_version: int
     diff: dict[str, Any]
-

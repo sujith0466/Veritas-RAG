@@ -1,4 +1,4 @@
-# RAGuard Backend — API Verification Report
+# Veritas RAG Backend — API Verification Report
 
 **Date:** July 21, 2026
 **Scope:** Phase A5 — API Verification

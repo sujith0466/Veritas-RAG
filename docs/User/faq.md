@@ -1,11 +1,11 @@
 # Frequently Asked Questions
 
-**Q: What LLM providers does RAGuard support?**
-A: RAGuard ships with OpenAI and Anthropic Claude provider adapters. The `BaseLLMProvider`
+**Q: What LLM providers does Veritas RAG support?**
+A: Veritas RAG ships with OpenAI and Anthropic Claude provider adapters. The `BaseLLMProvider`
 interface makes adding new providers straightforward.
 
-**Q: Does RAGuard replace my existing RAG pipeline?**
-A: No. RAGuard wraps around your existing retrieval and LLM infrastructure, adding
+**Q: Does Veritas RAG replace my existing RAG pipeline?**
+A: No. Veritas RAG wraps around your existing retrieval and LLM infrastructure, adding
 reliability, validation, and observability layers without replacing your core logic.
 
 **Q: How does DLP affect latency?**
@@ -20,7 +20,7 @@ without the reliability loop.
 A: Qdrant collections are namespaced per tenant. All database queries include mandatory
 `tenant_id` filter predicates enforced at the ORM level.
 
-**Q: Is RAGuard production-safe out of the box?**
+**Q: Is Veritas RAG production-safe out of the box?**
 A: Yes. HSTS headers, DLP, audit logging, RBAC, and circuit breakers are all enabled
 by default in the `production` environment.
 

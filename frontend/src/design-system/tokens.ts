@@ -1,5 +1,5 @@
 /**
- * RAGuard AI Design System — Centralized Design Tokens
+ * Veritas RAG Design System — Centralized Design Tokens
  *
  * Single source of truth for all visual design values.
  * CSS custom properties in globals.css mirror these tokens.

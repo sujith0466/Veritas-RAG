@@ -1,6 +1,6 @@
-# RAGuard V2 Qdrant Architecture
+# Veritas RAG Qdrant Architecture
 
-This document formalizes the vector database architecture using Qdrant for RAGuard Version 2.
+This document formalizes the vector database architecture using Qdrant for Veritas RAG Version 2.
 
 ## 1. Connection Lifecycle & Resilience
 
@@ -33,7 +33,7 @@ To ensure fast hybrid search capabilities and strict metadata filtering (`ADR-M3
   - `chunk_index`: Integer
   - `metadata`: JSON Object (key-value strings)
 - **Index Strategy:** Payload indexes are automatically constructed (`PayloadSchemaType.KEYWORD`) for all heavily filtered fields (e.g., `document_id`, `tenant_id`).
-- **Filtering Validation:** Operations like `search_points` and `delete_points_by_filter` accept an exact-match dictionary converted into `qdrant_models.Filter`. 
+- **Filtering Validation:** Operations like `search_points` and `delete_points_by_filter` accept an exact-match dictionary converted into `qdrant_models.Filter`.
 
 ## 5. Batch Operations
 
@@ -49,4 +49,4 @@ To ensure fast hybrid search capabilities and strict metadata filtering (`ADR-M3
 
 ## 7. Architectural Agnosticism
 
-The `BaseVectorDBProvider` exposes high-level Python domain objects (`VectorPointDTO`, `CollectionConfigDTO`). The `QdrantProvider` encapsulates all Qdrant-specific SDK logic, ensuring that RAGuard could theoretically swap to another provider (e.g., Milvus, Pinecone) without modifying any upstream business logic.
+The `BaseVectorDBProvider` exposes high-level Python domain objects (`VectorPointDTO`, `CollectionConfigDTO`). The `QdrantProvider` encapsulates all Qdrant-specific SDK logic, ensuring that Veritas RAG could theoretically swap to another provider (e.g., Milvus, Pinecone) without modifying any upstream business logic.

@@ -1,6 +1,6 @@
 # PRE-EPIC-16 FINAL COMMIT-BOUNDARY & REPOSITORY HYGIENE AUDIT
 
-**Program**: RAGuard V2 Multi-Tenant Enterprise AI Platform
+**Program**: Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Audit Scope**: Pre-Epic-16 Transition & Final Commit-Boundary Review
 **Date**: 2026-08-21
 **Status**: 🟢 READY FOR HUMAN COMMIT/PUSH APPROVAL

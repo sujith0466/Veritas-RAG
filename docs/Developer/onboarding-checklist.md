@@ -1,6 +1,6 @@
 # Developer Onboarding Checklist
 
-Welcome to the RAGuard team! Complete these steps to set up your environment.
+Welcome to the Veritas RAG team! Complete these steps to set up your environment.
 
 - [ ] Install Python 3.13, Docker, and Docker Compose.
 - [ ] Clone the repository: `git clone https://github.com/your-org/raguard.git`

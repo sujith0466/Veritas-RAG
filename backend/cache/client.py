@@ -94,7 +94,7 @@ async def get_cache() -> AsyncGenerator[Redis[Any], None]:
 
 async def check_cache_health() -> dict[str, Any]:
     """Check Redis connectivity by executing PING and measure latency.
-    
+
     Returns detailed connection status, latency in ms, and reconnect metrics.
     """
     start = time.perf_counter()

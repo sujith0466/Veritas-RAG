@@ -1,4 +1,4 @@
-"""RAGuard AI domain and persistence models."""
+"""Veritas RAG domain and persistence models."""
 
 from typing import Any
 

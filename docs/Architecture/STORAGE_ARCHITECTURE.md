@@ -1,6 +1,6 @@
-# RAGuard V2 Storage Architecture
+# Veritas RAG Storage Architecture
 
-This document formalizes the object storage architecture for RAGuard Version 2.
+This document formalizes the object storage architecture for Veritas RAG Version 2.
 
 ## 1. Provider Agnosticism and Factory Injection
 
@@ -29,7 +29,7 @@ This document formalizes the object storage architecture for RAGuard Version 2.
 
 ## 5. Security and Data Access
 
-- **Presigned URLs:** Physical asset serving is abstracted via `create_download_url()` and `create_upload_url()`. RAGuard acts exclusively as an orchestrator; large binary transfers occur directly between the client and the S3 bucket using these secure, time-bound URLs.
+- **Presigned URLs:** Physical asset serving is abstracted via `create_download_url()` and `create_upload_url()`. Veritas RAG acts exclusively as an orchestrator; large binary transfers occur directly between the client and the S3 bucket using these secure, time-bound URLs.
 - **Path Traversal Mitigation:** The `LocalStorageProvider` aggressively resolves and validates directory structures to prevent malicious relative path escapes.
 
 ## 6. Observability

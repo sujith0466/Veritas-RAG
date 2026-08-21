@@ -31,7 +31,7 @@ class AuthService:
 
         Returns:
             A tuple of (access_token, raw_refresh_token).
-            
+
         Raises:
             AuthenticationException: If credentials fail or account is inactive/unverified.
         """
@@ -130,7 +130,7 @@ class AuthService:
 
         Returns:
             A tuple of (new_access_token, new_raw_refresh_token).
-            
+
         Raises:
             AuthenticationException: If token is invalid, expired, revoked, or family is compromised.
         """
@@ -210,7 +210,7 @@ class AuthService:
         device: str | None = None
     ) -> tuple[str, str]:
         """Handles OIDC callback authentication.
-        
+
         If user exists, links provider. If not, creates user and links provider.
         Then issues tokens.
         """

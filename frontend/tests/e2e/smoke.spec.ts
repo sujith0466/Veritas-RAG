@@ -14,7 +14,7 @@ test.describe('Smoke Suite @smoke', () => {
 
     // 2. Core Navigation
     await page.goto('/auth/login');
-    await expect(page).toHaveTitle(/RAGuard/i);
+    await expect(page).toHaveTitle(/Veritas RAG/i);
 
     // Ensure Role Selector is visible
     await expect(page.locator('text="Admin Workspace"')).toBeVisible();

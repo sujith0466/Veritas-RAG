@@ -100,7 +100,7 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
               <Shield className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground">Welcome to {user?.workspace_name || 'RAGuard AI'}</h2>
+            <h2 className="text-2xl font-bold text-foreground">Welcome to {user?.workspace_name || 'Veritas RAG'}</h2>
             <p className="text-muted-foreground max-w-md">
               Your workspace is currently being set up by an administrator.
               Once knowledge sources are connected and ingested, your intelligence dashboards will become active.

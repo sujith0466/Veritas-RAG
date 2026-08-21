@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 class AppSettings(BaseSettings):
     """Core application identity and runtime mode settings."""
 
-    name: str = Field(default="RAGuard AI", alias="APP_NAME")
+    name: str = Field(default="Veritas RAG", alias="APP_NAME")
     version: str = Field(default="1.0.0", alias="APP_VERSION")
     environment: str = Field(default="development", alias="ENVIRONMENT")
     debug: bool = Field(default=False, alias="APP_DEBUG")

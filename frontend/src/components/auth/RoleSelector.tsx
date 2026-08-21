@@ -36,7 +36,7 @@ export function RoleSelector({ mode, onSelect }: RoleSelectorProps) {
     >
       <div className="text-center mb-1">
         <h2 className="text-2xl font-semibold text-foreground tracking-tight mb-1.5">
-          {mode === 'login' ? 'Welcome to RAGuard AI' : 'Select Workspace Role'}
+          {mode === 'login' ? 'Welcome to Veritas RAG' : 'Select Workspace Role'}
         </h2>
         <p className="text-sm text-muted-foreground">
           {mode === 'login' ? 'Select your role to access your workspace' : 'Choose how you will participate in the workspace'}

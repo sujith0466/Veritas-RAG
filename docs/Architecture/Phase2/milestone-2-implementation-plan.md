@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Milestone 2: Embedding Pipeline Implementation Plan
+# Veritas RAG — Phase 2 Milestone 2: Embedding Pipeline Implementation Plan
 
 **Milestone**: Phase 2 Milestone 2 (`Embedding Pipeline`)
 **Status**: Implementation Plan (Planning Only — Strict No-Code)

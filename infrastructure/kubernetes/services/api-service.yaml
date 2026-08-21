@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: raguard-api
-  namespace: raguard-production
+  name: veritas-rag-api
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: backend
     app.kubernetes.io/instance: api-1
     app.kubernetes.io/version: "1.0.0"
@@ -12,7 +12,7 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: backend
   ports:
     - protocol: TCP

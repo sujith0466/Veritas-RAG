@@ -52,10 +52,10 @@ def normalize_text(text: str) -> str:
 
 def detect_language(text: str) -> str:
     """Detect the primary language of the text.
-    
+
     Args:
         text: Normalized document text.
-        
+
     Returns:
         ISO 639-1 language code (e.g., 'en', 'fr') or 'unknown'.
     """

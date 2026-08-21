@@ -1,6 +1,6 @@
 # ROUND1_DELIVERABLES_CHECKLIST
 
-**Project Name**: RAGuard AI
+**Project Name**: Veritas RAG
 **Selected Problem Statement**: Official Problem Statement 1
 
 ## Checklist

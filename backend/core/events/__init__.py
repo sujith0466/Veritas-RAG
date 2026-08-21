@@ -1,4 +1,4 @@
-"""Events package for RAGuard AI."""
+"""Events package for Veritas RAG."""
 
 from .base import BaseEvent
 from .dispatcher import EventDispatcher, get_dispatcher

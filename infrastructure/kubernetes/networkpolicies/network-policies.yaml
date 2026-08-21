@@ -2,9 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-all
-  namespace: raguard-production
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: security
     app.kubernetes.io/instance: netpol-1
     app.kubernetes.io/version: "1.0.0"
@@ -19,9 +19,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-api-egress
-  namespace: raguard-production
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: security
     app.kubernetes.io/instance: netpol-api
     app.kubernetes.io/version: "1.0.0"

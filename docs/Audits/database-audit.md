@@ -1,4 +1,4 @@
-# RAGuard Backend — Database Audit Report
+# Veritas RAG Backend — Database Audit Report
 
 **Date:** July 21, 2026
 **Scope:** Phase A4 — Database Verification

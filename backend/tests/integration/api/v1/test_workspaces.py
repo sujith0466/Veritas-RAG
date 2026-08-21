@@ -85,4 +85,3 @@ def test_create_workspace_unverified():
     msg = err_body.get("error", {}).get("message", "") or err_body.get("detail", "")
     assert "Email verification required" in msg
 
-

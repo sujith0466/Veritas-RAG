@@ -14,7 +14,6 @@ POSTGRES_INDEX_NAMING_CONVENTION = {
 metadata = MetaData(naming_convention=POSTGRES_INDEX_NAMING_CONVENTION)
 
 class Base(DeclarativeBase):
-    """Base class for all SQLAlchemy ORM models in RAGuard AI."""
+    """Base class for all SQLAlchemy ORM models in Veritas RAG."""
 
     metadata = metadata
-

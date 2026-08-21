@@ -1,4 +1,4 @@
-"""Async in-process event dispatcher for RAGuard AI.
+"""Async in-process event dispatcher for Veritas RAG.
 
 Provides a lightweight publish/subscribe mechanism for internal domain events.
 This is NOT a message queue replacement — it is a synchronous in-process bus
@@ -74,7 +74,7 @@ class EventDispatcher:
             event: The domain event to publish.
         """
         handlers = self._handlers.get(event.event_type, [])
-        
+
         # Globally dispatch to webhook worker if tenant_id is present
         from backend.tasks.webhooks import deliver_webhook_event_task
         event_dict = event.to_dict()
@@ -88,13 +88,13 @@ class EventDispatcher:
                 )
             except Exception as e:
                 logger.error("Failed to enqueue webhook delivery", error=str(e))
-                
+
             # Publish to Redis for WebSocket In-App Notifications
             try:
                 import json
                 from backend.core.config import get_settings
                 import redis.asyncio as aioredis
-                
+
                 settings = get_settings()
                 channel_name = f"workspace:{tenant_id}:notifications"
                 # We can't easily persist a single redis connection in the dispatcher without lifecycle management,
@@ -102,7 +102,7 @@ class EventDispatcher:
                 # In production, a singleton Redis pool should be used.
                 redis_client = aioredis.from_url(settings.redis.redis_url)
                 # Since publish is called in an async context, we must await it.
-                # Wait, this is an async function, but we don't want to block publish. 
+                # Wait, this is an async function, but we don't want to block publish.
                 # asyncio.create_task is safe here.
                 async def _publish():
                     try:

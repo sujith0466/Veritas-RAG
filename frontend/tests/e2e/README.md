@@ -1,6 +1,6 @@
-# RAGuard Enterprise QA Playwright Suite
+# Veritas RAG Enterprise QA Playwright Suite
 
-This directory contains the automated Playwright End-to-End test suite for validating the RAGuard v1.0 UI workflows and network stability.
+This directory contains the automated Playwright End-to-End test suite for validating the Veritas RAG UI workflows and network stability.
 
 ## Test Strategy
 The suite is divided into modular sections:

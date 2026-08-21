@@ -3,7 +3,7 @@
 **Phase Name:** Phase 18 — Autonomous Self-Healing & Fallback Governor
 **Target Module:** `backend/modules/reliability/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 
@@ -508,7 +508,7 @@ Set `RAGUARD_GOVERNOR_ENABLED=false` to stop autonomous interventions. Run `alem
 
 ## 48. Cross-Phase Consistency Review
 
-Phase 18 seamlessly supervises Phase 4 (`ReliabilityGateway`), consumes Phase 13/14 metrics, and publishes remediations visible inside Phase 16 (`dashboard`), closing the active governance loop across the RAGuard ecosystem.
+Phase 18 seamlessly supervises Phase 4 (`ReliabilityGateway`), consumes Phase 13/14 metrics, and publishes remediations visible inside Phase 16 (`dashboard`), closing the active governance loop across the Veritas RAG ecosystem.
 
 ---
 

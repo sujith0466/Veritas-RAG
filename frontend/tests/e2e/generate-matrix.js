@@ -53,7 +53,7 @@ try {
   });
 
   console.log('==================================================');
-  console.log('      RAGuard v1.0 E2E Regression Matrix      ');
+  console.log('    Veritas RAG E2E Regression Matrix     ');
   console.log('==================================================\n');
   console.log(`Total Tests: ${total}`);
   console.log(`Passed:      ${passed}`);

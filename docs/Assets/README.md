@@ -1,6 +1,6 @@
 # docs/Assets/
 
-This directory contains branding and visual assets for RAGuard AI.
+This directory contains branding and visual assets for Veritas RAG.
 
 ## Files
 

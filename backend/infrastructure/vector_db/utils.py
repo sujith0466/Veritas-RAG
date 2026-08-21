@@ -9,7 +9,7 @@ class CollectionNameBuilder:
     @classmethod
     def build(cls, tenant_id: str) -> str:
         """Generate a tenant-scoped collection name.
-        
+
         Format: {prefix}_{tenant_id}
         """
         prefix = get_settings().qdrant.collection_prefix

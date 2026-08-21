@@ -1,6 +1,6 @@
 # Security Response Headers Specification (F15.6)
 
-**Program**: RAGuard V2 Multi-Tenant Enterprise AI Platform
+**Program**: Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Epic**: Epic 15 — Production Hardening & Enterprise Security
 **Feature**: F15.6 — Security Headers Audit & Hardening
 **Status**: ACTIVE / HARDENED
@@ -9,7 +9,7 @@
 
 ## 1. Overview
 
-RAGuard enforces strict, defense-in-depth HTTP security response headers across both the ASGI application layer (`SecurityHeadersMiddleware`) and the edge proxy layer (Nginx `default.conf`).
+Veritas RAG enforces strict, defense-in-depth HTTP security response headers across both the ASGI application layer (`SecurityHeadersMiddleware`) and the edge proxy layer (Nginx `default.conf`).
 
 All headers are designed to align with modern **OWASP Secure Headers Project** standards, eliminating legacy configurations and resolving prior proxy/application header conflicts.
 
@@ -48,7 +48,7 @@ In F15.6:
 
 ## 4. Automated Testing & Verification
 
-Automated test suite: [`backend/tests/unit/middleware/test_security_headers.py`](file:///d:/RAGuard/backend/tests/unit/middleware/test_security_headers.py)
+Automated test suite: [`backend/tests/unit/middleware/test_security_headers.py`](file:///d:/Veritas RAG/backend/tests/unit/middleware/test_security_headers.py)
 - `test_security_headers_api_route_dev_mode`: Verifies all baseline headers, strict API CSP, and absence of HSTS in dev mode.
 - `test_security_headers_production_mode_hsts`: Verifies HSTS injection with `max-age=31536000`, `includeSubDomains`, and `preload`.
 - `test_security_headers_non_api_route_csp`: Verifies frontend CSP rules on non-API routes.

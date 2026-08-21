@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Milestone 5: Retrieval Reliability Framework
+# Veritas RAG — Phase 2 Milestone 5: Retrieval Reliability Framework
 ## Document 4: Verification & Freeze Checklist
 
 **Document Version**: 1.0.0

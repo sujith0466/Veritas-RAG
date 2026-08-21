@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Milestone 3: Vector Storage Foundation
+# Veritas RAG — Phase 2 Milestone 3: Vector Storage Foundation
 ## Document 2: Technical Design
 
 **Document Version**: 1.0.0

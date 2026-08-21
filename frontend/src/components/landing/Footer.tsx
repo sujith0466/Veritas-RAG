@@ -53,10 +53,10 @@ export function Footer() {
               <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                 <Shield className="w-5 h-5" />
               </div>
-              <span className="font-semibold text-lg tracking-tight text-foreground">RAGuard AI</span>
+              <span className="font-semibold text-lg tracking-tight text-foreground">Veritas RAG</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-              Enterprise RAG Reliability Platform. Build trustworthy AI applications with secure retrieval and hallucination-resistant generation.
+              Enterprise Knowledge Reliability Platform. Build trustworthy AI applications with secure retrieval and hallucination-resistant generation.
             </p>
           </FadeUp>
 
@@ -84,7 +84,7 @@ export function Footer() {
         <FadeUp delay={0.3} yOffset={10}>
           <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-border/40">
             <p className="text-sm text-muted-foreground mb-4 md:mb-0">
-              © {new Date().getFullYear()} RAGuard AI, Inc. All rights reserved.
+              © {new Date().getFullYear()} Veritas RAG, Inc. All rights reserved.
             </p>
             <div className="flex items-center space-x-6">
               <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</a>

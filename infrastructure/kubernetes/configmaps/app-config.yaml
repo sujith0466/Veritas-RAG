@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: raguard-config
-  namespace: raguard-production
+  name: veritas-rag-config
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: config
     app.kubernetes.io/instance: config-1
     app.kubernetes.io/version: "1.0.0"

@@ -1,8 +1,8 @@
-# RAGuard AI — Phase 4 Implementation Plan
+# Veritas RAG — Phase 4 Implementation Plan
 **AI Reliability Intelligence, Analytics & Observability Platform**
 
 ## 1. Executive Summary
-Phase 4 transforms RAGuard into an Enterprise AI Reliability Intelligence Platform. It shifts focus from core RAG logic (completed in Phases 1-3) to operational intelligence, introducing advanced analytics, observability, execution tracing, dashboards, reporting, and production monitoring.
+Phase 4 transforms Veritas RAG into an Enterprise AI Reliability Intelligence Platform. It shifts focus from core RAG logic (completed in Phases 1-3) to operational intelligence, introducing advanced analytics, observability, execution tracing, dashboards, reporting, and production monitoring.
 
 ### Business Objectives
 - Provide complete visibility into the AI pipeline's reliability, hallucinations, and confidence scores.

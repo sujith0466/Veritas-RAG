@@ -435,4 +435,3 @@ async def test_unsuspend_workspace_concurrency_conflict(service, mock_session, m
             expected_updated_at=expected_updated_at,
             reason_text="Payment resolved"
         )
-

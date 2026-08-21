@@ -1,6 +1,6 @@
 # Architecture Walkthrough
 
-This document guides developers through the control flow of a request in RAGuard AI.
+This document guides developers through the control flow of a request in Veritas RAG.
 
 ## 1. Gateway & Middleware
 All requests enter `backend/api/v1/`. Middlewares automatically extract JWT claims, enforce RBAC, and assign an OpenTelemetry Trace ID.

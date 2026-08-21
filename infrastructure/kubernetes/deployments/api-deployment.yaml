@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: raguard-api
-  namespace: raguard-production
+  name: veritas-rag-api
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: backend
     app.kubernetes.io/instance: api-1
     app.kubernetes.io/version: "1.0.0"
@@ -13,12 +13,12 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      app.kubernetes.io/name: raguard
+      app.kubernetes.io/name: veritas-rag
       app.kubernetes.io/component: backend
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: raguard
+        app.kubernetes.io/name: veritas-rag
         app.kubernetes.io/component: backend
         app.kubernetes.io/instance: api-1
         app.kubernetes.io/version: "1.0.0"
@@ -31,9 +31,9 @@ spec:
         - containerPort: 8000
         envFrom:
         - configMapRef:
-            name: raguard-config
+            name: veritas-rag-config
         - secretRef:
-            name: raguard-secrets
+            name: veritas-rag-secrets
         resources:
           requests:
             memory: "256Mi"

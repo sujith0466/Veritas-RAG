@@ -1,4 +1,4 @@
-# RAGuard AI — Docker Guide & Multi-Stage Build Specifications
+# Veritas RAG — Infrastructure Guide
 
 **Document Version**: 1.0.0
 **Phase**: Phase 1 — Foundation & Enterprise Setup
@@ -9,7 +9,7 @@
 
 ## 1. Overview & Objectives
 
-The RAGuard AI platform leverages multi-stage Docker builds to achieve two conflicting enterprise goals without compromise:
+The Veritas RAG platform leverages multi-stage Docker builds to achieve two conflicting enterprise goals without compromise:
 1. **Developer Velocity (`dev` target)**: Sub-second hot-reloading (`--reload` / Vite HMR), rich debugging tools, readable tracebacks, and volume-mounted source directories.
 2. **Production Security & Efficiency (`prod` target)**: Stripped build artifacts, minimal attack surface (distroless/slim images), non-root execution (`UID 10001`), immutable image layers, and pre-compiled bytecode/bundles.
 
@@ -76,7 +76,7 @@ By copying only `requirements/*.txt` into the `dependencies` stage before copyin
 
 ## 4. Working with Docker Profiles
 
-RAGuard AI organizes optional and specialized services using **Docker Compose Profiles** (`docker compose --profile <name> up -d`).
+Veritas RAG organizes optional and specialized services using **Docker Compose Profiles** (`docker compose --profile <name> up -d`).
 
 ### 4.1 Profile Directory
 | Profile Name | Services Included | Usage Scenario |

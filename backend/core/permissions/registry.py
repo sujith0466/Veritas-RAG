@@ -238,7 +238,7 @@ class PermissionRegistry:
         is_suspended: bool = False,
     ) -> bool:
         """Check if a given role possesses the specified permission.
-        
+
         Suspended users receive an absolute explicit deny.
         """
         if is_suspended:

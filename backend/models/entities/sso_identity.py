@@ -1,6 +1,6 @@
 """SSO Identity Entity Model.
 
-Maps OIDC provider identities (like Google) to local RAGuard user accounts.
+Maps OIDC provider identities (like Google) to local Veritas RAG user accounts.
 """
 
 import datetime

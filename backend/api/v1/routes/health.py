@@ -64,7 +64,7 @@ def is_startup_complete() -> bool:
     "",
     response_model=HealthStatus,
     summary="Overall health",
-    description="Returns the overall health status of the RAGuard AI service.",
+    description="Returns the overall health status of the Veritas RAG service.",
 )
 async def health() -> HealthStatus:
     """Overall health endpoint — suitable for load balancer health checks."""

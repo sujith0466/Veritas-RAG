@@ -26,4 +26,3 @@ class WorkspaceSettingsRepository(BaseRepository[WorkspaceSettings]):
         ).with_for_update()
         result = await self.session.execute(stmt)
         return result.scalars().first()
-

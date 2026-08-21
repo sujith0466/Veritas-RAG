@@ -143,4 +143,3 @@ api_v1_router.include_router(workspace_feature_flags_router)
 from backend.ai.api.routes import router as ai_router
 
 api_v1_router.include_router(ai_router)
-

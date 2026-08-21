@@ -1,4 +1,4 @@
-"""Celery application factory for RAGuard AI.
+"""Celery application factory for Veritas RAG.
 
 Configures the Celery app with Redis as broker and result backend.
 No tasks are registered in Milestone 1 — this is broker configuration only.

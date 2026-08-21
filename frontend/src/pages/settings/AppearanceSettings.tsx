@@ -62,7 +62,7 @@ export function AppearanceSettings() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <SectionHeader
         title="Appearance"
-        description="Customize how the RAGuard AI workspace looks and feels on this device."
+        description="Customize how the Veritas RAG workspace looks and feels on this device."
       />
 
       <Card className="p-6 space-y-8">

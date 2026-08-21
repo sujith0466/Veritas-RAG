@@ -3,13 +3,13 @@
 **Phase Name:** Phase 13 — Reliability Score Engine
 **Target Module:** `backend/modules/scoring/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 
 ## 1. Executive Summary
 
-Phase 13 delivers the enterprise **Reliability Score Engine** (`backend/modules/scoring/`), serving as the definitive unified trust evaluation authority for the RAGuard AI pipeline. Extending the Phase 3 `ReliabilityScorer` (`backend/modules/scoring/services/reliability_scorer.py`), Phase 13 synthesizes signals across all ten prior phases—incorporating Phase 5 retrieval quality, Phase 6 confidence dimensions (coverage, strength, freshness, conflicts), Phase 7 retry history, Phase 10/12 citation and grounding integrity, Phase 11 self-reflection verdicts, and Phase 12 entailment validation. It outputs a composite score, discrete trust classification (`VERIFIED_TRUSTED`, `DEGRADED_CAUTION`, `UNRELIABLE_REJECT`), human-readable explainability breakdown (`ConfidenceExplanationDTO`), and persistent audit trail (`ReliabilityLogORM`).
+Phase 13 delivers the enterprise **Reliability Score Engine** (`backend/modules/scoring/`), serving as the definitive unified trust evaluation authority for the Veritas RAG pipeline. Extending the Phase 3 `ReliabilityScorer` (`backend/modules/scoring/services/reliability_scorer.py`), Phase 13 synthesizes signals across all ten prior phases—incorporating Phase 5 retrieval quality, Phase 6 confidence dimensions (coverage, strength, freshness, conflicts), Phase 7 retry history, Phase 10/12 citation and grounding integrity, Phase 11 self-reflection verdicts, and Phase 12 entailment validation. It outputs a composite score, discrete trust classification (`VERIFIED_TRUSTED`, `DEGRADED_CAUTION`, `UNRELIABLE_REJECT`), human-readable explainability breakdown (`ConfidenceExplanationDTO`), and persistent audit trail (`ReliabilityLogORM`).
 
 ---
 

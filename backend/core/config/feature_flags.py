@@ -15,7 +15,7 @@ from pydantic_settings import BaseSettings
 
 
 class FeatureFlagSettings(BaseSettings):
-    """Feature flags for controlled rollout of RAGuard AI capabilities.
+    """Feature flags for controlled rollout of Veritas RAG capabilities.
 
     Each flag corresponds to a distinct system capability. Flags are disabled
     by default to ensure production safety — features must be explicitly enabled

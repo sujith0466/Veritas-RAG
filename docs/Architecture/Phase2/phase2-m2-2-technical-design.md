@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Milestone 2: Embedding Pipeline
+# Veritas RAG — Phase 2 Milestone 2: Embedding Pipeline
 ## Document 2: Technical Design
 
 **Document Version**: 1.0.0

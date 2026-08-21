@@ -1,1 +1,1 @@
-"""RAGuard AI — Retrieval Reliability Module (`ADR-005`)."""
+"""Veritas RAG — Retrieval Reliability Module (`ADR-005`)."""

@@ -1,5 +1,5 @@
 # phase-6-implementation-plan.md
-# RAGuard AI — Phase 6: Retrieval Reliability & Confidence Engine (Production Grade)
+# Veritas RAG — Phase 6: Retrieval Reliability & Confidence Engine (Production Grade)
 
 **Version**: 1.0.0
 **Date**: 2026-07-20

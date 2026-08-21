@@ -10,7 +10,7 @@
 
 Please do NOT file public GitHub issues for security vulnerabilities.
 
-Email: security@raguard.ai
+Email: security@veritasrag.ai
 
 We respond within 72 hours. Include:
 - Description of the vulnerability

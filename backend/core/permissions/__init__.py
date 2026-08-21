@@ -1,4 +1,4 @@
-"""RAGuard AI — Permissions and RBAC foundation package."""
+"""Veritas RAG — Permissions and RBAC foundation package."""
 
 from .guards import evaluate_permission_access, evaluate_role_access
 from .rbac import Role

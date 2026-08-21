@@ -1,13 +1,13 @@
 # Error Handling
 
 **Version:** 1.0.0
-**Purpose:** Define the Error Handling for RAGuard AI.
+**Purpose:** Define the Error Handling for Veritas RAG.
 **Scope:** Core system capabilities for v1.0.
 **Audience:** Developers, DevOps, and Maintainers.
 **Prerequisites:** Familiarity with the system architecture.
 
 ## Overview
-This document outlines the Error Handling configuration and standards for the RAGuard AI platform.
+This document outlines the Error Handling configuration and standards for the Veritas RAG platform.
 
 ## Architecture Notes
 - Maintains separation of concerns.

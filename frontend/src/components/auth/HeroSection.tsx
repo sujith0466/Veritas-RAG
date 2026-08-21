@@ -43,10 +43,10 @@ export function HeroSection() {
           <Shield className="h-8 w-8" />
         </div>
         <h1 className="text-4xl lg:text-5xl font-bold tracking-tight mb-4">
-          RAGuard AI
+          Veritas RAG
         </h1>
         <h2 className="text-xl text-primary font-medium tracking-wide">
-          Enterprise RAG Reliability Platform
+          Enterprise Knowledge Reliability Platform
         </h2>
       </motion.div>
 

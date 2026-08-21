@@ -69,4 +69,3 @@ class WorkspaceDomainRepository(BaseRepository[WorkspaceDomain]):
         """Add a domain to the cooldown table."""
         self.session.add(cooldown)
         await self.session.flush()
-

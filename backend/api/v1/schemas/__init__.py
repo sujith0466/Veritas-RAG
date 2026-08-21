@@ -1,4 +1,4 @@
-"""RAGuard AI — API schemas package."""
+"""Veritas RAG — API schemas package."""
 
 from .auth import AuthStatusResponse, Role, UserContext
 from .common import (

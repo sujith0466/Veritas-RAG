@@ -9,7 +9,7 @@
 
 ## 1. Overview & WORM Guarantee
 
-RAGuard enforces a **Write-Once, Read-Many (WORM)** append-only paradigm for all security, authentication, and tenant audit events.
+Veritas RAG enforces a **Write-Once, Read-Many (WORM)** append-only paradigm for all security, authentication, and tenant audit events.
 
 Under this architecture:
 - **Append-Only Creation**: Audit records can only be created (`INSERT`).
@@ -140,7 +140,7 @@ When `AuditLogArchivalService.verify_archive_integrity(records, manifest)` execu
 
 ## 7. Verification & Automated Test Coverage
 
-- **Repository WORM Tests** ([`backend/tests/unit/repositories/test_audit_log_worm.py`](file:///d:/RAGuard/backend/tests/unit/repositories/test_audit_log_worm.py)):
+- **Repository WORM Tests** ([`backend/tests/unit/repositories/test_audit_log_worm.py`](file:///d:/Veritas RAG/backend/tests/unit/repositories/test_audit_log_worm.py)):
   - Validates `AuditLog` inheritance, missing deletion/mutation attributes, and SQL generator omission of `is_deleted`.
-- **Archival & Tamper Detection Tests** ([`backend/tests/unit/services/test_audit_log_archival.py`](file:///d:/RAGuard/backend/tests/unit/services/test_audit_log_archival.py)):
+- **Archival & Tamper Detection Tests** ([`backend/tests/unit/services/test_audit_log_archival.py`](file:///d:/Veritas RAG/backend/tests/unit/services/test_audit_log_archival.py)):
   - Validates pristine archive verification, payload tampering detection, record deletion/injection detection, reordering detection, forged root hash rejection, and tenant boundary protection.

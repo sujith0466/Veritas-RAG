@@ -22,7 +22,7 @@ export function ArchitectureOverview() {
       <div className="container mx-auto px-4 md:px-8 max-w-4xl relative z-10">
         <FadeUp>
           <SectionHeading
-            title="How RAGuard Works."
+            title="How Veritas RAG Works."
             subtitle="A transparent, end-to-end view of our reliability pipeline."
             className="mb-16"
           />

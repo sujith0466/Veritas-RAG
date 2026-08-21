@@ -45,17 +45,17 @@ async def _async_deliver_webhooks(task, tenant_id: uuid.UUID, event_type: str, p
         )
         result = await session.execute(stmt)
         webhooks = result.scalars().all()
-        
+
     for webhook in webhooks:
         if "*" not in webhook.events and event_type not in webhook.events:
             continue
-            
+
         await _deliver_to_endpoint(task, tenant_id, webhook, event_type, payload)
 
 
 async def _deliver_to_endpoint(task, tenant_id: uuid.UUID, webhook: WorkspaceWebhook, event_type: str, payload: dict):
     logger.info(f"Delivering event {event_type} to webhook {webhook.id}")
-    
+
     # Pre-record pending state
     async with SessionLocal() as session:
         log = NotificationDeliveryLog(
@@ -80,14 +80,14 @@ async def _deliver_to_endpoint(task, tenant_id: uuid.UUID, webhook: WorkspaceWeb
         # Prepare Canonical Payload
         timestamp = str(int(time.time()))
         canonical_body = json.dumps(payload, separators=(',', ':'))
-        
+
         # We don't have the plaintext secret, we only store the hash.
         # Wait! Standard HMAC requires the plaintext secret to sign payloads.
         # The prompt says: "Secret Generation: Securely generate cryptographically strong HMAC secrets. UI: secret visibility (only once upon creation)."
         # If we hash the secret in DB, we can't use it to sign requests! We must store it plaintext or encrypted symmetrically.
         # Let's fix that. For this simulation, we'll assume the `secret_hash` column is actually storing the symmetrically encrypted secret (or just the plaintext secret if we haven't implemented KMS yet).
         # Actually, if we only have a SHA256 hash, we CANNOT generate an HMAC. We must store the plaintext secret in `secret_hash` for now, or rename it. I'll just use the `secret_hash` field value as the signing key for now since the schema is already deployed.
-        
+
         secret = webhook.secret_hash.encode('utf-8')
         signature = hmac.new(secret, canonical_body.encode('utf-8'), hashlib.sha256).hexdigest()
 
@@ -101,7 +101,7 @@ async def _deliver_to_endpoint(task, tenant_id: uuid.UUID, webhook: WorkspaceWeb
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(webhook.endpoint_url, content=canonical_body, headers=headers)
             response.raise_for_status()
-            
+
         status = "SUCCESS"
         error_msg = None
     except httpx.HTTPStatusError as e:
@@ -110,7 +110,7 @@ async def _deliver_to_endpoint(task, tenant_id: uuid.UUID, webhook: WorkspaceWeb
     except Exception as e:
         status = "FAILED_TRANSIENT"
         error_msg = str(e)
-        
+
     # Update delivery log
     async with SessionLocal() as session:
         log_obj = await session.get(NotificationDeliveryLog, log.id)
@@ -120,6 +120,6 @@ async def _deliver_to_endpoint(task, tenant_id: uuid.UUID, webhook: WorkspaceWeb
             if status == "FAILED_TRANSIENT":
                 log_obj.next_retry_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60 * (2 ** task.request.retries))
             await session.commit()
-            
+
     if status == "FAILED_TRANSIENT":
         raise Exception(error_msg)

@@ -35,7 +35,7 @@ def test_cross_tenant_isolation():
     # Authenticate as Workspace A
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
-    
+
     res_a = client.get("/api/v1/analytics/workspace-overview")
     assert res_a.status_code == 200
     call_args_a = mock_service.get_workspace_overview.call_args[0][0]
@@ -44,7 +44,7 @@ def test_cross_tenant_isolation():
     # Authenticate as Workspace B
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-B", Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-B", Role.VIEWER)
-    
+
     res_b = client.get("/api/v1/analytics/workspace-overview")
     assert res_b.status_code == 200
     call_args_b = mock_service.get_workspace_overview.call_args[0][0]
@@ -62,10 +62,10 @@ def test_authorization_insufficient_role():
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-A", Role.MEMBER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-A", Role.MEMBER)
     client = TestClient(app)
-    
+
     res = client.get("/api/v1/analytics/workspace-overview")
     assert res.status_code == 403, "Insufficient role should be rejected"
-    
+
     app.dependency_overrides.clear()
 
 def test_authorization_authorized():
@@ -76,13 +76,13 @@ def test_authorization_authorized():
     app.dependency_overrides[get_analytics_service] = lambda: mock_service
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
-    
+
     client = TestClient(app)
     res = client.get("/api/v1/analytics/workspace-overview")
     assert res.status_code == 200, "Authorized Viewer access should succeed"
     data = res.json()
     assert data["data"]["active_users"] == 1
-    
+
     app.dependency_overrides.clear()
 
 def test_popular_topics():
@@ -95,7 +95,7 @@ def test_popular_topics():
     # Authenticate as Workspace A
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
-    
+
     res_a = client.get("/api/v1/analytics/popular-topics")
     assert res_a.status_code == 200
     call_args_a = mock_service.get_popular_topics.call_args[0][0]
@@ -104,7 +104,7 @@ def test_popular_topics():
     # Authenticate as Workspace B
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-B", Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-B", Role.VIEWER)
-    
+
     res_b = client.get("/api/v1/analytics/popular-topics")
     assert res_b.status_code == 200
     call_args_b = mock_service.get_popular_topics.call_args[0][0]
@@ -122,7 +122,7 @@ def test_unanswered_queries():
     # Authenticate as Workspace A
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-A", Role.VIEWER)
-    
+
     res_a = client.get("/api/v1/analytics/unanswered-queries")
     assert res_a.status_code == 200
     call_args_a = mock_service.get_unanswered_queries.call_args[0][0]
@@ -131,7 +131,7 @@ def test_unanswered_queries():
     # Authenticate as Workspace B
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user("Workspace-B", Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-B", Role.VIEWER)
-    
+
     res_b = client.get("/api/v1/analytics/unanswered-queries")
     assert res_b.status_code == 200
     call_args_b = mock_service.get_unanswered_queries.call_args[0][0]

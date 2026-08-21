@@ -1,6 +1,6 @@
 """FastAPI exception handlers.
 
-Maps RAGuard custom exceptions and standard HTTP exceptions to a consistent
+Maps Veritas RAG custom exceptions and standard HTTP exceptions to a consistent
 JSON error response envelope. All error responses follow the ErrorResponse schema
 so clients have a single parsing contract regardless of error type.
 """
@@ -45,13 +45,13 @@ def _error_response(
     )
 
 
-# ── Handler: RAGuard domain/infrastructure exceptions ─────────────────────────
+# ── Handler: Veritas RAG domain/infrastructure exceptions ─────────────────────────
 
 
 async def raguard_exception_handler(
     request: Request, exc: RAGuardException
 ) -> JSONResponse:
-    """Handle all custom RAGuard exceptions uniformly."""
+    """Handle all custom Veritas RAG exceptions uniformly."""
     log = logger.bind(
         error_code=exc.error_code,
         path=request.url.path,

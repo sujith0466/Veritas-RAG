@@ -1,4 +1,4 @@
-# RAGuard Backend — Environment Validation Report
+# Veritas RAG Backend — Environment Validation Report
 
 **Date:** July 21, 2026
 **Scope:** Phase A3 — Environment Verification

@@ -33,7 +33,7 @@ class OpenRouterProvider(LLMProvider):
             "Authorization": f"Bearer {self._settings.resolved_api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://raguard.ai",
-            "X-Title": "RAGuard AI",
+            "X-Title": "Veritas RAG",
         }
 
     async def _get_client(self) -> httpx.AsyncClient:

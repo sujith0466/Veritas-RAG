@@ -1,14 +1,14 @@
 <div align="center">
-  <img src="https://via.placeholder.com/150" alt="RAGuard AI Logo" width="120" height="120">
+  <img src="https://via.placeholder.com/150" alt="Veritas RAG Logo" width="120" height="120">
 
-  <h1>RAGuard AI (Version 2)</h1>
-  <p><strong>Enterprise-Grade Multi-Tenant Retrieval-Augmented Generation Platform</strong></p>
+  <h1>Veritas RAG</h1>
+  <p><strong>Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation</strong></p>
 
   <p>
-    <a href="https://github.com/sujith0466/RAGuard-AI/releases"><img src="https://img.shields.io/github/v/release/sujith0466/RAGuard-AI?style=for-the-badge&color=success" alt="Release"></a>
-    <a href="https://github.com/sujith0466/RAGuard-AI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sujith0466/RAGuard-AI?style=for-the-badge&color=blue" alt="License"></a>
-    <a href="https://github.com/sujith0466/RAGuard-AI/issues"><img src="https://img.shields.io/github/issues/sujith0466/RAGuard-AI?style=for-the-badge&color=orange" alt="Issues"></a>
-    <a href="https://github.com/sujith0466/RAGuard-AI/stargazers"><img src="https://img.shields.io/github/stars/sujith0466/RAGuard-AI?style=for-the-badge&color=yellow" alt="Stars"></a>
+    <a href="https://github.com/sujith0466/Veritas RAG/releases"><img src="https://img.shields.io/github/v/release/sujith0466/Veritas RAG?style=for-the-badge&color=success" alt="Release"></a>
+    <a href="https://github.com/sujith0466/Veritas RAG/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sujith0466/Veritas RAG?style=for-the-badge&color=blue" alt="License"></a>
+    <a href="https://github.com/sujith0466/Veritas RAG/issues"><img src="https://img.shields.io/github/issues/sujith0466/Veritas RAG?style=for-the-badge&color=orange" alt="Issues"></a>
+    <a href="https://github.com/sujith0466/Veritas RAG/stargazers"><img src="https://img.shields.io/github/stars/sujith0466/Veritas RAG?style=for-the-badge&color=yellow" alt="Stars"></a>
   </p>
 </div>
 
@@ -16,7 +16,7 @@
 
 ## 📖 Project Overview
 
-**RAGuard AI V2** is a production-grade, open-source enterprise platform for Retrieval-Augmented Generation (RAG). Designed from the ground up with a Domain-Driven Design (DDD) modular monolith architecture, RAGuard AI guarantees strict multi-tenant isolation, enterprise identity & session management, mathematical hallucination prevention, hybrid search indexing, and real-time observability.
+**Veritas RAG** (historical product name: Veritas RAG; now Veritas RAG) is a production-grade, enterprise platform for Self-Correcting Retrieval-Augmented Generation (RAG). Designed from the ground up with a Domain-Driven Design (DDD) modular monolith architecture, Veritas RAG guarantees strict multi-tenant isolation, enterprise identity & session management, mathematical hallucination prevention, hybrid search indexing, and real-time observability.
 
 ---
 
@@ -128,8 +128,8 @@ graph TD
 
 ### 2. Setup Environment
 ```bash
-git clone https://github.com/sujith0466/RAGuard-AI.git
-cd RAGuard-AI
+git clone https://github.com/sujith0466/Veritas RAG.git
+cd Veritas RAG
 cp .env.example .env
 ```
 
@@ -183,7 +183,7 @@ make reset
 ## 📂 Repository Directory Layout
 
 ```
-RAGuard-AI/
+Veritas RAG/
 ├── backend/
 │   ├── api/v1/             # FastAPI routers, request/response schemas, dependencies
 │   ├── core/               # Auth context, security, config, events, logging

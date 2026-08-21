@@ -3,7 +3,7 @@
 **Phase Name:** Phase 15 — Evaluation & Continuous Learning Engine
 **Target Module:** `backend/modules/evaluation/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 
@@ -86,7 +86,7 @@ Strictly adheres to `AI_ARCHITECTURE_AFTER_IMPROVEMENTS.md` and `EVALUATION_FRAM
 ## 10. Existing Codebase Review
 
 * `backend/modules/evaluation/__init__.py`: Currently an empty package stub (94 bytes).
-* **Justification for New Components**: Because `evaluation/` is currently empty, we must create the schemas, providers, domain services, repositories, ORM entities, and REST controllers from scratch following RAGuard architectural standards.
+* **Justification for New Components**: Because `evaluation/` is currently empty, we must create the schemas, providers, domain services, repositories, ORM entities, and REST controllers from scratch following Veritas RAG architectural standards.
 
 ---
 

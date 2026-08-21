@@ -1,4 +1,4 @@
-﻿# RAGuard V2 Observability & Production Monitoring Architecture (Epic 14)
+﻿# Veritas RAG Observability & Production Monitoring Architecture (Epic 14)
 
 **Status:** ✅ **CERTIFIED & FROZEN**
 **Version:** 2.0.0
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary & Pillars
 
-RAGuard V2 implements a comprehensive observability stack designed for high-throughput, low-overhead SRE operations across multi-tenant retrieval and generative AI pipelines.
+Veritas RAG implements a comprehensive observability stack designed for high-throughput, low-overhead SRE operations across multi-tenant retrieval and generative AI pipelines.
 
 ```mermaid
 graph TD

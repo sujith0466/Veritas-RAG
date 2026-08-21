@@ -1,7 +1,7 @@
 # Graceful Service Shutdown Runbook
 
 **Target Audience:** SRE On-Call, Infrastructure Engineers, DevOps
-**System:** RAGuard V2 Multi-Tenant AI Platform
+**System:** Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Classification:** Core Operational Procedure
 **Status:** PRODUCTION READY
 

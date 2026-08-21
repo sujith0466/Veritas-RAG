@@ -1,5 +1,5 @@
 # ==============================================================================
-# RAGuard AI — Production Docker Compose Profile Overrides
+# Veritas RAG — Production Docker Compose Profile Overrides
 # ==============================================================================
 # Extends docker-compose.base.yml with production target builds, resource limits,
 # read-only root filesystems, and Nginx reverse proxy routing.
@@ -77,7 +77,7 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: raguard-nginx
+    container_name: veritas-rag-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -90,7 +90,7 @@ services:
       frontend:
         condition: service_healthy
     networks:
-      - raguard-network
+      - veritas-rag-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 10s

@@ -1,5 +1,5 @@
 # phase-8-implementation-plan.md
-# RAGuard AI — Phase 8: Query Rewrite Engine (Production Grade)
+# Veritas RAG — Phase 8: Query Rewrite Engine (Production Grade)
 
 **Version**: 1.0.0
 **Date**: 2026-07-20

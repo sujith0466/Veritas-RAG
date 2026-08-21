@@ -9,7 +9,7 @@
 
 ## Context
 
-RAGuard AI integrates with multiple external services: Google Gemini (LLM), embedding models, Qdrant (vector DB), PostgreSQL, Redis, and Supabase Auth. Direct coupling to vendor SDKs in business logic creates tight dependencies that are expensive to change and hard to test.
+Veritas RAG integrates with multiple external services: Google Gemini (LLM), embedding models, Qdrant (vector DB), PostgreSQL, Redis, and Supabase Auth. Direct coupling to vendor SDKs in business logic creates tight dependencies that are expensive to change and hard to test.
 
 ## Decision
 

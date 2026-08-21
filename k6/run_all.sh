@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# RAGuard V2 — k6 Load Testing Suite Execution Runner
+# Veritas RAG V2 — k6 Load Testing Suite Execution Runner
 #
 # Usage:
 #   ./run_all.sh [BASE_URL]
@@ -17,7 +17,7 @@ BASE_URL="${1:-${BASE_URL:-http://localhost:8000}}"
 export BASE_URL
 
 echo "============================================================"
-echo " Starting RAGuard V2 k6 Performance Test Suite"
+echo " Starting Veritas RAG V2 k6 Performance Test Suite"
 echo " Target Endpoint: $BASE_URL"
 echo "============================================================"
 

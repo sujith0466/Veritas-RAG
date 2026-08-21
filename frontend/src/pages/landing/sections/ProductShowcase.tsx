@@ -386,7 +386,7 @@ export function ProductShowcase() {
                 <div className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] shadow-inner" />
               </div>
               <div className="flex-1 text-center flex justify-center items-center">
-                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">RAGuard-AI</span>
+                <span className="text-[11px] font-medium text-muted-foreground tracking-wide">Veritas RAG</span>
               </div>
             </div>
 

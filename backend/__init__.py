@@ -1,1 +1,1 @@
-"""RAGuard AI — Backend Package."""
+"""Veritas RAG — Backend Package."""

@@ -1,4 +1,4 @@
-"""Middleware package for RAGuard AI."""
+"""Middleware package for Veritas RAG."""
 
 from .correlation import CorrelationIDMiddleware
 from .observability import ObservabilityMiddleware

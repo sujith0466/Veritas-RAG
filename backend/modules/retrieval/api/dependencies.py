@@ -44,7 +44,7 @@ def get_retrieval_repository(
 
 def get_sparse_index_manager() -> "SparseIndexManager":
     """Inject the SparseIndexManager for BM25 index operations.
-    
+
     NOTE: Does NOT take a session dependency — SparseIndexManager creates
     its own isolated sessions internally to avoid streaming concurrency issues.
     """

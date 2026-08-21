@@ -2,7 +2,7 @@
 
 ## Qdrant Configuration
 
-RAGuard AI provisions Qdrant collections dynamically per tenant upon their first document ingestion.
+Veritas RAG provisions Qdrant collections dynamically per tenant upon their first document ingestion.
 
 ### Collection Settings
 - **Name**: `raguard_<tenant_id>`

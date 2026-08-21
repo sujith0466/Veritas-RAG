@@ -1,7 +1,7 @@
 # Load Testing & Performance Validation Runbook (F15.2)
 
 **Target Audience:** Performance Engineers, QA, SRE On-Call
-**System:** RAGuard V2 Multi-Tenant AI Platform
+**System:** Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Classification:** Performance & Scalability Standard
 **Status:** PRODUCTION READY
 
@@ -9,7 +9,7 @@
 
 ## 1. Overview & Tooling
 
-RAGuard validates system throughput, concurrency limits, and database atomicity under load using **k6 OSS** against a dedicated staging environment.
+Veritas RAG validates system throughput, concurrency limits, and database atomicity under load using **k6 OSS** against a dedicated staging environment.
 
 ### Target Performance SLOs
 

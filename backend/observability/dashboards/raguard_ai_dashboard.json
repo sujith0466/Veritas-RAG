@@ -264,7 +264,7 @@
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"] },
   "timezone": "utc",
-  "title": "RAGuard AI Enterprise Observability Dashboard",
+  "title": "Veritas RAG Enterprise Observability Dashboard",
   "uid": "raguard-enterprise-obs",
   "version": 1
 }

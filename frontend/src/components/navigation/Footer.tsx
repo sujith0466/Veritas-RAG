@@ -13,7 +13,7 @@ export function Footer() {
           </p>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span>&copy; {new Date().getFullYear()} RAGuard AI. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} Veritas RAG. All rights reserved.</span>
           <span className="hidden sm:inline">|</span>
           <span className="hidden sm:inline">v{version}</span>
         </div>

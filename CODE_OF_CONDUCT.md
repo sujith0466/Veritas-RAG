@@ -2,7 +2,7 @@
 
 ## Our Pledge
 
-We are committed to making participation in the RAGuard AI project a
+We are committed to making participation in the Veritas RAG project a
 harassment-free experience for everyone, regardless of age, body size,
 disability, ethnicity, gender identity, experience level, nationality,
 personal appearance, race, religion, or sexual identity and orientation.
@@ -21,7 +21,7 @@ personal appearance, race, religion, or sexual identity and orientation.
 
 ## Enforcement
 
-Violations may be reported to conduct@raguard.ai.
+Violations may be reported to conduct@veritasrag.ai.
 Maintainers will review and take appropriate action.
 
 This Code of Conduct is adapted from the Contributor Covenant v2.1.

@@ -1,7 +1,7 @@
 # Document Ingestion Workflow Certification
 
 ## Overview
-This document certifies the end-to-end ingestion pipeline for RAGuard v1.0.1.
+This document certifies the end-to-end ingestion pipeline for Veritas RAG v1.0.1.
 
 ## Workflow Phases
 1. **Upload (`/api/v1/documents/upload`)**: Synchronous HTTP request to API. Initiates Celery task `process_document_job`.

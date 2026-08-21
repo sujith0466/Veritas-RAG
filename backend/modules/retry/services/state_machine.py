@@ -15,7 +15,7 @@ MIN_IMPROVEMENT_DELTA = 2.0
 
 
 class RetryStateMachine:
-    """Deterministic Retry State Machine for the RAGuard query lifecycle.
+    """Deterministic Retry State Machine for the Veritas RAG query lifecycle.
 
     Enforces:
     - Max 2 retries (hard cap at 3 to avoid agentic loops)

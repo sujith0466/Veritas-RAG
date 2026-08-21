@@ -1,4 +1,4 @@
-# RAGuard Backend — Security & LLM Failover Verification
+# Veritas RAG Backend — Security & LLM Failover Verification
 
 **Date:** July 21, 2026
 **Scope:** Phase A6 & A7 — Security and Provider Strategy

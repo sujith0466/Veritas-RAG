@@ -9,7 +9,7 @@
 
 ## Context
 
-RAGuard AI has 12 distinct AI modules (Query Intelligence, Hybrid Retrieval, Retrieval Reliability, Self-Correction, Reflection, Query Rewrite, Clarification, Answer Validation, Reliability Scoring, Knowledge Health, Evaluation, Analytics). A flat services/ directory would make ownership, testing, and future team assignment ambiguous as the system grows through its 22 phases.
+Veritas RAG has 12 distinct AI modules (Query Intelligence, Hybrid Retrieval, Retrieval Reliability, Self-Correction, Reflection, Query Rewrite, Clarification, Answer Validation, Reliability Scoring, Knowledge Health, Evaluation, Analytics). A flat services/ directory would make ownership, testing, and future team assignment ambiguous as the system grows through its 22 phases.
 
 ## Decision
 

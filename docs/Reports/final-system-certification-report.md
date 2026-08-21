@@ -1,7 +1,7 @@
 # Final System Certification Report (Phases 1–15)
 
 ## Production Readiness Overview
-The RAGuard platform (Phases 1 through 15) has undergone exhaustive static, functional, and integration validation. It successfully orchestrates complex RAG workflows from document ingestion down to continuous evaluation loops.
+The Veritas RAG platform (Phases 1 through 15) has undergone exhaustive static, functional, and integration validation. It successfully orchestrates complex RAG workflows from document ingestion down to continuous evaluation loops.
 
 ## Validation Gates Status
 | Validation Gate | Status | Notes |

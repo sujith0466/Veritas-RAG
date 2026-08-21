@@ -9,7 +9,7 @@
 
 ## Context
 
-RAGuard AI requires a backend web framework capable of serving a high-throughput, async AI pipeline. The framework must support async-first I/O (critical for non-blocking LLM and database calls), automatic OpenAPI documentation, strong type validation, and a robust dependency injection system. The team is proficient in Python.
+Veritas RAG requires a backend web framework capable of serving a high-throughput, async AI pipeline. The framework must support async-first I/O (critical for non-blocking LLM and database calls), automatic OpenAPI documentation, strong type validation, and a robust dependency injection system. The team is proficient in Python.
 
 ## Decision
 

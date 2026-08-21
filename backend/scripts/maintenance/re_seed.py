@@ -14,7 +14,7 @@ async def main():
     async with session_maker() as session:
         qa_email = get_settings().app.qa_email
         admin = (await session.execute(select(User).where(User.email == qa_email))).scalar_one_or_none()
-        
+
         if not admin:
             print(f"User {qa_email} not found. Please run 'make qa-bootstrap'.")
             return

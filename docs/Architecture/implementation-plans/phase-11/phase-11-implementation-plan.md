@@ -3,7 +3,7 @@
 **Phase Name:** Phase 11 — Reflection Engine
 **Target Module:** `backend/modules/reflection/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 

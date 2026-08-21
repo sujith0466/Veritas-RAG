@@ -1,4 +1,4 @@
-# RAGuard AI Secret Audit and Remediation Report
+# Veritas RAG Secret Audit and Remediation Report
 
 ## 1. Incident Summary
 GitGuardian detected a potential exposed secret in the repository, specifically in `archive/scripts/verify_e2e.py`. The detected string was `a3495afb-fdc7-4f58-8498-185c3168368f`, used as a fallback value for `SUPABASE_JWT_SECRET`. A comprehensive security audit was triggered to investigate, remediate, and verify the entire repository for exposed secrets.

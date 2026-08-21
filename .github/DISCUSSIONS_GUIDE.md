@@ -1,6 +1,6 @@
 # GitHub Discussions Guide
 
-To foster a healthy open-source community, RAGuard utilizes GitHub Discussions.
+To foster a healthy open-source community, Veritas RAG utilizes GitHub Discussions.
 
 ## Categories
 
@@ -15,9 +15,9 @@ When enabling Discussions in repository settings, configure the following catego
 4. **🙏 Q&A**
    - Questions about deployment, integration, or usage.
 5. **🛠️ Show and Tell**
-   - Share how your organization is using RAGuard in production.
+   - Share how your organization is using Veritas RAG in production.
 
 ## Best Practices for Maintainers
 - Convert complex Q&A threads that identify bugs into Issues.
 - Pin important announcements.
-- Always refer community members to the [Official Documentation](https://docs.raguard.ai).
+- Always refer community members to the [Official Documentation](https://docs.veritasrag.ai).

@@ -22,7 +22,7 @@ export function PrivacySettings() {
       const dataStr = JSON.stringify(user, null, 2)
       const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
 
-      const exportFileDefaultName = `raguard-data-export-${new Date().toISOString().slice(0, 10)}.json`
+      const exportFileDefaultName = `veritas-rag-data-export-${new Date().toISOString().slice(0, 10)}.json`
 
       const linkElement = document.createElement('a')
       linkElement.setAttribute('href', dataUri)

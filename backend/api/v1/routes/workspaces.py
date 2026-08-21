@@ -1114,4 +1114,3 @@ async def diff_workspace_branding(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while computing branding diff.",
         ) from e
-

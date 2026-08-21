@@ -1,4 +1,4 @@
-# RAGuard AI — Low-Level Architecture
+# Veritas RAG — Low-Level Architecture
 
 ## Service Layer Pattern
 

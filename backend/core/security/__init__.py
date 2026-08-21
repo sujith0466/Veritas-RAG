@@ -1,4 +1,4 @@
-"""RAGuard AI — Security core package."""
+"""Veritas RAG — Security core package."""
 
 from .audit import log_auth_event
 from .jwt import JWTService, get_jwt_service

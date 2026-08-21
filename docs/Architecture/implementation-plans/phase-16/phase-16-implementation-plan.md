@@ -3,7 +3,7 @@
 **Phase Name:** Phase 16 — AI Reliability & Governance Dashboard
 **Target Module:** `backend/modules/dashboard/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 

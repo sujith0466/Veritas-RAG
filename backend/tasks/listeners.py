@@ -166,4 +166,3 @@ def register_pipeline_listeners() -> None:
     dispatcher.subscribe(EventType.EMBEDDING_COMPLETED, handle_embedding_completed)
     dispatcher.subscribe(EventType.VECTORS_INDEXED, handle_vector_sync_completed)
     logger.info("RAG Pipeline Orchestrator event listeners registered.")
-

@@ -1,6 +1,6 @@
 # Centralized Logging Strategy
 
-RAGuard emits all logs in structured JSON format when `ENVIRONMENT=production`.
+Veritas RAG emits all logs in structured JSON format when `ENVIRONMENT=production`.
 
 ## Docker Compose Setup
 The `docker-compose.prod.yml` uses the `json-file` driver with rotation:

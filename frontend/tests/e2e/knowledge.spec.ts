@@ -21,10 +21,10 @@ const __dirname = path.dirname(__filename);
       fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
     }
     const richText = `
-RAGuard Corporate Security and Engineering Policy
+Veritas RAG Corporate Security and Engineering Policy
 
 1. Introduction
-This document outlines the standard operating procedures and guidelines for engineering and security at RAGuard. It is imperative that all employees follow these guidelines to ensure the integrity, confidentiality, and availability of our systems.
+This document outlines the standard operating procedures and guidelines for engineering and security at Veritas RAG. It is imperative that all employees follow these guidelines to ensure the integrity, confidentiality, and availability of our systems.
 
 2. Data Privacy
 All customer data must be encrypted at rest and in transit. Access to production databases is strictly limited to authorized personnel. Any data breach must be reported immediately to the security team. Personal identifiable information (PII) must be anonymized or redacted where possible.

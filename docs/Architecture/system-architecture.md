@@ -1,4 +1,4 @@
-# RAGuard AI — System Architecture
+# Veritas RAG — System Architecture
 
 ## Architectural Principles
 

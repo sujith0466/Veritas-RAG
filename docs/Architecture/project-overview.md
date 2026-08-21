@@ -1,4 +1,4 @@
-# RAGuard AI — Project Overview
+# Veritas RAG — Project Overview
 
 ## Problem Statement
 
@@ -10,7 +10,7 @@ Enterprise RAG deployments suffer from unreliable AI outputs caused by:
 
 ## Solution
 
-RAGuard AI wraps any RAG pipeline with a multi-layer reliability engine:
+Veritas RAG wraps any RAG pipeline with a multi-layer reliability engine:
 
 1. **Query Intelligence** — Normalizes, validates, and extracts intent from user queries.
 2. **Hybrid Retrieval** — Combines dense (semantic) and sparse (keyword) search with result fusion.

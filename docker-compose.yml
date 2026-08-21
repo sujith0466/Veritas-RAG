@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runtime
-    image: raguard:1.0.0
+    image: veritas-rag:1.0.0
     ports:
       - "8000:8000"
     env_file:
@@ -43,7 +43,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runtime
-    image: raguard:1.0.0
+    image: veritas-rag:1.0.0
     command: celery -A backend.tasks.celery_app worker -l info -Q ingestion,embeddings,retrieval,default
     env_file:
       - .env

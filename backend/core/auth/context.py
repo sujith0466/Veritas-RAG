@@ -55,4 +55,3 @@ class UserContext(BaseModel):
     def is_admin(self) -> bool:
         """Return True if the user has the ADMIN role."""
         return self.role == Role.ADMIN
-

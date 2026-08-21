@@ -1,4 +1,4 @@
-"""Logging package for RAGuard AI."""
+"""Logging package for Veritas RAG."""
 
 from .config import configure_logging
 from .middleware import RequestLoggingMiddleware

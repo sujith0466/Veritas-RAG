@@ -1,4 +1,4 @@
-# RAGuard AI — Environment & Secrets Management Guide
+# Veritas RAG — Infrastructure Guide
 
 **Document Version**: 1.0.0
 **Phase**: Phase 1 — Foundation & Enterprise Setup
@@ -9,7 +9,7 @@
 
 ## 1. Overview & Core Rules
 
-RAGuard AI enforces a strict **Zero-Leakage Environment Strategy**. Configuration separation between local development, staging, and production is managed via Pydantic `BaseSettings` (`backend/core/config/`) on the backend and `import.meta.env` (`vite.config.ts`) on the frontend.
+Veritas RAG enforces a strict **Zero-Leakage Environment Strategy**. Configuration separation between local development, staging, and production is managed via Pydantic `BaseSettings` (`backend/core/config/`) on the backend and `import.meta.env` (`vite.config.ts`) on the frontend.
 
 ### 1.1 Non-Negotiable Rules
 1. **Never Commit Secrets**: No actual password, API key, JWT secret, or private database connection string may ever be committed to git. `.gitignore` strictly ignores `.env`, `.env.local`, `.env.test`, `.env.development`, and `.env.production`.
@@ -54,7 +54,7 @@ When `docker compose up -d` or Uvicorn starts, configuration values are resolved
 ### 3.1 Application Identity & Server (`APP_*`, `SERVER_*`)
 | Variable Name | Default / Template Value | Purpose & Validation Rules |
 | :--- | :--- | :--- |
-| `APP_NAME` | `RAGuard AI` | Display name of the platform across logs and API docs. |
+| `APP_NAME` | `Veritas RAG` | Display name of the platform across logs and API docs. |
 | `APP_VERSION` | `1.0.0` | SemVer string reported by `GET /api/v1/health`. |
 | `APP_ENVIRONMENT` | `development` | Runtime mode: `development`, `testing`, `staging`, or `production`. |
 | `APP_DEBUG` | `True` (dev) / `False` (prod) | Enables tracebacks in responses (Must be `False` in prod). |
@@ -73,12 +73,12 @@ When `docker compose up -d` or Uvicorn starts, configuration values are resolved
 | `POSTGRES_DB` | `raguard` | Database name initialized by PostgreSQL container at volume creation. |
 | `POSTGRES_USER` | `postgres` | Superuser account initialized by PostgreSQL container. |
 | `POSTGRES_PASSWORD` | `password` | Password for `POSTGRES_USER` (`validate_env.py` checks non-empty). |
-| `REDIS_HOST` | `redis` | Hostname of Redis service (`raguard-network` internal DNS or IP). |
+| `REDIS_HOST` | `redis` | Hostname of Redis service (`veritas-rag-network` internal DNS or IP). |
 | `REDIS_PORT` | `6379` | Port binding for Redis server (`6379`). |
 | `REDIS_PASSWORD` | `""` (dev) / `secure_redis_pass` (prod)| Password required if Redis `requirepass` is enabled. |
 | `CELERY_BROKER_URL` | `redis://redis:6379/1` | Redis database `DB 1` used by Celery task broker. |
 | `CELERY_RESULT_BACKEND`| `redis://redis:6379/2` | Redis database `DB 2` used for async task result storage. |
-| `QDRANT_HOST` | `qdrant` | Hostname of Qdrant vector store (`raguard-network` internal DNS). |
+| `QDRANT_HOST` | `qdrant` | Hostname of Qdrant vector store (`veritas-rag-network` internal DNS). |
 | `QDRANT_PORT` | `6333` | REST API port for Qdrant operations and health checks. |
 | `QDRANT_GRPC_PORT` | `6334` | High-throughput gRPC port for Qdrant vector streaming. |
 | `QDRANT_API_KEY` | `""` (dev) / `qdrant_secret_key` (prod) | API key authentication for Qdrant access (`required` in staging/prod). |
@@ -112,7 +112,7 @@ When `docker compose up -d` or Uvicorn starts, configuration values are resolved
 
 ## 4. Production Secrets Management Pattern
 
-When deploying to Kubernetes or enterprise cloud environments, reading plaintext `.env` files from disk is prohibited. RAGuard AI supports **Docker Secrets** and **Kubernetes Secret Volume Mounts** out of the box:
+When deploying to Kubernetes or enterprise cloud environments, reading plaintext `.env` files from disk is prohibited. Veritas RAG supports **Docker Secrets** and **Kubernetes Secret Volume Mounts** out of the box:
 
 ### 4.1 How Secret Loading Works
 For sensitive attributes (`SUPABASE_JWT_SECRET`, `POSTGRES_PASSWORD`, `OPENROUTER_API_KEY`, `GEMINI_API_KEY`), Pydantic settings models verify whether a file path (`/run/secrets/<variable_name>`) exists before reading the environment variable directly:

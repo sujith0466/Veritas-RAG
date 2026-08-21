@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Milestone 5: Retrieval Reliability Framework
+# Veritas RAG — Phase 2 Milestone 5: Retrieval Reliability Framework
 ## Document 1: Executive Architecture
 
 **Document Version**: 1.0.0
@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-The **Phase 2 Milestone 5: Retrieval Reliability Framework** establishes the mission-critical resilience, circuit breaking, and degraded-mode fallback infrastructure that protects RAGuard AI against vector store downtime, embedding provider rate limits, cross-encoder timeouts, and zero-evidence retrieval failures.
+The **Phase 2 Milestone 5: Retrieval Reliability Framework** establishes the mission-critical resilience, circuit breaking, and degraded-mode fallback infrastructure that protects Veritas RAG against vector store downtime, embedding provider rate limits, cross-encoder timeouts, and zero-evidence retrieval failures.
 
 Operating within `backend/modules/reliability/` under strict **Domain-Oriented Modular Architecture (`ADR-005`)**, this module acts as a fault-tolerant proxy around the **Hybrid Retrieval Engine (`M4`)**. It implements stateful distributed **Circuit Breakers (`Closed | Half-Open | Open`)**, strict latency SLA budgets (`P95 <= 400ms`), automatic degraded-mode routing (`Sparse-Only / Cache fallback`), and zero-result recovery protocols to guarantee continuous system availability even during infrastructure degradation.
 
@@ -89,7 +89,7 @@ graph TD
 ## 6. Architecture Decisions (`ADR-Style Rationale`)
 
 ### ADR-M5-001: Redis-Backed Distributed Circuit Breaker State Machine
-- **Context**: RAGuard AI runs as a multi-process, horizontally scaled API container cluster. In-memory circuit breakers inside Python processes fail to coordinate state when Qdrant experiences cluster-wide latency.
+- **Context**: Veritas RAG runs as a multi-process, horizontally scaled API container cluster. In-memory circuit breakers inside Python processes fail to coordinate state when Qdrant experiences cluster-wide latency.
 - **Decision**: We will back the `RetrievalCircuitBreaker` state machine using **Redis atomic keys and sliding-window failure counters** (`tenant_id:circuit_breaker:{module}`).
 - **Rationale**: Guarantees that the moment Worker Process $A$ experiences $5$ consecutive Qdrant timeouts, Worker Process $B$ immediately transitions to `Open (Degraded)` state without waiting for its own local timeouts, preserving global cluster responsiveness.
 

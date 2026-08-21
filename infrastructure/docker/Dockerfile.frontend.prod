@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# RAGuard AI — Production Frontend Dockerfile (Dedicated Prod Build)
+# Veritas RAG — Multi-Stage Dockerfile
 
 FROM node:20-slim AS builder
 

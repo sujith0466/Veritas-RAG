@@ -1,3 +1,3 @@
-"""RAGuard AI Chunking & Document Processing Foundation (`backend/modules/chunking`)."""
+"""Veritas RAG Chunking & Document Processing Foundation (`backend/modules/chunking`)."""
 
 __all__ = []

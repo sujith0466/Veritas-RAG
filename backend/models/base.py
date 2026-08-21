@@ -1,4 +1,4 @@
-"""Abstract Base Model for all RAGuard ORM entities.
+"""Abstract Base Model for all Veritas RAG ORM entities.
 
 Provides common primary key (`id`), audit timestamps (`created_at`, `updated_at`),
 and soft-delete flag (`is_deleted`) to ensure schema uniformity.

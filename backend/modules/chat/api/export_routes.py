@@ -30,7 +30,7 @@ async def _verify_workspace_access(
     allowed_roles: tuple[str, ...] = (WorkspaceRole.OWNER.value, WorkspaceRole.ADMIN.value),
 ) -> None:
     """Verify the user is a member of the workspace with the required role.
-    
+
     Raises HTTP 403 if not permitted.
     """
     membership: WorkspaceMember | None = await member_repo.get_membership(
@@ -38,13 +38,13 @@ async def _verify_workspace_access(
         user_id=user.id,
         include_suspended=False,
     )
-    
+
     if membership is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: You are not a member of this workspace.",
         )
-    
+
     if membership.role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -63,12 +63,12 @@ async def export_chat_history(
     repo: ChatRepository = Depends(get_chat_repository_with_db),
 ):
     """Export workspace chat history as JSON or CSV.
-    
+
     Access control:
     - Only workspace OWNER or ADMIN can export.
     - MEMBER and VIEWER are denied (403).
     - Users from other workspaces are denied (403).
-    
+
     Memory safety:
     - Uses streaming to avoid loading the full dataset into memory.
     """

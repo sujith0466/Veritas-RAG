@@ -64,7 +64,7 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         self, tenant_id: str, document_id: uuid.UUID, content_hashes: list[str]
     ) -> dict[str, uuid.UUID]:
         """Find existing chunks by content hash for cross-version deduplication.
-        
+
         Returns a mapping of content_hash -> chunk_id.
         """
         if not content_hashes:

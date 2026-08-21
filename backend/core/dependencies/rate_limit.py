@@ -6,7 +6,7 @@ from backend.cache.rate_limit import RateLimiter, RateLimitExceeded
 
 def RateLimit(action: str, limit: int, window: int) -> Callable:
     """Dependency factory for rate limiting endpoints.
-    
+
     Args:
         action: The specific action to rate limit.
         limit: Max requests in the window.

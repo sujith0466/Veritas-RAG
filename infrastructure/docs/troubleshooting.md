@@ -1,4 +1,4 @@
-# RAGuard AI — Infrastructure Troubleshooting & Incident Guide
+# Veritas RAG — Infrastructure Guide
 
 **Document Version**: 1.0.0
 **Phase**: Phase 1 — Foundation & Enterprise Setup
@@ -40,7 +40,7 @@ Another local service (e.g. local PostgreSQL server, local Redis instance, or an
    Stop-Service postgresql-x64-16
    ```
 3. **Option B: Remap host ports in `.env.local`**:
-   If you must keep your local PostgreSQL running, override the host port mapping in `.env.local` without changing the internal `raguard-network` port:
+   If you must keep your local PostgreSQL running, override the host port mapping in `.env.local` without changing the internal `veritas-rag-network` port:
    ```env
    # .env.local
    SERVER_PORT=8001

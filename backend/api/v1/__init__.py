@@ -1,1 +1,1 @@
-"""RAGuard AI — API v1 package."""
+"""Veritas RAG — API v1 package."""

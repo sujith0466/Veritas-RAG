@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# RAGuard AI — Multi-Stage Backend Dockerfile
+# Veritas RAG — Multi-Stage Dockerfile
 # Stages: base -> dependencies -> dev (default target) | prod
 
 # ── Stage 1: Base Runtime Environment ──────────────────────────────────────────

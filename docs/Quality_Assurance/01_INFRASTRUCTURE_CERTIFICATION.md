@@ -6,7 +6,7 @@
 ---
 
 ## 1. Architecture Summary
-The RAGuard AI platform consists of a containerized microservices architecture orchestrated via Docker Compose:
+The Veritas RAG platform consists of a containerized microservices architecture orchestrated via Docker Compose:
 - **Frontend**: React/Vite SPA (`raguard-frontend`) serving on port 5173 (internal 80 via Nginx).
 - **Backend API**: FastAPI application (`raguard-api`) serving on port 8000.
 - **Workers**: Celery asynchronous workers (`raguard-worker`) processing background tasks.

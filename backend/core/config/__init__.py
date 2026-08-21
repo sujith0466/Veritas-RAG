@@ -1,4 +1,4 @@
-"""Unified configuration for RAGuard AI.
+"""Unified configuration for Veritas RAG.
 
 Aggregates all modular settings classes into a single Settings object.
 The settings are loaded once at startup and cached via functools.lru_cache.

@@ -1,7 +1,7 @@
 # RAG Pipeline Workflow Certification
 
 ## Overview
-This document certifies the core Retrieval-Augmented Generation (RAG) capabilities of the RAGuard v1.0.1 platform, ensuring that data retrieval and generation workflows are production-ready.
+This document certifies the core Retrieval-Augmented Generation (RAG) capabilities of the Veritas RAG v1.0.1 platform, ensuring that data retrieval and generation workflows are production-ready.
 
 ## Workflow Phases
 1. **Document Deletion (`/api/v1/documents/{doc_id}`)**: Validated clean state cleanup including all DB chunks, DB embeddings, Qdrant vectors, and document metadata.

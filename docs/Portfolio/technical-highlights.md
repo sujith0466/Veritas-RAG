@@ -1,4 +1,4 @@
-# RAGuard AI — Technical Highlights
+# Veritas RAG — Technical Highlights
 
 ## 1. Clean Architecture & DDD
 
@@ -11,7 +11,7 @@ Provider interfaces ensure zero coupling to specific LLM vendors.
 
 ## 2. Hybrid Retrieval with RRF
 
-RAGuard combines Qdrant dense vector search with BM25 sparse retrieval,
+Veritas RAG combines Qdrant dense vector search with BM25 sparse retrieval,
 merging results via Reciprocal Rank Fusion (RRF). Deduplication engine
 removes semantically equivalent chunks using cosine similarity thresholds.
 

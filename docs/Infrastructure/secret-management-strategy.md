@@ -1,7 +1,7 @@
 # Secret Management Strategy
 
 ## Policy
-RAGuard AI adheres to the principle of Zero Trust for secrets.
+Veritas RAG adheres to the principle of Zero Trust for secrets.
 No secrets, credentials, or API keys shall be stored in version control.
 
 ## Supported Providers

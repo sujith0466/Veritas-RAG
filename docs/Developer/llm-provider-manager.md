@@ -1,4 +1,4 @@
-# RAGuard AI — LLM Provider Manager
+# Veritas RAG — LLM Provider Manager
 
 **Version:** 1.0.0 — Production Baseline
 **Module:** `backend/ai/`
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The LLM Provider Manager is a production-grade reliability layer that ensures RAGuard AI **never relies on a single language model provider**. It implements automatic failover across multiple providers and, within each provider, across multiple models.
+The LLM Provider Manager is a production-grade reliability layer that ensures Veritas RAG **never relies on a single language model provider**. It implements automatic failover across multiple providers and, within each provider, across multiple models.
 
 The architecture is designed for extensibility — adding a new provider requires zero changes to the business logic layer.
 

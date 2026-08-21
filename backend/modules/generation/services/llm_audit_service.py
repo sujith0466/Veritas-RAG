@@ -82,4 +82,3 @@ class LLMAuditService:
             import structlog
             logger = structlog.get_logger(__name__)
             logger.error("Failed to persist LLM audit telemetry", error=str(e), correlation_id=correlation_id)
-

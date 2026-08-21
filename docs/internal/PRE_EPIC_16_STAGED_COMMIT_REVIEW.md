@@ -1,6 +1,6 @@
 # PRE-EPIC-16 STAGED COMMIT-BOUNDARY & REPOSITORY REVIEW
 
-**Program**: RAGuard V2 Multi-Tenant Enterprise AI Platform
+**Program**: Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Epic Scope**: Pre-Epic-16 Staged Commit Verification & Final Approval Gate
 **Date**: 2026-08-21
 **Status**: 🟢 STAGED & READY FOR HUMAN COMMIT / PUSH APPROVAL

@@ -1,6 +1,6 @@
-# RAGuard V2 Redis Architecture
+# Veritas RAG Redis Architecture
 
-This document formalizes the caching, messaging, and locking architecture for RAGuard Version 2.
+This document formalizes the caching, messaging, and locking architecture for Veritas RAG Version 2.
 
 ## 1. Redis Database Usage Policy
 

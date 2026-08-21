@@ -1,4 +1,4 @@
-# RAGuard AI — High-Level Architecture
+# Veritas RAG — High-Level Architecture
 
 ## Component Diagram
 

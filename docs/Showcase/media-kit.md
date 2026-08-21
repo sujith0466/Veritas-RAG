@@ -2,8 +2,8 @@
 
 ## Descriptions
 - **Short (50 chars)**: Enterprise RAG Reliability Platform.
-- **Medium (150 chars)**: RAGuard AI ensures enterprise LLM deployments are grounded, validated, and secure by wrapping RAG pipelines with a robust reliability engine.
-- **Long**: RAGuard AI is an enterprise-grade Reliability, Validation, and Governance platform for Retrieval-Augmented Generation (RAG) systems. It detects insufficient context, identifies conflicting evidence, rewrites ambiguous queries, and validates generated answers before they reach end-users.
+- **Medium (150 chars)**: Veritas RAG ensures enterprise LLM deployments are grounded, validated, and secure by wrapping RAG pipelines with a robust reliability engine.
+- **Long**: Veritas RAG is an enterprise-grade Reliability, Validation, and Governance platform for Retrieval-Augmented Generation (RAG) systems. It detects insufficient context, identifies conflicting evidence, rewrites ambiguous queries, and validates generated answers before they reach end-users.
 
 ## Logo Usage
 *(Logo assets will be stored in `docs/Assets/logo/`)*

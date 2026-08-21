@@ -1,4 +1,4 @@
-# RAGuard AI — Feature Matrix
+# Veritas RAG — Feature Matrix
 
 | Feature | Category | Phase | Status |
 |---------|----------|-------|--------|

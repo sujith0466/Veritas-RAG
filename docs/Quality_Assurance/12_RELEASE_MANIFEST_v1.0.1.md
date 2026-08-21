@@ -1,4 +1,4 @@
-# Release Manifest: RAGuard AI (v1.0.1)
+# Release Manifest: Veritas RAG (v1.0.1)
 
 ## 1. Release Overview
 - **Release Version**: v1.0.1 (Production Baseline)

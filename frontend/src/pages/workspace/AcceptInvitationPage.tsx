@@ -75,7 +75,7 @@ export const AcceptInvitationPage: React.FC = () => {
           Workspace Invitation
         </h1>
         <p className="text-sm text-center text-slate-400 mt-2">
-          Join your team securely on RAGuard Enterprise AI
+          Join your team securely on Veritas RAG
         </p>
 
         {loading && (

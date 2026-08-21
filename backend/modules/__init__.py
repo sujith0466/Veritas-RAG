@@ -1,1 +1,1 @@
-"""RAGuard AI — Domain-Oriented Business Modules."""
+"""Veritas RAG — Domain-Oriented Business Modules."""

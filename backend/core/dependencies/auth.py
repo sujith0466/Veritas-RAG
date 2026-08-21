@@ -22,7 +22,7 @@ async def get_optional_user(
     request: Request,
 ) -> UserContext | None:
     """Retrieve the UserContext injected by the JWTAuthenticationMiddleware.
-    
+
     Returns:
         UserContext if a valid token is provided, else None for anonymous requests.
     """

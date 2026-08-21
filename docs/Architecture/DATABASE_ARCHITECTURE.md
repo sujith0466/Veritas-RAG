@@ -1,6 +1,6 @@
 # PostgreSQL Database Architecture
 
-This document describes the foundational persistence architecture for RAGuard AI Version 2, focusing on the connection lifecycle, multi-tenant isolation, and conventions.
+This document describes the foundational persistence architecture for Veritas RAG Version 2, focusing on the connection lifecycle, multi-tenant isolation, and conventions.
 
 ## Architecture Overview
 
@@ -28,7 +28,7 @@ flowchart TD
 
 ## Engine Lifecycle
 
-RAGuard AI utilizes SQLAlchemy 2.x `AsyncEngine` to interact with PostgreSQL.
+Veritas RAG utilizes SQLAlchemy 2.x `AsyncEngine` to interact with PostgreSQL.
 The engine lifecycle is strictly isolated per asyncio event loop to ensure thread safety across concurrent requests in FastAPI and Celery.
 
 - **FastAPI Applications:** Engines are instantiated using the parameters specified in the `.env` (e.g., `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`).
@@ -63,11 +63,11 @@ Because `SET LOCAL` is transaction-scoped, it automatically expires upon session
 
 - **Database:** The database always remains in `UTC`.
 - **API Boundaries:** The API layer always receives and returns ISO 8601 strings in `UTC`.
-- **Application Logic:** Any required timezone conversions (for analytics or reporting) must occur exclusively in memory or at the UI layer. 
+- **Application Logic:** Any required timezone conversions (for analytics or reporting) must occur exclusively in memory or at the UI layer.
 
 ## Connection Resilience
 
-RAGuard employs an exponential backoff retry strategy for database connections.
+Veritas RAG employs an exponential backoff retry strategy for database connections.
 - **Startup:** The `/health/startup` probe will refuse to pass until `check_db_health()` verifies connectivity.
 - **Runtime:** Dropped connections within the pool will trigger standard SQLAlchemy `pool_pre_ping` verifications. Invalidated connections are pruned transparently before query execution.
 

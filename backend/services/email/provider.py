@@ -51,7 +51,7 @@ class SMTPEmailProvider(EmailProvider):
 
     async def _send_email(self, to_email: EmailStr, subject: str, body: str) -> bool:
         from backend.tasks.emails import send_email_task
-        
+
         try:
             logger.info("Enqueueing email task", recipient=to_email, subject=subject)
             # Enqueue the Celery task

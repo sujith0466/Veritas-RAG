@@ -1,6 +1,6 @@
-# RAGuard AI Enterprise Documentation Master Index
+# Veritas RAG Enterprise Documentation Master Index
 
-Welcome to the comprehensive documentation index for RAGuard AI V2.
+Welcome to the comprehensive documentation index for Veritas RAG V2.
 
 ---
 

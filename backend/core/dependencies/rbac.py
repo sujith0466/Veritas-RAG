@@ -19,7 +19,7 @@ def require_permission(
     *permissions: Permission | str,
 ) -> Callable[..., Coroutine[Any, Any, UserContext]]:
     """Return a dependency requiring the user to possess at least one of the specified permissions.
-    
+
     Evaluates role permissions using the central PermissionRegistry with O(1) in-memory lookups.
     """
     async def _permission_guard(

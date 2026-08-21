@@ -136,7 +136,7 @@ export function AppBootstrap() {
 
           <div className="relative z-10 flex flex-col items-center w-full max-w-sm px-6">
             {/* Wordmark */}
-            <h1 className="text-3xl font-semibold tracking-tight mb-2">RAGuard AI</h1>
+            <h1 className="text-3xl font-semibold tracking-tight mb-2">Veritas RAG</h1>
 
             {/* Single supporting line */}
             <motion.p

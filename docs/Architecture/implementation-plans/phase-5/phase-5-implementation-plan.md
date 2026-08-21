@@ -1,5 +1,5 @@
 # phase-5-implementation-plan.md
-# RAGuard AI — Phase 5: Hybrid Retrieval Engine (Production Grade)
+# Veritas RAG — Phase 5: Hybrid Retrieval Engine (Production Grade)
 
 **Version**: 1.0.0
 **Date**: 2026-07-20
@@ -11,7 +11,7 @@
 
 ## 1. Executive Summary
 
-Phase 5 delivers the **production-grade Hybrid Retrieval Engine** for RAGuard AI. While Phase 2 introduced the foundational `RetrievalOrchestrator` skeleton with Dense + Sparse + RRF + Cross-Encoder capabilities, Phase 5 hardens these components to enterprise production standards: configurable metadata filtering, context compression, deterministic duplicate removal, query-time tenant isolation, and comprehensive audit logging.
+Phase 5 delivers the **production-grade Hybrid Retrieval Engine** for Veritas RAG. While Phase 2 introduced the foundational `RetrievalOrchestrator` skeleton with Dense + Sparse + RRF + Cross-Encoder capabilities, Phase 5 hardens these components to enterprise production standards: configurable metadata filtering, context compression, deterministic duplicate removal, query-time tenant isolation, and comprehensive audit logging.
 
 The Phase 5 retrieval pipeline becomes the **canonical data contract boundary** between the ingestion layer (Phases 1–4) and the downstream Retrieval Reliability (Phase 6), Retry Controller (Phase 7), Query Rewrite (Phase 8), Clarification (Phase 9), and Grounded Answer Generation (Phase 10) layers.
 
@@ -99,7 +99,7 @@ The Phase 5 retrieval pipeline becomes the **canonical data contract boundary** 
 
 ## 8. Solution Overview Alignment
 
-Phase 5 maps to the **Evidence Retrieval Layer** of the RAGuard AI Solution Overview. The phase ensures the retrieval tier operates as a closed, testable, independently deployable subsystem that can be replaced (per ADR-006) without affecting upstream or downstream modules.
+Phase 5 maps to the **Evidence Retrieval Layer** of the Veritas RAG Solution Overview. The phase ensures the retrieval tier operates as a closed, testable, independently deployable subsystem that can be replaced (per ADR-006) without affecting upstream or downstream modules.
 
 ---
 

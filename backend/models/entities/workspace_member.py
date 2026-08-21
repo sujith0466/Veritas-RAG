@@ -65,4 +65,3 @@ class WorkspaceMember(BaseModel):
     workspace = relationship("Workspace", backref="members", lazy="selectin")
     user = relationship("User", foreign_keys=[user_id], lazy="selectin")
     invited_by = relationship("User", foreign_keys=[invited_by_user_id], lazy="selectin")
-

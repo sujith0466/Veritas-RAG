@@ -26,7 +26,7 @@ async def seed_data():
         if not admin_user:
             logger.error(f"Admin user not found. Please run 'make qa-bootstrap' to provision {qa_email} first.")
             return
-            
+
         # Fetch primary workspace for user
         ws_stmt = select(Workspace).join(WorkspaceMember).where(WorkspaceMember.user_id == admin_user.id).limit(1)
         ws_result = await session.execute(ws_stmt)
@@ -38,10 +38,10 @@ async def seed_data():
 
         tenant_id = str(workspace.id)
         owner_id = str(admin_user.id)
-        
+
     # The run_seed_for_tenant function creates its own session and handles duplicates
     await run_seed_for_tenant(tenant_id, owner_id)
-    
+
     logger.info("Successfully completed enterprise data seed process")
 
 if __name__ == "__main__":

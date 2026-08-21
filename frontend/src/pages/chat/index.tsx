@@ -351,7 +351,7 @@ export function AIChatPage() {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-medium text-foreground">How can I help you today?</h3>
-              <p className="text-muted-foreground text-sm">RAGuard AI is connected to your enterprise knowledge base. You can ask questions about policies, procedures, and internal documentation.</p>
+              <p className="text-muted-foreground text-sm">Veritas RAG is connected to your enterprise knowledge base. You can ask questions about policies, procedures, and internal documentation.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
@@ -395,7 +395,7 @@ export function AIChatPage() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message RAGuard AI..."
+              placeholder="Message Veritas RAG..."
               className="w-full resize-none bg-transparent py-4 pl-4 pr-12 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[56px]"
               rows={1}
             />

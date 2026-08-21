@@ -411,7 +411,7 @@ class QueryAnalyticsService:
         outcome = "SUCCESS"
         final_answer = (
             f"Based on the retrieved knowledge chunks using {request_dto.retrieval_strategy} strategy, "
-            f"RAGuard AI confirmed high context alignment and generated a verified response for: '{request_dto.query_text}'."
+            f"Veritas RAG confirmed high context alignment and generated a verified response for: '{request_dto.query_text}'."
         )
         retry_attempts = 0
         total_duration_ms = (

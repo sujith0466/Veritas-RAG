@@ -2,9 +2,9 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: postgres-backup
-  namespace: raguard-production
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: database
     app.kubernetes.io/instance: cronjob-backup
     app.kubernetes.io/version: "1.0.0"
@@ -24,7 +24,7 @@ spec:
             - name: PGPASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: raguard-secrets
+                  name: veritas-rag-secrets
                   key: POSTGRES_PASSWORD
             command:
             - /bin/sh
@@ -43,9 +43,9 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: minio-backup
-  namespace: raguard-production
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: storage
     app.kubernetes.io/instance: cronjob-minio-backup
     app.kubernetes.io/version: "1.0.0"
@@ -65,7 +65,7 @@ spec:
             - name: MINIO_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: raguard-secrets
+                  name: veritas-rag-secrets
                   key: MINIO_ROOT_PASSWORD
             command:
             - /bin/sh
@@ -77,9 +77,9 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: qdrant-snapshot
-  namespace: raguard-production
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: vector-db
     app.kubernetes.io/instance: cronjob-qdrant-snapshot
     app.kubernetes.io/version: "1.0.0"

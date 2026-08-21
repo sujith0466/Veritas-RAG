@@ -1,4 +1,4 @@
-# Contributing to RAGuard AI
+# Contributing to Veritas RAG
 
 Thank you for your interest in contributing!
 

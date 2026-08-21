@@ -9,7 +9,7 @@
 
 ## Data Loss Prevention (DLP)
 
-RAGuard intercepts all user prompts before they reach LLM providers.
+Veritas RAG intercepts all user prompts before they reach LLM providers.
 The `DLPEngine` redacts:
 - Email addresses
 - Social Security Numbers (SSN)

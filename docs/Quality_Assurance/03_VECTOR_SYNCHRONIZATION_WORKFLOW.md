@@ -1,7 +1,7 @@
 # Vector Synchronization Workflow Certification
 
 ## Overview
-This document certifies the Vector Synchronization step, specifically the transfer of vector embeddings from PostgreSQL (`chunk_embeddings`) to Qdrant vector database in RAGuard v1.0.1.
+This document certifies the Vector Synchronization step, specifically the transfer of vector embeddings from PostgreSQL (`chunk_embeddings`) to Qdrant vector database in Veritas RAG v1.0.1.
 
 ## Workflow Phases
 1. **Trigger**: Triggered automatically at the end of the `EMBEDDING` phase.

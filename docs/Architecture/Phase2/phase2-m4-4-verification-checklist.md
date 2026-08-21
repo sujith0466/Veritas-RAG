@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Milestone 4: Hybrid Retrieval Engine
+# Veritas RAG — Phase 2 Milestone 4: Hybrid Retrieval Engine
 ## Document 4: Verification & Freeze Checklist
 
 **Document Version**: 1.0.0

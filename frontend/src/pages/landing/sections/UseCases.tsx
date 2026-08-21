@@ -8,7 +8,7 @@ const PERSONAS = [
   {
     title: 'AI Engineers',
     icon: Terminal,
-    description: 'Focus on building great models, not debugging retrieval pipelines. RAGuard provides instant visibility into chunk quality, embedding drift, and hallucination rates.'
+    description: 'Focus on building great models, not debugging retrieval pipelines. Veritas RAG provides instant visibility into chunk quality, embedding drift, and hallucination rates.'
   },
   {
     title: 'Platform Teams',

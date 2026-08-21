@@ -35,7 +35,7 @@ export function LogoutConfirmDialog({ open, onOpenChange }: LogoutConfirmDialogP
         <DialogHeader>
           <DialogTitle>Sign Out</DialogTitle>
           <DialogDescription>
-            Are you sure you want to sign out of RAGuard AI? You will need to re-authenticate to access the platform.
+            Are you sure you want to sign out of Veritas RAG? You will need to re-authenticate to access the platform.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

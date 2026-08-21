@@ -29,11 +29,11 @@ class WorkspaceWebhookService:
         parsed = urlparse(url)
         if parsed.scheme != "https":
             raise WebhookValidationException("Webhook URL must use HTTPS.")
-        
+
         hostname = parsed.hostname
         if not hostname:
             raise WebhookValidationException("Invalid hostname in URL.")
-            
+
         try:
             # Resolve all IPs for the hostname
             addr_info = socket.getaddrinfo(hostname, 443, socket.AF_INET, socket.SOCK_STREAM)
@@ -46,7 +46,7 @@ class WorkspaceWebhookService:
                 ip_obj = ipaddress.ip_address(ip_str)
             except ValueError:
                 continue
-            
+
             # Block specific cloud metadata IPs manually just in case
             if str(ip_obj) == "169.254.169.254":
                 raise WebhookValidationException("Cloud metadata endpoint access is strictly prohibited.")
@@ -59,7 +59,7 @@ class WorkspaceWebhookService:
         """Creates a webhook and returns (Webhook, plaintext_secret)."""
         url_str = str(data.endpoint_url)
         await self._resolve_and_validate_url(url_str)
-        
+
         raw_secret = secrets.token_urlsafe(32)
         # In a real system, this should be symmetrically encrypted via KMS.
         # Storing plaintext here so the delivery worker can sign payloads.
@@ -75,7 +75,7 @@ class WorkspaceWebhookService:
         self.session.add(webhook)
         await self.session.commit()
         await self.session.refresh(webhook)
-        
+
         return webhook, raw_secret
 
     async def get_webhooks(self, tenant_id: uuid.UUID) -> list[WorkspaceWebhook]:
@@ -96,18 +96,18 @@ class WorkspaceWebhookService:
         webhook = result.scalars().first()
         if not webhook:
             raise WebhookNotFoundException("Webhook not found.")
-            
+
         if data.endpoint_url is not None:
             url_str = str(data.endpoint_url)
             await self._resolve_and_validate_url(url_str)
             webhook.endpoint_url = url_str
-            
+
         if data.events is not None:
             webhook.events = data.events
-            
+
         if data.is_active is not None:
             webhook.is_active = data.is_active
-            
+
         await self.session.commit()
         await self.session.refresh(webhook)
         return webhook
@@ -122,6 +122,6 @@ class WorkspaceWebhookService:
         webhook = result.scalars().first()
         if not webhook:
             raise WebhookNotFoundException("Webhook not found.")
-            
+
         webhook.is_deleted = True
         await self.session.commit()

@@ -1,4 +1,4 @@
-# RAGuard AI — Developer Onboarding & One-Command Setup Guide
+# Veritas RAG — Developer Onboarding & One-Command Setup Guide
 
 **Document Version**: 1.0.0
 **Phase**: Phase 1 — Foundation & Enterprise Setup
@@ -7,9 +7,9 @@
 
 ---
 
-## 1. Welcome to RAGuard AI!
+## 1. Welcome to Veritas RAG!
 
-RAGuard AI is built on a strict **Developer Experience Contract**: any new engineer joining the team must be able to clone the repository, run **one single command**, and have the entire enterprise stack (`backend`, `frontend`, `postgres`, `redis`, `qdrant`, `celery-worker`) fully compiled, healthy, migrated, and ready for code changes within 5 minutes.
+Veritas RAG is built on a strict **Developer Experience Contract**: any new engineer joining the team must be able to clone the repository, run **one single command**, and have the entire enterprise stack (`backend`, `frontend`, `postgres`, `redis`, `qdrant`, `celery-worker`) fully compiled, healthy, migrated, and ready for code changes within 5 minutes.
 
 No manual database installation. No manual Redis setup. No undocumented environment configurations.
 
@@ -31,7 +31,7 @@ Before executing the one-command setup, verify your workstation has the followin
 
 ## 3. The One-Command Setup Contract
 
-Open your terminal (PowerShell on Windows, or Bash/Zsh on macOS/Linux), navigate to the root of the cloned repository (`d:\RAGuard`), and execute your platform's single onboarding command:
+Open your terminal (PowerShell on Windows, or Bash/Zsh on macOS/Linux), navigate to the root of the cloned repository (`d:\Veritas RAG`), and execute your platform's single onboarding command:
 
 ### On Windows (PowerShell)
 ```powershell
@@ -69,7 +69,7 @@ Once `bootstrap` completes, your local ecosystem is live at these canonical endp
 | **FastAPI Backend API** | `http://localhost:8000` | Uvicorn server with `--reload` enabled (`/docs` for Swagger UI). |
 | **API Liveness Probe** | `http://localhost:8000/api/v1/health/live` | Tier 1 instant liveness probe. |
 | **API Readiness Probe** | `http://localhost:8000/api/v1/health/ready`| Tier 2 readiness check verifying database/cache connectivity. |
-| **pgAdmin 4 GUI** *(Optional)* | `http://localhost:5050` | Visual PostgreSQL explorer (Email: `admin@raguard.ai`, Pass: `admin`). |
+| **pgAdmin 4 GUI** *(Optional)* | `http://localhost:5050` | Visual PostgreSQL explorer (Email: `admin@veritasrag.ai`, Pass: `admin`). |
 | **Redis Commander GUI** *(Optional)*| `http://localhost:8081` | Visual cache and Celery task queue explorer. |
 
 ---

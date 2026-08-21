@@ -2,9 +2,9 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: raguard-ingress
-  namespace: raguard-production
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: networking
     app.kubernetes.io/instance: ingress-1
     app.kubernetes.io/version: "1.0.0"
@@ -25,6 +25,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: raguard-api
+            name: veritas-rag-api
             port:
               number: 80

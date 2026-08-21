@@ -29,4 +29,3 @@ class QdrantSettings(BaseSettings):
 
     def collection_name(self, dimension: int) -> str:
         return f"{self.collection_prefix}_knowledge_{dimension}"
-

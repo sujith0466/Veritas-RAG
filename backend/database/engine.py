@@ -133,7 +133,7 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def check_db_health() -> bool:
     """Check database connectivity by executing SELECT 1.
-    
+
     If PgBouncer is enabled, this checks both the PgBouncer route and the raw PostgreSQL route (if configured differently).
     """
     settings = get_settings().database
@@ -169,4 +169,3 @@ async def close_db() -> None:
         await _state.fallback_engine.dispose()
         _state.fallback_engine = None
         _state.fallback_sessionmaker = None
-

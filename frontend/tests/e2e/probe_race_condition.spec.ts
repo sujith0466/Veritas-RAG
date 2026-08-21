@@ -161,7 +161,7 @@ test("RC_PROBE v3: Race condition with existing session precondition", async ({ 
   await injectProbe(page);
   console.log("[+" + (Date.now() - t0) + "ms] PROBE INJECTED");
 
-  const question = "What are the core capabilities of RAGuard?";
+  const question = "What are the core capabilities of Veritas RAG?";
   const input = page.locator("textarea").first();
   await expect(input).toBeVisible({ timeout: 10000 });
   await input.click();

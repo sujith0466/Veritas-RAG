@@ -1,7 +1,7 @@
 # Solution Overview
 
 ## Introduction
-RAGuard AI is an Enterprise Self-Correcting RAG Reliability Platform designed to add robustness, explainability, and self-correction to existing Retrieval-Augmented Generation pipelines.
+Veritas RAG is an Enterprise Self-Correcting RAG Reliability Platform designed to add robustness, explainability, and self-correction to existing Retrieval-Augmented Generation pipelines.
 
 ## Proposed Solution
 The platform intercepts queries and retrieved context, analyzing them for conflicts, irrelevance, and coverage gaps. If the context is deemed insufficient or contradictory, the system triggers a self-correction workflow (including query rewriting and additional retrieval). Once adequate context is acquired, it validates the generated response against the context and assigns a deterministic reliability score.

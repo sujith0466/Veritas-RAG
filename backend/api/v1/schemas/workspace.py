@@ -132,4 +132,3 @@ class WorkspaceResponse(BaseModel):
     success: bool
     data: WorkspaceDataResponse
 
-

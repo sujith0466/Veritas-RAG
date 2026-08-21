@@ -1,5 +1,5 @@
 # phase-7-implementation-plan.md
-# RAGuard AI — Phase 7: Retry Controller (Production Grade)
+# Veritas RAG — Phase 7: Retry Controller (Production Grade)
 
 **Version**: 1.0.0
 **Date**: 2026-07-20

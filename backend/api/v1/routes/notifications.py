@@ -25,7 +25,7 @@ async def get_user_from_token(token: str, session: AsyncSession) -> Optional[Use
         user_id = payload.sub
         if not user_id:
             return None
-        
+
         stmt = select(User).where(User.id == user_id, User.is_active == True)
         result = await session.execute(stmt)
         return result.scalars().first()
@@ -41,7 +41,7 @@ async def websocket_notifications(
     WebSocket endpoint for real-time in-app notifications via Redis Pub/Sub.
     """
     await websocket.accept()
-    
+
     # 1. Authenticate the WebSocket connection
     async for session in get_db():
         user = await get_user_from_token(token, session)
@@ -49,14 +49,14 @@ async def websocket_notifications(
     if not user or not user.tenant_id:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token or missing tenant")
         return
-        
+
     tenant_id = str(user.tenant_id)
-    
+
     # 2. Connect to Redis Pub/Sub for the user's specific workspace
     settings = get_settings()
     redis_client = redis.from_url(settings.redis.redis_url)
     pubsub = redis_client.pubsub()
-    
+
     channel_name = f"workspace:{tenant_id}:notifications"
     await pubsub.subscribe(channel_name)
     logger.info(f"WebSocket connected and subscribed to {channel_name} for user {user.id}")
@@ -69,7 +69,7 @@ async def websocket_notifications(
             if message and message["type"] == "message":
                 data = message["data"].decode("utf-8")
                 await websocket.send_text(data)
-                
+
             # Also occasionally check if the client closed the connection
             # by attempting to receive (we expect ping/pong or just wait)
             # Actually, `receive` would block forever if no message comes from client.
@@ -83,7 +83,7 @@ async def websocket_notifications(
                 pass # Normal, no message from client
             except WebSocketDisconnect:
                 break # Client disconnected
-                
+
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for user {user.id}")
     except Exception as e:

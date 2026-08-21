@@ -1,5 +1,5 @@
 /**
- * RAGuard AI — Centralized Motion System
+ * Veritas RAG — Centralized Motion System
  *
  * All Framer Motion configurations in one place.
  * Components import from here — never define inline variants.

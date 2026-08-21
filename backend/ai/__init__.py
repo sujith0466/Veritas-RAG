@@ -1,4 +1,4 @@
-"""RAGuard AI — AI provider interfaces, registry, manager, and factory (`backend/ai/`)."""
+"""Veritas RAG — AI provider interfaces, registry, manager, and factory (`backend/ai/`)."""
 
 from .factory import create_llm_provider
 from .interfaces.llm_provider import LLMProvider, LLMRequest, LLMResponse

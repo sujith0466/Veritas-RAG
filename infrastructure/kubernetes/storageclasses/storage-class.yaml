@@ -3,7 +3,7 @@ kind: StorageClass
 metadata:
   name: raguard-fast-storage
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: storage
     app.kubernetes.io/instance: sc-1
     app.kubernetes.io/version: "1.0.0"

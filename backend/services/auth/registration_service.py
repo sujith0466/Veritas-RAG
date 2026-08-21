@@ -26,10 +26,10 @@ class RegistrationService:
 
     async def register_user(self, request: RegistrationRequest) -> None:
         """Register a new user.
-        
+
         Args:
             request: Registration request containing email, password, etc.
-            
+
         Note:
             This method absorbs email enumeration attempts by returning silently
             if a user already exists.

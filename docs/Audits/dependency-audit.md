@@ -1,4 +1,4 @@
-# RAGuard Backend — Dependency Audit Report
+# Veritas RAG Backend — Dependency Audit Report
 
 **Date:** July 21, 2026
 **Scope:** Phase A9 — Dependency Verification

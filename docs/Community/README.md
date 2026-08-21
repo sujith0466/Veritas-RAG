@@ -1,4 +1,4 @@
-# RAGuard Community Resources
+# Veritas RAG Community Resources
 
 This directory contains resources for community engagement.
 - [Code of Conduct](../../code-of-conduct.md)

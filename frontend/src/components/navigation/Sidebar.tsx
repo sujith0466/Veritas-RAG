@@ -128,7 +128,7 @@ export function Sidebar() {
                 className="overflow-hidden min-w-0"
               >
                 <div className="font-bold text-sm text-foreground whitespace-nowrap tracking-tight">
-                  RAGuard AI
+                  Veritas RAG
                 </div>
               </motion.div>
             )}

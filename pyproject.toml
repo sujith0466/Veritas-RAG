@@ -3,9 +3,9 @@ requires = ["setuptools>=70", "wheel"]
 build-backend = "setuptools.backends.legacy:build"
 
 [project]
-name = "raguard-ai"
+name = "veritas-rag"
 version = "1.0.0"
-description = "Enterprise Self-Correcting RAG Reliability Platform"
+description = "Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation"
 requires-python = ">=3.13"
 readme = "README.md"
 

@@ -3,21 +3,21 @@ kind: Namespace
 metadata:
   name: raguard-dev
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/managed-by: manual
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: raguard-staging
+  name: veritas-rag-staging
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/managed-by: manual
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: raguard-production
+  name: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/managed-by: manual

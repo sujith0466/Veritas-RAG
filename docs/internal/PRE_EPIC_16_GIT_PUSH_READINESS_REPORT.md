@@ -1,6 +1,6 @@
 # PRE-EPIC-16 REPOSITORY HYGIENE, SECRET SCAN & GIT PUSH-READINESS REPORT
 
-**Program**: RAGuard V2 Multi-Tenant Enterprise AI Platform
+**Program**: Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Epic Scope**: Pre-Epic-16 Transition & Repository Hygiene Audit
 **Date**: 2026-08-21
 **Status**: ✅ REPOSITORY AUDITED & CERTIFIED FOR HUMAN COMMIT/PUSH APPROVAL
@@ -12,7 +12,7 @@
 
 - **Branch**: `main` (Up to date with `origin/main`)
 - **Current HEAD**: `5cd38c4 feat(epic-14): complete observability and production monitoring`
-- **Target Repository**: `d:\RAGuard`
+- **Target Repository**: `d:\Veritas RAG`
 - **Environment**: Isolated Local Development & Staging Container Runtime
 - **Safety Precondition**: Zero production credentials, zero live production clusters, and zero external cloud production services accessed during audit.
 

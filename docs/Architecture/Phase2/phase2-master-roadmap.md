@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Master Implementation Roadmap
+# Veritas RAG — Phase 2 Master Implementation Roadmap
 ## Knowledge Layer & Retrieval Foundation (Milestones 1 through 6)
 
 **Document Version**: 1.0.0
@@ -59,7 +59,7 @@ graph TD
 
 ```mermaid
 gantt
-    title RAGuard AI — Phase 2 Master Implementation Roadmap
+    title Veritas RAG — Phase 2 Master Implementation Roadmap
     dateFormat  YYYY-MM-DD
     section Phase 1 Baseline
     M1: Chunking & Processing Foundation  :done, m1, 2026-07-01, 15d

@@ -7,20 +7,20 @@ import { Stagger } from '@/components/motion/Stagger'
 
 const FAQS = [
   {
-    question: 'What is RAGuard AI?',
-    answer: 'RAGuard AI is an enterprise-grade platform that secures, monitors, and optimizes Retrieval-Augmented Generation (RAG) pipelines. It provides the infrastructure needed to build hallucination-resistant, fully explainable AI applications grounded in your private knowledge.'
+    question: 'What is Veritas RAG?',
+    answer: 'Veritas RAG is an enterprise-grade platform that secures, monitors, and optimizes Retrieval-Augmented Generation (RAG) pipelines. It provides the infrastructure needed to build hallucination-resistant, fully explainable AI applications grounded in your private knowledge.'
   },
   {
     question: 'How is it different from traditional RAG?',
-    answer: 'While traditional RAG simply retrieves documents and passes them to an LLM, RAGuard AI introduces a Reflection Engine, Hybrid Search, and strict Role-Based Access Control. It actively evaluates retrieval quality, detects hallucinations before generation, and guarantees that users only see data they are authorized to access.'
+    answer: 'While traditional RAG simply retrieves documents and passes them to an LLM, Veritas RAG introduces a Reflection Engine, Hybrid Search, and strict Role-Based Access Control. It actively evaluates retrieval quality, detects hallucinations before generation, and guarantees that users only see data they are authorized to access.'
   },
   {
     question: 'Which LLMs are supported?',
-    answer: 'RAGuard AI is model-agnostic. Our headless architecture integrates seamlessly with OpenAI, Anthropic, Google Gemini, Azure OpenAI, and open-source models hosted on platforms like vLLM or Ollama.'
+    answer: 'Veritas RAG is model-agnostic. Our headless architecture integrates seamlessly with OpenAI, Anthropic, Google Gemini, Azure OpenAI, and open-source models hosted on platforms like vLLM or Ollama.'
   },
   {
     question: 'Can it be deployed on-premises?',
-    answer: 'Yes. RAGuard AI is built using containerized microservices and can be deployed fully on-premises, in your private VPC, or consumed as a managed cloud service depending on your compliance requirements.'
+    answer: 'Yes. Veritas RAG is built using containerized microservices and can be deployed fully on-premises, in your private VPC, or consumed as a managed cloud service depending on your compliance requirements.'
   },
   {
     question: 'How does reliability scoring work?',
@@ -28,7 +28,7 @@ const FAQS = [
   },
   {
     question: 'Is it suitable for enterprise environments?',
-    answer: 'Absolutely. We designed RAGuard AI specifically for enterprise scale and governance. It features SOC2-compliant architecture, comprehensive audit logs, strict tenant isolation, and granular RBAC to meet the demands of Fortune 500 security teams.'
+    answer: 'Absolutely. We designed Veritas RAG specifically for enterprise scale and governance. It features SOC2-compliant architecture, comprehensive audit logs, strict tenant isolation, and granular RBAC to meet the demands of Fortune 500 security teams.'
   }
 ]
 

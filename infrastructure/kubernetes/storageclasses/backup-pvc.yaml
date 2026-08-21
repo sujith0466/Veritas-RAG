@@ -2,9 +2,9 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-backup-pvc
-  namespace: raguard-production
+  namespace: veritas-rag-production
   labels:
-    app.kubernetes.io/name: raguard
+    app.kubernetes.io/name: veritas-rag
     app.kubernetes.io/component: database
     app.kubernetes.io/instance: postgres-backup-pvc
     app.kubernetes.io/version: "1.0.0"

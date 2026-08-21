@@ -1,4 +1,4 @@
-"""Structlog configuration for RAGuard AI.
+"""Structlog configuration for Veritas RAG.
 
 Configures structlog with:
 - JSON output in staging/production for log aggregators

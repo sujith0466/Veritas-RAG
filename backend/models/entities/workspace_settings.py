@@ -17,4 +17,3 @@ class WorkspaceSettings(BaseModel):
     schema_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     settings_hash: Mapped[str] = mapped_column(String(64), default="", nullable=False)
-

@@ -1,5 +1,5 @@
 # ==============================================================================
-# RAGuard AI — Master Developer Makefile
+# Veritas RAG — Automation Makefile
 # ==============================================================================
 # One-command interface for onboarding, orchestration, migrations, and quality gates.
 # Works across Linux, macOS, WSL, and Git Bash.
@@ -11,7 +11,7 @@
 # Default target when simply typing 'make'
 help:
 	@echo "========================================================================"
-	@echo "                   RAGuard AI — Developer Interface                     "
+	@echo "                   Veritas RAG — Developer Interface                     "
 	@echo "========================================================================"
 	@echo "  make setup       : One-command turnkey onboarding (build, start, migrate)"
 	@echo "  make qa-bootstrap: Run idempotent QA account creation and data seeding"
@@ -40,11 +40,11 @@ qa-bootstrap:
 
 start:
 	@docker compose up -d
-	@echo "✅ RAGuard AI core services launched! UI at http://localhost:5173"
+	@echo "✅ Veritas RAG core services launched! UI at http://localhost:5173"
 
 stop:
 	@docker compose down
-	@echo "🛑 RAGuard AI services stopped cleanly."
+	@echo "🛑 Veritas RAG services stopped cleanly."
 
 restart:
 	@docker compose restart

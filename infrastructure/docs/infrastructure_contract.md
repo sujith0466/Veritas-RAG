@@ -1,4 +1,4 @@
-# RAGuard AI — Infrastructure Contract & Operational Standards
+# Veritas RAG — Infrastructure Guide
 
 **Document Version**: 1.0.0
 **Phase**: Phase 1 — Foundation & Enterprise Setup
@@ -9,7 +9,7 @@
 
 ## 1. Purpose & Scope
 
-The **Infrastructure Contract** establishes mandatory, non-negotiable standards across all containerized services (`backend`, `frontend`, `postgres`, `redis`, `qdrant`, `celery-worker`, `nginx`) in the RAGuard AI platform. Every service—whether running locally via Docker Compose, in CI/CD pipelines, or deployed to production orchestration clusters (Kubernetes/ECS)—must adhere to these conventions to guarantee reliability, zero-downtime deployments, strict security isolation, and seamless developer onboarding.
+The **Infrastructure Contract** establishes mandatory, non-negotiable standards across all containerized services (`backend`, `frontend`, `postgres`, `redis`, `qdrant`, `celery-worker`, `nginx`) in the Veritas RAG platform. Every service—whether running locally via Docker Compose, in CI/CD pipelines, or deployed to production orchestration clusters (Kubernetes/ECS)—must adhere to these conventions to guarantee reliability, zero-downtime deployments, strict security isolation, and seamless developer onboarding.
 
 ---
 
@@ -35,7 +35,7 @@ To support both Docker Compose dependencies and Kubernetes liveness/readiness pr
 
 ## 3. Container Security Hardening Standards
 
-Every Docker container built and deployed for RAGuard AI must comply with the following defense-in-depth security hardening requirements:
+Every Docker container built and deployed for Veritas RAG must comply with the following defense-in-depth security hardening requirements:
 
 ### 3.1 Non-Root Execution (`UID 10001`)
 - No application container may run as root (`UID 0`) in production builds.
@@ -75,7 +75,7 @@ While Phase 1 orchestration relies on Docker Compose, all definitions follow Kub
    - `timestamp` (ISO 8601 UTC string)
    - `level` (`INFO`, `WARNING`, `ERROR`, `CRITICAL`)
    - `correlation_id` (`X-Correlation-ID` UUID v4 header value for distributed tracing)
-   - `service` (`raguard-backend`, `raguard-frontend`, `raguard-worker`)
+   - `service` (`raguard-backend`, `veritas-rag-frontend`, `veritas-rag-worker`)
    - `message` (Human-readable event description)
 3. **Log Rotation & Bounding**: Docker Compose driver defaults must limit log size (`max-size: "10m"`, `max-file: "3"`) to prevent local disk exhaustion during intensive background tasks.
 

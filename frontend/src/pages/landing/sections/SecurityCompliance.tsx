@@ -24,7 +24,7 @@ export function SecurityCompliance() {
           <div className="max-w-2xl">
             <SectionHeading
               title="Security First. Always."
-              subtitle="Your data is your most valuable asset. RAGuard AI is engineered from the ground up to exceed the strictest enterprise security and compliance requirements."
+              subtitle="Your data is your most valuable asset. Veritas RAG is engineered from the ground up to exceed the strictest enterprise security and compliance requirements."
               align="left"
               className="mb-8"
             />

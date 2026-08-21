@@ -1,4 +1,4 @@
-"""RAGuard AI tasks package."""
+"""Veritas RAG tasks package."""
 
 from .celery_app import celery_app
 

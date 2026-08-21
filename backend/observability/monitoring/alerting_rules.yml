@@ -9,8 +9,8 @@
           tier: critical
           service: raguard-ai-backend
         annotations:
-          summary: "RAGuard AI Backend Service Unavailable"
-          description: "RAGuard FastAPI instance is unreachable by Prometheus scraper for > 1 minute."
+          summary: "Veritas RAG Backend Service Unavailable"
+          description: "Veritas RAG FastAPI instance is unreachable by Prometheus scraper for > 1 minute."
           runbook_url: "https://docs.raguard.ai/runbooks/service-down"
 
       - alert: CriticalAPIErrorRate

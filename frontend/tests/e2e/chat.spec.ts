@@ -28,7 +28,7 @@ test.describe('Chat Suite @chat', () => {
       });
     });
 
-    const question = 'What are the core capabilities of RAGuard?';
+    const question = 'What are the core capabilities of Veritas RAG?';
 
     await test.step('Send Prompt', async () => {
       // Wait for the textarea to be available and interactive

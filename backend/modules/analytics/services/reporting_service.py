@@ -223,7 +223,7 @@ class ReportingService:
         # Header Block
         story.append(
             Paragraph(
-                "<b>RAGuard AI Platform</b> — Enterprise Intelligence Center",
+                "<b>Veritas RAG Platform</b> — Enterprise Intelligence Center",
                 subtitle_style,
             )
         )
@@ -465,7 +465,7 @@ class ReportingService:
         )
         story.append(
             Paragraph(
-                f"<font color='#64748B'>Report Generated Automatically by RAGuard AI Phase 4 Observability Platform &nbsp;|&nbsp; Report ID: {report_id}</font>",
+                f"<font color='#64748B'>Report Generated Automatically by Veritas RAG Observability Platform &nbsp;|&nbsp; Report ID: {report_id}</font>",
                 table_cell_style,
             )
         )

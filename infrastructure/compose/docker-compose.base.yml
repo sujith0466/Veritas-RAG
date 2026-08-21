@@ -1,21 +1,21 @@
 # ==============================================================================
-# RAGuard AI — Shared Docker Compose Base Profile
+# Veritas RAG — Shared Docker Compose Base Profile
 # ==============================================================================
 # Defines networks, volumes, base environments, health checks, and container
 # security standards shared across all development, staging, and prod profiles.
 # ==============================================================================
 
 networks:
-  raguard-network:
+  veritas-rag-network:
     driver: bridge
 
 volumes:
   postgres-data:
-    name: raguard-postgres-data
+    name: veritas-rag-postgres-data
   redis-data:
-    name: raguard-redis-data
+    name: veritas-rag-redis-data
   qdrant-data:
-    name: raguard-qdrant-data
+    name: veritas-rag-qdrant-data
 
 x-security-opts: &security-opts
   security_opt:
@@ -33,7 +33,7 @@ x-logging-opts: &logging-opts
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: raguard-postgres
+    container_name: veritas-rag-postgres
     restart: unless-stopped
     <<: *logging-opts
     environment:
@@ -43,7 +43,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - raguard-network
+      - veritas-rag-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-raguard}"]
       interval: 5s
@@ -53,14 +53,14 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: raguard-redis
+    container_name: veritas-rag-redis
     restart: unless-stopped
     <<: *logging-opts
     command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
     networks:
-      - raguard-network
+      - veritas-rag-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -70,13 +70,13 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.12.0
-    container_name: raguard-qdrant
+    container_name: veritas-rag-qdrant
     restart: unless-stopped
     <<: *logging-opts
     volumes:
       - qdrant-data:/qdrant/storage
     networks:
-      - raguard-network
+      - veritas-rag-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:6333/readyz || exit 1"]
       interval: 5s
@@ -89,7 +89,7 @@ services:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.backend
       target: dev
-    container_name: raguard-backend
+    container_name: veritas-rag-backend
     restart: unless-stopped
     <<: [*security-opts, *logging-opts]
     env_file:
@@ -106,7 +106,7 @@ services:
       qdrant:
         condition: service_healthy
     networks:
-      - raguard-network
+      - veritas-rag-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 5s
@@ -119,7 +119,7 @@ services:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.backend
       target: dev
-    container_name: raguard-celery-worker
+    container_name: veritas-rag-celery-worker
     restart: unless-stopped
     <<: [*security-opts, *logging-opts]
     env_file:
@@ -136,14 +136,14 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - raguard-network
+      - veritas-rag-network
 
   frontend:
     build:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.frontend
       target: dev
-    container_name: raguard-frontend
+    container_name: veritas-rag-frontend
     restart: unless-stopped
     <<: [*security-opts, *logging-opts]
     env_file:
@@ -154,7 +154,7 @@ services:
       backend:
         condition: service_healthy
     networks:
-      - raguard-network
+      - veritas-rag-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5173"]
       interval: 5s

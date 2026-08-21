@@ -1,4 +1,4 @@
-"""Exceptions package for RAGuard AI."""
+"""Exceptions package for Veritas RAG."""
 
 from .auth import (
                    AuthenticationException,

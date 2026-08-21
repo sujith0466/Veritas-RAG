@@ -1,4 +1,4 @@
-# RAGuard AI — Phase 2 Master Architecture Overview (`Knowledge Layer & Retrieval Foundation`)
+# Veritas RAG — Phase 2 Master Architecture Overview (`Knowledge Layer & Retrieval Foundation`)
 
 **Document Version**: 1.0.0
 **Status**: COMPLETED & FROZEN
@@ -9,7 +9,7 @@
 
 ## 1. Vision & Executive Purpose
 
-RAGuard AI’s **Phase 2: Knowledge Layer & Retrieval Foundation** transforms raw, normalized document intelligence (`Phase 1`) into an enterprise-grade, verifiable, high-precision semantic retrieval foundation. Unlike naive RAG implementations that rely on unvalidated chunks and single-strategy dense search, RAGuard AI implements a multi-layered, highly reliable retrieval engine specifically designed to feed our future **Confidence & Hallucination Prevention Engine (`Phase 3`)**.
+Veritas RAG’s **Phase 2: Knowledge Layer & Retrieval Foundation** transforms raw, normalized document intelligence (`Phase 1`) into an enterprise-grade, verifiable, high-precision semantic retrieval foundation. Unlike naive RAG implementations that rely on unvalidated chunks and single-strategy dense search, Veritas RAG implements a multi-layered, highly reliable retrieval engine specifically designed to feed our future **Confidence & Hallucination Prevention Engine (`Phase 3`)**.
 
 Every step of the data lifecycle—from text splitting to vector storage, hybrid search, degraded-mode fallbacks, and automated knowledge maintenance—is built on strict **Domain-Oriented Modular Architecture (`ADR-005`)**, zero-leakage boundaries, multi-tenant isolation (`tenant_id`), asynchronous processing (`Celery`), and provider-independent abstractions.
 

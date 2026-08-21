@@ -1,4 +1,4 @@
-"""RAGuard AI — Core Package.
+"""Veritas RAG — Core Package.
 
 Exports the primary interfaces used throughout the application.
 """

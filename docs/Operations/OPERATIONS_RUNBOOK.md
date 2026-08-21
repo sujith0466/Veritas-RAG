@@ -1,6 +1,6 @@
 # Master Operations & SRE Runbook Guide
 
-**System**: RAGuard V2 Multi-Tenant Enterprise AI Platform
+**System**: Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Epic**: Epic 15 — Production Hardening & Enterprise Security
 **Feature**: F15.8 — Runbook Finalization
 **Status**: PRODUCTION READY
@@ -10,20 +10,20 @@
 
 ## 1. Operational Runbook Directory
 
-All operational procedures are codified in dedicated, executable runbooks under [`docs/Runbooks/`](file:///d:/RAGuard/docs/Runbooks/):
+All operational procedures are codified in dedicated, executable runbooks under [`docs/Runbooks/`](file:///d:/Veritas RAG/docs/Runbooks/):
 
 | Runbook | Location | Purpose & Trigger |
 |:---|:---|:---|
-| **Incident Response** | [`incident-response.md`](file:///d:/RAGuard/docs/Runbooks/incident-response.md) | SEV-1/2/3 triage, Prometheus alert resolution, security incidents, PII leakage |
-| **Disaster Recovery** | [`disaster-recovery.md`](file:///d:/RAGuard/docs/Runbooks/disaster-recovery.md) | Catastrophic loss of database, vector engine, or cluster |
-| **Backup & Restoration** | [`backup-recovery.md`](file:///d:/RAGuard/docs/Runbooks/backup-recovery.md) | Scheduled backup verification, PVC management, `restore_postgres.sh`, `restore_qdrant.sh` |
-| **Health Checks & Probes** | [`health-checks.md`](file:///d:/RAGuard/docs/Runbooks/health-checks.md) | Kubernetes liveness (`/live`), readiness (`/ready`), and startup (`/startup`) probes |
-| **Rollback & Recovery** | [`rollback-procedure.md`](file:///d:/RAGuard/docs/Runbooks/rollback-procedure.md) | Emergency deployment rollbacks (K8s rollout undo, Alembic schema downgrade) |
-| **Service Startup** | [`startup-runbook.md`](file:///d:/RAGuard/docs/Runbooks/startup-runbook.md) | Dependency-ordered cold-start bootstrapping sequence |
-| **Graceful Shutdown** | [`shutdown-runbook.md`](file:///d:/RAGuard/docs/Runbooks/shutdown-runbook.md) | Traffic draining, worker warm-shutdown, datastore checkpoints |
-| **Service Restart** | [`service-restart.md`](file:///d:/RAGuard/docs/Runbooks/service-restart.md) | Rolling zero-downtime restarts for API pods and stateful backends |
-| **Load Testing** | [`load-testing.md`](file:///d:/RAGuard/docs/Runbooks/load-testing.md) | k6 performance testing, quota atomic UPSERT concurrency validation |
-| **Chaos Engineering** | [`chaos-engineering.md`](file:///d:/RAGuard/docs/Runbooks/chaos-engineering.md) | Fault policy injection, pod termination drills, blast-radius governance |
+| **Incident Response** | [`incident-response.md`](file:///d:/Veritas RAG/docs/Runbooks/incident-response.md) | SEV-1/2/3 triage, Prometheus alert resolution, security incidents, PII leakage |
+| **Disaster Recovery** | [`disaster-recovery.md`](file:///d:/Veritas RAG/docs/Runbooks/disaster-recovery.md) | Catastrophic loss of database, vector engine, or cluster |
+| **Backup & Restoration** | [`backup-recovery.md`](file:///d:/Veritas RAG/docs/Runbooks/backup-recovery.md) | Scheduled backup verification, PVC management, `restore_postgres.sh`, `restore_qdrant.sh` |
+| **Health Checks & Probes** | [`health-checks.md`](file:///d:/Veritas RAG/docs/Runbooks/health-checks.md) | Kubernetes liveness (`/live`), readiness (`/ready`), and startup (`/startup`) probes |
+| **Rollback & Recovery** | [`rollback-procedure.md`](file:///d:/Veritas RAG/docs/Runbooks/rollback-procedure.md) | Emergency deployment rollbacks (K8s rollout undo, Alembic schema downgrade) |
+| **Service Startup** | [`startup-runbook.md`](file:///d:/Veritas RAG/docs/Runbooks/startup-runbook.md) | Dependency-ordered cold-start bootstrapping sequence |
+| **Graceful Shutdown** | [`shutdown-runbook.md`](file:///d:/Veritas RAG/docs/Runbooks/shutdown-runbook.md) | Traffic draining, worker warm-shutdown, datastore checkpoints |
+| **Service Restart** | [`service-restart.md`](file:///d:/Veritas RAG/docs/Runbooks/service-restart.md) | Rolling zero-downtime restarts for API pods and stateful backends |
+| **Load Testing** | [`load-testing.md`](file:///d:/Veritas RAG/docs/Runbooks/load-testing.md) | k6 performance testing, quota atomic UPSERT concurrency validation |
+| **Chaos Engineering** | [`chaos-engineering.md`](file:///d:/Veritas RAG/docs/Runbooks/chaos-engineering.md) | Fault policy injection, pod termination drills, blast-radius governance |
 
 ---
 

@@ -1,7 +1,7 @@
 # Incident Response Runbook
 
 **Target Audience:** SRE Incident Commanders, On-Call Engineers, Security Operations
-**System:** RAGuard V2 Multi-Tenant AI Platform
+**System:** Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Classification:** Primary Operational Response Framework
 **Status:** PRODUCTION READY
 

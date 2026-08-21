@@ -1,7 +1,7 @@
 # Tenant Isolation Architecture
 
 ## Design Principles
-RAGuard AI guarantees strict multi-tenant isolation at the application, database, and vector storage layers.
+Veritas RAG guarantees strict multi-tenant isolation at the application, database, and vector storage layers.
 
 ## 1. Authentication Layer (Supabase)
 - Each user authenticates via Supabase, returning a JWT token.
@@ -16,7 +16,7 @@ RAGuard AI guarantees strict multi-tenant isolation at the application, database
 - Every major table (`documents`, `workspaces`, etc.) contains a `tenant_id` column.
 
 ## 4. Vector Database Layer (Qdrant)
-- **Strict Isolation**: RAGuard utilizes a separate Qdrant collection per tenant (`raguard_<tenant_id>`).
+- **Strict Isolation**: Veritas RAG utilizes a separate Qdrant collection per tenant (`raguard_<tenant_id>`).
 - This physically prevents Tenant A from retrieving Tenant B's vectors, even if the API layer fails to inject the correct filter payload.
 - In multi-tenant shared collections (future roadmap), the `tenant_id` is passed as a must-match filter payload condition in every search query.
 

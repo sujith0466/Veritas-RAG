@@ -15,7 +15,7 @@ class RegistrationRequest(BaseModel):
     @classmethod
     def validate_password_policy(cls, v: str) -> str:
         """Validate password meets security policy.
-        
+
         Requirements:
         - Minimum 8 characters (handled by Field)
         - At least 1 uppercase letter

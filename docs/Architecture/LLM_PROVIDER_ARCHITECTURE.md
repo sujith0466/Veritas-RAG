@@ -1,13 +1,13 @@
 # Llm Provider Architecture
 
 **Version:** 1.0.0
-**Purpose:** Define the Llm Provider Architecture for RAGuard AI.
+**Purpose:** Define the Llm Provider Architecture for Veritas RAG.
 **Scope:** Core system capabilities for v1.0.
 **Audience:** Developers, DevOps, and Maintainers.
 **Prerequisites:** Familiarity with the system architecture.
 
 ## Overview
-This document outlines the Llm Provider Architecture configuration and standards for the RAGuard AI platform.
+This document outlines the Llm Provider Architecture configuration and standards for the Veritas RAG platform.
 
 ## Architecture Notes
 - Maintains separation of concerns.

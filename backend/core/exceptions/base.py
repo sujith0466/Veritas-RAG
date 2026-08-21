@@ -1,4 +1,4 @@
-"""Base exception classes for RAGuard AI.
+"""Base exception classes for Veritas RAG.
 
 All custom exceptions extend RAGuardException, which carries:
 - A machine-readable error code (e.g., "AUTH_001")
@@ -15,7 +15,7 @@ from typing import Any
 
 
 class RAGuardException(Exception):
-    """Root exception for all RAGuard AI application errors.
+    """Root exception for all Veritas RAG application errors.
 
     Do not raise this directly. Use a specific subclass.
     """

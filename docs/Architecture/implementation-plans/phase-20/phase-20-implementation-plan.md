@@ -3,13 +3,13 @@
 **Phase Name:** Phase 20 — Production Hardening & Global Resilience Engine
 **Target Module:** `backend/core/resilience/` & `backend/core/chaos/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 
 ## 1. Executive Summary
 
-Phase 20 represents the culminating deployment readiness, global failover, and production hardening authority for the entire RAGuard AI ecosystem (`backend/core/resilience/` and `backend/core/chaos/`). Establishing multi-region routing (`RegionRouter`, `FailoverOrchestrator`), advanced connection pool tuning (`SQLAlchemy`, `Qdrant`, and `Redis` connection pooling optimizations), and an enterprise Chaos Engineering framework (`ChaosInjector`), Phase 20 validates and guarantees carrier-grade resilience across all 19 preceding phases. By injecting controlled synthetic faults (`X-RAGuard-Chaos-Token`) and verifying $99\text{th}$ percentile latency targets ($< 500\text{ms}$ at 500+ QPS), Phase 20 ensures RAGuard operates continuously under extreme high-concurrency production workloads.
+Phase 20 represents the culminating deployment readiness, global failover, and production hardening authority for the entire Veritas RAG ecosystem (`backend/core/resilience/` and `backend/core/chaos/`). Establishing multi-region routing (`RegionRouter`, `FailoverOrchestrator`), advanced connection pool tuning (`SQLAlchemy`, `Qdrant`, and `Redis` connection pooling optimizations), and an enterprise Chaos Engineering framework (`ChaosInjector`), Phase 20 validates and guarantees carrier-grade resilience across all 19 preceding phases. By injecting controlled synthetic faults (`X-Veritas RAG-Chaos-Token`) and verifying $99\text{th}$ percentile latency targets ($< 500\text{ms}$ at 500+ QPS), Phase 20 ensures Veritas RAG operates continuously under extreme high-concurrency production workloads.
 
 ---
 
@@ -25,7 +25,7 @@ Phase 20 represents the culminating deployment readiness, global failover, and p
 
 ## 3. Business Goals
 
-* **Carrier-Grade Reliability (99.999% Availability)**: Eliminate single points of failure across global deployments, ensuring mission-critical enterprise customers never experience RAGuard downtime.
+* **Carrier-Grade Reliability (99.999% Availability)**: Eliminate single points of failure across global deployments, ensuring mission-critical enterprise customers never experience Veritas RAG downtime.
 * **Predictable Cloud Infrastructure Scaling**: Prevent database and vector store connection pool collapses during major global news events or sudden multi-tenant usage surges.
 * **Proactive Risk Discovery via Chaos Testing**: Uncover hidden race conditions and timeout bottlenecks before real-world production outages occur.
 
@@ -77,7 +77,7 @@ Strictly adheres to `ARCHITECTURE_AFTER_IMPROVEMENTS.md` and `AI_ARCHITECTURE_AF
   * Phase 17 (`alerts`): Emits notifications upon regional failover or chaos trigger.
   * Phase 18 (`governor`): Coordinates self-healing model switching during region failovers.
 * **Downstream Dependencies**:
-  * Production Deployment Gate: All 20 phases form the unified, immutable RAGuard enterprise application.
+  * Production Deployment Gate: All 20 phases form the unified, immutable Veritas RAG enterprise application.
 
 ---
 
@@ -93,7 +93,7 @@ Strictly adheres to `ARCHITECTURE_AFTER_IMPROVEMENTS.md` and `AI_ARCHITECTURE_AF
 ## 11. High-Level Architecture
 
 ```
-HTTP Request (`X-RAGuard-Chaos-Token: ...`)
+HTTP Request (`X-Veritas RAG-Chaos-Token: ...`)
        │
        ▼
 ┌──────────────────────────────────────────────────────────────┐
@@ -116,7 +116,7 @@ $$N = Q \times D = 500 \times 0.1 = 50\text{ connections}$$
 Thus, `backend/core/database/engine.py` sets `pool_size = 50` and `max_overflow = 20` (total ceiling $70$), completely eliminating connection acquisition waiting times (`TimeoutError`).
 
 ### Chaos Fault Injection Logic
-When header `X-RAGuard-Chaos-Token` matches an active `FaultPolicyORM`:
+When header `X-Veritas RAG-Chaos-Token` matches an active `FaultPolicyORM`:
 1. Check `FaultPolicy.fault_type`:
    - `LATENCY_SPIKE`: Execute `await asyncio.sleep(policy.latency_ms / 1000.0)`.
    - `LLM_HTTP_503`: Raise `HTTPStatusError(503 Service Unavailable, "Simulated OpenAI Outage")`.
@@ -150,7 +150,7 @@ When header `X-RAGuard-Chaos-Token` matches an active `FaultPolicyORM`:
 ## 15. Data Flow
 
 1. SRE creates `FaultPolicyORM(fault_type="LLM_HTTP_503", target_provider="openai", is_active=True)`.
-2. Load test client sends `POST /api/v1/query` with header `X-RAGuard-Chaos-Token: chaos-verify-token`.
+2. Load test client sends `POST /api/v1/query` with header `X-Veritas RAG-Chaos-Token: chaos-verify-token`.
 3. `ChaosInjector` intercepts request, finds active policy, and raises simulated `HTTPStatusError(503)`.
 4. `ReliabilityGateway` catches error, increments `CircuitBreakerEngine` failure count, and triggers `ModelRotationOrchestrator`.
 5. Request falls back cleanly to `"azure-openai"` and succeeds with status `200 OK`.
@@ -270,7 +270,7 @@ Add to `configs/app_config.py`:
 
 ## 23. Security Considerations
 
-* **Production Environment Fence**: `ChaosInjector.check_fault_injection()` MUST explicitly verify `os.getenv("ENVIRONMENT") != "production"` and `app_config.CHAOS_INJECTION_ENABLED == True`. If either condition fails, all chaos headers (`X-RAGuard-Chaos-Token`) are silently ignored.
+* **Production Environment Fence**: `ChaosInjector.check_fault_injection()` MUST explicitly verify `os.getenv("ENVIRONMENT") != "production"` and `app_config.CHAOS_INJECTION_ENABLED == True`. If either condition fails, all chaos headers (`X-Veritas RAG-Chaos-Token`) are silently ignored.
 * **SRE Admin Authorization**: Endpoints under `/api/v1/resilience/*` MUST require superuser SRE Role-Based Access Control (`RBAC`) JWT claims.
 
 ---
@@ -316,7 +316,7 @@ Add to `configs/app_config.py`:
 ## 29. Integration & Stress Testing Plan
 
 * `tests/benchmarks/test_load_concurrency.py`: High-concurrency async load test proving `pool_size=50` handles 500+ QPS without connection starvation.
-* `tests/chaos/test_fault_injection_pipeline.py`: End-to-end chaos verification verifying `X-RAGuard-Chaos-Token` triggers expected self-healing actions.
+* `tests/chaos/test_fault_injection_pipeline.py`: End-to-end chaos verification verifying `X-Veritas RAG-Chaos-Token` triggers expected self-healing actions.
 
 ---
 
@@ -331,7 +331,7 @@ Add to `configs/app_config.py`:
 
 ## 31. Acceptance Criteria
 
-1. `ChaosInjector` successfully simulates `LLM_HTTP_503` and `LATENCY_SPIKE` inside staging/sandbox environments when valid `X-RAGuard-Chaos-Token` headers are supplied, triggering Phase 18 fallback rotations cleanly.
+1. `ChaosInjector` successfully simulates `LLM_HTTP_503` and `LATENCY_SPIKE` inside staging/sandbox environments when valid `X-Veritas RAG-Chaos-Token` headers are supplied, triggering Phase 18 fallback rotations cleanly.
 2. `ChaosInjector` is completely dead-code bypassed in production (`ENVIRONMENT="production"`), ignoring all tokens.
 3. System sustains $500\text{ QPS}$ concurrency test for 10 minutes with $0\%$ `SQLAlchemy` connection pool timeouts and $99\text{th}$ percentile latency $< 500\text{ms}$.
 
@@ -362,7 +362,7 @@ Chaos and resilience middlewares wrap all network transport calls cleanly across
 
 ## 35. Architecture Decision Records (ADR)
 
-* **ADR-020-1**: Implement chaos testing via header-driven injection (`X-RAGuard-Chaos-Token`) paired with strict environment fencing, enabling realistic end-to-end resilience validation in staging without requiring separate mock deployments.
+* **ADR-020-1**: Implement chaos testing via header-driven injection (`X-Veritas RAG-Chaos-Token`) paired with strict environment fencing, enabling realistic end-to-end resilience validation in staging without requiring separate mock deployments.
 * **ADR-020-2**: Enforce explicit connection pool pre-allocation (`pool_size=50`, `max_overflow=20`) to eliminate cold connection initialization latency during sudden multi-tenant traffic spikes.
 
 ---
@@ -450,7 +450,7 @@ Set `RAGUARD_CHAOS_ENABLED=false` to silence all chaos injection. Run `alembic d
 - [ ] All 4 implementation milestones (`impl_m20_*.py`) executed cleanly.
 - [ ] 100% of Phase 20 unit, load, and chaos tests passing (`test_load_concurrency.py`, `test_fault_injection_pipeline.py`).
 - [ ] Zero static analysis errors (`mypy`, `ruff`).
-- [ ] Complete validation of carrier-grade resilience across the entire 20-phase RAGuard ecosystem.
+- [ ] Complete validation of carrier-grade resilience across the entire 20-phase Veritas RAG ecosystem.
 
 ---
 

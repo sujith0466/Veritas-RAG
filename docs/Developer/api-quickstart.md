@@ -1,9 +1,9 @@
 # API Quick Start (5-Minute Guide)
 
-This guide gets you executing your first query against the RAGuard AI API.
+This guide gets you executing your first query against the Veritas RAG API.
 
 ## Prerequisites
-- RAGuard running locally (`docker-compose up -d`)
+- Veritas RAG running locally (`docker-compose up -d`)
 - A valid JWT token (or bypass auth in `development` environment)
 - Tenant ID: `acme-corp`
 

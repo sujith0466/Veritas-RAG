@@ -1,7 +1,7 @@
 # Backup & Restoration Runbook
 
 **Target Audience:** SRE On-Call, Database Administrators, DevOps
-**System:** RAGuard V2 Multi-Tenant AI Platform
+**System:** Veritas RAG — An Enterprise Knowledge Reliability Platform for Self-Correcting Retrieval-Augmented Generation
 **Classification:** Core Operational Procedure
 **Status:** PRODUCTION READY
 
@@ -9,7 +9,7 @@
 
 ## 1. Overview & Architecture
 
-RAGuard implements automated scheduled backups across all persistent state engines using Kubernetes CronJobs and volume-backed persistence.
+Veritas RAG implements automated scheduled backups across all persistent state engines using Kubernetes CronJobs and volume-backed persistence.
 
 ### Backup Schedule Matrix
 

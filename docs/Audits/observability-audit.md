@@ -1,4 +1,4 @@
-# RAGuard Backend — Performance & Observability Audit
+# Veritas RAG Backend — Performance & Observability Audit
 
 **Date:** July 21, 2026
 **Scope:** Phase A8 — Observability Verification

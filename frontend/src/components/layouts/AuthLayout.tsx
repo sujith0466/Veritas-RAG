@@ -38,7 +38,7 @@ export function AuthLayout() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground/60">
-            © {new Date().getFullYear()} RAGuard AI. All rights reserved.
+            © {new Date().getFullYear()} Veritas RAG. All rights reserved.
           </p>
         </motion.div>
       </div>

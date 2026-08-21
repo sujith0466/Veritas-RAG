@@ -19,7 +19,7 @@ export function WhyRaguard() {
       <div className="container mx-auto px-4 md:px-8 max-w-5xl relative z-10">
         <FadeUp>
           <SectionHeading
-            title="Why RAGuard AI?"
+            title="Why Veritas RAG?"
             subtitle="Differentiate your infrastructure with enterprise-grade reliability."
             className="mb-16"
           />
@@ -46,12 +46,12 @@ export function WhyRaguard() {
             </Stagger>
           </div>
 
-          {/* RAGuard AI Column */}
+          {/* Veritas RAG Column */}
           <div className="bg-surface-elevated p-8 md:p-10 relative">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent md:hidden" />
             <h3 className="text-xl font-bold text-foreground mb-8 text-center md:text-left flex items-center justify-center md:justify-start space-x-2">
               <span className="w-2 h-2 rounded-full bg-primary" />
-              <span>RAGuard AI</span>
+              <span>Veritas RAG</span>
             </h3>
             <Stagger className="space-y-6" staggerDelay={0.05}>
               {COMPARISON_DATA.map((row, i) => (

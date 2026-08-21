@@ -602,4 +602,3 @@ def get_metrics_content_type() -> str:
     """Return the standard Prometheus MIME content type."""
     return str(CONTENT_TYPE_LATEST)
 
-

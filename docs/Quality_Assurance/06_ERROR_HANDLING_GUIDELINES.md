@@ -1,7 +1,7 @@
 # Error Handling Guidelines
 
 ## Overview
-Standardized error handling is critical for maintaining the reliability and debuggability of the RAGuard AI platform.
+Standardized error handling is critical for maintaining the reliability and debuggability of the Veritas RAG platform.
 
 ## Application Exception Strategy
 The backend uses a standard `ApplicationException` that includes:

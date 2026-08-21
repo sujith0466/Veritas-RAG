@@ -3,7 +3,7 @@
 **Phase Name:** Phase 12 — Answer Validation
 **Target Module:** `backend/modules/validation/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 

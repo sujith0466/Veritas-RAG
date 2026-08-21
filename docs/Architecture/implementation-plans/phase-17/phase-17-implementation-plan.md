@@ -3,13 +3,13 @@
 **Phase Name:** Phase 17 — Real-Time Alerting & Notification Engine
 **Target Module:** `backend/modules/alerts/`
 **Status:** Planning & Architecture Baseline (Approved for Future Script-Based Implementation)
-**Author:** RAGuard Principal Architecture & Enterprise QA Team
+**Author:** Veritas RAG Principal Architecture & Enterprise QA Team
 
 ---
 
 ## 1. Executive Summary
 
-Phase 17 delivers the enterprise **Real-Time Alerting & Notification Engine** (`backend/modules/alerts/`), establishing automated, multi-channel operational alerting triggered by generative AI anomalies across the RAGuard pipeline. Creating the new `backend/modules/alerts/` domain package, Phase 17 implements rule evaluation (`AlertRuleEngine`) and multi-channel dispatch (`SlackChannel`, `PagerDutyChannel`, `EmailChannel`, `WebhookChannel`) behind a unified provider abstraction (`BaseNotificationChannel`). Equipped with Redis-backed alert deduplication (`AlertDeduplicationEngine`) to prevent notification fatigue during high-volume SLA drops, Phase 17 guarantees that SREs and compliance officers are instantly notified when Phase 13 trust scores plummet, Phase 14 quarantine tables overflow, or Phase 11/12 hallucination rates spike (`alembic` migration `0017`).
+Phase 17 delivers the enterprise **Real-Time Alerting & Notification Engine** (`backend/modules/alerts/`), establishing automated, multi-channel operational alerting triggered by generative AI anomalies across the Veritas RAG pipeline. Creating the new `backend/modules/alerts/` domain package, Phase 17 implements rule evaluation (`AlertRuleEngine`) and multi-channel dispatch (`SlackChannel`, `PagerDutyChannel`, `EmailChannel`, `WebhookChannel`) behind a unified provider abstraction (`BaseNotificationChannel`). Equipped with Redis-backed alert deduplication (`AlertDeduplicationEngine`) to prevent notification fatigue during high-volume SLA drops, Phase 17 guarantees that SREs and compliance officers are instantly notified when Phase 13 trust scores plummet, Phase 14 quarantine tables overflow, or Phase 11/12 hallucination rates spike (`alembic` migration `0017`).
 
 ---
 
@@ -33,7 +33,7 @@ Phase 17 delivers the enterprise **Real-Time Alerting & Notification Engine** (`
 
 ## 4. Technical Goals
 
-* **Create Dedicated Alerts Package**: Build `backend/modules/alerts/` adhering strictly to RAGuard modular boundaries (`channels/`, `models/`, `repositories/`, `schemas/`, `services/`).
+* **Create Dedicated Alerts Package**: Build `backend/modules/alerts/` adhering strictly to Veritas RAG modular boundaries (`channels/`, `models/`, `repositories/`, `schemas/`, `services/`).
 * **Provider Abstraction**: Enforce `BaseNotificationChannel` (`channels/base.py`) ensuring all delivery transports implement uniform `send_alert(payload: AlertPayloadDTO)` async contracts.
 * **Asynchronous Dispatch**: Execute all outbound HTTP webhook and SMTP network calls inside background Celery tasks (`dispatch_alert_task`) to prevent event-bus blocking.
 
@@ -66,7 +66,7 @@ Aligns directly with PRD Section 7.2 (*Real-Time Alerting and Multi-Channel Inci
 
 ## 8. Architecture Alignment
 
-Strictly adheres to `ARCHITECTURE_AFTER_IMPROVEMENTS.md` and `EVALUATION_FRAMEWORK_AFTER_IMPROVEMENTS.md`. It acts as the event-driven notification authority subscribed to the global RAGuard `EventDispatcher`.
+Strictly adheres to `ARCHITECTURE_AFTER_IMPROVEMENTS.md` and `EVALUATION_FRAMEWORK_AFTER_IMPROVEMENTS.md`. It acts as the event-driven notification authority subscribed to the global Veritas RAG `EventDispatcher`.
 
 ---
 
@@ -146,7 +146,7 @@ When event $E$ arrives:
 | `services/dispatcher.py` | Coordinates multi-channel delivery and records `alert_history`. |
 | `channels/slack_channel.py` | Formats and transmits Slack Block Kit webhook payloads. |
 | `channels/pagerduty_channel.py` | Formats and transmits PagerDuty Events API v2 payloads. |
-| `channels/webhook_channel.py` | Formats JSON payload and signs with `HMAC-SHA256` (`X-RAGuard-Signature`). |
+| `channels/webhook_channel.py` | Formats JSON payload and signs with `HMAC-SHA256` (`X-Veritas RAG-Signature`). |
 
 ---
 
@@ -307,7 +307,7 @@ Add to `configs/app_config.py`:
 
 ## 23. Security Considerations
 
-* **HMAC Payload Signing**: Outbound custom webhooks MUST include `X-RAGuard-Signature: t=timestamp,v1=sha256_hex_mac` computed over the JSON payload using `RAGUARD_ALERT_SECRET_KEY` to prevent webhook spoofing.
+* **HMAC Payload Signing**: Outbound custom webhooks MUST include `X-Veritas RAG-Signature: t=timestamp,v1=sha256_hex_mac` computed over the JSON payload using `RAGUARD_ALERT_SECRET_KEY` to prevent webhook spoofing.
 * **Secret Encryption**: Third-party webhook URLs and PagerDuty routing keys stored inside `AlertRuleORM.channels_config` must be encrypted at rest or redacted from API read endpoints.
 
 ---
@@ -372,7 +372,7 @@ Add to `configs/app_config.py`:
 
 1. `AlertRuleEngine` correctly intercepts events matching rule criteria and triggers background delivery tasks.
 2. `AlertDeduplicationEngine` suppresses $100\%$ of duplicate alerts fired for the same rule during the active Redis cooldown window.
-3. Outbound `WebhookChannel` payloads contain cryptographically valid `X-RAGuard-Signature` headers verifying authenticity.
+3. Outbound `WebhookChannel` payloads contain cryptographically valid `X-Veritas RAG-Signature` headers verifying authenticity.
 
 ---
 
@@ -402,7 +402,7 @@ All notification destinations implement `BaseNotificationChannel` (`backend/modu
 ## 35. Architecture Decision Records (ADR)
 
 * **ADR-017-1**: Enforce Redis atomic `SETNX` cooldown locks (`raguard:alert:cooldown:{rule_id}`) prior to task dispatch to guarantee zero alert duplication in multi-replica environments.
-* **ADR-017-2**: Sign all outbound custom webhooks with HMAC-SHA256 (`X-RAGuard-Signature`) to comply with zero-trust enterprise security standards.
+* **ADR-017-2**: Sign all outbound custom webhooks with HMAC-SHA256 (`X-Veritas RAG-Signature`) to comply with zero-trust enterprise security standards.
 
 ---
 

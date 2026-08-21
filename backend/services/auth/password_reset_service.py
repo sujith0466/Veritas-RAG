@@ -293,4 +293,3 @@ class PasswordResetService:
 
         await self._execute_password_reset(user, new_password)
         logger.info("Authenticated password change completed", user_id=str(user_id))
-

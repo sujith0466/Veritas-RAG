@@ -1,6 +1,6 @@
 ---
 name: Question
-about: Ask a question about using RAGuard AI
+about: Ask a question about using Veritas RAG
 title: ''
 labels: question
 assignees: sujith0466

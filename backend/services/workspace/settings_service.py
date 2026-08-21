@@ -645,4 +645,3 @@ class WorkspaceSettingsService:
             "to_version": to_version,
             "diff": diff,
         }
-

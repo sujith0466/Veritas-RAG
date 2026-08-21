@@ -1,7 +1,7 @@
 # Retrieval Pipeline Workflow
 
 ## Overview
-This document outlines the complete Retrieval-Augmented Generation (RAG) pipeline workflow utilized by the RAGuard AI platform.
+This document outlines the complete Retrieval-Augmented Generation (RAG) pipeline workflow utilized by the Veritas RAG platform.
 
 ## 1. Query Processing
 - **Input**: User submits a query via the `/api/v1/retrieval/search` endpoint.

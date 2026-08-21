@@ -1,7 +1,7 @@
 # Phase 3 RAG Pipeline Certification Summary
 
 ## 1. Context
-The goal of this validation was to certify the entire Retrieval-Augmented Generation (RAG) pipeline for RAGuard v1.0.1, ensuring 100% production readiness. During this certification, three blocking flaws in the application core architecture were uncovered and resolved.
+The goal of this validation was to certify the entire Retrieval-Augmented Generation (RAG) pipeline for Veritas RAG v1.0.1, ensuring 100% production readiness. During this certification, three blocking flaws in the application core architecture were uncovered and resolved.
 
 ## 2. Issues Discovered and Resolved
 
@@ -45,7 +45,7 @@ To validate the retrieval workflow, three distinct queries were executed against
 ### 3.2 Query 1: Exact / Keyword Match
 - **Query**: "What are the project dependencies?"
 - **Status**: `200 OK`
-- **Retrieved Chunk**: "RAGuard Enterprise Architecture Overview. The system uses FastAPI, Celery, PostgreSQL, and Qdrant..."
+- **Retrieved Chunk**: "Veritas RAG Enterprise Architecture Overview. The system uses FastAPI, Celery, PostgreSQL, and Qdrant..."
 - **Document ID**: `3403151c-0616-4ffe-a793-39f3b2cb9e2f`
 - **Chunk ID**: `0d470837-6ec1-4b29-9c27-7fb2a87115a1`
 - **Retrieval Score (RRF / Rerank)**: `0.016393`
@@ -55,7 +55,7 @@ To validate the retrieval workflow, three distinct queries were executed against
 ### 3.3 Query 2: Semantic Match
 - **Query**: "Explain the authentication workflow."
 - **Status**: `200 OK`
-- **Retrieved Chunk**: "RAGuard Enterprise Architecture Overview. The system uses FastAPI, Celery, PostgreSQL, and Qdrant..."
+- **Retrieved Chunk**: "Veritas RAG Enterprise Architecture Overview. The system uses FastAPI, Celery, PostgreSQL, and Qdrant..."
 - **Retrieval Score (RRF / Rerank)**: `0.016393`
 - **Top-K Correctness**: `dense_rank: 1`, `final_rank: 1`
 - **End-to-End Latency**: `15.47s` (Includes ~9.7s dense embedding latency)
@@ -63,7 +63,7 @@ To validate the retrieval workflow, three distinct queries were executed against
 ### 3.4 Query 3: Architecture Configuration
 - **Query**: "How is connection pooling configured?"
 - **Status**: `200 OK`
-- **Retrieved Chunk**: "RAGuard Enterprise Architecture Overview. The system uses FastAPI, Celery, PostgreSQL, and Qdrant..."
+- **Retrieved Chunk**: "Veritas RAG Enterprise Architecture Overview. The system uses FastAPI, Celery, PostgreSQL, and Qdrant..."
 - **Retrieval Score (RRF / Rerank)**: `0.016393`
 - **Top-K Correctness**: `dense_rank: 1`, `final_rank: 1`
 - **End-to-End Latency**: `18.67s` (Includes ~10.2s dense embedding latency)
