@@ -11,9 +11,11 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.base import BaseModel
+from backend.models.base import BaseModel, ImmutableBaseModel
 
 ModelType = TypeVar("ModelType", bound=BaseModel)
+ImmutableModelType = TypeVar("ImmutableModelType", bound=ImmutableBaseModel)
+
 
 
 class BaseRepository(Generic[ModelType]):
@@ -69,3 +71,39 @@ class BaseRepository(Generic[ModelType]):
         """Permanently delete an entity row from the database."""
         await self.session.delete(instance)
         await self.session.flush()
+
+
+class ImmutableBaseRepository(Generic[ImmutableModelType]):
+    """Generic async repository for append-only / immutable ORM entities (WORM compliant).
+
+    Provides ONLY insertion (`create`) and retrieval (`get_by_id`, `get_all`).
+    Explicitly DOES NOT implement `update`, `soft_delete`, or `hard_delete`.
+    """
+
+    def __init__(
+        self, session: AsyncSession, model_class: type[ImmutableModelType]
+    ) -> None:
+        self.session = session
+        self.model_class = model_class
+
+    async def get_by_id(self, entity_id: uuid.UUID) -> ImmutableModelType | None:
+        """Fetch an immutable entity by its UUID."""
+        stmt = select(self.model_class).where(self.model_class.id == entity_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_all(
+        self, skip: int = 0, limit: int = 100
+    ) -> Sequence[ImmutableModelType]:
+        """Fetch a paginated list of immutable entities."""
+        stmt = select(self.model_class).offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def create(self, **kwargs: Any) -> ImmutableModelType:
+        """Create and persist a new immutable entity instance."""
+        instance = self.model_class(**kwargs)
+        self.session.add(instance)
+        await self.session.flush()
+        await self.session.refresh(instance)
+        return instance

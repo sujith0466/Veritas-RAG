@@ -20,7 +20,11 @@ def service():
     svc = FolderService(session, dispatcher)
     svc.repo = AsyncMock()
     svc._check_rate_limits = AsyncMock() # Skip Redis in unit tests
+    from backend.services.folder_service import FolderCache
+    FolderCache.invalidate_for_delete_restore = AsyncMock()
+    FolderCache.invalidate_for_rename = AsyncMock()
     return svc
+
 
 @pytest.mark.asyncio
 async def test_create_folder_success(service):

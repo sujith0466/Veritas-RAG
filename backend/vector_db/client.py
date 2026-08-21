@@ -45,13 +45,13 @@ def get_qdrant_client() -> AsyncQdrantClient:
     settings = get_settings().qdrant
     client_kwargs: dict[str, Any] = {
         "prefer_grpc": settings.prefer_grpc,
+        "timeout": settings.timeout,
     }
 
     if settings.url_override:
         client_kwargs["url"] = settings.url_override
     else:
-        client_kwargs["host"] = settings.host
-        client_kwargs["port"] = settings.port
+        client_kwargs["url"] = f"http://{settings.host}:{settings.port}"
 
     if settings.api_key:
         client_kwargs["api_key"] = settings.api_key
@@ -76,7 +76,7 @@ async def get_vector_db() -> AsyncGenerator[AsyncQdrantClient, None]:
 
 async def check_vector_db_health() -> dict[str, Any]:
     """Check Qdrant connectivity and measure latency.
-    
+
     Returns detailed connection status, latency in ms, and gRPC preference.
     """
     start = time.perf_counter()

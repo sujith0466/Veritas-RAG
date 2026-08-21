@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: raguard-config
+  namespace: raguard-staging
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: config
+    app.kubernetes.io/environment: staging
+    app.kubernetes.io/managed-by: kubectl
+data:
+  ENVIRONMENT: "staging"
+  LOG_LEVEL: "debug"
+  POSTGRES_DB: "raguard_db_staging"
+  POSTGRES_USER: "raguard_staging"
+  REDIS_URL: "redis://raguard-redis.raguard-staging.svc.cluster.local:6379/0"
+  QDRANT_URL: "http://raguard-qdrant.raguard-staging.svc.cluster.local:6333"
+  MINIO_ENDPOINT: "http://raguard-minio.raguard-staging.svc.cluster.local:9000"
+  ENABLE_CHAOS_INJECTION: "true"

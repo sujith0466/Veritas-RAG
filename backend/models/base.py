@@ -59,3 +59,30 @@ class TenantAwareBaseModel(BaseModel):
         nullable=False,
         index=True,
     )
+
+
+class ImmutableBaseModel(Base):
+    """Abstract base class for append-only / immutable ORM entities (e.g., Audit Logs).
+
+    Provides primary key (`id`) and immutable creation timestamp (`created_at`).
+    Explicitly omits `updated_at` and `is_deleted` to ensure append-only WORM compliance.
+    """
+
+    __abstract__ = True
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert model instance column values to dictionary."""
+        return {
+            column.name: getattr(self, column.name) for column in self.__table__.columns
+        }

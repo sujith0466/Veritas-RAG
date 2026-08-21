@@ -1,0 +1,109 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: raguard-staging-db-init-seed
+  namespace: raguard-staging
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: db-init
+    app.kubernetes.io/environment: staging
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      containers:
+      - name: db-seed
+        image: ghcr.io/your-org/raguard-backend:staging-latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "[*] Step 1: Running Alembic database migrations..."
+          alembic upgrade head
+          echo "[+] Database schema upgraded to head."
+
+          echo "[*] Step 2: Seeding staging test workspaces and accounts..."
+          python -c "
+          import asyncio
+          import uuid
+          from sqlalchemy import select
+          from backend.database.engine import get_session_factory
+          from backend.models.entities.workspace import Workspace, WorkspaceStatus, ProvisioningStatus
+          from backend.models.entities.user import User
+          from backend.models.entities.workspace_member import WorkspaceMember
+          from backend.modules.analytics.models.tenant_quota import TenantQuotaORM
+          from backend.core.security.password import get_password_hash
+
+          async def seed():
+              factory = get_session_factory()
+              async with factory() as session:
+                  ws_id = uuid.UUID('00000000-0000-0000-0000-000000000001')
+                  user_id = uuid.UUID('00000000-0000-0000-0000-000000000002')
+
+                  ws = await session.get(Workspace, ws_id)
+                  if not ws:
+                      ws = Workspace(
+                          id=ws_id,
+                          name='Staging Load Test Workspace',
+                          slug='staging-load-test',
+                          status=WorkspaceStatus.ACTIVE.value,
+                          provisioning_status=ProvisioningStatus.READY.value,
+                          storage_prefix=f'workspaces/{ws_id}/',
+                          qdrant_namespace=f'ws_{ws_id.hex}'
+                      )
+                      session.add(ws)
+
+                  quota_stmt = select(TenantQuotaORM).where(TenantQuotaORM.workspace_id == ws_id)
+                  quota = (await session.execute(quota_stmt)).scalar_one_or_none()
+                  if not quota:
+                      quota = TenantQuotaORM(
+                          tenant_id=str(ws_id),
+                          workspace_id=ws_id,
+                          monthly_token_limit=10000000,
+                          monthly_budget_usd=100.0,
+                          warning_threshold_pct=0.8,
+                          is_hard_enforced=True
+                      )
+                      session.add(quota)
+
+                  user = await session.get(User, user_id)
+                  if not user:
+                      user = User(
+                          id=user_id,
+                          email='loadtest@example.com',
+                          hashed_password=get_password_hash('LoadTestPassword123!'),
+                          display_name='Staging Test Runner',
+                          role='owner',
+                          is_active=True,
+                          is_verified=True
+                      )
+                      session.add(user)
+
+                  mem_stmt = select(WorkspaceMember).where(
+                      WorkspaceMember.workspace_id == ws_id,
+                      WorkspaceMember.user_id == user_id
+                  )
+                  mem = (await session.execute(mem_stmt)).scalar_one_or_none()
+                  if not mem:
+                      mem = WorkspaceMember(
+                          id=uuid.uuid4(),
+                          workspace_id=ws_id,
+                          user_id=user_id,
+                          role='owner'
+                      )
+                      session.add(mem)
+
+                  await session.commit()
+                  print('[+] Staging Database seeding complete.')
+
+          asyncio.run(seed())
+          "
+
+          echo "[+] Staging database initialization and seed completed."
+        envFrom:
+        - configMapRef:
+            name: raguard-config
+        - secretRef:
+            name: raguard-secrets
+      restartPolicy: Never

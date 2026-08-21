@@ -10,13 +10,18 @@ from sqlalchemy import JSON, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from backend.models.base import BaseModel
+from backend.models.base import ImmutableBaseModel
 
 
-class AuditLog(BaseModel):
-    """Immutable audit trail entry for tracking system actions and security events."""
+class AuditLog(ImmutableBaseModel):
+    """Immutable WORM audit trail entry for tracking system actions and security events.
+
+    Inherits from ImmutableBaseModel (id, created_at).
+    Does NOT contain is_deleted or updated_at to ensure append-only compliance.
+    """
 
     __tablename__ = "audit_logs"
+
 
     tenant_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True

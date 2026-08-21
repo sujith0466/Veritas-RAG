@@ -1,0 +1,90 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: raguard-staging
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/environment: staging
+spec:
+  schedule: "0 2 * * *"  # Daily at 02:00 UTC
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: postgres-backup
+            image: postgres:16-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              DATE=$(date +%Y%m%d_%H%M%S)
+              echo "Starting PostgreSQL backup for staging: /backup/db_staging_${DATE}.sql"
+              PGPASSWORD="$PGPASSWORD" pg_dump -h raguard-postgres -U raguard_staging -d raguard_db_staging > "/backup/db_staging_${DATE}.sql"
+              # Retain last 7 days of backups
+              find /backup -name "db_staging_*.sql" -mtime +7 -delete
+              echo "PostgreSQL backup completed successfully."
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: raguard-secrets
+                  key: POSTGRES_PASSWORD
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: postgres-backup-pvc
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: minio-backup
+  namespace: raguard-staging
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/environment: staging
+spec:
+  schedule: "0 3 * * *"  # Daily at 03:00 UTC
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: minio-backup
+            image: minio/mc:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Configuring MinIO client for staging..."
+              mc alias set staging http://raguard-minio:9000 admin "$MINIO_ROOT_PASSWORD"
+              echo "Mirroring staging buckets to backup archive..."
+              mc mirror --overwrite staging/data /backup/minio-mirror/
+              echo "MinIO mirror completed successfully."
+            env:
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: raguard-secrets
+                  key: MINIO_ROOT_PASSWORD
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: postgres-backup-pvc

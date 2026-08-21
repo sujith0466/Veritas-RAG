@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: raguard-ingress
+  namespace: raguard-staging
+  labels:
+    app.kubernetes.io/name: raguard
+    app.kubernetes.io/component: networking
+    app.kubernetes.io/environment: staging
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+spec:
+  tls:
+  - hosts:
+    - staging.raguard.ai
+    secretName: raguard-staging-tls-secret
+  rules:
+  - host: staging.raguard.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: raguard-api
+            port:
+              number: 80

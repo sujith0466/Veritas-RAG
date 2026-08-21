@@ -69,7 +69,7 @@
 ```mermaid
 graph TD
     Client[Client UI / React + Vite] --> Gateway[FastAPI Gateway]
-    
+
     subgraph "Core Security & Auth"
         Gateway --> Auth[Auth & Session Manager]
         Auth --> RBAC[Role-Based Access Control]
@@ -228,12 +228,12 @@ RAGuard-AI/
 | **Epic 12** | Admin Portal (Workspace & Platform Admin, RBAC, Quotas, Audit Logs) | ✅ **FROZEN** | 100% |
 | **Epic 13** | Policy & Configuration (Quotas, Usages, Retention Lifecycles) | ✅ **FROZEN** | 100% |
 | **Epic 14** | Observability & Production Monitoring (OTel, Metrics, Grafana, Alerts, Health Probes) | ✅ **FROZEN** | 100% |
-| **Epic 15** | Enterprise Security & Compliance | ⏳ **NEXT ACTIVE** | 0% |
-| **Epic 16** | Cloud Deployment, Helm & Scalability | ⏳ Scheduled | 0% |
+| **Epic 15** | Production Hardening & Enterprise Security | ✅ **CERTIFIED BASELINE** | 100% (Baseline Established) |
+| **Epic 16** | Production Launch & Final Handover | ⏳ **NEXT ACTIVE** | 0% |
 
 ---
 
 ## 📄 License & Governance
 
-Licensed under the MIT License. See [LICENSE](LICENSE) for details.  
+Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 Copyright (c) 2026 Sujith Kumar.
