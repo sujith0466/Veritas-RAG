@@ -98,7 +98,7 @@ class FeatureFlagSettings(BaseSettings):
         description="Enable progressive streaming of citations (F8.8)",
     )
     enable_ai_policy_engine: bool = Field(
-        default=False,
+        default=True,
         alias="ENABLE_AI_POLICY_ENGINE",
         description="Enable AI Policy Middleware for token/topic/PII enforcement (F8.9)",
     )
