@@ -110,6 +110,11 @@ class StreamingGroundedGenerationService:
                             cit = self.citation_extractor.extract_single(marker, safe_chunks, seen_markers_local)
                             if cit:
                                 citations_delta.append(cit)
+                                try:
+                                    from backend.observability.metrics import record_sse_citation_emitted
+                                    record_sse_citation_emitted()
+                                except Exception:
+                                    pass
                             else:
                                 # EP8-030: If invalid/hallucinated and not already seen, scrub it
                                 if marker not in seen_markers_local:
@@ -117,8 +122,9 @@ class StreamingGroundedGenerationService:
                                     window_buffer = window_buffer.replace(f"[{marker}]", "")
 
                         # Clear buffer up to last marker to avoid rescanning
-                        if markers:
-                            last_match = list(citation_pattern.finditer(window_buffer))[-1]
+                        matches = list(citation_pattern.finditer(window_buffer))
+                        if matches:
+                            last_match = matches[-1]
                             window_buffer = window_buffer[last_match.end():]
 
                     # F8.7 Reliability Score Extraction

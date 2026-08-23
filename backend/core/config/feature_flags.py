@@ -93,7 +93,7 @@ class FeatureFlagSettings(BaseSettings):
         description="Enable incremental streaming reliability score updates (F8.7)",
     )
     enable_streaming_citations: bool = Field(
-        default=False,
+        default=True,
         alias="ENABLE_STREAMING_CITATIONS",
         description="Enable progressive streaming of citations (F8.8)",
     )
