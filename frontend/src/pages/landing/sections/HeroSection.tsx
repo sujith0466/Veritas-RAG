@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, Github, Sparkles } from 'lucide-react'
+import { ArrowRight, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { HeroPipeline } from '../components/HeroPipeline'
 import { TrustStrip } from './TrustStrip'
@@ -100,23 +100,6 @@ export function HeroSection() {
               </MagneticButton>
             </motion.div>
 
-            {/* Quick links */}
-            <motion.div variants={itemVariants} className="flex items-center gap-6 text-sm text-muted-foreground">
-              <a
-                href="#"
-                className="flex items-center gap-1 hover:text-primary transition-colors group"
-              >
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                Documentation
-              </a>
-              <a
-                href="#"
-                className="flex items-center gap-1.5 hover:text-primary transition-colors"
-              >
-                <Github className="w-4 h-4" />
-                GitHub
-              </a>
-            </motion.div>
 
             {/* Social proof numbers */}
             <motion.div
