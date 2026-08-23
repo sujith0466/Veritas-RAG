@@ -179,11 +179,32 @@ class RetrievalOrchestrator:
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             return candidates, duration_ms
         except SparseIndexNotFoundError as exc:
-            logger.warning(
-                "Sparse index uninitialized for tenant during hybrid search; returning empty sparse set",
-                tenant_id=tenant_id,
-                error=str(exc),
-            )
+            if self.index_manager:
+                try:
+                    logger.info(
+                        "Sparse index uninitialized for tenant; triggering lazy auto-recovery",
+                        tenant_id=tenant_id,
+                    )
+                    await self.index_manager.ensure_index(tenant_id)
+                    candidates = await self.sparse_provider.search_keywords(
+                        tenant_id=tenant_id,
+                        query=query,
+                        limit=limit,
+                    )
+                    duration_ms = (time.perf_counter() - start_time) * 1000.0
+                    return candidates, duration_ms
+                except Exception as auto_exc:
+                    logger.error(
+                        "BM25 lazy index recovery failed; returning empty sparse set",
+                        tenant_id=tenant_id,
+                        error=str(auto_exc),
+                    )
+            else:
+                logger.warning(
+                    "Sparse index uninitialized and no index manager available; returning empty sparse set",
+                    tenant_id=tenant_id,
+                    error=str(exc),
+                )
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             return [], duration_ms
         except Exception as exc:

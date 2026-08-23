@@ -7,6 +7,7 @@ NOTE: This manager intentionally does NOT share the request-scoped
 AsyncSession. It creates its own isolated sessions via get_session_factory()
 to avoid asyncpg "another operation is in progress" errors during streaming.
 """
+import asyncio
 from typing import Any
 
 from structlog import get_logger
@@ -24,6 +25,20 @@ class SparseIndexManager:
         sparse_provider: BaseSparseSearchProvider | Any,
     ):
         self.sparse_provider = sparse_provider
+        self._tenant_locks: dict[str, asyncio.Lock] = {}
+        self._lock_table_guard: asyncio.Lock | None = None
+
+    def _get_guard(self) -> asyncio.Lock:
+        if self._lock_table_guard is None:
+            self._lock_table_guard = asyncio.Lock()
+        return self._lock_table_guard
+
+    async def _get_tenant_lock(self, tenant_id: str) -> asyncio.Lock:
+        guard = self._get_guard()
+        async with guard:
+            if tenant_id not in self._tenant_locks:
+                self._tenant_locks[tenant_id] = asyncio.Lock()
+            return self._tenant_locks[tenant_id]
 
     def _make_chunk_repository(self, session):
         """Create a fresh chunk repository bound to the given isolated session."""
@@ -41,8 +56,13 @@ class SparseIndexManager:
         if self.is_initialized(tenant_id):
             return
 
-        logger.info("BM25 index not initialized for tenant. Building lazily.", tenant_id=tenant_id)
-        await self.rebuild_index(tenant_id)
+        lock = await self._get_tenant_lock(tenant_id)
+        async with lock:
+            if self.is_initialized(tenant_id):
+                return
+
+            logger.info("BM25 index not initialized for tenant. Building lazily.", tenant_id=tenant_id)
+            await self.rebuild_index(tenant_id)
 
     async def rebuild_index(self, tenant_id: str) -> int:
         """Clear and rebuild the tenant's BM25 index from all active chunks.
