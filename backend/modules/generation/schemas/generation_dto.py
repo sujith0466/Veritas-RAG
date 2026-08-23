@@ -99,6 +99,10 @@ class GenerationRequestDTOv2(BaseModel):
     stream: bool = Field(
         default=False, description="Whether to stream response via Server-Sent Events"
     )
+    conversation_history: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="Prior conversational turns for multi-turn context continuity",
+    )
     guardrail_config: PromptGuardrailConfigDTO = Field(
         default_factory=PromptGuardrailConfigDTO
     )

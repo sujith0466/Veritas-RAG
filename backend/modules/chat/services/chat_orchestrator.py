@@ -172,11 +172,56 @@ class ChatOrchestrator:
                 yield err.to_sse_string()
                 return
 
-        # 1. Save User Message (Idempotency check: only if not recovering)
+        # 1. Load prior conversation history & save current user message
+        conversation_history: list[dict[str, Any]] = []
         if not is_recovering:
             async with session_maker() as session:
                 try:
                     repo = ChatRepository(session)
+                    # Load prior history for the authenticated session before persisting current query
+                    try:
+                        prior_messages = await repo.list_messages(
+                            session_id=session_id,
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            limit=50
+                        )
+                        valid_turns = []
+                        for msg in prior_messages:
+                            if msg.role in ("user", "assistant") and msg.message and msg.message.strip():
+                                valid_turns.append({"role": msg.role, "content": msg.message.strip()})
+
+                        # Context budget: Sliding window pruning (max 10 turns, max 3000 chars)
+                        budget_turns = []
+                        char_budget = 3000
+                        current_chars = 0
+                        for turn in reversed(valid_turns[-10:]):
+                            turn_len = len(turn["content"])
+                            if current_chars + turn_len > char_budget:
+                                break
+                            budget_turns.insert(0, turn)
+                            current_chars += turn_len
+
+                        conversation_history = budget_turns
+
+                        logger.info(
+                            "Chat conversation history loaded",
+                            session_id=session_id,
+                            history_loaded=bool(conversation_history),
+                            history_turn_count=len(conversation_history),
+                            history_char_count=current_chars,
+                            history_truncated=(len(valid_turns) > len(conversation_history)),
+                            correlation_id=correlation_id
+                        )
+                    except Exception as hist_err:
+                        logger.warning(
+                            "Failed to load prior chat history; proceeding in single-turn mode",
+                            error=str(hist_err),
+                            session_id=session_id,
+                            correlation_id=correlation_id
+                        )
+                        conversation_history = []
+
                     await repo.add_message(
                         session_id=session_id,
                         tenant_id=tenant_id,
@@ -270,6 +315,7 @@ class ChatOrchestrator:
             workspace_id=workspace_id,
             tenant_id=tenant_uuid,
             query=query,
+            conversation_history=conversation_history,
             stream=True
         )
 

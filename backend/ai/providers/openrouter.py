@@ -48,6 +48,16 @@ class OpenRouterProvider(LLMProvider):
         messages = []
         if request.system_instruction:
             messages.append({"role": "system", "content": request.system_instruction})
+
+        if request.conversation_history:
+            for turn in request.conversation_history:
+                if not isinstance(turn, dict):
+                    continue
+                role = turn.get("role")
+                content = turn.get("content") or turn.get("message")
+                if role in ("user", "assistant") and content and isinstance(content, str) and content.strip():
+                    messages.append({"role": role, "content": content.strip()})
+
         messages.append({"role": "user", "content": request.prompt})
 
         temperature = (

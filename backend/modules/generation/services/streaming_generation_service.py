@@ -93,7 +93,8 @@ class StreamingGroundedGenerationService:
                     prompt=request.query,
                     system_instruction=evidence_block,
                     tenant_id=str(request.tenant_id),
-                    workspace_id=str(getattr(request, "workspace_id", request.tenant_id))
+                    workspace_id=str(getattr(request, "workspace_id", request.tenant_id)),
+                    conversation_history=getattr(request, "conversation_history", None),
                 )
                 async for delta in self.llm_provider.stream(llm_req):
                     full_text += delta

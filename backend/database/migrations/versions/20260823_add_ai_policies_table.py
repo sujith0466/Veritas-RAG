@@ -1,4 +1,4 @@
-﻿"""Add AI policies and policy violation audits tables.
+"""Add AI policies and policy violation audits tables.
 
 Revision ID: e15_iss004_policies
 Revises: e15a0d179001
@@ -34,6 +34,7 @@ def upgrade() -> None:
         sa.Column("block_jailbreaks", sa.Boolean(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("false"), nullable=False),
     )
     op.create_index(op.f("ix_policies_tenant_id"), "policies", ["tenant_id"], unique=False)
     op.create_index(op.f("ix_policies_workspace_id"), "policies", ["workspace_id"], unique=False)

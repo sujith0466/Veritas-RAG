@@ -29,6 +29,7 @@ class LLMRequest:
     workspace_id: str | None = None
     # If True, use gemini-2.0-flash-lite for lightweight classification/routing tasks
     use_lite_model: bool = False
+    conversation_history: list[dict[str, str]] | None = None
 
 
 @dataclass

@@ -6,6 +6,7 @@ and the factory to obtain a provider instance.
 """
 
 from collections.abc import AsyncIterator
+from typing import Any
 
 import google.generativeai as genai
 import structlog
@@ -42,6 +43,33 @@ class GeminiProvider(LLMProvider):
             ),
         )
 
+    def _build_contents(self, request: LLMRequest) -> Any:
+        if not request.conversation_history:
+            if request.system_instruction:
+                return f"{request.system_instruction}\n\n{request.prompt}"
+            return request.prompt
+
+        contents: list[dict[str, Any]] = []
+        first_user_injected = False
+        for turn in request.conversation_history:
+            if not isinstance(turn, dict):
+                continue
+            role = turn.get("role")
+            content = turn.get("content") or turn.get("message")
+            if role in ("user", "assistant") and content and isinstance(content, str) and content.strip():
+                gemini_role = "user" if role == "user" else "model"
+                turn_text = content.strip()
+                if not first_user_injected and gemini_role == "user" and request.system_instruction:
+                    turn_text = f"{request.system_instruction}\n\n{turn_text}"
+                    first_user_injected = True
+                contents.append({"role": gemini_role, "parts": [turn_text]})
+
+        current_prompt = request.prompt
+        if not first_user_injected and request.system_instruction:
+            current_prompt = f"{request.system_instruction}\n\n{current_prompt}"
+        contents.append({"role": "user", "parts": [current_prompt]})
+        return contents
+
     async def generate(self, request: LLMRequest) -> LLMResponse:
         """Generate a response using the Gemini API.
 
@@ -61,13 +89,11 @@ class GeminiProvider(LLMProvider):
             or self._settings.max_output_tokens,
         )
 
-        prompt = request.prompt
-        if request.system_instruction:
-            prompt = f"{request.system_instruction}\n\n{request.prompt}"
+        contents = self._build_contents(request)
 
         try:
             response = model.generate_content(
-                contents=prompt,
+                contents=contents,
                 generation_config=generation_config,
                 request_options={"timeout": self._settings.request_timeout},
             )
@@ -95,12 +121,10 @@ class GeminiProvider(LLMProvider):
         current SDK version. This wraps it as an async iterator.
         """
         model = self._get_model(use_lite=request.use_lite_model)
-        prompt = request.prompt
-        if request.system_instruction:
-            prompt = f"{request.system_instruction}\n\n{request.prompt}"
+        contents = self._build_contents(request)
 
         try:
-            response = model.generate_content(contents=prompt, stream=True)
+            response = model.generate_content(contents=contents, stream=True)
             for chunk in response:
                 if chunk.text:
                     yield chunk.text

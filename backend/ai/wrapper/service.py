@@ -143,13 +143,39 @@ class AIWrapperService:
             # Step 4: Qdrant Namespace Binding
             binding = await self.namespace_resolver.resolve(request.workspace_id, request.tenant_id)
 
-            # Step 5: Query Preprocessing (PromptGuard handles this downstream)
+            # Step 5: Query Preprocessing & Contextualization for Retrieval
+            retrieval_query = request.query
+            if request.conversation_history:
+                try:
+                    from backend.modules.query_rewrite.strategies.entity_recovery import (
+                        MissingEntityRecoveryStrategy,
+                    )
+                    from backend.modules.query_rewrite.schemas.rewrite_dto import (
+                        RewriteRequestDTOv2,
+                    )
+                    recovery_strategy = MissingEntityRecoveryStrategy()
+                    history_texts = [
+                        t.get("content", "") or t.get("message", "")
+                        for t in request.conversation_history
+                        if isinstance(t, dict)
+                    ]
+                    rewrite_req = RewriteRequestDTOv2(
+                        original_query=request.query,
+                        tenant_id=str(request.tenant_id),
+                        conversation_history=[h for h in history_texts if h]
+                    )
+                    rewrite_res = recovery_strategy.rewrite(rewrite_req)
+                    if rewrite_res and rewrite_res.rewritten_query:
+                        retrieval_query = rewrite_res.rewritten_query
+                except Exception as rewrite_exc:
+                    logger.warning("Query contextualization skipped", error=str(rewrite_exc))
+                    retrieval_query = request.query
 
             # Step 6: Hybrid Retrieval (Timeout 5s)
             search_req = SearchRequestDTO(
                 tenant_id=request.tenant_id,
                 workspace_id=request.workspace_id,
-                query=request.query,
+                query=retrieval_query,
                 top_k=5,
             )
 
@@ -185,6 +211,7 @@ class AIWrapperService:
                 evidence_chunks=evidence_chunks,
                 correlation_id=correlation_id,
                 tenant_id=str(request.tenant_id),
+                conversation_history=request.conversation_history or [],
                 stream=True
             )
 
