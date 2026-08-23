@@ -14,12 +14,12 @@ class OpenRouterSettings(BaseSettings):
     )
     # Comma-separated list of primary models for failover
     models_raw: str = Field(
-        default="anthropic/claude-3.5-sonnet,meta-llama/llama-3-70b-instruct,google/gemini-flash-1.5",
+        default="meta-llama/llama-3.3-70b-instruct,openai/gpt-4o-mini,google/gemini-2.5-flash",
         alias="OPENROUTER_MODELS",
     )
     # Lightweight model for classification (intent, ambiguity) — cheaper per token
     lite_models_raw: str = Field(
-        default="anthropic/claude-3-haiku,google/gemini-flash-1.5",
+        default="openai/gpt-4o-mini,anthropic/claude-3-haiku",
         alias="OPENROUTER_LITE_MODELS",
     )
     max_output_tokens: int = Field(default=2048, alias="OPENROUTER_MAX_OUTPUT_TOKENS")
