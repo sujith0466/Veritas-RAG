@@ -11,9 +11,12 @@ from backend.observability.metrics.prometheus import (
 
 
 class PolicyViolationError(ApplicationException):
+    http_status: int = 403
+    error_code: str = "POL_001"
+
     def __init__(self, message: str, violation_type: str = "general"):
         self.violation_type = violation_type
-        super().__init__(status_code=403, message=message)
+        super().__init__(message=message, detail={"violation_type": violation_type}, error_code="POL_001")
 
 class TokenLimitEvaluator:
     def evaluate(self, query: str, policy: MergedPolicyDTO) -> None:

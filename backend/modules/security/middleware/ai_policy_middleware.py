@@ -1,3 +1,4 @@
+import structlog
 from uuid import UUID
 
 from backend.cache.client import get_redis_client
@@ -16,6 +17,8 @@ from backend.modules.security.schemas.policy_dto import (
 )
 from backend.modules.security.services.dlp import DLPEngine
 
+logger = structlog.get_logger(__name__)
+
 
 class PolicyEngine:
     def __init__(self):
@@ -27,51 +30,67 @@ class PolicyEngine:
             return MergedPolicyDTO()
 
         cache_key = f"raguard:policy:{tenant_id}:{workspace_id}"
-        cached = await self.redis.get(cache_key)
-        if cached:
-            return MergedPolicyDTO.model_validate_json(cached)
+        try:
+            if self.redis:
+                cached = await self.redis.get(cache_key)
+                if cached:
+                    try:
+                        return MergedPolicyDTO.model_validate_json(cached)
+                    except Exception:
+                        await self.redis.delete(cache_key)
+        except Exception as cache_exc:
+            logger.warning("Redis policy cache read failed; bypassing cache", error=str(cache_exc))
 
-        # Fallback to defaults (in a real scenario, this fetches from DB)
-        # Mocking DB fetch for deterministic architecture requirement:
-        # Tenant overrides system default, workspace overrides tenant.
-        tenant_policy = TenantPolicyDTO(
-            max_tokens=2048,
-            blocked_topics=["financial advice", "medical diagnosis"],
-            redact_pii=True,
-            block_jailbreaks=True
-        )
-        workspace_policy = WorkspacePolicyDTO(
-            max_tokens=1024, # Stricter
-            blocked_topics=[],
-            redact_pii=None,
-            block_jailbreaks=None
-        )
+        try:
+            merged = await self._fetch_and_merge_from_db(str(tenant_id), str(workspace_id) if workspace_id else None)
+        except Exception as db_exc:
+            logger.error("Failed to load policy from database; applying safe system default", tenant_id=str(tenant_id), error=str(db_exc))
+            return MergedPolicyDTO()
+
+        try:
+            if self.redis:
+                await self.redis.setex(cache_key, 300, merged.model_dump_json())
+        except Exception as cache_write_exc:
+            logger.warning("Redis policy cache write failed", error=str(cache_write_exc))
+
+        return merged
+
+    async def _fetch_and_merge_from_db(self, tenant_id: str, workspace_id: str | None) -> MergedPolicyDTO:
+        """Query PostgreSQL for tenant and workspace policies and merge deterministically."""
+        from backend.database.engine import get_session_factory
+        from backend.modules.security.repositories.policy_repository import PolicyRepository
+
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            repo = PolicyRepository(session)
+            tenant_policy = await repo.get_tenant_policy(tenant_id)
+            workspace_policy = await repo.get_workspace_policy(tenant_id, workspace_id) if workspace_id else None
 
         merged = MergedPolicyDTO()
-        # Apply tenant
-        if tenant_policy.max_tokens is not None:
-            merged.max_tokens = tenant_policy.max_tokens
-        if tenant_policy.blocked_topics:
-            merged.blocked_topics.extend(tenant_policy.blocked_topics)
-        if tenant_policy.redact_pii is not None:
-            merged.redact_pii = tenant_policy.redact_pii
-        if tenant_policy.block_jailbreaks is not None:
-            merged.block_jailbreaks = tenant_policy.block_jailbreaks
 
-        # Apply workspace overrides
-        if workspace_policy.max_tokens is not None:
-            merged.max_tokens = min(merged.max_tokens, workspace_policy.max_tokens)
-        if workspace_policy.blocked_topics:
-            merged.blocked_topics.extend(workspace_policy.blocked_topics)
-        if workspace_policy.redact_pii is not None:
-            merged.redact_pii = workspace_policy.redact_pii
-        if workspace_policy.block_jailbreaks is not None:
-            merged.block_jailbreaks = workspace_policy.block_jailbreaks
+        # Apply tenant policy if configured
+        if tenant_policy:
+            if tenant_policy.max_tokens is not None:
+                merged.max_tokens = tenant_policy.max_tokens
+            if tenant_policy.blocked_topics:
+                merged.blocked_topics.extend(tenant_policy.blocked_topics)
+            if tenant_policy.redact_pii is not None:
+                merged.redact_pii = tenant_policy.redact_pii
+            if tenant_policy.block_jailbreaks is not None:
+                merged.block_jailbreaks = tenant_policy.block_jailbreaks
+
+        # Apply workspace policy overrides if configured
+        if workspace_policy:
+            if workspace_policy.max_tokens is not None:
+                merged.max_tokens = min(merged.max_tokens, workspace_policy.max_tokens)
+            if workspace_policy.blocked_topics:
+                merged.blocked_topics.extend(workspace_policy.blocked_topics)
+            if workspace_policy.redact_pii is not None:
+                merged.redact_pii = workspace_policy.redact_pii
+            if workspace_policy.block_jailbreaks is not None:
+                merged.block_jailbreaks = workspace_policy.block_jailbreaks
 
         merged.blocked_topics = list(set(merged.blocked_topics))
-
-        # Cache with 5 min TTL
-        await self.redis.setex(cache_key, 300, merged.model_dump_json())
         return merged
 
 class AIPolicyMiddleware:
