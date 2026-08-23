@@ -24,7 +24,7 @@ class NLIValidationEngine:
 
             if not excerpt:
                 # No evidence provided
-                verdict, confidence = self.provider.evaluate_entailment(
+                verdict, confidence = await self.provider.evaluate_entailment(
                     "", claim_text
                 )  # Will be NEUTRAL
             else:
