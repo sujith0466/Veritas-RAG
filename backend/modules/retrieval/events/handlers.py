@@ -19,7 +19,7 @@ async def handle_document_changed(event: BaseEvent) -> None:
     from backend.modules.retrieval.api.dependencies import _bm25_provider
     from backend.modules.retrieval.services.bm25_manager import SparseIndexManager
     manager = SparseIndexManager(sparse_provider=_bm25_provider)
-    manager.clear_index(tenant_id)
+    await manager.invalidate_index(tenant_id)
     logger.info("Invalidated BM25 index due to document change event", tenant_id=tenant_id, event_type=event.event_type)
 
 def register_retrieval_event_handlers() -> None:

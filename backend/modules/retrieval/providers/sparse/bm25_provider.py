@@ -165,6 +165,7 @@ class _TenantBM25Index:
     def __init__(self, k1: float = 1.5, b: float = 0.75) -> None:
         self.k1 = k1
         self.b = b
+        self.version: int = 0
         self.documents: dict[UUID, dict[str, Any]] = {}
         self.doc_term_counts: dict[UUID, Counter[str]] = {}
         self.doc_lengths: dict[UUID, int] = {}
@@ -295,9 +296,13 @@ class BM25SparseSearchProvider(BaseSparseSearchProvider):
         self._indices[tenant_id] = idx
         return idx
 
-    async def index_chunks(self, tenant_id: str, chunks: list["DocumentChunk"]) -> int:
+    async def index_chunks(
+        self, tenant_id: str, chunks: list["DocumentChunk"], version: int = 0
+    ) -> int:
         """Index a batch of DocumentChunk objects for a tenant."""
         idx = self._get_or_create_index(tenant_id)
+        if version > 0:
+            idx.version = version
         indexed_count = 0
 
         for chunk in chunks:
