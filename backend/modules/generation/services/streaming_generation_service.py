@@ -45,6 +45,7 @@ class StreamingGroundedGenerationService:
                 is_final=True,
                 correlation_id=request.correlation_id,
                 is_fully_grounded=False,
+                wrapper_metadata={"reliability_score": 0.0, "stage": "generation"},
             )
             return
 
@@ -59,6 +60,7 @@ class StreamingGroundedGenerationService:
                 is_final=True,
                 correlation_id=request.correlation_id,
                 is_fully_grounded=False,
+                wrapper_metadata={"reliability_score": 0.0, "stage": "generation"},
             )
             return
 
@@ -91,7 +93,7 @@ class StreamingGroundedGenerationService:
                     prompt=request.query,
                     system_instruction=evidence_block,
                     tenant_id=str(request.tenant_id),
-                    workspace_id=str(request.workspace_id)
+                    workspace_id=str(getattr(request, "workspace_id", request.tenant_id))
                 )
                 async for delta in self.llm_provider.stream(llm_req):
                     full_text += delta
@@ -183,11 +185,45 @@ class StreamingGroundedGenerationService:
             full_text, citations, safe_chunks
         )
 
-        final_metadata = None
-        if enable_reliability and reliability_engine:
-            final_metadata = {
-                "reliability_score": reliability_engine.current_score
-            }
+        # F8.7 Deterministic Multi-Signal Reliability Scoring
+        from backend.modules.scoring.schemas.scoring_dto import ScoringInputsDTO
+        from backend.modules.scoring.services.base_scorer import BaseReliabilityScorer
+        from backend.modules.scoring.services.penalty_calculator import PenaltyCalculator
+
+        # Calculate average relevance score from citations (or top evidence if no citations)
+        if citations:
+            avg_relevance = sum(c.relevance_score for c in citations) / len(citations)
+        else:
+            avg_relevance = (
+                sum(
+                    c.normalized_relevance_score if hasattr(c, "normalized_relevance_score") and c.normalized_relevance_score is not None else 1.0
+                    for c in safe_chunks[:3]
+                ) / max(1, min(len(safe_chunks), 3))
+            ) * 0.5
+
+        # Count invalid citation markers in full_text
+        all_markers = [int(m) for m in re.findall(r'\[(\d+)\]', full_text)]
+        invalid_markers_count = sum(1 for m in all_markers if m < 1 or m > len(safe_chunks))
+
+        scoring_inputs = ScoringInputsDTO(
+            retrieval_relevance_score=max(0.0, min(1.0, float(avg_relevance))),
+            validation_entailment_ratio=1.0 if is_grounded else 0.0,
+            confidence_evidence_strength=min(1.0, len(safe_chunks) / 5.0),
+            reflection_completeness=1.0 if citations else 0.5,
+            unsupported_claim_count=0 if is_grounded else 1,
+            invalid_citation_count=invalid_markers_count,
+        )
+
+        base_scorer = BaseReliabilityScorer()
+        penalty_calculator = PenaltyCalculator()
+        base_score = base_scorer.calculate_base_score(scoring_inputs)
+        penalty_deduction, _ = penalty_calculator.calculate_penalty(scoring_inputs)
+        calculated_reliability = round(max(0.0, min(1.0, (base_score - penalty_deduction) / 100.0)), 4)
+
+        final_metadata = {
+            "reliability_score": calculated_reliability,
+            "stage": "generation",
+        }
 
         yield StreamingGenerationChunkDTO(
             chunk_index=chunk_idx,

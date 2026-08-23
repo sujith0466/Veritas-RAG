@@ -193,10 +193,13 @@ class AIWrapperService:
                 chunk_dict = chunk.model_dump()
                 chunk_dict.pop("wrapper_metadata", None)
                 chunk_dict.pop("namespace_used", None)
+                wrapper_meta = {"stage": "generation"}
+                if chunk.wrapper_metadata:
+                    wrapper_meta.update(chunk.wrapper_metadata)
                 wrapper_chunk = AIWrapperStreamChunk(
                     **chunk_dict,
                     namespace_used=binding.collection_name,
-                    wrapper_metadata={"stage": "generation"}
+                    wrapper_metadata=wrapper_meta
                 )
                 yield wrapper_chunk
 

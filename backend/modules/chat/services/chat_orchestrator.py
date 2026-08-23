@@ -276,7 +276,7 @@ class ChatOrchestrator:
         full_assistant_text = ""
         final_citations = []
         is_grounded = False
-        reliability_score = 1.0
+        reliability_score = 0.0
         is_interrupted = False
 
         try:
@@ -298,7 +298,7 @@ class ChatOrchestrator:
                         final_citations = [c.model_dump() for c in chunk.citations_delta]
                         is_grounded = chunk.is_fully_grounded
                         if chunk.wrapper_metadata and "reliability_score" in chunk.wrapper_metadata:
-                            reliability_score = chunk.wrapper_metadata["reliability_score"]
+                            reliability_score = float(chunk.wrapper_metadata["reliability_score"])
 
                     # F8.3 SSE DTO
                     dto = SSEMessageDTO(
