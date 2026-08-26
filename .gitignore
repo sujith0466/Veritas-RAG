@@ -174,3 +174,5 @@ verify.py
 docs/internal/*_AUDIT_TEMP.md
 docs/internal/*_LOCAL.md
 docs/internal/*_SCRATCH.md
+
+*.pdf
