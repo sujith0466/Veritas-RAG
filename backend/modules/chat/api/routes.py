@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.auth.context import UserContext
-from backend.core.dependencies.auth import get_current_user
+from backend.core.dependencies.auth import get_current_user, require_workspace
 from backend.core.dependencies.quota import enforce_workspace_quota
 from backend.modules.chat.api.dependencies import get_chat_orchestrator, get_chat_repository
 from backend.modules.chat.repositories.chat_repository import ChatRepository
@@ -27,7 +27,7 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 async def list_sessions(
     request: Request,
     repo: ChatRepository = Depends(get_chat_repository),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_workspace())
 ):
     sessions = await repo.list_sessions(tenant_id=user.tenant_id, user_id=str(user.id))
     return SuccessResponse[list[ChatSessionDTO]](
@@ -40,7 +40,7 @@ async def create_session(
     dto: ChatSessionCreateDTO,
     request: Request,
     repo: ChatRepository = Depends(get_chat_repository),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_workspace())
 ):
     session = await repo.create_session(tenant_id=user.tenant_id, user_id=str(user.id), dto=dto)
     return SuccessResponse[ChatSessionDTO](
@@ -53,7 +53,7 @@ async def get_session(
     session_id: str,
     request: Request,
     repo: ChatRepository = Depends(get_chat_repository),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_workspace())
 ):
     session = await repo.get_session(session_id=session_id, tenant_id=user.tenant_id, user_id=str(user.id))
     return SuccessResponse[ChatSessionDTO](
@@ -71,7 +71,7 @@ async def list_messages(
     limit: int = 50,
     offset: int = 0,
     repo: ChatRepository = Depends(get_chat_repository),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_workspace())
 ):
     messages = await repo.list_messages(
         session_id=session_id,
@@ -91,7 +91,7 @@ async def update_session(
     dto: ChatSessionUpdateDTO,
     request: Request,
     repo: ChatRepository = Depends(get_chat_repository),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_workspace())
 ):
     session = await repo.update_session(session_id=session_id, tenant_id=user.tenant_id, user_id=str(user.id), dto=dto)
     return SuccessResponse[ChatSessionDTO](
@@ -103,7 +103,7 @@ async def update_session(
 async def delete_session(
     session_id: str,
     repo: ChatRepository = Depends(get_chat_repository),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(require_workspace())
 ):
     await repo.delete_session(session_id=session_id, tenant_id=user.tenant_id, user_id=str(user.id))
 
@@ -113,7 +113,7 @@ async def stream_chat(
     dto: ChatRequestDTO,
     request: Request,
     orchestrator: ChatOrchestrator = Depends(get_chat_orchestrator),
-    user: UserContext = Depends(get_current_user),
+    user: UserContext = Depends(require_workspace()),
     _quota: None = Depends(enforce_workspace_quota()),
 ):
     correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))

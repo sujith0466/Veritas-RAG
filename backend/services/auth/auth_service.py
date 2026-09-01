@@ -64,8 +64,8 @@ class AuthService:
             logger.warning("Login attempt on unverified account", user_id=str(user.id))
             raise AuthenticationException("Please verify your email address before logging in.")
 
-        # Authentication successful. Issue tokens.
-        access_token, raw_refresh_token, family_id = await self.jwt_service.issue_tokens(user)
+        # Authentication successful. Resolve workspace and issue tokens.
+        access_token, raw_refresh_token, family_id = await self.jwt_service.issue_tokens(user, session=self.session)
 
         # Hash the refresh token for storage
         refresh_token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
@@ -171,8 +171,8 @@ class AuthService:
         if not user or not user.is_active:
             raise AuthenticationException("Account disabled")
 
-        # Generate new tokens
-        access_token, new_raw_refresh, _ = await self.jwt_service.issue_tokens(user)
+        # Issue new token pair
+        access_token, new_raw_refresh, _ = await self.jwt_service.issue_tokens(user, session=self.session)
         # Note: We keep the same family_id from the original session
         new_hash = hashlib.sha256(new_raw_refresh.encode("utf-8")).hexdigest()
 
@@ -255,7 +255,7 @@ class AuthService:
         user.last_login_at = datetime.datetime.now(datetime.UTC)
 
         # Issue tokens
-        access_token, raw_refresh_token, family_id = await self.jwt_service.issue_tokens(user)
+        access_token, raw_refresh_token, family_id = await self.jwt_service.issue_tokens(user, session=self.session)
         refresh_token_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
 
         expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=7)

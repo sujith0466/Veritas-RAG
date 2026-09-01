@@ -22,13 +22,13 @@ export function AIChatPage() {
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  
+
   // F9.3: Pagination and Scroll Lock
   const isScrolledUp = useRef(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
-  
+
   // Guard to prevent store sync from overwriting local optimistic state after stream completes
   const hasOptimisticContent = useRef(false)
 
@@ -72,7 +72,7 @@ export function AIChatPage() {
       if (first.isIntersecting && hasMoreMessages && sessionId) {
         const container = chatContainerRef.current
         const previousScrollHeight = container?.scrollHeight || 0
-        
+
         loadMoreMessages(sessionId).then(() => {
           if (container) {
             requestAnimationFrame(() => {
@@ -132,7 +132,7 @@ export function AIChatPage() {
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
-      
+
       let fullAssistantText = ''
       const accumulatedCitations: any[] = []
       let finalReliability: number | undefined = undefined
@@ -165,11 +165,11 @@ export function AIChatPage() {
           if (eventType === 'chunk' && eventData) {
             try {
               const data = JSON.parse(eventData)
-              
+
               if (data.text_delta) {
                 fullAssistantText += data.text_delta
               }
-              
+
               // F9.5 Progressive Citation Accumulation + Deduplication
               if (data.citations_delta && data.citations_delta.length > 0) {
                 for (const cite of data.citations_delta) {
@@ -178,20 +178,20 @@ export function AIChatPage() {
                   }
                 }
               }
-              
+
               // Only update if there are meaningful changes
               if (data.text_delta !== undefined || data.citations_delta) {
                 setMessages(prev => {
                   const newMsgs = [...prev]
-                  newMsgs[newMsgs.length - 1] = { 
-                    ...newMsgs[newMsgs.length - 1], 
+                  newMsgs[newMsgs.length - 1] = {
+                    ...newMsgs[newMsgs.length - 1],
                     message: fullAssistantText,
                     citations: accumulatedCitations.length > 0 ? [...accumulatedCitations] : undefined
                   }
                   return newMsgs
                 })
               }
-              
+
               if (data.is_final) {
                 // F9.4 True Reliability Score Extraction
                 if (data.wrapper_metadata?.reliability_score !== undefined) {
@@ -206,10 +206,18 @@ export function AIChatPage() {
           } else if (eventType === 'error' && eventData) {
             try {
               const errData = JSON.parse(eventData)
-              fullAssistantText += `\n\n**Error:** ${errData.message || 'An error occurred.'}`
               setMessages(prev => {
                 const newMsgs = [...prev]
-                newMsgs[newMsgs.length - 1] = { ...newMsgs[newMsgs.length - 1], message: fullAssistantText }
+                const lastMsg = newMsgs[newMsgs.length - 1]
+                newMsgs[newMsgs.length - 1] = {
+                  ...lastMsg,
+                  message: fullAssistantText,
+                  metadata_json: {
+                    ...(lastMsg.metadata_json as any || {}),
+                    status: 'ERROR',
+                    error: errData
+                  }
+                }
                 return newMsgs
               })
             } catch (err) {
@@ -333,7 +341,7 @@ export function AIChatPage() {
       </div>
 
       {/* Chat Messages Area */}
-      <div 
+      <div
         ref={chatContainerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-4 py-6 md:px-8 space-y-6"
@@ -343,7 +351,7 @@ export function AIChatPage() {
              <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
           </div>
         )}
-        
+
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
@@ -428,6 +436,13 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
 
   // F9.5 Interactive Citation Links Pre-processing
   let processedMessage = message.message || ''
+
+  // Reconstruct error state if present in metadata
+  const meta = message.metadata_json as any
+  if (meta?.status === 'ERROR' && meta?.error?.message) {
+    processedMessage += `\n\n**Error:** ${meta.error.message}`
+  }
+
   if (message.citations && message.citations.length > 0) {
     const validCitationIndices = new Set((message.citations as any[]).map(c => c.citation_index))
     processedMessage = processedMessage.replace(/\[(\d+)\]/g, (match, p1) => {
@@ -454,7 +469,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
         <div className={`flex flex-col gap-2 ${isUser ? 'items-end' : 'items-start'} min-w-0 w-full`}>
           <div className={`relative px-5 py-3.5 rounded-2xl ${isUser ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted/50 border border-border/50 rounded-tl-none'}`}>
             <div className={`prose prose-sm max-w-none ${isUser ? 'text-primary-foreground prose-invert' : 'dark:prose-invert text-foreground'}`}>
-              <ReactMarkdown 
+              <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                   a: ({ href, children, ...props }) => {
@@ -492,9 +507,9 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
                     </TooltipTrigger>
                     <TooltipContent side="top">
                       <p className="max-w-xs text-xs">
-                        {message.reliability_score >= 0.8 
-                          ? 'The AI is highly confident in this response based on the provided enterprise context.' 
-                          : message.reliability_score >= 0.5 
+                        {message.reliability_score >= 0.8
+                          ? 'The AI is highly confident in this response based on the provided enterprise context.'
+                          : message.reliability_score >= 0.5
                             ? 'The AI is partially confident, some claims may not be fully supported by the context.'
                             : 'The AI could not confidently ground this response in the enterprise context.'}
                       </p>

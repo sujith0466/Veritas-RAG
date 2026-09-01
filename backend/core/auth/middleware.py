@@ -60,21 +60,15 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
             request.state.token_payload = token_payload
 
             # Construct the user context from the verified payload to UserContext
-            # NOTE: The JWT stores workspace UUID in the `workspace_id` claim (mapped to
-            # token_payload.workspace_name). The legacy `tenant_id` claim is never populated.
-            # We alias workspace_name → tenant_id so that ChatSession (which stores workspace_id
-            # as tenant_id) works without a NOT NULL violation.
-            ws_name = token_payload.workspace_name
-            effective_tenant_id = (
-                ws_name if ws_name and ws_name != "None" else token_payload.tenant_id
-            )
+            effective_tenant_id = token_payload.workspace_id or token_payload.tenant_id
+
             request.state.user_context = UserContext(
                 id=uuid.UUID(token_payload.sub),
                 email=token_payload.email or "",
                 role=Role.from_str(token_payload.role),
                 is_active=True,
                 tenant_id=effective_tenant_id,
-                workspace_name=ws_name,
+                workspace_name=None,
             )
 
         except ExpiredTokenException:

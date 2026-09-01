@@ -324,6 +324,7 @@ class ChatOrchestrator:
         is_grounded = False
         reliability_score = 0.0
         is_interrupted = False
+        terminal_error = None
 
         try:
             iterator = self.ai_wrapper_service.stream_request(req, uuid.UUID(user_id), correlation_id).__aiter__()
@@ -403,6 +404,7 @@ class ChatOrchestrator:
                     correlation_id=correlation_id,
                     recoverable=False
                 )
+                terminal_error = {"code": "POLICY_VIOLATION", "message": str(e)}
                 yield err.to_sse_string()
                 return
 
@@ -418,6 +420,7 @@ class ChatOrchestrator:
                         correlation_id=correlation_id,
                         recoverable=True
                     )
+                    terminal_error = {"code": "STREAM_TIMEOUT", "message": err.message}
                     yield err.to_sse_string()
                     return
 
@@ -427,6 +430,7 @@ class ChatOrchestrator:
                     correlation_id=correlation_id,
                     recoverable=False
                 )
+                terminal_error = {"code": "INTERNAL_ERROR", "message": err.message}
                 yield err.to_sse_string()
                 return
 
@@ -438,7 +442,7 @@ class ChatOrchestrator:
             SSE_STREAM_DURATION_SECONDS.observe(duration_seconds)
 
             # 3. Save Assistant Message (F8.6 Partial Persistence)
-            if full_assistant_text or is_interrupted:
+            if full_assistant_text or is_interrupted or terminal_error:
                 metadata = {
                     "is_fully_grounded": is_grounded,
                     "reliability_score": reliability_score,
@@ -451,8 +455,22 @@ class ChatOrchestrator:
                         "completed": False
                     })
 
-                # Only write to DB if we actually got text or settings enable partial (and text is not empty)
-                if (full_assistant_text.strip() and not is_interrupted) or (is_interrupted and settings.features.enable_partial_persistence and full_assistant_text.strip()):
+                if terminal_error:
+                    metadata.update({
+                        "status": "ERROR",
+                        "error": terminal_error
+                    })
+
+                # Only write to DB if we got text, or if there is a terminal error that must be tracked
+                should_persist = False
+                if terminal_error:
+                    should_persist = True
+                elif full_assistant_text.strip() and not is_interrupted:
+                    should_persist = True
+                elif is_interrupted and settings.features.enable_partial_persistence and full_assistant_text.strip():
+                    should_persist = True
+
+                if should_persist:
                     async def _persist():
                         async with session_maker() as final_session:
                             repo = ChatRepository(final_session)

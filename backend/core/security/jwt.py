@@ -44,7 +44,7 @@ class JWTService:
         self.issuer = "raguard-auth-server"
         self.audience = "raguard-api"
 
-    async def issue_tokens(self, user: Any) -> tuple[str, str, str]:
+    async def issue_tokens(self, user: Any, session: Any | None = None) -> tuple[str, str, str]:
         """Issue access and refresh tokens.
 
         Returns:
@@ -58,6 +58,27 @@ class JWTService:
 
         access_jti = str(uuid.uuid4())
 
+        workspace_id = None
+        if session:
+            from sqlalchemy import select
+            from backend.models.entities.workspace import Workspace, WorkspaceStatus
+            from backend.models.entities.workspace_member import WorkspaceMember
+
+            stmt = (
+                select(Workspace.id)
+                .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
+                .where(
+                    WorkspaceMember.user_id == user.id,
+                    Workspace.status == WorkspaceStatus.ACTIVE.value
+                )
+                .order_by(Workspace.created_at.asc())
+                .limit(1)
+            )
+            result = await session.execute(stmt)
+            ws = result.scalar_one_or_none()
+            if ws:
+                workspace_id = str(ws)
+
         access_claims = {
             "sub": str(user.id),
             "iss": self.issuer,
@@ -68,7 +89,7 @@ class JWTService:
             "jti": access_jti,
             "role": user.role,
             "email": user.email,  # Required for invitation identity binding (AUTH-009)
-            "workspace_id": user.workspace_name,
+            "workspace_id": workspace_id,
         }
 
         access_token = jwt.encode(access_claims, self.private_key, algorithm=self.algorithm)
@@ -96,7 +117,7 @@ class JWTService:
 
             jti = raw_claims.get("jti")
             sub = str(raw_claims.get("sub"))
-            workspace_id = str(raw_claims.get("workspace_id", ""))
+            workspace_id = raw_claims.get("workspace_id")
 
             if not jti:
                 raise InvalidTokenException("Token lacks required 'jti' claim")
@@ -120,7 +141,7 @@ class JWTService:
                 email=raw_claims.get("email"),  # AUTH-009: read email claim from token payload
                 role=str(raw_claims.get("role", "viewer")),
                 tenant_id=raw_claims.get("tenant_id"),
-                workspace_name=workspace_id if workspace_id else "None",
+                workspace_id=workspace_id,
                 full_name=None,
                 organization_name=None,
                 exp=int(raw_claims.get("exp", 0)),

@@ -21,7 +21,7 @@ class TokenPayload(BaseModel):
         default="viewer", description="User role from JWT claims or metadata"
     )
     tenant_id: str | None = Field(default=None, description="Multi-tenant ID from JWT")
-    workspace_name: str | None = Field(default=None, description="Workspace name from JWT")
+    workspace_id: str | None = Field(default=None, description="Workspace ID from JWT")
     full_name: str | None = Field(default=None, description="User full name from JWT")
     organization_name: str | None = Field(default=None, description="Organization name from JWT")
     exp: int = Field(description="Expiration timestamp (Unix epoch)")

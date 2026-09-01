@@ -70,12 +70,13 @@ def require_verified_user() -> Callable[..., Coroutine[Any, Any, User]]:
     return _verified_guard
 
 def require_workspace() -> Callable[..., Coroutine[Any, Any, UserContext]]:
-    """Dependency requirement ensuring the token has a workspace_id."""
+    """Dependency requirement ensuring the token has a valid workspace context."""
     async def _workspace_guard(
         user_context: UserContext = Depends(get_current_user),
     ) -> UserContext:
-        if not user_context.workspace_name:
-            raise AuthenticationException("Workspace context required")
+        if not user_context.tenant_id:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="Active workspace required. Please create or join a workspace.")
         return user_context
     return _workspace_guard
 
