@@ -12,36 +12,42 @@ async def setup_test_user(client: AsyncClient, role: str = "admin", prefix="quot
     reg_res = await client.post("/api/v1/auth/register", json={
         "email": user_email,
         "password": password,
-        "full_name": f"{prefix} User"
+        "full_name": f"{prefix} User",
     })
     assert reg_res.status_code == 201
 
-    from sqlalchemy import text
+    from sqlalchemy import select
     from backend.database.engine import get_session_factory
+    from backend.models.entities.user import User
+    from backend.models.entities.workspace import Workspace, WorkspaceStatus
+    from backend.models.entities.workspace_member import WorkspaceMember, MemberStatus
+
+    ws_id = uuid.uuid4()
     async with get_session_factory()() as session:
-        await session.execute(
-            text("UPDATE users SET is_verified = true, role = :role, workspace_name = :tid WHERE email = :email"),
-            {"email": user_email, "role": role, "tid": str(uuid.uuid4())}
+        user = (await session.execute(select(User).where(User.email == user_email))).scalar_one()
+        user.is_verified = True
+        user.role = role
+
+        ws = Workspace(
+            id=ws_id,
+            name=f"{prefix} Workspace",
+            slug=f"{prefix}-ws-{uuid.uuid4().hex[:8]}",
+            storage_prefix=f"workspaces/{ws_id}",
+            qdrant_namespace=f"raguard_knowledge_{ws_id}",
+            status=WorkspaceStatus.ACTIVE.value,
         )
+        session.add(ws)
+
+        member = WorkspaceMember(
+            id=uuid.uuid4(),
+            workspace_id=ws_id,
+            user_id=user.id,
+            role=role.upper() if role else "OWNER",
+            status=MemberStatus.ACTIVE.value,
+        )
+        session.add(member)
+        user.tenant_id = str(ws_id)
         await session.commit()
-
-        result = await session.execute(
-            text("SELECT id, tenant_id, workspace_name FROM users WHERE email = :email"),
-            {"email": user_email}
-        )
-        user_row = result.fetchone()
-
-        # Need a workspace name if tenant_id is used from it
-        if not user_row.tenant_id and user_row.workspace_name:
-            tenant_id = user_row.workspace_name
-        else:
-            tenant_id = str(user_row.tenant_id) if user_row.tenant_id else str(uuid.uuid4())
-            # For tests where tenant_id might not be set automatically
-            await session.execute(
-                text("UPDATE users SET tenant_id = :tid, workspace_name = :tid WHERE email = :email"),
-                {"email": user_email, "tid": tenant_id}
-            )
-            await session.commit()
 
     login_res = await client.post("/api/v1/auth/login", json={
         "email": user_email,
@@ -50,7 +56,7 @@ async def setup_test_user(client: AsyncClient, role: str = "admin", prefix="quot
     assert login_res.status_code == 200
     access_token = login_res.json()["data"]["access_token"]
 
-    return access_token, tenant_id
+    return access_token, str(ws_id)
 
 @pytest.mark.asyncio
 async def test_quotas_unauthenticated():

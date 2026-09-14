@@ -52,7 +52,7 @@ class NamespaceResolver:
                 raise
 
         # 4. Cache and Return
-        await self.redis.setex(cache_key, 300, collection_name)
+        await self.redis.set(cache_key, collection_name, ex=300)
         logger.debug("Namespace cache populated", tenant_id=str(tenant_id), collection=collection_name)
 
         return NamespaceBinding(

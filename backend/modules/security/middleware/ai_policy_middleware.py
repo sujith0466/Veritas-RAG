@@ -49,7 +49,7 @@ class PolicyEngine:
 
         try:
             if self.redis:
-                await self.redis.setex(cache_key, 300, merged.model_dump_json())
+                await self.redis.set(cache_key, merged.model_dump_json(), ex=300)
         except Exception as cache_write_exc:
             logger.warning("Redis policy cache write failed", error=str(cache_write_exc))
 

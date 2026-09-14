@@ -46,10 +46,11 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 def _resolve_tenant_and_owner(
     user: Any | None,
 ) -> tuple[str, uuid.UUID | None]:
-    if not user or not getattr(user, "workspace_name", None) or user.workspace_name == "None":
+    tenant_id = getattr(user, "tenant_id", None)
+    if not user or not tenant_id or str(tenant_id) == "None":
         from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Missing workspace context")
-    return str(user.workspace_name), getattr(user, "id", None)
+    return str(tenant_id), getattr(user, "id", None)
 
 
 @router.post(

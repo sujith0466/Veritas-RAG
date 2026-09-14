@@ -186,8 +186,8 @@ async def test_policy_engine_redis_cache_hit_and_miss():
         res1 = await engine.get_merged_policy(tenant_id, workspace_id)
         assert res1.max_tokens == 2048
         assert mock_fetch.call_count == 1
-        # Confirmed Redis setex was called with 300s TTL
-        mock_redis.setex.assert_called_once_with(cache_key, 300, expected_merged.model_dump_json())
+        # Confirmed Redis set was called with 300s TTL
+        mock_redis.set.assert_called_once_with(cache_key, expected_merged.model_dump_json(), ex=300)
 
     # Step 2: Cache Hit
     mock_redis.get.return_value = expected_merged.model_dump_json()

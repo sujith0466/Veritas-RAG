@@ -51,7 +51,7 @@ class CacheManager:
         client = get_redis_client()
 
         try:
-            await client.setex(key, int(ttl.value), serialized_value)
+            await client.set(key, serialized_value, ex=int(ttl.value))
         except Exception as e:
             RedisMetrics.record_retry()
             raise e

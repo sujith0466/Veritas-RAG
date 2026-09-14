@@ -9,7 +9,15 @@ from backend.core.dependencies.auth import get_optional_user, get_current_user
 from backend.modules.analytics.api.dependencies import get_analytics_service
 from backend.modules.analytics.schemas.analytics_dto import WorkspaceOverviewDTO, AnalyticsFilterDTO
 
+import pytest
+
 app = create_app()
+
+@pytest.fixture(autouse=True)
+def clear_dependency_overrides():
+    app.dependency_overrides.clear()
+    yield
+    app.dependency_overrides.clear()
 
 def get_mock_user(workspace: str, role: Role):
     return UserContext(
@@ -20,6 +28,7 @@ def get_mock_user(workspace: str, role: Role):
         is_verified=True,
         supabase_id="mock-supabase-id",
         session_id=uuid.uuid4(),
+        tenant_id=workspace,
         workspace_name=workspace
     )
 

@@ -12,17 +12,41 @@ async def setup_test_user(client: AsyncClient, role: str = "admin", prefix="aud"
     reg_res = await client.post("/api/v1/auth/register", json={
         "email": user_email,
         "password": password,
-        "full_name": f"{prefix} User"
+        "full_name": f"{prefix} User",
     })
     assert reg_res.status_code == 201
 
-    from sqlalchemy import text
+    from sqlalchemy import select
     from backend.database.engine import get_session_factory
+    from backend.models.entities.user import User
+    from backend.models.entities.workspace import Workspace, WorkspaceStatus
+    from backend.models.entities.workspace_member import WorkspaceMember, MemberStatus
+
+    ws_id = uuid.uuid4()
     async with get_session_factory()() as session:
-        await session.execute(
-            text("UPDATE users SET is_verified = true, role = :role, workspace_name = :tid WHERE email = :email"),
-            {"email": user_email, "role": role, "tid": str(uuid.uuid4())}
+        user = (await session.execute(select(User).where(User.email == user_email))).scalar_one()
+        user.is_verified = True
+        user.role = role
+
+        ws = Workspace(
+            id=ws_id,
+            name=f"{prefix} Workspace",
+            slug=f"{prefix}-ws-{uuid.uuid4().hex[:8]}",
+            storage_prefix=f"workspaces/{ws_id}",
+            qdrant_namespace=f"raguard_knowledge_{ws_id}",
+            status=WorkspaceStatus.ACTIVE.value,
         )
+        session.add(ws)
+
+        member = WorkspaceMember(
+            id=uuid.uuid4(),
+            workspace_id=ws_id,
+            user_id=user.id,
+            role=role.upper() if role else "ADMIN",
+            status=MemberStatus.ACTIVE.value,
+        )
+        session.add(member)
+        user.tenant_id = str(ws_id)
         await session.commit()
 
     login_res = await client.post("/api/v1/auth/login", json={

@@ -37,9 +37,10 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 
 
 def _resolve_tenant(user: Any | None) -> str:
-    if not user or not getattr(user, "workspace_name", None) or user.workspace_name == "None":
+    tenant_id = getattr(user, "tenant_id", None)
+    if not user or not tenant_id or str(tenant_id) == "None":
         raise HTTPException(status_code=401, detail="Missing workspace context")
-    return str(user.workspace_name)
+    return str(tenant_id)
 
 
 @router.get(

@@ -137,9 +137,12 @@ def init_worker(**kwargs):
 def inject_task_trace_context(headers=None, body=None, **kwargs):
     """Inject active W3C trace context into Celery task headers before publishing."""
     if headers is not None:
-        from backend.observability.tracing.propagation import inject_trace_context
+        try:
+            from backend.observability.tracing.propagation import inject_trace_context
 
-        inject_trace_context(headers)
+            inject_trace_context(headers)
+        except Exception:
+            pass
 
 
 @task_prerun.connect
@@ -147,9 +150,12 @@ def extract_task_trace_context(task_id=None, task=None, *args, **kwargs):
     """Extract W3C trace context and bind task metadata upon worker task execution."""
     if task and hasattr(task, "request") and task.request:
         headers = getattr(task.request, "headers", None) or {}
-        from backend.observability.tracing.propagation import extract_trace_context
+        try:
+            from backend.observability.tracing.propagation import extract_trace_context
 
-        ctx = extract_trace_context(headers)
+            ctx = extract_trace_context(headers)
+        except Exception:
+            pass
         correlation_id = headers.get("correlation_id") or task_id or "unknown"
         structlog.contextvars.bind_contextvars(
             celery_task_id=str(task_id),

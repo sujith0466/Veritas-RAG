@@ -167,7 +167,7 @@ class JWTService:
         now = int(time.time())
         ttl = exp - now
         if ttl > 0:
-            await self.redis.setex(f"auth:blocklist:{jti}", ttl, "revoked")
+            await self.redis.set(f"auth:blocklist:{jti}", "revoked", ex=ttl)
             logger.info("Token blocklisted", jti=jti, ttl=ttl)
 
     async def revoke_user_workspace_tokens(self, user_id: str, workspace_id: str) -> None:
@@ -183,7 +183,7 @@ class JWTService:
         key = f"auth:user:{user_id}:workspace:{workspace_id}:invalid_before"
         # 15 minutes TTL because access tokens live for 15 mins.
         # After 15 mins, any old token is naturally expired anyway.
-        await self.redis.setex(key, 15 * 60, str(now))
+        await self.redis.set(key, str(now), ex=15 * 60)
         logger.info("Workspace tokens revoked", user_id=user_id, workspace_id=workspace_id, invalid_before=now)
 
 def get_jwt_service() -> JWTService:

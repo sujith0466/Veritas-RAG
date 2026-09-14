@@ -76,7 +76,7 @@ class GoogleOIDCProvider:
                 "nonce": nonce,
                 "code_verifier": code_verifier
             }
-            await self.redis.setex(f"oidc:state:{state}", 600, json.dumps(session_data))
+            await self.redis.set(f"oidc:state:{state}", json.dumps(session_data), ex=600)
         else:
             logger.warning("Redis is not available. OIDC state cannot be verified securely.")
 

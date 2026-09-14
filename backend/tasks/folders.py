@@ -11,7 +11,7 @@ from backend.cache.client import get_redis_client
 from backend.cache.keys import CacheKeyBuilder
 from backend.tasks.celery_app import celery_app
 from backend.core.events.dispatcher import EventDispatcher
-from backend.database.session import AsyncSessionLocal
+from backend.database.session import SessionLocal
 from backend.models.entities.audit_log import AuditLog
 from backend.models.entities.folder import Folder
 from backend.models.entities.workspace import Workspace, WorkspaceStatus
@@ -60,7 +60,7 @@ async def _cascade_soft_delete_subtree(self, folder_id: str, workspace_id: str, 
     state = [f_uuid]
 
     try:
-        async with AsyncSessionLocal() as session:
+        async with SessionLocal() as session:
             # Re-validate workspace
             ws = await session.get(Workspace, ws_uuid)
             if not ws or ws.status == WorkspaceStatus.HARD_DELETED:
@@ -154,7 +154,7 @@ async def _cascade_restore_subtree(self, folder_id: str, workspace_id: str, acto
     state = [f_uuid]
 
     try:
-        async with AsyncSessionLocal() as session:
+        async with SessionLocal() as session:
             ws = await session.get(Workspace, ws_uuid)
             if not ws or ws.status == WorkspaceStatus.HARD_DELETED:
                 return
@@ -238,7 +238,7 @@ async def _cascade_move_subtree(self, source_id: str, workspace_id: str, old_pat
     state = [f_uuid]
 
     try:
-        async with AsyncSessionLocal() as session:
+        async with SessionLocal() as session:
             ws = await session.get(Workspace, ws_uuid)
             if not ws or ws.status == WorkspaceStatus.HARD_DELETED:
                 return
@@ -341,7 +341,7 @@ async def _hard_delete_folder_subtree(self, folder_id: str, workspace_id: str):
         raise self.retry(countdown=300)
 
     try:
-        async with AsyncSessionLocal() as session:
+        async with SessionLocal() as session:
             ws = await session.get(Workspace, ws_uuid)
             if not ws:
                 return
@@ -411,7 +411,7 @@ async def _run_folder_retention_cron(self):
     from backend.services.folder.retention_worker import FolderRetentionWorker
     from backend.services.folder_service import FolderService
 
-    async with AsyncSessionLocal() as session:
+    async with SessionLocal() as session:
         # We need a proper folder service instantiation, assuming we can inject or create it
         # Actually FolderService takes a session. Let's create it.
         from backend.core.events.dispatcher import EventDispatcher

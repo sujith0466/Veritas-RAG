@@ -141,7 +141,7 @@ class PasswordResetService:
                 raise HTTPException(status_code=429, detail="Too many OTP requests. Please try again later.")
 
             # Apply limits
-            await self.redis.setex(cooldown_key, 60, "1")
+            await self.redis.set(cooldown_key, "1", ex=60)
 
             # Since strict limits require pipelining, and our redis client may or may not support pipeline cleanly:
             await self.redis.incr(rate_limit_key)

@@ -37,12 +37,13 @@ def _resolve_tenant_and_owner(
     user: Any | None
 ) -> tuple[str, uuid.UUID]:
     from fastapi import HTTPException
-    if not user or not getattr(user, "workspace_name", None):
+    tenant_id = getattr(user, "tenant_id", None)
+    if not user or not tenant_id or str(tenant_id) == "None":
         raise HTTPException(status_code=401, detail="Missing workspace context")
     owner_id = getattr(user, "id", None)
     if not owner_id:
         raise HTTPException(status_code=401, detail="Missing authenticated user identity")
-    return user.workspace_name, owner_id
+    return str(tenant_id), owner_id
 
 
 @router.post(

@@ -68,7 +68,7 @@ async def get_workspace_overview(
 ) -> SuccessResponse[WorkspaceOverviewDTO]:
     """Fetch high-level workspace activity metrics like active users, documents, and queries."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_workspace_overview(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -92,7 +92,7 @@ async def get_query_history(
 ) -> SuccessResponse[QueryHistoryListDTO]:
     """Fetch paginated AI query history records for the tenant."""
     data = await service.get_query_history(
-        tenant_id=str(auth.workspace_name),
+        tenant_id=str(auth.tenant_id),
         page=page,
         page_size=page_size,
         outcome_filter=outcome,
@@ -117,7 +117,7 @@ async def get_success_rate(
 ) -> SuccessResponse[SuccessRateDTO]:
     """Calculate overall success percentage and retry rates."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_success_rate(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -138,7 +138,7 @@ async def get_latency_analytics(
 ) -> SuccessResponse[LatencyAnalyticsDTO]:
     """Calculate execution latency distribution percentiles."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_latency_analytics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -159,7 +159,7 @@ async def get_popular_topics(
 ) -> SuccessResponse[list[PopularTopicDTO]]:
     """Fetch the most frequent meaningful lexemes for the workspace."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_popular_topics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -180,7 +180,7 @@ async def get_unanswered_queries(
 ) -> SuccessResponse[list[UnansweredQueryDTO]]:
     """Fetch queries that did not receive a final successful outcome."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_unanswered_queries(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -201,7 +201,7 @@ async def get_reliability_trends(
 ) -> SuccessResponse[list[ReliabilityTrendDTO]]:
     """Fetch daily aggregated average reliability scores for the workspace."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_reliability_trends(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -223,7 +223,7 @@ async def get_most_cited_documents(
 ) -> SuccessResponse[list[MostCitedDocumentDTO]]:
     """Fetch the documents most frequently cited in successful chat interactions."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_most_cited_documents(filter_dto, limit=limit)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -245,7 +245,7 @@ async def get_confidence_analytics(
 ) -> SuccessResponse[ConfidenceAnalyticsDTO]:
     """Calculate pre-generation confidence statistics across queries."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name), start_time=start_time, end_time=end_time
+        tenant_id=str(auth.tenant_id), start_time=start_time, end_time=end_time
     )
     data = await service.get_confidence_analytics(filter_dto)
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
@@ -269,7 +269,7 @@ async def get_query_trends(
 ) -> SuccessResponse[QueryTrendsDTO]:
     """Compute bucketed time-series query counts and average confidence scores."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name),
+        tenant_id=str(auth.tenant_id),
         interval=interval,
         start_time=start_time,
         end_time=end_time,
@@ -296,7 +296,7 @@ async def get_reliability_history(
 ) -> SuccessResponse[ReliabilityHistoryDTO]:
     """Calculate historical unified reliability scores and moving average trendline."""
     filter_dto = AnalyticsFilterDTO(
-        tenant_id=str(auth.workspace_name),
+        tenant_id=str(auth.tenant_id),
         interval=interval,
         start_time=start_time,
         end_time=end_time,
@@ -317,7 +317,7 @@ async def get_search_analytics(
     auth: AnalyticsAuth,
 ) -> SuccessResponse[SearchAnalyticsDTO]:
     """Aggregate multi-stage retrieval metrics from hybrid search logs."""
-    data = await service.get_search_analytics(tenant_id=str(auth.workspace_name))
+    data = await service.get_search_analytics(tenant_id=str(auth.tenant_id))
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
 
@@ -335,7 +335,7 @@ async def get_query_trace_detail(
 ) -> SuccessResponse[QueryTraceDetailDTO]:
     """Fetch complete forensic diagnostics breakdown across stages, candidates, and self-correction steps."""
     data = await service.get_query_trace_detail(
-        correlation_id=correlation_id, tenant_id=str(auth.workspace_name)
+        correlation_id=correlation_id, tenant_id=str(auth.tenant_id)
     )
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -354,7 +354,7 @@ async def execute_query_sandbox(
 ) -> SuccessResponse[QuerySandboxResponseDTO]:
     """Execute a test query against the AI pipeline with adjustable parameters and trace diagnostics."""
     data = await service.execute_query_sandbox(
-        request_dto=request_dto, tenant_id=str(auth.workspace_name)
+        request_dto=request_dto, tenant_id=str(auth.tenant_id)
     )
     return SuccessResponse(data=data, metadata=_build_metadata(request_ctx))
 
@@ -378,7 +378,7 @@ async def export_enterprise_report(
 ) -> SuccessResponse[ReportMetadataDTO]:
     """Generate an SLA compliance, reliability audit, or knowledge health report using ReportLab PDF."""
     if request_dto.tenant_id == "default":
-        request_dto.tenant_id = str(auth.workspace_name)
+        request_dto.tenant_id = str(auth.tenant_id)
 
     buffer_bytes, metadata = await service.generate_report(request=request_dto, db=db)
     _report_cache[metadata.report_id] = (buffer_bytes, metadata)

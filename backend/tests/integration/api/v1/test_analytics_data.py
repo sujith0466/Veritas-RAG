@@ -104,6 +104,7 @@ async def setup_data():
         await db.commit()
 
         yield tenant_a, tenant_b
+        app.dependency_overrides.clear()
 
 def get_mock_user(workspace: str, role: Role):
     return UserContext(
@@ -114,6 +115,7 @@ def get_mock_user(workspace: str, role: Role):
         is_verified=True,
         supabase_id="mock-supabase-id",
         session_id=uuid.uuid4(),
+        tenant_id=workspace,
         workspace_name=workspace
     )
 

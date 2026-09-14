@@ -12,16 +12,18 @@ def _is_redis_open() -> bool:
 
 
 @pytest.fixture(autouse=True)
-async def reset_rate_limits():
+def reset_rate_limits():
     """Ensure deterministic rate-limit state across tests without modifying production limits."""
     if not _is_redis_open():
         yield
         return
 
-    redis = get_redis_client()
-    if redis:
-        try:
-            await redis.flushdb()
-        except Exception:
-            pass
+    import asyncio
+    try:
+        from backend.cache.client import get_redis_client
+        redis = get_redis_client()
+        if redis:
+            asyncio.run(redis.flushdb())
+    except Exception:
+        pass
     yield

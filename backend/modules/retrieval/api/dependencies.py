@@ -30,9 +30,10 @@ def resolve_tenant(
     user: Any | None = Depends(get_optional_user),
 ) -> str:
     """Resolve active workspace identifier from user session."""
-    if not user or not getattr(user, "workspace_name", None) or user.workspace_name == "None":
+    tenant_id = getattr(user, "tenant_id", None)
+    if not user or not tenant_id or str(tenant_id) == "None":
         raise HTTPException(status_code=401, detail="Missing workspace context")
-    return str(user.workspace_name)
+    return str(tenant_id)
 
 
 def get_retrieval_repository(

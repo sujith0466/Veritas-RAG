@@ -1,4 +1,4 @@
-﻿"""W3C Distributed Trace Context Propagation Engine.
+"""W3C Distributed Trace Context Propagation Engine.
 
 Implements W3C Trace Context recommendation (traceparent, tracestate) and provides
 utilities for injecting and extracting trace context across HTTP boundaries and
@@ -10,9 +10,19 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from opentelemetry import propagate, trace
-from opentelemetry.context.context import Context
-from opentelemetry.trace import format_span_id, format_trace_id
+try:
+    from opentelemetry import propagate, trace
+    from opentelemetry.context.context import Context
+    from opentelemetry.trace import format_span_id, format_trace_id
+    HAS_OTEL = True
+except ImportError:
+    HAS_OTEL = False
+    propagate = None
+    trace = None
+    Context = Any
+    def format_span_id(x): return f"{x:016x}" if isinstance(x, int) else str(x)
+    def format_trace_id(x): return f"{x:032x}" if isinstance(x, int) else str(x)
+
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -52,6 +62,8 @@ def parse_traceparent(header_val: str | None) -> dict[str, str] | None:
 
 def get_w3c_traceparent() -> str | None:
     """Return the current active span's W3C traceparent header value."""
+    if not HAS_OTEL or trace is None:
+        return None
     span = trace.get_current_span()
     if span is None or not span.is_recording():
         return None
@@ -79,6 +91,9 @@ def inject_trace_context(carrier: dict[str, str] | None = None) -> dict[str, str
     if carrier is None:
         carrier = {}
 
+    if not HAS_OTEL or propagate is None:
+        return carrier
+
     try:
         propagate.inject(carrier)
 
@@ -102,7 +117,7 @@ def extract_trace_context(carrier: dict[str, Any] | None) -> Context | None:
     Returns:
         The extracted OpenTelemetry Context object, or None if extraction fails.
     """
-    if not carrier:
+    if not carrier or not HAS_OTEL or propagate is None:
         return None
 
     # Normalize header keys to lowercase
