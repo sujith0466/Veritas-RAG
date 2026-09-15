@@ -77,13 +77,14 @@ class EventDispatcher:
 
         # Globally dispatch to webhook worker if tenant_id is present
         from backend.tasks.webhooks import deliver_webhook_event_task
-        event_dict = event.to_dict()
+        event_dict = event.to_dict() if hasattr(event, "to_dict") else (event.model_dump(mode="json") if hasattr(event, "model_dump") else dict(event))
         tenant_id = getattr(event, 'tenant_id', event_dict.get('tenant_id'))
+        event_type_name = event.event_type.value if hasattr(event.event_type, "value") else str(event.event_type)
         if tenant_id:
             try:
                 deliver_webhook_event_task.delay(
                     tenant_id_str=str(tenant_id),
-                    event_type=event.event_type.value,
+                    event_type=event_type_name,
                     payload=event_dict
                 )
             except Exception as e:
@@ -107,12 +108,13 @@ class EventDispatcher:
                 async def _publish():
                     try:
                         await redis_client.publish(channel_name, json.dumps({
-                            "type": event.event_type.value,
+                            "type": event_type_name,
                             "payload": event_dict,
-                            "timestamp": event_dict.get("occurred_at")
+                            "timestamp": event_dict.get("occurred_at") or event_dict.get("timestamp")
                         }))
                     finally:
                         await redis_client.aclose()
+
                 asyncio.create_task(_publish())
             except Exception as e:
                 logger.error("Failed to publish to Redis Pub/Sub", error=str(e))

@@ -31,6 +31,11 @@ class DomainEventPayload(BaseModel):
         default_factory=dict, description="Event-specific payload data"
     )
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert payload to dictionary for serialization and dispatching."""
+        return self.model_dump(mode="json")
+
+
 
 def create_domain_event(
     event_type: str,
