@@ -1,5 +1,6 @@
 """Unit tests for GAP-004: Same-Session Context Continuity and Multi-Turn Conversational Memory."""
 
+import json
 import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -13,8 +14,10 @@ from backend.modules.generation.schemas.generation_dto import (
 )
 from backend.ai.schemas.wrapper_dto import AIWrapperRequest
 from backend.modules.chat.models.chat_message import ChatMessage
+from backend.modules.chat.services.chat_orchestrator import ChatOrchestrator
 from backend.modules.query_rewrite.strategies.entity_recovery import MissingEntityRecoveryStrategy
 from backend.modules.query_rewrite.schemas.rewrite_dto import RewriteRequestDTOv2
+from backend.modules.security.middleware.evaluators import PolicyViolationError
 
 
 def test_hist_01_first_turn_produces_stateless_payload():
@@ -322,3 +325,163 @@ def test_hist_15_malformed_history_is_ignored():
     assert messages[0] == {"role": "system", "content": "System"}
     assert messages[1] == {"role": "assistant", "content": "Valid answer"}
     assert messages[2] == {"role": "user", "content": "Valid prompt"}
+
+
+@pytest.mark.asyncio
+async def test_hist_16_orchestrator_internal_error_handling():
+    """When generation raises an unexpected exception, stream_chat yields INTERNAL_ERROR SSE without AttributeError."""
+    mock_wrapper = MagicMock()
+    mock_repo = AsyncMock()
+
+    async def failing_stream(*args, **kwargs):
+        raise RuntimeError("Unexpected backend failure")
+        yield
+
+    mock_wrapper.stream_request = failing_stream
+
+    orchestrator = ChatOrchestrator(
+        chat_repo=mock_repo,
+        ai_wrapper_service=mock_wrapper
+    )
+
+    tenant_id = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    workspace_id = uuid.uuid4()
+
+    mock_session = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalars.return_value.first.return_value = MagicMock()
+    mock_res.scalars.return_value.all.return_value = []
+    mock_session.execute.return_value = mock_res
+
+    mock_session_factory = MagicMock()
+    mock_session_factory.return_value.__aenter__.return_value = mock_session
+
+    with patch("backend.modules.chat.services.chat_orchestrator.get_session_factory", return_value=mock_session_factory):
+        events = []
+        async for chunk in orchestrator.stream_chat(
+            session_id=session_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            query="Test query",
+            correlation_id="corr-123",
+            workspace_id=workspace_id
+        ):
+            events.append(chunk)
+
+    assert len(events) == 1
+    assert "event: error" in events[0]
+    data_line = [line for line in events[0].splitlines() if line.startswith("data: ")][0]
+    payload = json.loads(data_line[6:])
+    assert payload["code"] == "INTERNAL_ERROR"
+    assert payload["message"] == "An internal error occurred during generation."
+    assert payload["correlation_id"] == "corr-123"
+    assert payload["recoverable"] is False
+
+
+@pytest.mark.asyncio
+async def test_hist_17_orchestrator_timeout_handling():
+    """When generation raises a timeout exception, stream_chat yields STREAM_TIMEOUT SSE without AttributeError."""
+    mock_wrapper = MagicMock()
+    mock_repo = AsyncMock()
+
+    async def timeout_stream(*args, **kwargs):
+        raise RuntimeError("LLM response timeout: TTFT exceeded")
+        yield
+
+    mock_wrapper.stream_request = timeout_stream
+
+    orchestrator = ChatOrchestrator(
+        chat_repo=mock_repo,
+        ai_wrapper_service=mock_wrapper
+    )
+
+    tenant_id = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    workspace_id = uuid.uuid4()
+
+    mock_session = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalars.return_value.first.return_value = MagicMock()
+    mock_res.scalars.return_value.all.return_value = []
+    mock_session.execute.return_value = mock_res
+
+    mock_session_factory = MagicMock()
+    mock_session_factory.return_value.__aenter__.return_value = mock_session
+
+    with patch("backend.modules.chat.services.chat_orchestrator.get_session_factory", return_value=mock_session_factory):
+        events = []
+        async for chunk in orchestrator.stream_chat(
+            session_id=session_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            query="Test query",
+            correlation_id="corr-456",
+            workspace_id=workspace_id
+        ):
+            events.append(chunk)
+
+    assert len(events) == 1
+    assert "event: error" in events[0]
+    data_line = [line for line in events[0].splitlines() if line.startswith("data: ")][0]
+    payload = json.loads(data_line[6:])
+    assert payload["code"] == "STREAM_TIMEOUT"
+    assert payload["message"] == "The AI engine took too long to respond. Please try again."
+    assert payload["correlation_id"] == "corr-456"
+    assert payload["recoverable"] is True
+
+
+@pytest.mark.asyncio
+async def test_hist_18_orchestrator_policy_violation_handling():
+    """When generation raises PolicyViolationError, stream_chat yields POLICY_VIOLATION SSE."""
+    mock_wrapper = MagicMock()
+    mock_repo = AsyncMock()
+
+    async def policy_fail_stream(*args, **kwargs):
+        raise PolicyViolationError("DLP filter blocked output")
+        yield
+
+    mock_wrapper.stream_request = policy_fail_stream
+
+    orchestrator = ChatOrchestrator(
+        chat_repo=mock_repo,
+        ai_wrapper_service=mock_wrapper
+    )
+
+    tenant_id = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    workspace_id = uuid.uuid4()
+
+    mock_session = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalars.return_value.first.return_value = MagicMock()
+    mock_res.scalars.return_value.all.return_value = []
+    mock_session.execute.return_value = mock_res
+
+    mock_session_factory = MagicMock()
+    mock_session_factory.return_value.__aenter__.return_value = mock_session
+
+    with patch("backend.modules.chat.services.chat_orchestrator.get_session_factory", return_value=mock_session_factory):
+        events = []
+        async for chunk in orchestrator.stream_chat(
+            session_id=session_id,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            query="Test query",
+            correlation_id="corr-789",
+            workspace_id=workspace_id
+        ):
+            events.append(chunk)
+
+    assert len(events) == 1
+    assert "event: error" in events[0]
+    data_line = [line for line in events[0].splitlines() if line.startswith("data: ")][0]
+    payload = json.loads(data_line[6:])
+    assert payload["code"] == "POLICY_VIOLATION"
+    assert payload["message"] == "DLP filter blocked output"
+    assert payload["correlation_id"] == "corr-789"
+    assert payload["recoverable"] is False
+

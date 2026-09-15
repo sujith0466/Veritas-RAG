@@ -414,23 +414,25 @@ class ChatOrchestrator:
                 if "timeout" in err_msg or "abort" in err_msg:
                     timeout_type = "ttft_timeout" if "ttft" in err_msg else "inter_token_timeout"
                     SSE_TIMEOUTS_TOTAL.labels(timeout_type=timeout_type).inc()
+                    error_msg = "The AI engine took too long to respond. Please try again."
                     err = SSEMessageDTO.error(
                         code="STREAM_TIMEOUT",
-                        message="The AI engine took too long to respond. Please try again.",
+                        message=error_msg,
                         correlation_id=correlation_id,
                         recoverable=True
                     )
-                    terminal_error = {"code": "STREAM_TIMEOUT", "message": err.message}
+                    terminal_error = {"code": "STREAM_TIMEOUT", "message": error_msg}
                     yield err.to_sse_string()
                     return
 
+                error_msg = "An internal error occurred during generation."
                 err = SSEMessageDTO.error(
                     code="INTERNAL_ERROR",
-                    message="An internal error occurred during generation.",
+                    message=error_msg,
                     correlation_id=correlation_id,
                     recoverable=False
                 )
-                terminal_error = {"code": "INTERNAL_ERROR", "message": err.message}
+                terminal_error = {"code": "INTERNAL_ERROR", "message": error_msg}
                 yield err.to_sse_string()
                 return
 
