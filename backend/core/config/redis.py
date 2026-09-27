@@ -44,6 +44,11 @@ class RedisSettings(BaseSettings):
         return f"redis://{auth}{self.host}:{self.port}/{self.db}"
 
     @property
+    def redis_url(self) -> str:
+        """Backward-compatible alias for url property."""
+        return self.url
+
+    @property
     def test_url(self) -> str:
         auth = f":{self.password}@" if self.password else ""
         return f"redis://{auth}{self.host}:{self.port}/{self.test_db}"
