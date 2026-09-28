@@ -33,7 +33,14 @@ export function AIChatPage() {
   const hasOptimisticContent = useRef(false)
 
   useEffect(() => {
+    // P2: Abort any active stream when switching sessions or opening a new chat
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    setIsStreaming(false)
     hasOptimisticContent.current = false
+
     if (sessionId) {
       if (useChatStore.getState().activeSession?.id !== sessionId) {
         fetchSession(sessionId)
@@ -41,6 +48,13 @@ export function AIChatPage() {
     } else {
       setMessages([])
       useChatStore.getState().setActiveSession(null)
+    }
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
     }
   }, [sessionId, fetchSession])
 
@@ -285,9 +299,14 @@ export function AIChatPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!input.trim() || isStreaming) return
+  const handleSubmit = async (eOrQuery?: React.FormEvent | string) => {
+    if (eOrQuery && typeof eOrQuery === 'object' && 'preventDefault' in eOrQuery) {
+      eOrQuery.preventDefault()
+    }
+    const queryOverride = typeof eOrQuery === 'string' ? eOrQuery : undefined
+    const currentQuery = (queryOverride !== undefined ? queryOverride : input).trim()
+
+    if (!currentQuery || isStreaming) return
 
     if (isIndexing) {
       setMessages(prev => [
@@ -296,7 +315,7 @@ export function AIChatPage() {
           id: crypto.randomUUID(),
           session_id: sessionId || 'temp',
           role: 'user',
-          message: input.trim(),
+          message: currentQuery,
           created_at: new Date().toISOString()
         },
         {
@@ -311,7 +330,6 @@ export function AIChatPage() {
       return
     }
 
-    const currentQuery = input.trim()
     setInput('')
 
     if (!sessionId) {
@@ -371,7 +389,7 @@ export function AIChatPage() {
               ].map(q => (
                 <button
                   key={q}
-                  onClick={() => { setInput(q); setTimeout(() => handleSubmit(), 50) }}
+                  onClick={() => handleSubmit(q)}
                   className="p-4 rounded-xl border border-border bg-surface hover:bg-muted/50 hover:border-primary/30 transition-all text-left group flex flex-col gap-2"
                 >
                   <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{q}</span>

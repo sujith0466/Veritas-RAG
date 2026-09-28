@@ -93,4 +93,93 @@ test.describe('Chat Suite @chat', () => {
       }
     });
   });
+
+  test('New Chat - Session Isolation and Independent Conversation Switching', async ({ page }) => {
+    // 1. Start at /chat
+    if (!page.url().includes('/chat')) {
+      await page.goto('/chat');
+    }
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    // Wait for auth to be fully hydrated
+    await page.waitForResponse(
+      resp => resp.url().includes('/api/v1/chat/sessions') && resp.status() === 200,
+      { timeout: 20000 }
+    ).catch(() => {});
+
+    // 2. Send query in Chat A
+    const promptA = 'Query A for Chat Session Isolation ' + Date.now();
+    const input = page.locator('textarea').first();
+    await expect(input).toBeVisible({ timeout: 15000 });
+    await input.fill(promptA);
+    const submitBtn = page.locator('button[type="submit"]').first();
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
+
+    // 3. Verify Chat A receives a real session ID in URL
+    await expect(page).toHaveURL(/\/chat\/[0-9a-f-]{36}/, { timeout: 20000 });
+    const urlA = page.url();
+    const sessionIdA = urlA.split('/chat/')[1];
+    expect(sessionIdA).toBeTruthy();
+
+    // 4. Verify Chat A content is present
+    await expect(page.locator(`text=${promptA}`)).toBeVisible({ timeout: 15000 });
+
+    // 5. Click "New Chat" in Sidebar
+    const newChatBtn = page.getByRole('button', { name: 'New Chat' }).first();
+    await newChatBtn.click();
+
+    // 6. Verify URL becomes /chat
+    await expect(page).toHaveURL(/.*\/chat$/, { timeout: 15000 });
+
+    // 7. Verify Chat A messages are no longer displayed
+    await expect(page.locator(`text=${promptA}`)).not.toBeVisible();
+
+    // 8. Verify the empty/new-chat state is displayed
+    await expect(page.locator('text=How can I help you today?')).toBeVisible({ timeout: 10000 });
+
+    // 9. Send a different query in Chat B
+    const promptB = 'Query B for Chat Session Isolation ' + Date.now();
+    const inputB = page.locator('textarea').first();
+    await inputB.fill(promptB);
+    const submitBtnB = page.locator('button[type="submit"]').first();
+    await expect(submitBtnB).toBeEnabled({ timeout: 5000 });
+    await submitBtnB.click();
+
+    // 10 & 11. Verify Chat B creates a different session ID
+    await expect(page).toHaveURL(/\/chat\/[0-9a-f-]{36}/, { timeout: 20000 });
+    const urlB = page.url();
+    const sessionIdB = urlB.split('/chat/')[1];
+    expect(sessionIdB).toBeTruthy();
+    expect(sessionIdB).not.toBe(sessionIdA);
+
+    // 12. Verify Chat B content is present
+    await expect(page.locator(`text=${promptB}`)).toBeVisible({ timeout: 15000 });
+
+    // 13. Navigate back to Chat A using sidebar link
+    const chatALink = page.locator(`a[href="/chat/${sessionIdA}"]`).first();
+    if (await chatALink.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await chatALink.click();
+    } else {
+      await page.goto(`/chat/${sessionIdA}`);
+    }
+
+    // 14. Verify Chat A messages are restored
+    await expect(page).toHaveURL(new RegExp(`/chat/${sessionIdA}`), { timeout: 15000 });
+    await expect(page.locator(`text=${promptA}`)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(`text=${promptB}`)).not.toBeVisible();
+
+    // 15. Navigate back to Chat B
+    const chatBLink = page.locator(`a[href="/chat/${sessionIdB}"]`).first();
+    if (await chatBLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await chatBLink.click();
+    } else {
+      await page.goto(`/chat/${sessionIdB}`);
+    }
+
+    // 16 & 17. Verify Chat B messages are restored and isolated
+    await expect(page).toHaveURL(new RegExp(`/chat/${sessionIdB}`), { timeout: 15000 });
+    await expect(page.locator(`text=${promptB}`)).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(`text=${promptA}`)).not.toBeVisible();
+  });
 });
