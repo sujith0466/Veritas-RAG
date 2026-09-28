@@ -232,11 +232,38 @@ class ChatOrchestrator:
                         )
                     )
                 except Exception as e:
-                    import traceback
-                    error_trace = traceback.format_exc()
-                    import logging
-                    logging.error(f"add_message crashed: {error_trace}")
-                    yield f"data: {{\"event\": \"error\", \"data\": {{\"message\": \"DB crash: {str(e)}\"}}}}\n\n"
+                    from fastapi import HTTPException
+
+                    status_code = e.status_code if isinstance(e, HTTPException) else 500
+                    detail_msg = e.detail if isinstance(e, HTTPException) else "An internal error occurred during generation."
+
+                    if status_code == 404:
+                        error_code = "SESSION_NOT_FOUND"
+                        user_message = str(detail_msg)
+                    elif status_code == 403:
+                        error_code = "UNAUTHORIZED"
+                        user_message = str(detail_msg)
+                    else:
+                        error_code = "INTERNAL_ERROR"
+                        user_message = "An internal error occurred during generation."
+
+                    logger.error(
+                        "Chat orchestrator session message initialization failed",
+                        session_id=session_id,
+                        error=str(e),
+                        error_code=error_code,
+                        status_code=status_code,
+                        correlation_id=correlation_id,
+                    )
+
+                    err = SSEMessageDTO.error(
+                        code=error_code,
+                        message=user_message,
+                        correlation_id=correlation_id,
+                        recoverable=False,
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
                     return
 
         # 1.5 Check if knowledge base is still processing
