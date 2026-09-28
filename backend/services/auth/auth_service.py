@@ -228,7 +228,7 @@ class AuthService:
                 email=email_normalized,
                 is_verified=True, # Trust OIDC email verification
                 verified_at=datetime.datetime.now(datetime.UTC),
-                role="viewer",
+                role="admin",
                 is_active=True
             )
             self.session.add(user)
@@ -251,6 +251,44 @@ class AuthService:
                 linked_at=datetime.datetime.now(datetime.UTC)
             )
             self.session.add(identity)
+
+        # Ensure user has an active workspace membership (provision default workspace if none exists)
+        from backend.models.entities.workspace import Workspace, WorkspaceStatus
+        from backend.models.entities.workspace_member import WorkspaceMember
+        from backend.repositories.workspace import WorkspaceRepository
+        from backend.repositories.workspace_member import WorkspaceMemberRepository
+        from backend.repositories.workspace_settings import WorkspaceSettingsRepository
+        from backend.services.workspace.provisioning_service import WorkspaceProvisioningService
+
+        ws_member_stmt = (
+            select(WorkspaceMember.workspace_id)
+            .join(Workspace, Workspace.id == WorkspaceMember.workspace_id)
+            .where(
+                WorkspaceMember.user_id == user.id,
+                Workspace.status == WorkspaceStatus.ACTIVE.value
+            )
+            .limit(1)
+        )
+        ws_res = await self.session.execute(ws_member_stmt)
+        existing_ws_id = ws_res.scalar_one_or_none()
+
+        if not existing_ws_id:
+            raw_name = metadata.get("name") if isinstance(metadata, dict) else None
+            user_display_name = raw_name.strip() if raw_name and raw_name.strip() else email_normalized.split("@")[0].capitalize()
+            ws_name = f"{user_display_name}'s Workspace" if not user_display_name.lower().endswith("workspace") else user_display_name
+
+            provisioning_svc = WorkspaceProvisioningService(
+                workspace_repo=WorkspaceRepository(self.session),
+                workspace_settings_repo=WorkspaceSettingsRepository(self.session),
+                workspace_member_repo=WorkspaceMemberRepository(self.session),
+            )
+            workspace = await provisioning_svc.provision_workspace(
+                session=self.session,
+                name=ws_name,
+                owner_user_id=user.id,
+            )
+            user.tenant_id = str(workspace.id)
+            user.workspace_name = workspace.name
 
         user.last_login_at = datetime.datetime.now(datetime.UTC)
 

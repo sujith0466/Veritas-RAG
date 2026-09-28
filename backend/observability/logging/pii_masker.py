@@ -35,6 +35,9 @@ _MASKED_FIELD_NAMES = frozenset(
         "session_secret",
         "id_token",
         "auth_code",
+        "nonce",
+        "code_verifier",
+        "code_challenge",
     }
 )
 

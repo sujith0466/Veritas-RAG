@@ -10,6 +10,7 @@ const VerifyPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.Ver
 const ResendVerificationPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.ResendVerificationPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.ResetPasswordPage })))
+const OAuthCallbackPage = lazy(() => import('@/pages/auth').then(m => ({ default: m.OAuthCallbackPage })))
 
 const DashboardPage = lazy(() => import('@/pages/dashboard').then(m => ({ default: m.DashboardPage })))
 const KnowledgeIntelligenceDashboardPage = lazy(() => import('@/pages/dashboard').then(m => ({ default: m.KnowledgeIntelligenceDashboardPage })))
@@ -111,6 +112,13 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <LandingPage /> }
         ]
+      },
+      {
+        path: '/auth/callback',
+        element: <AuthLayout />,
+        children: [
+          { index: true, element: <OAuthCallbackPage /> }
+        ],
       },
       {
         path: '/auth',

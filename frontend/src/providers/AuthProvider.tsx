@@ -11,6 +11,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true
 
     async function initializeAuth() {
+      // Do not race against OAuthCallbackPage when processing OAuth redirect
+      if (window.location.pathname.startsWith('/auth/callback')) {
+        return
+      }
+
       try {
         if (initialMount.current) {
           setStatus('LOADING')

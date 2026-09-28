@@ -410,6 +410,23 @@ async def refresh_token(
     )
 
 
+def _get_validated_frontend_url() -> str:
+    """Validate FRONTEND_URL against approved origin policy."""
+    import os
+    import urllib.parse
+
+    raw_url = os.getenv("FRONTEND_URL", "http://localhost:5173").strip().rstrip("/")
+    if not raw_url:
+        return "http://localhost:5173"
+
+    parsed = urllib.parse.urlparse(raw_url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        logger.warning("Unsafe FRONTEND_URL configured, falling back to default", url=raw_url)
+        return "http://localhost:5173"
+
+    return raw_url
+
+
 @router.get(
     "/sso/login/{provider}",
     summary="Initiate SSO login",
@@ -436,8 +453,7 @@ async def sso_callback(
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     """Handle OIDC callback and redirect to frontend."""
-    import os
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    frontend_url = _get_validated_frontend_url()
 
     try:
         sso_service = get_sso_provider(provider)
@@ -456,9 +472,10 @@ async def sso_callback(
             ip_address=ip_address
         )
 
-        # Set the refresh token cookie
+        # Set the refresh token cookie on the redirect response
         settings = get_settings()
-        response.set_cookie(
+        redirect_resp = RedirectResponse(url=f"{frontend_url}/auth/callback#access_token={access_token}")
+        redirect_resp.set_cookie(
             key="refresh_token",
             value=raw_refresh_token,
             max_age=7 * 24 * 60 * 60,
@@ -468,7 +485,7 @@ async def sso_callback(
             path="/api/v1/auth/refresh"
         )
 
-        return RedirectResponse(url=f"{frontend_url}/auth/callback#access_token={access_token}")
+        return redirect_resp
 
     except AuthenticationException as e:
         logger.warning("SSO Callback failed", error=str(e))

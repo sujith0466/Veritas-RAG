@@ -95,6 +95,30 @@ class GoogleOIDCProvider:
         auth_url = f"{config['authorization_endpoint']}?{urlencode(params)}"
         return auth_url
 
+    async def _get_jwks(self, client: httpx.AsyncClient, jwks_uri: str, force_refresh: bool = False) -> dict[str, Any]:
+        """Fetch and cache provider JWKS with a 1-hour TTL."""
+        cache_key = "oidc:jwks:google"
+        if not force_refresh and self.redis:
+            try:
+                cached = await self.redis.get(cache_key)
+                if cached:
+                    return json.loads(cached)
+            except Exception as e:
+                logger.warning("Failed to get JWKS from Redis cache", error=str(e))
+
+        jwks_response = await client.get(jwks_uri)
+        if jwks_response.status_code != 200:
+            raise AuthenticationException("Failed to fetch provider JWKS.")
+        jwks = jwks_response.json()
+
+        if self.redis:
+            try:
+                await self.redis.set(cache_key, json.dumps(jwks), ex=3600)
+            except Exception as e:
+                logger.warning("Failed to store JWKS in Redis cache", error=str(e))
+
+        return jwks
+
     async def exchange_code(self, code: str, state: str) -> dict[str, Any]:
         """Exchange the auth code for tokens and return user profile."""
         if not self.redis:
@@ -142,17 +166,27 @@ class GoogleOIDCProvider:
             if not id_token:
                 raise AuthenticationException("No ID token returned from provider.")
 
-            # Validate ID token (fetch JWKS)
-            jwks_response = await client.get(config["jwks_uri"])
-            jwks = jwks_response.json()
+            # Validate ID token (fetch cached JWKS)
+            jwks = await self._get_jwks(client, config["jwks_uri"])
 
             public_keys = {}
-            for jwk in jwks["keys"]:
-                kid = jwk["kid"]
-                public_keys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+            for jwk in jwks.get("keys", []):
+                kid = jwk.get("kid")
+                if kid:
+                    public_keys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
 
             unverified_header = jwt.get_unverified_header(id_token)
             kid = unverified_header.get("kid")
+
+            # Handle possible key rotation by re-fetching if kid not in cache
+            if not kid or kid not in public_keys:
+                jwks = await self._get_jwks(client, config["jwks_uri"], force_refresh=True)
+                public_keys = {}
+                for jwk in jwks.get("keys", []):
+                    k = jwk.get("kid")
+                    if k:
+                        public_keys[k] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+
             if not kid or kid not in public_keys:
                 raise AuthenticationException("Invalid ID token key ID.")
 
