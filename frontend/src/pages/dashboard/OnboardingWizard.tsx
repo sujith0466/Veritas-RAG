@@ -171,11 +171,46 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     setCurrentStep((prev) => Math.max(prev - 1, 0))
   }
 
+  const handleSkip = async () => {
+    setIsLoading(true)
+    try {
+      const updatedSettings = { ...user?.workspace_settings, onboarding_completed: true }
+      await userService.updateWorkspace({ workspace_settings: updatedSettings })
+      updateUser({ workspace_settings: updatedSettings })
+      toast({
+        title: 'Workspace Ready',
+        message: 'Onboarding skipped. You can upload documents anytime from the Documents page.',
+        type: 'info',
+      })
+      onComplete()
+    } catch (e) {
+      console.error('Failed to update onboarding status on skip', e)
+      const fallbackSettings = { ...user?.workspace_settings, onboarding_completed: true }
+      updateUser({ workspace_settings: fallbackSettings })
+      onComplete()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Workspace Setup</h1>
-        <p className="text-muted-foreground mt-2">Configure your intelligence pipeline to activate dashboards.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Workspace Setup</h1>
+          <p className="text-muted-foreground mt-2">
+            Configure your knowledge pipeline or explore your workspace directly.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSkip}
+          disabled={isLoading}
+          className="shrink-0 text-muted-foreground hover:text-foreground"
+        >
+          Skip for Now
+        </Button>
       </div>
 
       <div className="flex items-center justify-between mb-8 overflow-x-auto pb-4 scrollbar-none">
@@ -213,7 +248,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
                   <Shield className="h-10 w-10 text-primary" />
                 </div>
                 <h2 className="text-2xl font-bold">Welcome to Enterprise AI</h2>
-                <p className="text-muted-foreground">To unlock your intelligence dashboards, we need to connect a data source and process your first document. This will establish your initial vector index.</p>
+                <p className="text-muted-foreground">
+                  You can connect a data source and process your first document now, or skip this step to explore your dashboard and upload documents later.
+                </p>
               </motion.div>
             )}
 
@@ -240,8 +277,10 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             {currentStep === 2 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-lg mx-auto space-y-6">
                 <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold">Upload Document</h2>
-                  <p className="text-muted-foreground">Upload a PDF or text file to ingest.</p>
+                  <h2 className="text-2xl font-bold">Upload Document (Optional)</h2>
+                  <p className="text-muted-foreground">
+                    Upload a PDF or text file to ingest now, or skip to add documents later from the Documents page.
+                  </p>
                 </div>
                 <div className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-surface hover:bg-muted/50 transition-colors">
                   <Input type="file" accept=".pdf,.txt,.md" className="hidden" id="file-upload" onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -330,15 +369,25 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
             )}
           </AnimatePresence>
         </CardContent>
-        <div className="border-t border-border/50 p-4 flex justify-between bg-surface/50 rounded-b-xl">
+        <div className="border-t border-border/50 p-4 flex items-center justify-between bg-surface/50 rounded-b-xl">
           <Button variant="outline" onClick={handlePrev} disabled={currentStep === 0 || isLoading}>
             <ChevronLeft className="h-4 w-4 mr-2" /> Back
           </Button>
-          <Button onClick={handleNext} disabled={(currentStep === 2 && !file) || isLoading}>
-            {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-            {currentStep === steps.length - 1 ? 'Start Processing' : 'Continue'}
-            {!isLoading && currentStep !== steps.length - 1 && <ChevronRight className="h-4 w-4 ml-2" />}
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={handleSkip}
+              disabled={isLoading}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Skip for Now
+            </Button>
+            <Button onClick={handleNext} disabled={(currentStep === 2 && !file) || isLoading}>
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              {currentStep === steps.length - 1 ? 'Start Processing' : 'Continue'}
+              {!isLoading && currentStep !== steps.length - 1 && <ChevronRight className="h-4 w-4 ml-2" />}
+            </Button>
+          </div>
         </div>
       </MotionCard>
     </div>

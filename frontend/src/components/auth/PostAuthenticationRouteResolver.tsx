@@ -18,8 +18,9 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
   const updateUser = useAuthStore(s => s.updateUser)
 
   const resolveWorkspaceState = React.useCallback(async () => {
+    const currentUser = useAuthStore.getState().user
     // If the user already completed onboarding, skip all checks
-    if (user?.workspace_settings?.onboarding_completed) {
+    if (currentUser?.workspace_settings?.onboarding_completed) {
       setIsWorkspaceEmpty(false)
       setIsResolved(true)
       return
@@ -35,7 +36,7 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
       if (hasDocuments) {
         // Lazy migration for existing workspaces
         try {
-          const updatedSettings = { ...user?.workspace_settings, onboarding_completed: true }
+          const updatedSettings = { ...currentUser?.workspace_settings, onboarding_completed: true }
           await userService.updateWorkspace({ workspace_settings: updatedSettings })
           updateUser({ workspace_settings: updatedSettings })
         } catch (e) {
@@ -51,11 +52,11 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
     } finally {
       setIsResolved(true)
     }
-  }, [user, updateUser])
+  }, [updateUser])
 
   useEffect(() => {
     resolveWorkspaceState()
-  }, [resolveWorkspaceState])
+  }, [resolveWorkspaceState, user?.workspace_settings?.onboarding_completed])
 
   if (!isResolved) {
     // Render a subtle loading state while resolving routing decisions
