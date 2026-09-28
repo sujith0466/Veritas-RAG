@@ -152,7 +152,6 @@ class StreamingGroundedGenerationService:
                         wrapper_metadata=metadata
                     )
                     chunk_idx += 1
-                    await asyncio.sleep(0.01)
             except asyncio.CancelledError:
                 logger.warning("Streaming generation cancelled", correlation_id=request.correlation_id)
                 raise

@@ -115,24 +115,69 @@ class GeminiProvider(LLMProvider):
         )
 
     async def stream(self, request: LLMRequest) -> AsyncIterator[str]:
-        """Stream tokens from Gemini.
+        """Stream tokens from Gemini without blocking the asyncio event loop.
 
-        Note: Gemini SDK streaming is synchronous under the hood in the
-        current SDK version. This wraps it as an async iterator.
+        The Gemini SDK returns a synchronous gRPC streaming iterator. Running
+        ``for chunk in response`` directly in an async function blocks the event
+        loop for the entire generation duration, starving all concurrent requests.
+
+        This implementation offloads the synchronous iteration to a thread-pool
+        worker via ``asyncio.to_thread`` and bridges the results back to an async
+        generator through an ``asyncio.Queue``.  All Gemini request parameters,
+        model selection, response parsing, and error semantics are preserved.
         """
+        import asyncio
+        import threading
+
         model = self._get_model(use_lite=request.use_lite_model)
         contents = self._build_contents(request)
 
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[str | Exception | None] = asyncio.Queue()
+        # Threading event lets the async generator signal cancellation to the
+        # worker thread so it stops iterating early.
+        cancel_flag = threading.Event()
+
+        def _run_sync() -> None:
+            """Synchronous worker: calls Gemini SDK and drains the iterator."""
+            try:
+                response = model.generate_content(contents=contents, stream=True)
+                for chunk in response:
+                    if cancel_flag.is_set():
+                        break
+                    if chunk.text:
+                        loop.call_soon_threadsafe(queue.put_nowait, chunk.text)
+            except Exception as exc:
+                loop.call_soon_threadsafe(queue.put_nowait, exc)
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel
+
+        task = asyncio.ensure_future(asyncio.to_thread(_run_sync))
         try:
-            response = model.generate_content(contents=contents, stream=True)
-            for chunk in response:
-                if chunk.text:
-                    yield chunk.text
-        except Exception as exc:
-            logger.error("Gemini streaming error", error=str(exc))
-            raise LLMProviderException(
-                message=f"Gemini streaming error: {exc}"
-            ) from exc
+            while True:
+                item = await queue.get()
+                if item is None:  # sentinel — stream complete
+                    break
+                if isinstance(item, Exception):
+                    logger.error("Gemini streaming error", error=str(item))
+                    raise LLMProviderException(
+                        message=f"Gemini streaming error: {item}"
+                    ) from item
+                yield item  # str token chunk
+
+        except asyncio.CancelledError:
+            # Signal the worker thread to stop iterating.
+            cancel_flag.set()
+            raise
+        finally:
+            # Ensure the background task is awaited so no task is leaked.
+            if not task.done():
+                cancel_flag.set()
+                try:
+                    await asyncio.wait_for(task, timeout=5.0)
+                except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+                    pass
+
 
     async def health_check(self) -> bool:
         """Verify Gemini API connectivity with a minimal token generation call."""
