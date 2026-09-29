@@ -771,4 +771,93 @@ test.describe('Chat Suite @chat', () => {
     await expect(cancelVoiceBtn).not.toBeVisible({ timeout: 5000 });
     await expect(composer).toHaveValue(initialText);
   });
+
+  test('Chat Scroll Architecture - Streaming Auto-Scroll, Manual Scroll-Up Decoupling, Floating Scroll Button, and Clearance', async ({ page }) => {
+    // 1. Navigate to /chat
+    await page.setViewportSize({ width: 1280, height: 400 });
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    const composer = page.locator('textarea[aria-label="Message Veritas RAG"]').first();
+    const sendBtn = page.locator('button[aria-label="Send message"]').first();
+    const scrollContainer = page.locator('div[data-testid="chat-messages-container"]').first();
+
+    // 2. Verify dynamic clearance spacer exists
+    await expect(scrollContainer).toBeVisible({ timeout: 10000 });
+
+    // 3. Send prompt to generate a full response
+    const scrollPrompt = 'What is the password policy?';
+    await composer.fill(scrollPrompt);
+    await expect(sendBtn).toBeEnabled({ timeout: 5000 });
+    await sendBtn.click();
+
+    // Wait for assistant response to complete
+    await expect(page.locator('button[aria-label="Stop generating response"]')).not.toBeVisible({ timeout: 90000 });
+    await expect.poll(async () => {
+      const prose = page.locator('div.prose');
+      const count = await prose.count();
+      if (count === 0) return 0;
+      return (await prose.last().innerText().catch(() => '')).trim().length;
+    }, { timeout: 90000 }).toBeGreaterThan(10);
+    await expect(composer).toBeEnabled({ timeout: 90000 });
+
+    // 4. Create overflow content to test scroll decoupling and floating scroll button
+    await scrollContainer.evaluate((el) => {
+      const spacer = document.createElement('div');
+      spacer.id = 'test-scroll-spacer';
+      spacer.style.height = '1000px';
+      el.insertBefore(spacer, el.lastElementChild);
+      el.scrollTo({ top: 0, behavior: 'instant' });
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+
+    // 5. Verify Floating "Scroll to bottom" button appears
+    const scrollToBottomBtn = page.locator('button[aria-label="Scroll to bottom"]').first();
+    await expect(scrollToBottomBtn).toBeVisible({ timeout: 10000 });
+
+    // 6. Click "Scroll to bottom" button
+    await scrollToBottomBtn.click();
+
+    // 7. Verify button disappears and viewport returns to bottom
+    await expect(scrollToBottomBtn).not.toBeVisible({ timeout: 5000 });
+    await expect.poll(async () => {
+      return await scrollContainer.evaluate((el) => {
+        return el.scrollHeight - el.scrollTop - el.clientHeight;
+      });
+    }, { timeout: 10000 }).toBeLessThan(80);
+
+    // 8. Test Natural Scroll Back to Bottom
+    // Scroll up again
+    await scrollContainer.evaluate((el) => {
+      el.scrollTo({ top: 0, behavior: 'instant' });
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    await expect(scrollToBottomBtn).toBeVisible({ timeout: 5000 });
+
+    // Naturally scroll to bottom without clicking button
+    await scrollContainer.evaluate((el) => {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'instant' });
+      el.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    await expect(scrollToBottomBtn).not.toBeVisible({ timeout: 5000 });
+
+    // Cleanup test spacer
+    await scrollContainer.evaluate((el) => {
+      const spacer = el.querySelector('#test-scroll-spacer');
+      if (spacer) spacer.remove();
+    });
+
+    // 9. Test Dynamic Composer Growth Clearance
+    await composer.fill('Line 1 of multiline test\nLine 2\nLine 3\nLine 4\nLine 5');
+    await page.waitForTimeout(300);
+
+    // Verify distance from bottom remains anchored
+    const finalDistance = await scrollContainer.evaluate((el) => {
+      return el.scrollHeight - el.scrollTop - el.clientHeight;
+    });
+    expect(finalDistance).toBeLessThan(120);
+
+    // Wait for generation to complete cleanly
+    await expect(page.locator('button[aria-label="Stop generating response"]')).not.toBeVisible({ timeout: 90000 });
+  });
 });

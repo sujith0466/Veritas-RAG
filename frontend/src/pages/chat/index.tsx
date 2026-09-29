@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Send, Mic, X, Check, Bot, User as UserIcon, Copy, ChevronRight, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
+import { Send, Mic, X, Check, Bot, User as UserIcon, Copy, ChevronRight, ChevronDown, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import ReactMarkdown from 'react-markdown'
@@ -60,8 +60,13 @@ export function AIChatPage() {
     onError: handleVoiceError
   })
 
-  // F9.3: Pagination and Scroll Lock
-  const isScrolledUp = useRef(false)
+  // Chat #10 Scroll Architecture State & Refs
+  const isScrolledUpRef = useRef(false)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const rafIdRef = useRef<number | null>(null)
+  const [composerHeight, setComposerHeight] = useState<number>(140)
+  const composerContainerRef = useRef<HTMLDivElement>(null)
+  const hasInitiallyAnchoredRef = useRef(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -69,6 +74,70 @@ export function AIChatPage() {
   // Guard to prevent store sync from overwriting local optimistic state after stream completes
   const hasOptimisticContent = useRef(false)
   const handledInitialQueryRef = useRef<string | null>(null)
+
+  // Dynamic Composer Clearance via ResizeObserver
+  useEffect(() => {
+    if (!composerContainerRef.current) return
+    const el = composerContainerRef.current
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.contentRect.height
+        if (height > 0) {
+          const totalClearance = Math.round(height + 24)
+          setComposerHeight(totalClearance)
+          if (!isScrolledUpRef.current && chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+          }
+        }
+      }
+    })
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const scrollToBottom = useCallback((instant = false) => {
+    const container = chatContainerRef.current
+    if (!container) return
+
+    const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const shouldBeInstant = instant || prefersReducedMotion
+
+    isScrolledUpRef.current = false
+    setShowScrollToBottom(false)
+
+    if (shouldBeInstant) {
+      container.scrollTop = container.scrollHeight
+    } else {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      })
+    }
+  }, [])
+
+  // Batched RAF-based Streaming Bottom Anchor Scheduler
+  const scheduleScrollToBottom = useCallback(() => {
+    if (isScrolledUpRef.current) return
+    if (rafIdRef.current !== null) return
+
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null
+      if (!isScrolledUpRef.current && chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     // P2: Abort any active stream when switching sessions or opening a new chat
@@ -78,6 +147,7 @@ export function AIChatPage() {
     }
     setIsStreaming(false)
     hasOptimisticContent.current = false
+    hasInitiallyAnchoredRef.current = false
 
     if (sessionId) {
       if (useChatStore.getState().activeSession?.id !== sessionId) {
@@ -89,6 +159,11 @@ export function AIChatPage() {
     } else {
       setMessages([])
       useChatStore.getState().setActiveSession(null)
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = 0
+      }
+      isScrolledUpRef.current = false
+      setShowScrollToBottom(false)
     }
 
     return () => {
@@ -102,17 +177,23 @@ export function AIChatPage() {
   useEffect(() => {
     if (activeSession?.messages && !isStreaming && !hasOptimisticContent.current) {
       setMessages(activeSession.messages)
+      if (!hasInitiallyAnchoredRef.current) {
+        hasInitiallyAnchoredRef.current = true
+        requestAnimationFrame(() => {
+          scrollToBottom(true)
+        })
+      }
     } else if (!activeSession && !sessionId && !isStreaming && !hasOptimisticContent.current) {
       setMessages([])
     }
-  }, [activeSession, sessionId, isStreaming])
+  }, [activeSession, sessionId, isStreaming, scrollToBottom])
 
-  // F9.3 Intelligent Scroll Lock
+  // Chat #10: Streaming & Dynamic Content Anchor
   useEffect(() => {
-    if (!isScrolledUp.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!isScrolledUpRef.current) {
+      scheduleScrollToBottom()
     }
-  }, [messages, isStreaming])
+  }, [messages, isStreaming, scheduleScrollToBottom])
 
   // Controlled Textarea Auto-Resize (min 52px, max 160px)
   useEffect(() => {
@@ -143,8 +224,11 @@ export function AIChatPage() {
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget
-    const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 50
-    isScrolledUp.current = !isAtBottom
+    const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight
+    const isAway = distanceFromBottom > 80
+
+    isScrolledUpRef.current = isAway
+    setShowScrollToBottom(isAway)
   }
 
   // F9.3 Native Infinite Scroll
@@ -382,6 +466,8 @@ export function AIChatPage() {
 
     if (!currentQuery || isStreaming) return
 
+    scrollToBottom(false)
+
     if (isIndexing) {
       setMessages(prev => [
         ...prev,
@@ -478,7 +564,8 @@ export function AIChatPage() {
       <div
         ref={chatContainerRef}
         onScroll={handleScroll}
-        className="absolute inset-0 overflow-y-auto px-3 pt-4 sm:px-6 md:px-8 sm:pt-6 pb-36 sm:pb-40 space-y-6"
+        data-testid="chat-messages-container"
+        className="absolute inset-0 overflow-y-auto px-3 pt-4 sm:px-6 md:px-8 sm:pt-6 space-y-6"
       >
         {messages.length > 0 && hasMoreMessages && (
           <div ref={sentinelRef} className="h-4 w-full flex items-center justify-center">
@@ -529,11 +616,37 @@ export function AIChatPage() {
           ))
         )}
         <div ref={messagesEndRef} />
+        {/* Dynamic Composer Clearance Spacer */}
+        <div style={{ height: `${composerHeight}px` }} aria-hidden="true" className="shrink-0 transition-[height] duration-150" />
       </div>
 
       {/* Floating Liquid Glass Composer Layer */}
       <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 z-20 pointer-events-none flex flex-col items-center justify-end">
-        <div className="w-full max-w-4xl pointer-events-auto relative">
+        {/* Floating Scroll to Bottom Affordance */}
+        <AnimatePresence>
+          {showScrollToBottom && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              className="pointer-events-auto mb-2.5"
+            >
+              <button
+                type="button"
+                onClick={() => scrollToBottom(false)}
+                aria-label="Scroll to bottom"
+                title="Scroll to bottom"
+                className="group flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium text-foreground bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-200 border border-slate-900/[0.08] dark:border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_1px_0_rgba(255,255,255,0.15)] hover:border-primary/50 hover:bg-white/90 dark:hover:bg-slate-800/90 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+              >
+                <ChevronDown className="h-3.5 w-3.5 text-primary group-hover:translate-y-0.5 transition-transform" />
+                <span>Scroll to bottom</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div ref={composerContainerRef} className="w-full max-w-4xl pointer-events-auto relative">
           <AnimatePresence>
             {isStreaming && (
               <motion.div
