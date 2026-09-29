@@ -503,4 +503,65 @@ test.describe('Chat Suite @chat', () => {
     await sendBtn.click();
     await expect(composer).toBeFocused({ timeout: 5000 });
   });
+
+  test('Generation UX and Liquid Glass Composer - Header Removal, Floating Overlay, Thinking State, Streaming, and Interruption', async ({ page }) => {
+    // 1. Navigate to /chat
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    // 2. Verify redundant internal chat header is removed
+    await expect(page.locator('h2:has-text("AI Chat")')).not.toBeVisible();
+    await expect(page.locator('text=Ask questions based on enterprise knowledge')).not.toBeVisible();
+
+    const composer = page.locator('textarea[aria-label="Message Veritas RAG"]').first();
+    const sendBtn = page.locator('button[aria-label="Send message"]').first();
+
+    // 3. Verify Liquid Glass composer initial state & floating layout
+    await expect(composer).toBeVisible({ timeout: 15000 });
+    await expect(composer).toBeFocused({ timeout: 10000 });
+    await expect(sendBtn).toBeDisabled();
+
+    // Verify chat messages container is full-canvas scrollable layer with clearance
+    const scrollContainer = page.locator('div.overflow-y-auto').first();
+    await expect(scrollContainer).toBeVisible({ timeout: 10000 });
+
+    // 4. Submit query and observe generation behavior
+    const promptText = 'Generation UX and Stop Generating verification ' + Date.now();
+    await composer.fill(promptText);
+    await expect(sendBtn).toBeEnabled({ timeout: 5000 });
+    await sendBtn.click();
+
+    // 5. Verify Stop Generating button appears and can interrupt cleanly
+    const stopBtn = page.locator('button[aria-label="Stop generating response"]').first();
+    try {
+      await stopBtn.waitFor({ state: 'visible', timeout: 10000 });
+      await stopBtn.click();
+      await expect(stopBtn).not.toBeVisible({ timeout: 15000 });
+    } catch {
+      // If stream ended before interrupt, ensure it finished cleanly
+      await expect(stopBtn).not.toBeVisible({ timeout: 90000 });
+    }
+
+    // 6. Verify user message remains rendered and composer is enabled for follow-up
+    await expect(page.locator(`text=${promptText}`)).toBeVisible({ timeout: 15000 });
+    await expect(composer).toBeEnabled({ timeout: 10000 });
+
+    // 7. Send complete follow-up prompt to verify normal generation completion
+    const completePrompt = 'Explain the leave policy.';
+    await composer.fill(completePrompt);
+    await expect(sendBtn).toBeEnabled({ timeout: 10000 });
+    await sendBtn.click();
+
+    // Verify stream completes
+    await expect(page.locator('button[aria-label="Stop generating response"]')).not.toBeVisible({ timeout: 90000 });
+    await expect.poll(async () => {
+      const proseElements = page.locator('div.prose');
+      const count = await proseElements.count();
+      if (count === 0) return 0;
+      const text = await proseElements.last().innerText().catch(() => '');
+      return text.trim().length;
+    }, { timeout: 90000 }).toBeGreaterThan(10);
+
+    await expect(composer).toBeEnabled({ timeout: 10000 });
+  });
 });

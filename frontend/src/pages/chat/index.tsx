@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm'
 
 import { useChatStore, ChatMessage } from '@/stores/chatStore'
 import { useAuthStore } from '@/stores/authStore'
+import { cn } from '@/utils/cn'
 
 import { Badge } from '@/components/common/Badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/common/Tooltip'
@@ -392,20 +393,14 @@ export function AIChatPage() {
   }
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col bg-surface/90 backdrop-blur-xl shadow-sm rounded-xl border border-border/60 mx-2 my-2 sm:mx-4 sm:my-3 overflow-hidden">
-      {/* Chat Header */}
-      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3 sm:px-6 sm:py-3.5 bg-surface/80 backdrop-blur-md shrink-0 z-10">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground tracking-tight">AI Chat</h2>
-          <p className="text-sm text-muted-foreground">Ask questions based on enterprise knowledge</p>
-        </div>
-      </div>
+    <div className="relative flex flex-1 min-h-0 flex-col bg-surface/90 backdrop-blur-xl shadow-sm rounded-xl border border-border/60 mx-2 my-2 sm:mx-4 sm:my-3 overflow-hidden">
+      <h1 className="sr-only">Enterprise AI Chat</h1>
 
-      {/* Chat Messages Area */}
+      {/* Chat Messages Area (Full Canvas Scroll) */}
       <div
         ref={chatContainerRef}
         onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto px-3 py-4 sm:px-6 md:px-8 sm:py-6 space-y-6"
+        className="absolute inset-0 overflow-y-auto px-3 pt-4 sm:px-6 md:px-8 sm:pt-6 pb-36 sm:pb-40 space-y-6"
       >
         {messages.length > 0 && hasMoreMessages && (
           <div ref={sentinelRef} className="h-4 w-full flex items-center justify-center">
@@ -414,7 +409,7 @@ export function AIChatPage() {
         )}
 
         {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8">
+          <div className="flex min-h-full flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8 py-8">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
               <Bot className="h-8 w-8 text-primary" />
             </div>
@@ -433,7 +428,7 @@ export function AIChatPage() {
                 <button
                   key={q}
                   onClick={() => handleSubmit(q)}
-                  className="p-4 rounded-xl border border-border bg-surface hover:bg-muted/50 hover:border-primary/30 transition-all text-left group flex flex-col gap-2"
+                  className="p-4 rounded-xl border border-border bg-surface hover:bg-muted/50 hover:border-primary/30 transition-all text-left group flex flex-col gap-2 pointer-events-auto"
                 >
                   <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{q}</span>
                   <span className="text-xs text-muted-foreground">Click to ask this question</span>
@@ -443,30 +438,34 @@ export function AIChatPage() {
           </div>
         ) : (
           messages.map((msg, i) => (
-            <ChatMessageBubble key={msg.id || i} message={msg} />
+            <ChatMessageBubble key={msg.id || i} message={msg} isStreaming={isStreaming && i === messages.length - 1} />
           ))
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area (Liquid Glass Composer) */}
-      <div className="p-3 sm:p-4 bg-gradient-to-t from-surface via-surface/95 to-surface/70 backdrop-blur-xl border-t border-border/40 shrink-0">
-        <div className="mx-auto max-w-4xl relative">
+      {/* Floating Liquid Glass Composer Layer */}
+      <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 z-20 pointer-events-none flex flex-col items-center justify-end">
+        <div className="w-full max-w-4xl pointer-events-auto relative">
           <AnimatePresence>
             {isStreaming && (
               <motion.div
-                initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                initial={{ opacity: 0, y: 6, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 6, scale: 0.96 }}
-                transition={{ duration: 0.15 }}
+                exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                 className="flex justify-center mb-2.5"
               >
                 <button
                   type="button"
                   onClick={() => abortControllerRef.current?.abort()}
-                  className="flex items-center gap-2 px-3.5 py-1.5 bg-surface/90 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full text-xs font-medium transition-all border border-border/70 shadow-sm backdrop-blur-md"
+                  className="group relative flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium text-foreground bg-white/50 dark:bg-slate-950/40 backdrop-blur-2xl backdrop-saturate-200 border border-slate-900/[0.08] dark:border-white/15 shadow-[0_4px_20px_rgba(0,0,0,0.08),inset_0_1px_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35),inset_0_1px_1px_0_rgba(255,255,255,0.15)] hover:border-primary/50 hover:bg-white/70 dark:hover:bg-slate-900/60 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+                  aria-label="Stop generating response"
                 >
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  </span>
                   <span>Stop generating</span>
                 </button>
               </motion.div>
@@ -474,8 +473,14 @@ export function AIChatPage() {
           </AnimatePresence>
           <form
             onSubmit={handleSubmit}
-            className="relative flex items-end rounded-2xl border border-border/70 bg-background/60 dark:bg-background/40 backdrop-blur-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.25)] focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 focus-within:bg-background/80 transition-all duration-200"
+            className="group relative flex items-end rounded-2xl border border-slate-900/[0.08] dark:border-white/[0.12] bg-white/40 dark:bg-slate-950/30 backdrop-blur-2xl backdrop-saturate-200 shadow-[0_10px_30px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.02),inset_0_1px_1px_0_rgba(255,255,255,0.9),inset_0_0_0_1px_rgba(255,255,255,0.6)] dark:shadow-[0_16px_40px_0_rgba(0,0,0,0.5),0_2px_6px_0_rgba(0,0,0,0.3),inset_0_1px_1px_0_rgba(255,255,255,0.15),inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-within:border-primary/50 dark:focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 dark:focus-within:ring-primary/25 focus-within:bg-white/60 dark:focus-within:bg-slate-950/45 focus-within:shadow-[0_16px_44px_0_rgba(15,118,110,0.12),0_4px_12px_0_rgba(0,0,0,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95)] dark:focus-within:shadow-[0_20px_50px_0_rgba(0,0,0,0.65),0_0_20px_0_rgba(15,118,110,0.25),inset_0_1px_1px_0_rgba(255,255,255,0.22)] transition-all duration-200 overflow-hidden"
           >
+            {/* Top Specular Glass Reflection Edge */}
+            <div
+              className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/90 dark:via-white/25 to-transparent pointer-events-none"
+              aria-hidden="true"
+            />
+
             <textarea
               ref={textareaRef}
               value={input}
@@ -483,22 +488,31 @@ export function AIChatPage() {
               onKeyDown={handleKeyDown}
               placeholder="Message Veritas RAG..."
               aria-label="Message Veritas RAG"
-              className="w-full resize-none bg-transparent py-3.5 pl-4 pr-12 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[52px] leading-relaxed text-foreground"
+              className="w-full resize-none bg-transparent py-3.5 pl-4 sm:pl-5 pr-14 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[52px] leading-relaxed text-foreground"
               rows={1}
             />
-            <motion.button
-              whileHover={!input.trim() || isStreaming ? {} : { scale: 1.05 }}
-              whileTap={!input.trim() || isStreaming ? {} : { scale: 0.95 }}
-              type="submit"
-              disabled={!input.trim() || isStreaming}
-              aria-label="Send message"
-              title="Send message"
-              className="absolute right-2 bottom-2 rounded-xl p-2 text-primary hover:bg-primary/10 active:bg-primary/20 disabled:text-muted-foreground/40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
-            >
-              <Send className="h-4 w-4 sm:h-5 sm:w-5" />
-            </motion.button>
+
+            {/* Elevated Primary Action Dock */}
+            <div className="absolute right-2.5 bottom-2.5">
+              <motion.button
+                whileHover={!input.trim() || isStreaming ? {} : { scale: 1.05 }}
+                whileTap={!input.trim() || isStreaming ? {} : { scale: 0.95 }}
+                type="submit"
+                disabled={!input.trim() || isStreaming}
+                aria-label="Send message"
+                title="Send message"
+                className={cn(
+                  "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                  !input.trim() || isStreaming
+                    ? "text-muted-foreground/30 bg-muted/40 dark:bg-white/[0.04] border border-transparent dark:border-white/[0.04] cursor-not-allowed"
+                    : "bg-primary text-primary-foreground shadow-[0_2px_10px_rgba(15,118,110,0.4)] hover:shadow-[0_4px_16px_rgba(15,118,110,0.5)] hover:bg-primary-hover active:scale-95"
+                )}
+              >
+                <Send className="h-4 w-4" />
+              </motion.button>
+            </div>
           </form>
-          <div className="text-center mt-2 text-[10px] text-muted-foreground/80 font-medium tracking-tight">
+          <div className="text-center mt-2 text-[11px] text-muted-foreground/70 font-medium tracking-tight pointer-events-none select-none">
             AI responses may be inaccurate. Verify citations before use.
           </div>
         </div>
@@ -507,7 +521,7 @@ export function AIChatPage() {
   )
 }
 
-function ChatMessageBubble({ message }: { message: ChatMessage }) {
+function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMessage; isStreaming?: boolean }) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
 
@@ -537,6 +551,8 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
     })
   }
 
+  const isRetrieving = !isUser && isStreaming && !processedMessage
+
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mx-auto max-w-4xl`}>
       <div className={`flex gap-4 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -551,30 +567,44 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
         {/* Content */}
         <div className={`flex flex-col gap-2 ${isUser ? 'items-end' : 'items-start'} min-w-0 w-full`}>
           <div className={`relative px-5 py-3.5 rounded-2xl ${isUser ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted/50 border border-border/50 rounded-tl-none'}`}>
-            <div className={`prose prose-sm max-w-none ${isUser ? 'text-primary-foreground prose-invert' : 'dark:prose-invert text-foreground'}`}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  a: ({ href, children, ...props }) => {
-                    if (href?.startsWith('#cite-')) {
-                      const citeIndex = parseInt(href.replace('#cite-', ''), 10)
-                      const citation = (message.citations as any[])?.find(c => c.citation_index === citeIndex)
-                      if (citation) {
-                        return <CitationBadge citation={citation} />
+            {isRetrieving ? (
+              <div className="flex items-center gap-2.5 py-1 text-muted-foreground text-xs font-medium" role="status" aria-live="polite">
+                <div className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/80 animate-pulse [animation-delay:200ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse [animation-delay:400ms]" />
+                </div>
+                <span className="text-xs text-muted-foreground/90 font-medium tracking-tight">Searching knowledge base...</span>
+              </div>
+            ) : (
+              <div className={`prose prose-sm max-w-none ${isUser ? 'text-primary-foreground prose-invert' : 'dark:prose-invert text-foreground'}`}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    a: ({ href, children, ...props }) => {
+                      if (href?.startsWith('#cite-')) {
+                        const citeIndex = parseInt(href.replace('#cite-', ''), 10)
+                        const citation = (message.citations as any[])?.find(c => c.citation_index === citeIndex)
+                        if (citation) {
+                          return <CitationBadge citation={citation} />
+                        }
+                        return <span>[{citeIndex}]</span>
                       }
-                      return <span>[{citeIndex}]</span>
+                      return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
                     }
-                    return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
-                  }
-                }}
-              >
-                {processedMessage}
-              </ReactMarkdown>
-            </div>
+                  }}
+                >
+                  {processedMessage}
+                </ReactMarkdown>
+                {isStreaming && !isUser && (
+                  <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/80 rounded-sm animate-pulse align-middle" aria-hidden="true" />
+                )}
+              </div>
+            )}
           </div>
 
           {/* Metadata & Actions (Assistant only) */}
-          {!isUser && (message.reliability_score !== undefined || message.citations?.length) && (
+          {!isUser && !isStreaming && (message.reliability_score !== undefined || message.citations?.length) && (
             <div className="flex items-center gap-3 px-1">
               {/* F9.4 Badge & Tooltip Rendering */}
               {message.reliability_score !== undefined && (
@@ -601,10 +631,12 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
                 </TooltipProvider>
               )}
 
-              <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-[11px] font-medium">
-                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
+              {processedMessage && (
+                <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-[11px] font-medium">
+                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              )}
             </div>
           )}
 
