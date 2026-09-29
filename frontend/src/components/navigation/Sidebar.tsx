@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -21,9 +21,10 @@ import {
   Trash2,
   Pin,
   Archive,
-  ArchiveRestore
+  ArchiveRestore,
+  MoreHorizontal
 } from 'lucide-react'
-import { isToday, isYesterday, isThisWeek, parseISO } from 'date-fns'
+import { isToday, isYesterday, differenceInCalendarDays, parseISO } from 'date-fns'
 
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -95,9 +96,10 @@ export function Sidebar() {
       }
 
       const date = parseISO(session.updated_at)
-      if (isToday(date)) groups.today.push(session)
-      else if (isYesterday(date)) groups.yesterday.push(session)
-      else if (isThisWeek(date)) groups.previous7Days.push(session)
+      const diff = differenceInCalendarDays(new Date(), date)
+      if (diff <= 0 || isToday(date)) groups.today.push(session)
+      else if (diff === 1 || isYesterday(date)) groups.yesterday.push(session)
+      else if (diff <= 7) groups.previous7Days.push(session)
       else groups.older.push(session)
     })
 
@@ -269,90 +271,279 @@ export function Sidebar() {
   )
 }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ChatGroup({ title, sessions, location, onDelete, onUpdate, onArchive, onRestore }: { title: string, sessions: ChatSession[], location: any, onDelete: any, onUpdate: any, onArchive: any, onRestore: any }) {
+function ChatGroup({
+  title,
+  sessions,
+  location,
+  onDelete,
+  onUpdate,
+  onArchive,
+  onRestore,
+}: {
+  title: string
+  sessions: ChatSession[]
+  location: ReturnType<typeof useLocation>
+  onDelete: (id: string) => Promise<void>
+  onUpdate: (id: string, updates: Partial<ChatSession>) => Promise<void>
+  onArchive: (id: string) => Promise<void>
+  onRestore: (id: string) => Promise<void>
+}) {
   return (
-    <div>
+    <div data-chat-group={title}>
       <div className="text-[10px] font-semibold text-muted-foreground/70 tracking-widest uppercase mb-1.5 px-2">
         {title}
       </div>
       <div className="space-y-0.5">
-        {sessions.map(session => (
-          <ChatItem key={session.id} session={session} location={location} onDelete={onDelete} onUpdate={onUpdate} onArchive={onArchive} onRestore={onRestore} />
+        {sessions.map((session) => (
+          <ChatItem
+            key={session.id}
+            session={session}
+            location={location}
+            onDelete={onDelete}
+            onUpdate={onUpdate}
+            onArchive={onArchive}
+            onRestore={onRestore}
+          />
         ))}
       </div>
     </div>
   )
 }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ChatItem({ session, location, onDelete, onUpdate, onArchive, onRestore }: { session: ChatSession, location: any, onDelete: any, onUpdate: any, onArchive: any, onRestore: any }) {
+function ChatItem({
+  session,
+  location,
+  onDelete,
+  onUpdate,
+  onArchive,
+  onRestore,
+}: {
+  session: ChatSession
+  location: ReturnType<typeof useLocation>
+  onDelete: (id: string) => Promise<void>
+  onUpdate: (id: string, updates: Partial<ChatSession>) => Promise<void>
+  onArchive: (id: string) => Promise<void>
+  onRestore: (id: string) => Promise<void>
+}) {
+  const navigate = useNavigate()
   const isActive = location.pathname === `/chat/${session.id}`
   const [isHovered, setIsHovered] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [title, setTitle] = useState(session.title)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!isEditing) {
+      setTitle(session.title)
+    }
+  }, [session.title, isEditing])
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [isEditing])
+
+  useEffect(() => {
+    if (!isMenuOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false)
+      }
+    }
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isMenuOpen])
 
   const handleSave = () => {
     setIsEditing(false)
-    if (title.trim() && title !== session.title) {
-      onUpdate(session.id, { title })
+    const trimmed = title.trim()
+    if (trimmed && trimmed !== session.title) {
+      onUpdate(session.id, { title: trimmed })
+    } else {
+      setTitle(session.title)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setTitle(session.title)
+  }
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsMenuOpen(false)
+    if (window.confirm('Are you sure you want to permanently delete this chat?')) {
+      await onDelete(session.id)
+      if (location.pathname === `/chat/${session.id}`) {
+        navigate('/chat')
+      }
+    }
+  }
+
+  const handleTogglePin = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsMenuOpen(false)
+    onUpdate(session.id, { pinned: !session.pinned })
+  }
+
+  const handleStartRename = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsMenuOpen(false)
+    setIsEditing(true)
+  }
+
+  const handleToggleArchive = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsMenuOpen(false)
+    if (session.archived) {
+      onRestore(session.id)
+    } else {
+      onArchive(session.id)
     }
   }
 
   return (
     <div
       className="relative group"
+      data-session-id={session.id}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link
-        to={`/chat/${session.id}`}
-        className={cn(
-          "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
-          isActive ? "bg-muted/80 text-foreground font-medium" : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-        )}
-      >
-        <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-70" />
-        {isEditing ? (
+      {isEditing ? (
+        <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs bg-muted/60 border border-primary/50">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
           <input
-            autoFocus
+            ref={inputRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={handleSave}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="flex-1 bg-background border border-primary/50 rounded px-1 outline-none text-foreground"
-            onClick={e => e.preventDefault()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave()
+              if (e.key === 'Escape') handleCancelEdit()
+            }}
+            className="flex-1 bg-transparent outline-none text-foreground text-xs"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Rename chat session"
           />
-        ) : (
-          <span className="truncate flex-1">{session.title}</span>
-        )}
-      </Link>
-
-      {(isHovered || isActive) && !isEditing && (
-        <div className="absolute right-1 top-1.5 flex items-center gap-1 bg-gradient-to-l from-muted/80 via-muted/80 to-transparent pl-4 pr-1">
-          <button onClick={(e) => { e.preventDefault(); onUpdate(session.id, { pinned: !session.pinned }) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title={session.pinned ? "Unpin" : "Pin"}>
-            <Pin className={cn("h-3 w-3", session.pinned && "fill-current text-foreground")} />
-          </button>
-          <button onClick={(e) => { e.preventDefault(); setIsEditing(true) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title="Edit">
-            <Pencil className="h-3 w-3" />
-          </button>
-          {session.archived ? (
-            <button onClick={(e) => { e.preventDefault(); onRestore(session.id) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title="Restore">
-              <ArchiveRestore className="h-3 w-3" />
-            </button>
-          ) : (
-            <button onClick={(e) => { e.preventDefault(); onArchive(session.id) }} className="p-1 hover:text-foreground text-muted-foreground transition-colors" title="Archive">
-              <Archive className="h-3 w-3" />
-            </button>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'flex items-center justify-between rounded-md px-2 py-1.5 text-xs transition-colors',
+            isActive
+              ? 'bg-muted/80 text-foreground font-medium'
+              : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
           )}
-          <button onClick={(e) => { 
-            e.preventDefault(); 
-            if (window.confirm('Are you sure you want to permanently delete this chat?')) {
-              onDelete(session.id);
-            }
-          }} className="p-1 hover:text-destructive text-muted-foreground transition-colors" title="Delete">
-            <Trash2 className="h-3 w-3" />
-          </button>
+        >
+          <Link
+            to={`/chat/${session.id}`}
+            className="flex items-center gap-2 min-w-0 flex-1 truncate pr-1"
+          >
+            {session.pinned ? (
+              <Pin className="h-3.5 w-3.5 shrink-0 text-primary fill-primary/30" />
+            ) : (
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            )}
+            <span className="truncate">{session.title}</span>
+          </Link>
+
+          {/* Three-dot overflow menu button */}
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setIsMenuOpen((prev) => !prev)
+              }}
+              className={cn(
+                'p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors',
+                isMenuOpen || isHovered || isActive
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
+              )}
+              title="More options"
+              aria-label="Chat actions"
+              aria-expanded={isMenuOpen}
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Overflow Dropdown Menu */}
+            {isMenuOpen && (
+              <div
+                className="absolute right-0 top-full mt-1 w-36 rounded-lg border border-border/80 bg-surface/95 backdrop-blur-md shadow-xl py-1 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
+                role="menu"
+                aria-orientation="vertical"
+              >
+                <button
+                  onClick={handleTogglePin}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  role="menuitem"
+                >
+                  <Pin className={cn('h-3.5 w-3.5', session.pinned && 'fill-current text-primary')} />
+                  <span>{session.pinned ? 'Unpin' : 'Pin'}</span>
+                </button>
+
+                <button
+                  onClick={handleStartRename}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  role="menuitem"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  <span>Rename</span>
+                </button>
+
+                <button
+                  onClick={handleToggleArchive}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  role="menuitem"
+                >
+                  {session.archived ? (
+                    <>
+                      <ArchiveRestore className="h-3.5 w-3.5" />
+                      <span>Restore</span>
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="h-3.5 w-3.5" />
+                      <span>Archive</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="h-px bg-border/50 my-1" />
+
+                <button
+                  onClick={handleDelete}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-destructive hover:bg-destructive/10 transition-colors"
+                  role="menuitem"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

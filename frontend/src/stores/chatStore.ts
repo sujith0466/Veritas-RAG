@@ -83,7 +83,9 @@ export const useChatStore = create<ChatState>((set) => ({
       })
     } catch (error) {
       console.error('Failed to fetch chat session', error)
+      set({ activeSession: null })
       notifyError('Fetch Failed', (error as Error).message || 'Failed to fetch chat session')
+      throw error
     }
   },
 

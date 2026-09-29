@@ -182,4 +182,197 @@ test.describe('Chat Suite @chat', () => {
     await expect(page.locator(`text=${promptB}`)).toBeVisible({ timeout: 15000 });
     await expect(page.locator(`text=${promptA}`)).not.toBeVisible();
   });
+
+  test('Sidebar Actions - Pin, Rename, Delete and Active Session Deletion Navigation', async ({ page }) => {
+    // 1. Navigate to /chat
+    if (!page.url().includes('/chat')) {
+      await page.goto('/chat');
+    }
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    // Wait for auth & sidebar sessions hydration
+    await page.waitForResponse(
+      resp => resp.url().includes('/api/v1/chat/sessions') && resp.status() === 200,
+      { timeout: 20000 }
+    ).catch(() => {});
+
+    // 2. Create a new chat session by sending a prompt
+    const promptText = 'Sidebar Actions Test ' + Date.now();
+    const input = page.locator('textarea').first();
+    await expect(input).toBeVisible({ timeout: 15000 });
+    await input.fill(promptText);
+    const submitBtn = page.locator('button[type="submit"]').first();
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
+
+    // 3. Verify session ID in URL
+    await expect(page).toHaveURL(/\/chat\/[0-9a-f-]{36}/, { timeout: 20000 });
+    const sessionUrl = page.url();
+    const sessionId = sessionUrl.split('/chat/')[1];
+    expect(sessionId).toBeTruthy();
+
+    // 4. Locate the sidebar row for this session using data-session-id
+    const sessionRow = page.locator(`div[data-session-id="${sessionId}"]`).first();
+    await expect(sessionRow).toBeVisible({ timeout: 20000 });
+
+    const getActionsBtn = () => sessionRow.locator('button[aria-label="Chat actions"]');
+
+    // Click three-dot actions button to open menu
+    await getActionsBtn().click({ force: true });
+
+    // 5. Verify overflow menu is open
+    const pinMenuItem = page.getByRole('menuitem', { name: 'Pin' });
+    const renameMenuItem = page.getByRole('menuitem', { name: 'Rename' });
+    const deleteMenuItem = page.getByRole('menuitem', { name: 'Delete' });
+    await expect(pinMenuItem).toBeVisible({ timeout: 5000 });
+    await expect(renameMenuItem).toBeVisible({ timeout: 5000 });
+    await expect(deleteMenuItem).toBeVisible({ timeout: 5000 });
+
+    // Test Pin action
+    await pinMenuItem.click();
+    await expect(page.locator('text=PINNED')).toBeVisible({ timeout: 10000 });
+
+    // Test Unpin action
+    await getActionsBtn().click({ force: true });
+    const unpinMenuItem = page.getByRole('menuitem', { name: 'Unpin' });
+    await expect(unpinMenuItem).toBeVisible({ timeout: 5000 });
+    await unpinMenuItem.click();
+
+    // Test Rename with Escape cancellation
+    await getActionsBtn().click({ force: true });
+    await renameMenuItem.click();
+    const renameInput = page.locator('input[aria-label="Rename chat session"]');
+    await expect(renameInput).toBeVisible({ timeout: 5000 });
+    await renameInput.fill('Cancelled Title');
+    await renameInput.press('Escape');
+    await expect(renameInput).not.toBeVisible();
+    await expect(page.locator('text=Cancelled Title')).not.toBeVisible();
+
+    // Test Rename with Enter save
+    const newTitle = 'Renamed Session ' + Date.now();
+    await getActionsBtn().click({ force: true });
+    await page.getByRole('menuitem', { name: 'Rename' }).click();
+    await expect(renameInput).toBeVisible({ timeout: 5000 });
+    await renameInput.fill(newTitle);
+    await renameInput.press('Enter');
+    await expect(page.locator(`text=${newTitle}`)).toBeVisible({ timeout: 10000 });
+
+    // Test Active Session Deletion
+    page.once('dialog', async dialog => {
+      expect(dialog.message()).toContain('permanently delete');
+      await dialog.accept();
+    });
+
+    await getActionsBtn().click({ force: true });
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+    // Verify URL immediately navigates to /chat
+    await expect(page).toHaveURL(/.*\/chat$/, { timeout: 15000 });
+
+    // Verify deleted session messages are no longer visible and clean empty state is shown
+    await expect(page.locator(`text=${promptText}`)).not.toBeVisible();
+    await expect(page.locator('text=How can I help you today?')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(`a[href="/chat/${sessionId}"]`)).not.toBeVisible();
+
+    // Test Invalid/Deleted Session URL Recovery
+    await page.goto('/chat/00000000-0000-0000-0000-000000000000');
+    await expect(page).toHaveURL(/.*\/chat$/, { timeout: 15000 });
+  });
+
+  test('Date-Grouping Semantics for Pin / Unpin and Genuine Activity', async ({ page }) => {
+    // 1. Navigate to /chat
+    if (!page.url().includes('/chat')) {
+      await page.goto('/chat');
+    }
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    // Wait for sidebar sessions hydration
+    await page.waitForResponse(
+      resp => resp.url().includes('/api/v1/chat/sessions') && resp.status() === 200,
+      { timeout: 20000 }
+    ).catch(() => {});
+
+    // Check if there is an older session under Yesterday, Previous 7 Days, or Older
+    const olderGroups = ['Yesterday', 'Previous 7 Days', 'Older'];
+    let targetGroup = '';
+    let targetSessionId = '';
+
+    for (const group of olderGroups) {
+      const groupLocator = page.locator(`div[data-chat-group="${group}"]`);
+      if (await groupLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
+        const firstSession = groupLocator.locator('div[data-session-id]').first();
+        if (await firstSession.isVisible({ timeout: 1000 }).catch(() => false)) {
+          targetGroup = group;
+          targetSessionId = (await firstSession.getAttribute('data-session-id')) || '';
+          if (targetSessionId) break;
+        }
+      }
+    }
+
+    // If an older session exists, verify pin/unpin date-grouping preservation
+    if (targetSessionId && targetGroup) {
+      const originalGroupContainer = page.locator(`div[data-chat-group="${targetGroup}"]`);
+      const sessionRow = originalGroupContainer.locator(`div[data-session-id="${targetSessionId}"]`).first();
+      await expect(sessionRow).toBeVisible({ timeout: 5000 });
+
+      // Pin the older session
+      const actionsBtn = sessionRow.locator('button[aria-label="Chat actions"]');
+      await actionsBtn.click({ force: true });
+      const pinItem = page.getByRole('menuitem', { name: 'Pin' });
+      await expect(pinItem).toBeVisible({ timeout: 5000 });
+      await pinItem.click();
+
+      // Verify it appears in Pinned group and leaves original group
+      const pinnedGroup = page.locator('div[data-chat-group="Pinned"]');
+      await expect(pinnedGroup).toBeVisible({ timeout: 10000 });
+      const pinnedRow = pinnedGroup.locator(`div[data-session-id="${targetSessionId}"]`).first();
+      await expect(pinnedRow).toBeVisible({ timeout: 10000 });
+      await expect(originalGroupContainer.locator(`div[data-session-id="${targetSessionId}"]`)).not.toBeVisible();
+
+      // Unpin the session
+      const pinnedActionsBtn = pinnedRow.locator('button[aria-label="Chat actions"]');
+      await pinnedActionsBtn.click({ force: true });
+      const unpinItem = page.getByRole('menuitem', { name: 'Unpin' });
+      await expect(unpinItem).toBeVisible({ timeout: 5000 });
+      await unpinItem.click();
+
+      // CRITICAL REQUIREMENT: Must return to the SAME date-based group (e.g. Yesterday/Older), NOT Today!
+      await expect(originalGroupContainer.locator(`div[data-session-id="${targetSessionId}"]`)).toBeVisible({ timeout: 10000 });
+      if (targetGroup !== 'Today') {
+        const todayGroup = page.locator('div[data-chat-group="Today"]');
+        if (await todayGroup.isVisible().catch(() => false)) {
+          await expect(todayGroup.locator(`div[data-session-id="${targetSessionId}"]`)).not.toBeVisible();
+        }
+      }
+
+      // Verify persistence after page reload
+      await page.reload();
+      await page.waitForResponse(
+        resp => resp.url().includes('/api/v1/chat/sessions') && resp.status() === 200,
+        { timeout: 20000 }
+      ).catch(() => {});
+      await expect(page.locator(`div[data-chat-group="${targetGroup}"] div[data-session-id="${targetSessionId}"]`)).toBeVisible({ timeout: 10000 });
+
+      // Verify Genuine Conversation Activity moves the session to Today
+      await page.goto(`/chat/${targetSessionId}`);
+      await expect(page).toHaveURL(new RegExp(`/chat/${targetSessionId}`), { timeout: 15000 });
+      const activityPrompt = 'Genuine Activity Update ' + Date.now();
+      const chatInput = page.locator('textarea').first();
+      await expect(chatInput).toBeVisible({ timeout: 10000 });
+      await chatInput.fill(activityPrompt);
+      const sendBtn = page.locator('button[type="submit"]').first();
+      await expect(sendBtn).toBeEnabled({ timeout: 5000 });
+      await sendBtn.click();
+
+      // Verify prompt appears and wait for response stream completion
+      await expect(page.locator(`text=${activityPrompt}`)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole('button', { name: 'Stop generating' })).not.toBeVisible({ timeout: 90000 });
+      await expect(chatInput).toBeEnabled({ timeout: 90000 });
+
+      // Verify the session moved to Today after genuine conversation activity
+      const todayGroupAfterActivity = page.locator('div[data-chat-group="Today"]');
+      await expect(todayGroupAfterActivity).toBeVisible({ timeout: 15000 });
+      await expect(todayGroupAfterActivity.locator(`div[data-session-id="${targetSessionId}"]`)).toBeVisible({ timeout: 15000 });
+    }
+  });
 });

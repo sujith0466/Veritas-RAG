@@ -43,7 +43,10 @@ export function AIChatPage() {
 
     if (sessionId) {
       if (useChatStore.getState().activeSession?.id !== sessionId) {
-        fetchSession(sessionId)
+        fetchSession(sessionId).catch(() => {
+          setMessages([])
+          navigate('/chat', { replace: true })
+        })
       }
     } else {
       setMessages([])
@@ -56,13 +59,15 @@ export function AIChatPage() {
         abortControllerRef.current = null
       }
     }
-  }, [sessionId, fetchSession])
+  }, [sessionId, fetchSession, navigate])
 
   useEffect(() => {
     if (activeSession?.messages && !isStreaming && !hasOptimisticContent.current) {
       setMessages(activeSession.messages)
+    } else if (!activeSession && !sessionId && !isStreaming && !hasOptimisticContent.current) {
+      setMessages([])
     }
-  }, [activeSession, isStreaming])
+  }, [activeSession, sessionId, isStreaming])
 
   // F9.3 Intelligent Scroll Lock
   useEffect(() => {
