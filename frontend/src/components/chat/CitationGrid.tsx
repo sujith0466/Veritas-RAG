@@ -1,5 +1,7 @@
 
 
+import { FileText, BookOpen } from 'lucide-react'
+
 interface Citation {
   citation_index: number
   document_id: string
@@ -16,11 +18,12 @@ export function CitationGrid({ citations }: CitationGridProps) {
   if (!citations || citations.length === 0) return null
 
   return (
-    <div className="mt-2 w-full space-y-2 pt-2 border-t border-border/30">
-      <div className="text-xs font-semibold text-muted-foreground px-1 flex items-center gap-1.5">
-        Sources Cited ({citations.length}):
+    <div className="mt-3 w-full space-y-2.5 pt-3 border-t border-border/40">
+      <div className="text-xs font-semibold text-muted-foreground/90 px-1 flex items-center gap-1.5 tracking-tight">
+        <BookOpen className="h-3.5 w-3.5 text-primary" />
+        <span>Sources Cited ({citations.length})</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {citations.map((cite, idx) => {
           const displayName = cite.source_name || cite.document_name || cite.document_id
           
@@ -28,15 +31,16 @@ export function CitationGrid({ citations }: CitationGridProps) {
             <div 
               key={`${cite.citation_index}-${idx}`} 
               id={`cite-${cite.citation_index}`} 
-              className="bg-surface border border-border/60 rounded-lg p-2.5 shadow-sm text-xs space-y-1.5 hover:border-primary/40 transition-all duration-300"
+              className="group relative bg-surface dark:bg-slate-900/60 border border-border/80 dark:border-white/[0.08] rounded-xl p-3 shadow-sm hover:shadow-md hover:border-primary/40 dark:hover:border-primary/40 transition-all duration-200 text-xs space-y-1.5"
             >
-              <div className="flex items-center gap-1.5 font-medium text-foreground">
-                <span className="bg-primary/10 text-primary px-1.5 rounded inline-flex items-center justify-center h-4 text-[10px] font-bold">
+              <div className="flex items-center gap-2 font-medium text-foreground">
+                <span className="bg-primary/10 text-primary border border-primary/20 px-1.5 rounded inline-flex items-center justify-center h-4 text-[10px] font-bold font-mono shrink-0">
                   [{cite.citation_index}]
                 </span>
-                <span className="truncate text-[11px]">{displayName}</span>
+                <FileText className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                <span className="truncate text-[11px] font-semibold text-foreground/90 group-hover:text-foreground">{displayName}</span>
               </div>
-              <p className="text-muted-foreground line-clamp-3 leading-relaxed" title={cite.excerpt}>
+              <p className="text-muted-foreground/80 dark:text-muted-foreground text-[11px] line-clamp-3 leading-relaxed pl-6 italic" title={cite.excerpt}>
                 &quot;{cite.excerpt}&quot;
               </p>
             </div>

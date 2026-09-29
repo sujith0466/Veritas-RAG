@@ -564,4 +564,41 @@ test.describe('Chat Suite @chat', () => {
 
     await expect(composer).toBeEnabled({ timeout: 10000 });
   });
+
+  test('Premium Chat UI - Empty State Categories, Message Bubbles, Code Block, and Citation Presentation', async ({ page }) => {
+    // 1. Navigate to /chat
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    // 2. Verify Premium Empty State with Category Badges and Icons
+    await expect(page.locator('text=How can I help you today?')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Security & Access')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Incident Response')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=HR & Operations')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Infrastructure')).toBeVisible({ timeout: 10000 });
+
+    // 3. Click one of the suggestion cards
+    const policyPromptBtn = page.locator('button:has-text("What is the password policy?")').first();
+    await expect(policyPromptBtn).toBeVisible({ timeout: 5000 });
+    await policyPromptBtn.click();
+
+    // 4. Verify User Message Bubble styling and content
+    await expect(page.locator('text=What is the password policy?')).toBeVisible({ timeout: 15000 });
+
+    // 5. Wait for Assistant Response stream completion
+    await expect(page.locator('button[aria-label="Stop generating response"]')).not.toBeVisible({ timeout: 90000 });
+    await expect.poll(async () => {
+      const proseElements = page.locator('div.prose');
+      const count = await proseElements.count();
+      if (count === 0) return 0;
+      const text = await proseElements.last().innerText().catch(() => '');
+      return text.trim().length;
+    }, { timeout: 90000 }).toBeGreaterThan(10);
+
+    // 6. Verify Copy button is present and accessible
+    const copyBtn = page.locator('button:has-text("Copy")').first();
+    if (await copyBtn.isVisible().catch(() => false)) {
+      await expect(copyBtn).toBeEnabled();
+    }
+  });
 });

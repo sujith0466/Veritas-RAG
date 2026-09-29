@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Send, Bot, User as UserIcon, Copy, Check, Info } from 'lucide-react'
+import { Send, Bot, User as UserIcon, Copy, Check, ChevronRight, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -13,6 +14,7 @@ import { Badge } from '@/components/common/Badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/common/Tooltip'
 import { CitationBadge } from '@/components/chat/CitationBadge'
 import { CitationGrid } from '@/components/chat/CitationGrid'
+import { CodeBlock } from '@/components/chat/CodeBlock'
 
 export function AIChatPage() {
   const { sessionId } = useParams()
@@ -420,18 +422,27 @@ export function AIChatPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
               {[
-                'What is the password policy?',
-                'How do I report a security incident?',
-                'Explain the leave policy.',
-                'What IT resources are available?'
-              ].map(q => (
+                { category: 'Security & Access', icon: ShieldCheck, question: 'What is the password policy?' },
+                { category: 'Incident Response', icon: Sparkles, question: 'How do I report a security incident?' },
+                { category: 'HR & Operations', icon: FileText, question: 'Explain the leave policy.' },
+                { category: 'Infrastructure', icon: Layers, question: 'What IT resources are available?' }
+              ].map(({ category, icon: Icon, question: q }) => (
                 <button
                   key={q}
                   onClick={() => handleSubmit(q)}
-                  className="p-4 rounded-xl border border-border bg-surface hover:bg-muted/50 hover:border-primary/30 transition-all text-left group flex flex-col gap-2 pointer-events-auto"
+                  className="p-4 rounded-xl border border-border/80 dark:border-white/[0.08] bg-surface/90 dark:bg-slate-900/60 hover:bg-muted/50 dark:hover:bg-slate-800/60 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left group flex flex-col justify-between gap-3 pointer-events-auto shadow-sm cursor-pointer"
                 >
-                  <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{q}</span>
-                  <span className="text-xs text-muted-foreground">Click to ask this question</span>
+                  <div className="flex items-center justify-between w-full">
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-primary uppercase font-mono">
+                      <Icon className="h-3 w-3 text-primary shrink-0" />
+                      {category}
+                    </span>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">{q}</span>
+                    <span className="text-[11px] text-muted-foreground mt-0.5 block">Click to ask this question</span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -505,7 +516,7 @@ export function AIChatPage() {
                   "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   !input.trim() || isStreaming
                     ? "text-muted-foreground/30 bg-muted/40 dark:bg-white/[0.04] border border-transparent dark:border-white/[0.04] cursor-not-allowed"
-                    : "bg-primary text-primary-foreground shadow-[0_2px_10px_rgba(15,118,110,0.4)] hover:shadow-[0_4px_16px_rgba(15,118,110,0.5)] hover:bg-primary-hover active:scale-95"
+                    : "bg-primary text-primary-foreground shadow-[0_2px_10px_rgba(15,118,110,0.4)] hover:shadow-[0_4px_16px_rgba(15,118,110,0.5)] hover:bg-primary-hover active:scale-95 cursor-pointer"
                 )}
               >
                 <Send className="h-4 w-4" />
@@ -555,18 +566,23 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
 
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mx-auto max-w-4xl`}>
-      <div className={`flex gap-4 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div className={`flex gap-3 sm:gap-4 max-w-[88%] sm:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
 
         {/* Avatar */}
         <div className="shrink-0 mt-1">
-          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isUser ? 'bg-indigo-500/10 text-indigo-500 ring-1 ring-indigo-500/20' : 'bg-primary/10 text-primary ring-1 ring-primary/20'}`}>
+          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isUser ? 'bg-primary/15 text-primary border border-primary/20 ring-1 ring-primary/20' : 'bg-primary/10 text-primary border border-primary/20 ring-1 ring-primary/20'}`}>
             {isUser ? <UserIcon className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
           </div>
         </div>
 
         {/* Content */}
         <div className={`flex flex-col gap-2 ${isUser ? 'items-end' : 'items-start'} min-w-0 w-full`}>
-          <div className={`relative px-5 py-3.5 rounded-2xl ${isUser ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted/50 border border-border/50 rounded-tl-none'}`}>
+          <div className={cn(
+            "relative px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-sm leading-relaxed transition-all",
+            isUser
+              ? "bg-primary text-primary-foreground rounded-tr-sm shadow-[0_2px_10px_rgba(15,118,110,0.25)] border border-primary-hover/20"
+              : "bg-surface/90 dark:bg-slate-900/70 border border-border/80 dark:border-white/[0.08] rounded-tl-sm shadow-sm dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)] text-foreground"
+          )}>
             {isRetrieving ? (
               <div className="flex items-center gap-2.5 py-1 text-muted-foreground text-xs font-medium" role="status" aria-live="polite">
                 <div className="flex items-center gap-1">
@@ -577,7 +593,12 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
                 <span className="text-xs text-muted-foreground/90 font-medium tracking-tight">Searching knowledge base...</span>
               </div>
             ) : (
-              <div className={`prose prose-sm max-w-none ${isUser ? 'text-primary-foreground prose-invert' : 'dark:prose-invert text-foreground'}`}>
+              <div className={cn(
+                "prose prose-sm max-w-none leading-relaxed",
+                isUser
+                  ? "text-primary-foreground prose-invert selection:bg-white/20 selection:text-white"
+                  : "dark:prose-invert text-foreground prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-headings:tracking-tight prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5"
+              )}>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -590,8 +611,51 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
                         }
                         return <span>[{citeIndex}]</span>
                       }
-                      return <a href={href} {...props} target="_blank" rel="noopener noreferrer">{children}</a>
-                    }
+                      return (
+                        <a
+                          href={href}
+                          {...props}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={isUser ? "underline underline-offset-2 font-medium" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
+                        >
+                          {children}
+                        </a>
+                      )
+                    },
+                    code: ({ inline, className, children, ...props }: any) => {
+                      const match = /language-(\w+)/.exec(className || '')
+                      const codeString = String(children).replace(/\n$/, '')
+                      if (!inline && (match || codeString.includes('\n'))) {
+                        return <CodeBlock language={match ? match[1] : undefined} value={codeString} />
+                      }
+                      return (
+                        <code
+                          className={cn(
+                            "rounded font-mono text-[12px] font-medium px-1.5 py-0.5",
+                            isUser
+                              ? "bg-black/20 text-primary-foreground"
+                              : "bg-muted/80 text-primary dark:text-teal-300 border border-border/50"
+                          )}
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      )
+                    },
+                    table: ({ children }) => (
+                      <div className="my-3 overflow-x-auto rounded-lg border border-border/60">
+                        <table className="min-w-full divide-y divide-border/60 text-xs">{children}</table>
+                      </div>
+                    ),
+                    thead: ({ children }) => <thead className="bg-muted/50 font-semibold text-foreground">{children}</thead>,
+                    th: ({ children }) => <th className="px-3 py-2 text-left font-semibold text-foreground">{children}</th>,
+                    td: ({ children }) => <td className="px-3 py-2 border-t border-border/40 text-foreground/90">{children}</td>,
+                    blockquote: ({ children }) => (
+                      <blockquote className="my-2.5 border-l-2 border-primary/70 pl-3.5 italic text-muted-foreground text-xs">
+                        {children}
+                      </blockquote>
+                    )
                   }}
                 >
                   {processedMessage}
@@ -604,22 +668,32 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
           </div>
 
           {/* Metadata & Actions (Assistant only) */}
-          {!isUser && !isStreaming && (message.reliability_score !== undefined || message.citations?.length) && (
-            <div className="flex items-center gap-3 px-1">
+          {!isUser && !isStreaming && (message.reliability_score !== undefined || message.citations?.length || processedMessage) && (
+            <div className="flex items-center gap-2.5 px-1 pt-0.5">
               {/* F9.4 Badge & Tooltip Rendering */}
               {message.reliability_score !== undefined && (
-                <TooltipProvider>
+                <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="flex items-center gap-1.5 cursor-help">
-                        <Badge variant={message.reliability_score >= 0.8 ? 'success' : message.reliability_score >= 0.5 ? 'warning' : 'destructive'} className="text-[10px] px-1.5 py-0">
-                          <Info className="h-3 w-3 mr-1" />
-                          {Math.round(message.reliability_score * 100)}% Reliable
+                      <div className="flex items-center cursor-help">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors",
+                            message.reliability_score >= 0.8
+                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                              : message.reliability_score >= 0.5
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                          )}
+                        >
+                          <ShieldCheck className="h-3 w-3 shrink-0" />
+                          <span>{Math.round(message.reliability_score * 100)}% Reliable</span>
                         </Badge>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="top">
-                      <p className="max-w-xs text-xs">
+                    <TooltipContent side="top" className="max-w-xs text-xs p-2.5 bg-surface/95 dark:bg-slate-900/95 backdrop-blur-md border border-border/80 shadow-lg rounded-xl">
+                      <p className="leading-relaxed">
                         {message.reliability_score >= 0.8
                           ? 'The AI is highly confident in this response based on the provided enterprise context.'
                           : message.reliability_score >= 0.5
@@ -632,9 +706,23 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
               )}
 
               {processedMessage && (
-                <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-[11px] font-medium">
-                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                  {copied ? 'Copied' : 'Copy'}
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  aria-label={copied ? "Answer copied" : "Copy answer"}
+                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md hover:bg-muted/60 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3 w-3 text-emerald-500" />
+                      <span className="text-emerald-500">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3" />
+                      <span>Copy</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
