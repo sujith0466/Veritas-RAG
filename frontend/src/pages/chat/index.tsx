@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Send, Bot, User as UserIcon, Copy, Check, ChevronRight, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
+import { Send, Mic, X, Check, Bot, User as UserIcon, Copy, ChevronRight, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import ReactMarkdown from 'react-markdown'
@@ -8,6 +8,8 @@ import remarkGfm from 'remark-gfm'
 
 import { useChatStore, ChatMessage } from '@/stores/chatStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useToast } from '@/hooks/useToast'
+import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { cn } from '@/utils/cn'
 
 import { Badge } from '@/components/common/Badge'
@@ -15,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { CitationBadge } from '@/components/chat/CitationBadge'
 import { CitationGrid } from '@/components/chat/CitationGrid'
 import { CodeBlock } from '@/components/chat/CodeBlock'
+import { VoiceVisualizer } from '@/components/chat/VoiceVisualizer'
 
 export function AIChatPage() {
   const { sessionId } = useParams()
@@ -27,6 +30,35 @@ export function AIChatPage() {
   const abortControllerRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const originalInputRef = useRef<string>('')
+  const { toast } = useToast()
+
+  const handleTranscriptChange = useCallback((interim: string, final: string) => {
+    const combinedSpeech = final ? (interim ? `${final} ${interim}` : final) : interim
+    const prefix = originalInputRef.current ? `${originalInputRef.current.trim()} ` : ''
+    setInput(`${prefix}${combinedSpeech}`.trimStart())
+  }, [])
+
+  const handleVoiceError = useCallback((errMsg: string) => {
+    toast({
+      title: 'Voice Input',
+      message: errMsg,
+      type: 'warning',
+      duration: 4000
+    })
+  }, [toast])
+
+  const {
+    isListening,
+    isSupported,
+    volumes,
+    startRecording,
+    stopRecording,
+    cancelRecording
+  } = useVoiceInput({
+    onTranscriptChange: handleTranscriptChange,
+    onError: handleVoiceError
+  })
 
   // F9.3: Pagination and Scroll Lock
   const isScrolledUp = useRef(false)
@@ -387,8 +419,52 @@ export function AIChatPage() {
     focusComposer()
   }
 
+  const handleStartVoice = useCallback(async () => {
+    if (isStreaming) return
+    originalInputRef.current = input
+    await startRecording()
+    focusComposer()
+  }, [isStreaming, input, startRecording, focusComposer])
+
+  const handleStopVoice = useCallback(() => {
+    const finalSpeech = stopRecording()
+    const prefix = originalInputRef.current ? `${originalInputRef.current.trim()} ` : ''
+    const finalCombined = `${prefix}${finalSpeech}`.trim()
+    setInput(finalCombined)
+    focusComposer()
+  }, [stopRecording, focusComposer])
+
+  const handleCancelVoice = useCallback(() => {
+    cancelRecording()
+    setInput(originalInputRef.current)
+    focusComposer()
+  }, [cancelRecording, focusComposer])
+
+  // Global Escape key listener during active recording
+  useEffect(() => {
+    if (!isListening) return
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        handleCancelVoice()
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [isListening, handleCancelVoice])
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape' && isListening) {
+      e.preventDefault()
+      handleCancelVoice()
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
+      if (isListening) {
+        e.preventDefault()
+        handleStopVoice()
+        return
+      }
       e.preventDefault()
       handleSubmit()
     }
@@ -484,7 +560,12 @@ export function AIChatPage() {
           </AnimatePresence>
           <form
             onSubmit={handleSubmit}
-            className="group relative flex items-end rounded-2xl border border-slate-900/[0.08] dark:border-white/[0.12] bg-white/40 dark:bg-slate-950/30 backdrop-blur-2xl backdrop-saturate-200 shadow-[0_10px_30px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.02),inset_0_1px_1px_0_rgba(255,255,255,0.9),inset_0_0_0_1px_rgba(255,255,255,0.6)] dark:shadow-[0_16px_40px_0_rgba(0,0,0,0.5),0_2px_6px_0_rgba(0,0,0,0.3),inset_0_1px_1px_0_rgba(255,255,255,0.15),inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-within:border-primary/50 dark:focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 dark:focus-within:ring-primary/25 focus-within:bg-white/60 dark:focus-within:bg-slate-950/45 focus-within:shadow-[0_16px_44px_0_rgba(15,118,110,0.12),0_4px_12px_0_rgba(0,0,0,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95)] dark:focus-within:shadow-[0_20px_50px_0_rgba(0,0,0,0.65),0_0_20px_0_rgba(15,118,110,0.25),inset_0_1px_1px_0_rgba(255,255,255,0.22)] transition-all duration-200 overflow-hidden"
+            className={cn(
+              "group relative flex items-end rounded-2xl border bg-white/40 dark:bg-slate-950/30 backdrop-blur-2xl backdrop-saturate-200 transition-all duration-200 overflow-hidden",
+              isListening
+                ? "border-emerald-500/50 dark:border-emerald-500/40 ring-2 ring-emerald-500/20 dark:ring-emerald-500/25 shadow-[0_16px_44px_0_rgba(16,185,129,0.12),0_4px_12px_0_rgba(0,0,0,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95)] dark:shadow-[0_20px_50px_0_rgba(0,0,0,0.65),0_0_20px_0_rgba(16,185,129,0.25),inset_0_1px_1px_0_rgba(255,255,255,0.22)]"
+                : "border-slate-900/[0.08] dark:border-white/[0.12] shadow-[0_10px_30px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.02),inset_0_1px_1px_0_rgba(255,255,255,0.9),inset_0_0_0_1px_rgba(255,255,255,0.6)] dark:shadow-[0_16px_40px_0_rgba(0,0,0,0.5),0_2px_6px_0_rgba(0,0,0,0.3),inset_0_1px_1px_0_rgba(255,255,255,0.15),inset_0_0_0_1px_rgba(255,255,255,0.04)] focus-within:border-primary/50 dark:focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 dark:focus-within:ring-primary/25 focus-within:bg-white/60 dark:focus-within:bg-slate-950/45 focus-within:shadow-[0_16px_44px_0_rgba(15,118,110,0.12),0_4px_12px_0_rgba(0,0,0,0.04),inset_0_1px_1px_0_rgba(255,255,255,0.95)] dark:focus-within:shadow-[0_20px_50px_0_rgba(0,0,0,0.65),0_0_20px_0_rgba(15,118,110,0.25),inset_0_1px_1px_0_rgba(255,255,255,0.22)]"
+            )}
           >
             {/* Top Specular Glass Reflection Edge */}
             <div
@@ -497,30 +578,104 @@ export function AIChatPage() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message Veritas RAG..."
+              placeholder={isListening ? "Listening... Speak now" : "Message Veritas RAG..."}
               aria-label="Message Veritas RAG"
-              className="w-full resize-none bg-transparent py-3.5 pl-4 sm:pl-5 pr-14 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[52px] leading-relaxed text-foreground"
+              className={cn(
+                "w-full resize-none bg-transparent py-3.5 pl-4 sm:pl-5 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[52px] leading-relaxed text-foreground",
+                isListening ? "pr-28 sm:pr-32" : "pr-20 sm:pr-24"
+              )}
               rows={1}
             />
 
             {/* Elevated Primary Action Dock */}
-            <div className="absolute right-2.5 bottom-2.5">
-              <motion.button
-                whileHover={!input.trim() || isStreaming ? {} : { scale: 1.05 }}
-                whileTap={!input.trim() || isStreaming ? {} : { scale: 0.95 }}
-                type="submit"
-                disabled={!input.trim() || isStreaming}
-                aria-label="Send message"
-                title="Send message"
-                className={cn(
-                  "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  !input.trim() || isStreaming
-                    ? "text-muted-foreground/30 bg-muted/40 dark:bg-white/[0.04] border border-transparent dark:border-white/[0.04] cursor-not-allowed"
-                    : "bg-primary text-primary-foreground shadow-[0_2px_10px_rgba(15,118,110,0.4)] hover:shadow-[0_4px_16px_rgba(15,118,110,0.5)] hover:bg-primary-hover active:scale-95 cursor-pointer"
+            <div className="absolute right-2.5 bottom-2.5 flex items-center gap-1.5">
+              <TooltipProvider delayDuration={200}>
+                {isListening ? (
+                  <>
+                    <VoiceVisualizer volumes={volumes} isListening={isListening} />
+
+                    {/* Cancel Recording */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={handleCancelVoice}
+                          aria-label="Cancel dictation"
+                          title="Cancel dictation"
+                          className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.08] active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-destructive cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">Cancel (Esc)</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Stop Recording / Finalize */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={handleStopVoice}
+                          aria-label="Stop dictation and insert text"
+                          title="Stop dictation and insert text"
+                          className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-600 dark:bg-emerald-500 text-white shadow-[0_2px_10px_rgba(16,185,129,0.4)] hover:bg-emerald-500 dark:hover:bg-emerald-400 active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
+                        >
+                          <Check className="h-4 w-4 stroke-[2.5]" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">Done dictating</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </>
+                ) : (
+                  <>
+                    {/* Voice Input Trigger */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={isStreaming}
+                          onClick={handleStartVoice}
+                          aria-label="Dictate query"
+                          title="Dictate query"
+                          className={cn(
+                            "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                            isStreaming
+                              ? "text-muted-foreground/30 bg-transparent cursor-not-allowed"
+                              : "text-muted-foreground/70 hover:text-foreground hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.08] active:scale-95 cursor-pointer"
+                          )}
+                        >
+                          <Mic className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">{isSupported ? 'Voice input' : 'Voice input not supported in this browser'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Send Button */}
+                    <motion.button
+                      whileHover={!input.trim() || isStreaming ? {} : { scale: 1.05 }}
+                      whileTap={!input.trim() || isStreaming ? {} : { scale: 0.95 }}
+                      type="submit"
+                      disabled={!input.trim() || isStreaming}
+                      aria-label="Send message"
+                      title="Send message"
+                      className={cn(
+                        "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        !input.trim() || isStreaming
+                          ? "text-muted-foreground/30 bg-muted/40 dark:bg-white/[0.04] border border-transparent dark:border-white/[0.04] cursor-not-allowed"
+                          : "bg-primary text-primary-foreground shadow-[0_2px_10px_rgba(15,118,110,0.4)] hover:shadow-[0_4px_16px_rgba(15,118,110,0.5)] hover:bg-primary-hover active:scale-95 cursor-pointer"
+                      )}
+                    >
+                      <Send className="h-4 w-4" />
+                    </motion.button>
+                  </>
                 )}
-              >
-                <Send className="h-4 w-4" />
-              </motion.button>
+              </TooltipProvider>
             </div>
           </form>
           <div className="text-center mt-2 text-[11px] text-muted-foreground/70 font-medium tracking-tight pointer-events-none select-none">

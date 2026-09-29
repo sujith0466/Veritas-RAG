@@ -601,4 +601,174 @@ test.describe('Chat Suite @chat', () => {
       await expect(copyBtn).toBeEnabled();
     }
   });
+
+  test('Voice Input - Recording Flow, Interim Transcript, Stop, Edit, and Submit', async ({ page }) => {
+    // 1. Inject deterministic SpeechRecognition and getUserMedia mocks
+    await page.addInitScript(() => {
+      class MockSpeechRecognition extends EventTarget {
+        continuous = true;
+        interimResults = true;
+        lang = 'en-US';
+        maxAlternatives = 1;
+        onstart: (() => void) | null = null;
+        onresult: ((event: any) => void) | null = null;
+        onerror: ((event: any) => void) | null = null;
+        onend: (() => void) | null = null;
+        private _timer: any = null;
+
+        start() {
+          if (this.onstart) this.onstart();
+          this._timer = setTimeout(() => {
+            if (this.onresult) {
+              this.onresult({
+                resultIndex: 0,
+                results: [
+                  Object.assign([{ transcript: 'What is the security incident protocol?' }], { isFinal: true })
+                ]
+              });
+            }
+          }, 150);
+        }
+
+        stop() {
+          if (this._timer) clearTimeout(this._timer);
+          if (this.onend) this.onend();
+        }
+
+        abort() {
+          if (this._timer) clearTimeout(this._timer);
+          if (this.onend) this.onend();
+        }
+      }
+
+      (window as any).SpeechRecognition = MockSpeechRecognition;
+      (window as any).webkitSpeechRecognition = MockSpeechRecognition;
+
+      if (!navigator.mediaDevices) {
+        (navigator as any).mediaDevices = {};
+      }
+      navigator.mediaDevices.getUserMedia = async () => {
+        return {
+          getTracks: () => [
+            { stop: () => {}, kind: 'audio', enabled: true }
+          ]
+        } as any;
+      };
+    });
+
+    // 2. Navigate to /chat
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    const composer = page.locator('textarea[aria-label="Message Veritas RAG"]').first();
+    const micBtn = page.locator('button[aria-label="Dictate query"]').first();
+
+    await expect(composer).toBeVisible({ timeout: 15000 });
+    await expect(micBtn).toBeVisible({ timeout: 5000 });
+    await expect(micBtn).toBeEnabled({ timeout: 5000 });
+
+    // 3. Click Mic to start voice input
+    await micBtn.click();
+
+    // 4. Verify Active Recording controls are visible
+    const stopVoiceBtn = page.locator('button[aria-label="Stop dictation and insert text"]').first();
+    const cancelVoiceBtn = page.locator('button[aria-label="Cancel dictation"]').first();
+
+    await expect(stopVoiceBtn).toBeVisible({ timeout: 5000 });
+    await expect(cancelVoiceBtn).toBeVisible({ timeout: 5000 });
+
+    // 5. Wait for simulated transcript to populate
+    await expect.poll(async () => {
+      return (await composer.inputValue()).trim();
+    }, { timeout: 10000 }).toContain('What is the security incident protocol?');
+
+    // 6. Click Done / Stop dictation
+    await stopVoiceBtn.click();
+
+    // 7. Verify voice controls exit and normal composer is restored with transcript
+    await expect(stopVoiceBtn).not.toBeVisible({ timeout: 5000 });
+    await expect(cancelVoiceBtn).not.toBeVisible({ timeout: 5000 });
+    await expect(micBtn).toBeVisible({ timeout: 5000 });
+
+    // Verify textarea retains transcribed text and has focus
+    await expect(composer).toHaveValue(/What is the security incident protocol\?/);
+    await expect(composer).toBeFocused({ timeout: 5000 });
+
+    // 8. User edits the transcript before sending
+    const currentVal = await composer.inputValue();
+    await composer.fill(`${currentVal} Explain clearly.`);
+
+    const sendBtn = page.locator('button[aria-label="Send message"]').first();
+    await expect(sendBtn).toBeEnabled({ timeout: 5000 });
+    await sendBtn.click();
+
+    // 9. Verify standard chat flow executes
+    await expect(page.locator('text=What is the security incident protocol? Explain clearly.')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('button[aria-label="Stop generating response"]')).not.toBeVisible({ timeout: 90000 });
+  });
+
+  test('Voice Input - Cancel Restores Original Text and Escape Key Discards', async ({ page }) => {
+    // 1. Inject deterministic speech mock
+    await page.addInitScript(() => {
+      class MockSpeechRecognition extends EventTarget {
+        continuous = true;
+        interimResults = true;
+        lang = 'en-US';
+        maxAlternatives = 1;
+        onstart: (() => void) | null = null;
+        onresult: ((event: any) => void) | null = null;
+        onerror: ((event: any) => void) | null = null;
+        onend: (() => void) | null = null;
+
+        start() {
+          if (this.onstart) this.onstart();
+          setTimeout(() => {
+            if (this.onresult) {
+              this.onresult({
+                resultIndex: 0,
+                results: [
+                  Object.assign([{ transcript: 'additional dictation' }], { isFinal: true })
+                ]
+              });
+            }
+          }, 100);
+        }
+        stop() { if (this.onend) this.onend(); }
+        abort() { if (this.onend) this.onend(); }
+      }
+
+      (window as any).SpeechRecognition = MockSpeechRecognition;
+      (window as any).webkitSpeechRecognition = MockSpeechRecognition;
+      if (!navigator.mediaDevices) (navigator as any).mediaDevices = {};
+      navigator.mediaDevices.getUserMedia = async () => ({
+        getTracks: () => [{ stop: () => {} }]
+      } as any);
+    });
+
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    const composer = page.locator('textarea[aria-label="Message Veritas RAG"]').first();
+    const micBtn = page.locator('button[aria-label="Dictate query"]').first();
+
+    // Step A: Type initial text, start voice, then Cancel with button
+    const initialText = 'Draft query before mic';
+    await composer.fill(initialText);
+
+    await micBtn.click();
+    const cancelVoiceBtn = page.locator('button[aria-label="Cancel dictation"]').first();
+    await expect(cancelVoiceBtn).toBeVisible({ timeout: 5000 });
+
+    // Cancel recording
+    await cancelVoiceBtn.click();
+    await expect(cancelVoiceBtn).not.toBeVisible({ timeout: 5000 });
+    await expect(composer).toHaveValue(initialText);
+
+    // Step B: Start voice again and press Escape key to cancel
+    await micBtn.click();
+    await expect(cancelVoiceBtn).toBeVisible({ timeout: 5000 });
+    await page.keyboard.press('Escape');
+    await expect(cancelVoiceBtn).not.toBeVisible({ timeout: 5000 });
+    await expect(composer).toHaveValue(initialText);
+  });
 });
