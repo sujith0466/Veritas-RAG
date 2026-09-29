@@ -211,6 +211,9 @@ test.describe('Chat Suite @chat', () => {
     const sessionId = sessionUrl.split('/chat/')[1];
     expect(sessionId).toBeTruthy();
 
+    // Wait for response stream completion before performing sidebar mutations
+    await expect(page.getByRole('button', { name: 'Stop generating' })).not.toBeVisible({ timeout: 90000 });
+
     // 4. Locate the sidebar row for this session using data-session-id
     const sessionRow = page.locator(`div[data-session-id="${sessionId}"]`).first();
     await expect(sessionRow).toBeVisible({ timeout: 20000 });
@@ -230,17 +233,20 @@ test.describe('Chat Suite @chat', () => {
 
     // Test Pin action
     await pinMenuItem.click();
-    await expect(page.locator('text=PINNED')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(`div[data-chat-group="Pinned"] div[data-session-id="${sessionId}"]`)).toBeVisible({ timeout: 10000 });
 
     // Test Unpin action
     await getActionsBtn().click({ force: true });
     const unpinMenuItem = page.getByRole('menuitem', { name: 'Unpin' });
     await expect(unpinMenuItem).toBeVisible({ timeout: 5000 });
     await unpinMenuItem.click();
+    await expect(page.locator(`div[data-chat-group="Pinned"] div[data-session-id="${sessionId}"]`)).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator(`div[data-chat-group="Today"] div[data-session-id="${sessionId}"]`)).toBeVisible({ timeout: 10000 });
 
     // Test Rename with Escape cancellation
     await getActionsBtn().click({ force: true });
-    await renameMenuItem.click();
+    await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible({ timeout: 5000 });
+    await page.getByRole('menuitem', { name: 'Rename' }).click();
     const renameInput = page.locator('input[aria-label="Rename chat session"]');
     await expect(renameInput).toBeVisible({ timeout: 5000 });
     await renameInput.fill('Cancelled Title');
@@ -251,6 +257,7 @@ test.describe('Chat Suite @chat', () => {
     // Test Rename with Enter save
     const newTitle = 'Renamed Session ' + Date.now();
     await getActionsBtn().click({ force: true });
+    await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeVisible({ timeout: 5000 });
     await page.getByRole('menuitem', { name: 'Rename' }).click();
     await expect(renameInput).toBeVisible({ timeout: 5000 });
     await renameInput.fill(newTitle);
@@ -264,6 +271,7 @@ test.describe('Chat Suite @chat', () => {
     });
 
     await getActionsBtn().click({ force: true });
+    await expect(page.getByRole('menuitem', { name: 'Delete' })).toBeVisible({ timeout: 5000 });
     await page.getByRole('menuitem', { name: 'Delete' }).click();
 
     // Verify URL immediately navigates to /chat
@@ -374,5 +382,63 @@ test.describe('Chat Suite @chat', () => {
       await expect(todayGroupAfterActivity).toBeVisible({ timeout: 15000 });
       await expect(todayGroupAfterActivity.locator(`div[data-session-id="${targetSessionId}"]`)).toBeVisible({ timeout: 15000 });
     }
+  });
+
+  test('Chat Composer - Fixed Viewport Position, Multiline Growth and Keyboard Semantics', async ({ page }) => {
+    // 1. Navigate to /chat
+    if (!page.url().includes('/chat')) {
+      await page.goto('/chat');
+    }
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    const composer = page.locator('textarea[aria-label="Message Veritas RAG"]').first();
+    const sendBtn = page.locator('button[aria-label="Send message"]').first();
+
+    // 2. Verify composer is visible and properly labeled
+    await expect(composer).toBeVisible({ timeout: 15000 });
+    await expect(sendBtn).toBeVisible({ timeout: 15000 });
+    await expect(sendBtn).toBeDisabled();
+
+    // 3. Verify whitespace input keeps send button disabled
+    await composer.fill('   ');
+    await expect(sendBtn).toBeDisabled();
+    await composer.fill('');
+
+    // 4. Test Shift+Enter multiline behavior and auto-resize
+    const initialBox = await composer.boundingBox();
+    expect(initialBox).toBeTruthy();
+
+    await composer.focus();
+    await composer.pressSequentially('Line 1 of multiline composer test ' + Date.now());
+    await composer.press('Shift+Enter');
+    await composer.pressSequentially('Line 2 of multiline prompt');
+    await composer.press('Shift+Enter');
+    await composer.pressSequentially('Line 3 of multiline prompt');
+
+    // Verify textarea grew in height to accommodate multiline input
+    const multilineBox = await composer.boundingBox();
+    expect(multilineBox).toBeTruthy();
+    expect(multilineBox!.height).toBeGreaterThan(initialBox!.height);
+
+    // Verify send button is enabled with valid text
+    await expect(sendBtn).toBeEnabled({ timeout: 5000 });
+
+    // 5. Test Enter submission without Shift
+    await composer.press('Enter');
+
+    // Verify input cleared after submission
+    await expect(composer).toHaveValue('', { timeout: 10000 });
+
+    // 6. Verify URL receives session ID and prompt renders
+    await expect(page).toHaveURL(/\/chat\/[0-9a-f-]{36}/, { timeout: 20000 });
+    await expect(page.locator('text=Line 1 of multiline composer test')).toBeVisible({ timeout: 15000 });
+
+    // 7. Verify composer remains visible in the viewport at all times
+    await expect(composer).toBeVisible({ timeout: 10000 });
+    await expect(sendBtn).toBeVisible({ timeout: 10000 });
+
+    // Wait for response stream completion
+    await expect(page.getByRole('button', { name: 'Stop generating' })).not.toBeVisible({ timeout: 90000 });
+    await expect(composer).toBeEnabled({ timeout: 90000 });
   });
 });

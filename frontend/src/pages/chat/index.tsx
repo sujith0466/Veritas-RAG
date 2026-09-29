@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Send, Bot, User as UserIcon, Copy, Check, Info } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -22,6 +23,7 @@ export function AIChatPage() {
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // F9.3: Pagination and Scroll Lock
   const isScrolledUp = useRef(false)
@@ -31,6 +33,7 @@ export function AIChatPage() {
 
   // Guard to prevent store sync from overwriting local optimistic state after stream completes
   const hasOptimisticContent = useRef(false)
+  const handledInitialQueryRef = useRef<string | null>(null)
 
   useEffect(() => {
     // P2: Abort any active stream when switching sessions or opening a new chat
@@ -75,6 +78,16 @@ export function AIChatPage() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isStreaming])
+
+  // Controlled Textarea Auto-Resize (min 52px, max 160px)
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      const scrollH = textareaRef.current.scrollHeight
+      const targetH = Math.min(Math.max(scrollH, 52), 160)
+      textareaRef.current.style.height = `${targetH}px`
+    }
+  }, [input])
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget
@@ -157,8 +170,9 @@ export function AIChatPage() {
       let finalReliability: number | undefined = undefined
       let buffer = ''
 
+      let isStreamDone = false
       // eslint-disable-next-line no-constant-condition
-      while (true) {
+      while (!isStreamDone) {
         const { done, value } = await reader.read()
         if (done) break
 
@@ -218,6 +232,7 @@ export function AIChatPage() {
                 } else if (data.is_fully_grounded !== undefined) {
                   finalReliability = data.is_fully_grounded ? 1.0 : 0.5
                 }
+                isStreamDone = true
               }
             } catch (err) {
               console.error('Failed to parse SSE event', err)
@@ -242,6 +257,7 @@ export function AIChatPage() {
             } catch (err) {
               console.error('Failed to parse error data', err)
             }
+            isStreamDone = true
           }
         }
       }
@@ -277,13 +293,12 @@ export function AIChatPage() {
   }
 
   useEffect(() => {
-    if (sessionId && location.state?.initialQuery) {
+    if (sessionId && location.state?.initialQuery && handledInitialQueryRef.current !== sessionId) {
+      handledInitialQueryRef.current = sessionId
       const query = location.state.initialQuery
-      // Clear the state so we don't re-trigger on refresh
-      navigate(location.pathname, { replace: true, state: {} })
       executeStream(sessionId, query)
     }
-  }, [sessionId, location.state, navigate])
+  }, [sessionId, location.state])
 
   const [isIndexing, setIsIndexing] = useState(false)
 
@@ -354,9 +369,9 @@ export function AIChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] flex-col bg-surface shadow-sm rounded-xl border border-border/50 mx-4 mt-4 overflow-hidden">
+    <div className="flex flex-1 min-h-0 flex-col bg-surface/90 backdrop-blur-xl shadow-sm rounded-xl border border-border/60 mx-2 my-2 sm:mx-4 sm:my-3 overflow-hidden">
       {/* Chat Header */}
-      <div className="flex items-center justify-between border-b border-border/50 px-6 py-4 bg-surface/80 backdrop-blur-sm z-10">
+      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3 sm:px-6 sm:py-3.5 bg-surface/80 backdrop-blur-md shrink-0 z-10">
         <div>
           <h2 className="text-lg font-semibold text-foreground tracking-tight">AI Chat</h2>
           <p className="text-sm text-muted-foreground">Ask questions based on enterprise knowledge</p>
@@ -367,7 +382,7 @@ export function AIChatPage() {
       <div
         ref={chatContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-6 md:px-8 space-y-6"
+        className="flex-1 min-h-0 overflow-y-auto px-3 py-4 sm:px-6 md:px-8 sm:py-6 space-y-6"
       >
         {messages.length > 0 && hasMoreMessages && (
           <div ref={sentinelRef} className="h-4 w-full flex items-center justify-center">
@@ -411,34 +426,56 @@ export function AIChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="p-4 bg-surface border-t border-border/50">
-        <div className="mx-auto max-w-4xl">
-          {isStreaming && (
-            <div className="flex justify-center mb-3">
-              <button type="button" onClick={() => abortControllerRef.current?.abort()} className="flex items-center gap-2 px-3 py-1.5 bg-background hover:bg-muted text-muted-foreground hover:text-foreground rounded-full text-xs font-medium transition-colors border border-border/60 shadow-sm">
-                <span className="w-2 h-2 rounded-sm bg-muted-foreground/70"></span> Stop generating
-              </button>
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="relative flex items-end overflow-hidden rounded-xl border border-border bg-background focus-within:ring-1 focus-within:ring-primary/50 transition-shadow">
+      {/* Input Area (Liquid Glass Composer) */}
+      <div className="p-3 sm:p-4 bg-gradient-to-t from-surface via-surface/95 to-surface/70 backdrop-blur-xl border-t border-border/40 shrink-0">
+        <div className="mx-auto max-w-4xl relative">
+          <AnimatePresence>
+            {isStreaming && (
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                className="flex justify-center mb-2.5"
+              >
+                <button
+                  type="button"
+                  onClick={() => abortControllerRef.current?.abort()}
+                  className="flex items-center gap-2 px-3.5 py-1.5 bg-surface/90 hover:bg-muted text-muted-foreground hover:text-foreground rounded-full text-xs font-medium transition-all border border-border/70 shadow-sm backdrop-blur-md"
+                >
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                  <span>Stop generating</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <form
+            onSubmit={handleSubmit}
+            className="relative flex items-end rounded-2xl border border-border/70 bg-background/60 dark:bg-background/40 backdrop-blur-xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.25)] focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 focus-within:bg-background/80 transition-all duration-200"
+          >
             <textarea
+              ref={textareaRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Message Veritas RAG..."
-              className="w-full resize-none bg-transparent py-4 pl-4 pr-12 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[56px]"
+              aria-label="Message Veritas RAG"
+              className="w-full resize-none bg-transparent py-3.5 pl-4 pr-12 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[52px] leading-relaxed text-foreground"
               rows={1}
             />
-            <button
+            <motion.button
+              whileHover={!input.trim() || isStreaming ? {} : { scale: 1.05 }}
+              whileTap={!input.trim() || isStreaming ? {} : { scale: 0.95 }}
               type="submit"
               disabled={!input.trim() || isStreaming}
-              className="absolute right-2 bottom-2 rounded-lg p-2 text-primary hover:bg-primary/10 disabled:text-muted-foreground disabled:hover:bg-transparent transition-colors"
+              aria-label="Send message"
+              title="Send message"
+              className="absolute right-2 bottom-2 rounded-xl p-2 text-primary hover:bg-primary/10 active:bg-primary/20 disabled:text-muted-foreground/40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
             >
-              <Send className="h-5 w-5" />
-            </button>
+              <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+            </motion.button>
           </form>
-          <div className="text-center mt-2 text-[10px] text-muted-foreground font-medium">
+          <div className="text-center mt-2 text-[10px] text-muted-foreground/80 font-medium tracking-tight">
             AI responses may be inaccurate. Verify citations before use.
           </div>
         </div>

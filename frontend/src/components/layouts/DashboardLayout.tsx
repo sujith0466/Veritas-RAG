@@ -6,10 +6,13 @@ import { Footer } from '../navigation/Footer'
 import { BackgroundProvider } from '../backgrounds'
 import { WorkspaceThemeProvider } from '@/providers/WorkspaceThemeProvider'
 
+import { cn } from '@/utils/cn'
+
 export function DashboardLayout() {
   const location = useLocation()
   const [isIndexing, setIsIndexing] = useState(false)
   const [docStats, setDocStats] = useState({ total: 0, processed: 0 })
+  const isChatRoute = location.pathname.startsWith('/chat')
 
   useEffect(() => {
     if (location.pathname && !location.pathname.startsWith('/auth')) {
@@ -57,12 +60,17 @@ export function DashboardLayout() {
               </div>
             </div>
           )}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-transparent px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-7xl">
+          <main className={cn(
+            "flex-1 overflow-x-hidden bg-transparent",
+            isChatRoute
+              ? "flex flex-col min-h-0 overflow-hidden p-0"
+              : "overflow-y-auto px-4 py-6 sm:px-6 lg:px-8"
+          )}>
+            <div className={cn("mx-auto w-full", isChatRoute ? "h-full flex flex-col min-h-0 max-w-full" : "max-w-7xl")}>
               <Outlet />
             </div>
           </main>
-          <Footer />
+          {!isChatRoute && <Footer />}
         </div>
       </div>
     </WorkspaceThemeProvider>
