@@ -77,7 +77,7 @@ export function Sidebar() {
   }, [fetchSessions])
 
   const handleNewChat = () => {
-    navigate('/chat')
+    navigate('/chat', { state: { autoFocus: Date.now() } })
   }
 
   const groupedSessions = useMemo(() => {

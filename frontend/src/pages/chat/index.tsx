@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Send, Bot, User as UserIcon, Copy, Check, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -88,6 +88,23 @@ export function AIChatPage() {
       textareaRef.current.style.height = `${targetH}px`
     }
   }, [input])
+
+  const focusComposer = useCallback(() => {
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+    })
+    setTimeout(() => {
+      textareaRef.current?.focus()
+    }, 0)
+  }, [])
+
+  // Chat #6: New Query Auto-Focus
+  useEffect(() => {
+    const isFinePointer = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches
+    if ((!sessionId && isFinePointer) || location.state?.autoFocus) {
+      focusComposer()
+    }
+  }, [sessionId, location.state?.autoFocus, focusComposer])
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget
@@ -296,9 +313,11 @@ export function AIChatPage() {
     if (sessionId && location.state?.initialQuery && handledInitialQueryRef.current !== sessionId) {
       handledInitialQueryRef.current = sessionId
       const query = location.state.initialQuery
+      navigate(location.pathname, { replace: true, state: {} })
       executeStream(sessionId, query)
+      focusComposer()
     }
-  }, [sessionId, location.state])
+  }, [sessionId, location.state, focusComposer, navigate, location.pathname])
 
   const [isIndexing, setIsIndexing] = useState(false)
 
@@ -347,18 +366,22 @@ export function AIChatPage() {
         }
       ])
       setInput('')
+      focusComposer()
       return
     }
 
     setInput('')
+    focusComposer()
 
     if (!sessionId) {
       const newSession = await createSession()
       navigate(`/chat/${newSession.id}`, { replace: true, state: { initialQuery: currentQuery } })
+      focusComposer()
       return
     }
 
     await executeStream(sessionId, currentQuery)
+    focusComposer()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

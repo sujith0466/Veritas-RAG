@@ -441,4 +441,66 @@ test.describe('Chat Suite @chat', () => {
     await expect(page.getByRole('button', { name: 'Stop generating' })).not.toBeVisible({ timeout: 90000 });
     await expect(composer).toBeEnabled({ timeout: 90000 });
   });
+
+  test('Chat Auto-Focus - New Chat Autofocus and Existing Session Predictability', async ({ page }) => {
+    // 1. Direct navigation to /chat (desktop/fine-pointer)
+    await page.goto('/chat');
+    await expect(page).toHaveURL(/.*\/chat/, { timeout: 15000 });
+
+    await page.waitForResponse(
+      resp => resp.url().includes('/api/v1/chat/sessions') && resp.status() === 200,
+      { timeout: 20000 }
+    ).catch(() => {});
+
+    const composer = page.locator('textarea[aria-label="Message Veritas RAG"]').first();
+    await expect(composer).toBeVisible({ timeout: 15000 });
+
+    // Verify composer automatically receives focus on /chat navigation
+    await expect(composer).toBeFocused({ timeout: 10000 });
+
+    // 2. Verify immediate typing without manual click
+    const autofocusPrompt = 'Autofocus direct typing test ' + Date.now();
+    await page.keyboard.type(autofocusPrompt);
+    await expect(composer).toHaveValue(autofocusPrompt, { timeout: 5000 });
+
+    // 3. Submit and verify session transition
+    await composer.press('Enter');
+    await expect(composer).toHaveValue('', { timeout: 10000 });
+
+    await expect(page).toHaveURL(/\/chat\/[0-9a-f-]{36}/, { timeout: 20000 });
+    const targetSessionId = page.url().split('/chat/')[1];
+
+    await expect(page.locator(`text=${autofocusPrompt}`)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: 'Stop generating' })).not.toBeVisible({ timeout: 90000 });
+    await expect(composer).toBeEnabled({ timeout: 90000 });
+
+    // 4. Verify existing session does NOT steal focus on load
+    await page.goto(`/chat/${targetSessionId}`);
+    await expect(page).toHaveURL(new RegExp(`/chat/${targetSessionId}`), { timeout: 15000 });
+    await page.waitForTimeout(600);
+    await expect(composer).not.toBeFocused();
+
+    // 5. Verify clicking "New Chat" in sidebar returns to /chat and focuses composer
+    const newChatBtn = page.getByRole('button', { name: 'New Chat' }).first();
+    await expect(newChatBtn).toBeVisible({ timeout: 10000 });
+    await newChatBtn.click();
+
+    await expect(page).toHaveURL(/.*\/chat$/, { timeout: 15000 });
+    await expect(composer).toBeFocused({ timeout: 10000 });
+
+    // 6. Verify clicking "New Chat" while ALREADY on /chat refocuses composer after blur
+    await composer.blur();
+    await expect(composer).not.toBeFocused();
+
+    await newChatBtn.click();
+    await expect(composer).toBeFocused({ timeout: 10000 });
+
+    // 7. Verify post-submission focus via Send button click
+    const followUpPrompt = 'Follow-up query ' + Date.now();
+    await page.keyboard.type(followUpPrompt);
+    const sendBtn = page.locator('button[aria-label="Send message"]').first();
+    await expect(sendBtn).toBeEnabled({ timeout: 5000 });
+    await sendBtn.click();
+    await expect(composer).toBeFocused({ timeout: 5000 });
+  });
 });
