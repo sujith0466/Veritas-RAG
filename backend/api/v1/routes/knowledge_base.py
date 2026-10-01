@@ -89,7 +89,11 @@ async def get_staleness_report(
     db: AsyncSession = Depends(get_db),
     current_user: UserContext = Depends(require_role(Role.ADMIN)),
 ) -> Any:
-    dispatcher = EventDispatcher(db)
+    if current_user.role != Role.PLATFORM_ADMIN.value and current_user.role != Role.PLATFORM_ADMIN:
+        user_ws = current_user.workspace_id or (UUID(current_user.tenant_id) if current_user.tenant_id else None)
+        if user_ws and user_ws != workspace_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to target workspace")
+    dispatcher = EventDispatcher()
     service = StalenessService(db, dispatcher)
     return await service.get_staleness_report(workspace_id)
 
@@ -149,7 +153,11 @@ async def bulk_remediate_stale_documents(
     db: AsyncSession = Depends(get_db),
     current_user: UserContext = Depends(require_role(Role.ADMIN)),
 ) -> Any:
-    dispatcher = EventDispatcher(db)
+    if current_user.role != Role.PLATFORM_ADMIN.value and current_user.role != Role.PLATFORM_ADMIN:
+        user_ws = current_user.workspace_id or (UUID(current_user.tenant_id) if current_user.tenant_id else None)
+        if user_ws and user_ws != workspace_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to target workspace")
+    dispatcher = EventDispatcher()
     service = StalenessService(db, dispatcher)
     return await service.execute_bulk_remediation(workspace_id, request)
 

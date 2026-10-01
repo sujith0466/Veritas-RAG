@@ -7,6 +7,7 @@ import type {
   ParityAuditDTO,
   PurgeSummaryDTO,
   ScanType,
+  StalenessReportDTO,
 } from '@/types'
 
 export interface PaginatedScanHistory {
@@ -50,8 +51,8 @@ export const knowledgeHealthService = {
     return del<PurgeSummaryDTO>(`/knowledge-health/purge/${documentId}`)
   },
 
-  async getStalenessReport(workspaceId: string): Promise<any> {
-    return get<any>(`/knowledge-base/staleness/report`, { workspace_id: workspaceId })
+  async getStalenessReport(workspaceId: string): Promise<StalenessReportDTO> {
+    return get<StalenessReportDTO>(`/knowledge-base/staleness/report`, { workspace_id: workspaceId })
   },
 
   async executeBulkRemediation(workspaceId: string, payload: any): Promise<any> {

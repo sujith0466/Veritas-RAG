@@ -7,12 +7,25 @@ from .rbac import Role
 from .registry import Permission, get_permission_registry
 
 
+ROLE_HIERARCHY: dict[Role, int] = {
+    Role.PLATFORM_ADMIN: 100,
+    Role.OWNER: 90,
+    Role.ADMIN: 80,
+    Role.ENGINEER: 70,
+    Role.ANALYST: 60,
+    Role.MEMBER: 50,
+    Role.VIEWER: 10,
+    Role.PLATFORM_SUPPORT: 5,
+    Role.PLATFORM_AUDITOR: 5,
+}
+
+
 def evaluate_role_access(
     user_role: Role | str,
     allowed_roles: tuple[Role | str, ...],
     is_suspended: bool = False,
 ) -> bool:
-    """Evaluate whether user_role is authorized among allowed_roles."""
+    """Evaluate whether user_role is authorized among allowed_roles according to role hierarchy."""
     if is_suspended:
         return False
 
@@ -23,10 +36,29 @@ def evaluate_role_access(
         Role.from_str(r) if isinstance(r, str) else r for r in allowed_roles
     ]
 
+    # Platform Admin exclusive isolation: if only PLATFORM_ADMIN is allowed, only PLATFORM_ADMIN can enter
     if Role.PLATFORM_ADMIN in parsed_allowed and len(parsed_allowed) == 1:
         return user_role == Role.PLATFORM_ADMIN
 
-    if user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+    # PLATFORM_ADMIN has super-authority across all standard routes
+    if user_role == Role.PLATFORM_ADMIN:
+        return True
+
+    # Owner exclusive isolation: if only OWNER is allowed, ADMIN cannot enter
+    if Role.OWNER in parsed_allowed and len(parsed_allowed) == 1:
+        return user_role == Role.OWNER
+
+    # Admin and Owner possess authority over standard workspace routes
+    if user_role in (Role.ADMIN, Role.OWNER):
+        return True
+
+    # Viewer routes are accessible to all active workspace roles
+    if Role.VIEWER in parsed_allowed and user_role in (
+        Role.MEMBER,
+        Role.ENGINEER,
+        Role.ANALYST,
+        Role.VIEWER,
+    ):
         return True
 
     return user_role in parsed_allowed

@@ -72,6 +72,9 @@ export type {
   PopularTopicDTO,
   UnansweredQueryDTO,
   ReliabilityTrendDTO,
+  MostCitedDocumentDTO,
+  StaleDocumentItemDTO,
+  StalenessReportDTO,
 } from './analytics'
 export type {
   KnowledgeStageMetricDTO,

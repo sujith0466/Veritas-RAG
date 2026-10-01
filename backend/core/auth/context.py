@@ -44,7 +44,16 @@ class UserContext(BaseModel):
     is_verified: bool = Field(default=True, description="Account email verification status")
     tenant_id: str | None = Field(default=None, description="Optional multi-tenant ID")
     workspace_name: str | None = Field(default=None, description="Optional workspace name")
+    workspace_id: uuid.UUID | str | None = Field(default=None, description="Active workspace ID")
 
+    def model_post_init(self, __context: Any) -> None:
+        if self.workspace_id and not self.tenant_id:
+            self.tenant_id = str(self.workspace_id)
+        elif self.tenant_id and not self.workspace_id:
+            try:
+                self.workspace_id = uuid.UUID(self.tenant_id)
+            except (ValueError, TypeError):
+                self.workspace_id = self.tenant_id
 
     @property
     def user_id(self) -> uuid.UUID:

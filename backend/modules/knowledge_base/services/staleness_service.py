@@ -157,9 +157,9 @@ class StalenessService:
     ) -> BulkRemediationResultDTO:
         """Executes bulk remediation actions on stale documents."""
         stmt = select(Document).where(
-            Document.tenant_id == workspace_id,
+            Document.tenant_id == str(workspace_id),
             Document.id.in_(request.document_ids),
-            not Document.is_deleted
+            Document.is_deleted.is_(False)
         )
         res = await self.session.execute(stmt)
         docs = res.scalars().all()

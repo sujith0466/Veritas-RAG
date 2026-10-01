@@ -15,6 +15,8 @@ import type {
   WorkspaceOverviewDTO,
   PopularTopicDTO,
   UnansweredQueryDTO,
+  ReliabilityTrendDTO,
+  MostCitedDocumentDTO,
 } from '@/types'
 
 export const analyticsService = {
@@ -119,22 +121,22 @@ export const analyticsService = {
   async getReliabilityTrends(
     startTime?: string,
     endTime?: string
-  ): Promise<any[]> {
+  ): Promise<ReliabilityTrendDTO[]> {
     const params: Record<string, string> = {}
     if (startTime) params.start_time = startTime
     if (endTime) params.end_time = endTime
-    return get<any[]>('/analytics/reliability-trends', params)
+    return get<ReliabilityTrendDTO[]>('/analytics/reliability-trends', params)
   },
 
   async getMostCitedDocuments(
     startTime?: string,
     endTime?: string,
     limit?: number
-  ): Promise<any[]> {
+  ): Promise<MostCitedDocumentDTO[]> {
     const params: Record<string, string | number> = {}
     if (startTime) params.start_time = startTime
     if (endTime) params.end_time = endTime
     if (limit) params.limit = limit
-    return get<any[]>('/analytics/most-cited-documents', params)
+    return get<MostCitedDocumentDTO[]>('/analytics/most-cited-documents', params)
   },
 }

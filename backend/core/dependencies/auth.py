@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.database import get_db
 from backend.core.exceptions.auth import AuthenticationException, InsufficientRoleException
+from backend.core.permissions.guards import evaluate_role_access
 from backend.core.permissions.rbac import Role
 from backend.models.entities.user import User
 
@@ -80,21 +81,28 @@ def require_workspace() -> Callable[..., Coroutine[Any, Any, UserContext]]:
         return user_context
     return _workspace_guard
 
-def require_role(*roles: Role | str) -> Callable[..., Coroutine[Any, Any, UserContext]]:
+def require_role(*roles: Any) -> Callable[..., Coroutine[Any, Any, UserContext]]:
     """Return a dependency requiring the authenticated user to possess one of the roles.
 
+    Evaluates access using evaluate_role_access, honoring the role hierarchy.
     Args:
-        *roles: One or more allowed Role enums or string names.
+        *roles: One or more allowed Role enums or string names, or sequences thereof.
 
     Returns:
         FastAPI dependency function enforcing the role check.
     """
+    flat_roles = []
+    for r in roles:
+        if isinstance(r, (list, tuple, set)):
+            flat_roles.extend(r)
+        else:
+            flat_roles.append(r)
+
     async def _role_guard(
         user_context: UserContext = Depends(get_current_user),
     ) -> UserContext:
         user_role = Role.from_str(user_context.role) if isinstance(user_context.role, str) else user_context.role
-        allowed = [Role.from_str(r) if isinstance(r, str) else r for r in roles]
-        if user_role not in allowed and user_role != Role.PLATFORM_ADMIN:
+        if not evaluate_role_access(user_role, tuple(flat_roles)):
             raise InsufficientRoleException("Insufficient permissions")
         return user_context
     return _role_guard

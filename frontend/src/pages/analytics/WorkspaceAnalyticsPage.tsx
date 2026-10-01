@@ -1,117 +1,182 @@
-import { useQuery } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
-import { Activity, FileText, Users } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, useReducedMotion } from 'framer-motion'
 import { analyticsService } from '@/services/analyticsService'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/common/Card'
-import { Skeleton } from '@/components/common/Skeleton'
-import { ErrorState } from '@/components/common/ErrorState'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 
-import { PopularTopicsCard } from '@/components/analytics/PopularTopicsCard'
-import { UnansweredQueriesCard } from '@/components/analytics/UnansweredQueriesCard'
-import { MostCitedDocumentsCard } from '@/components/analytics/MostCitedDocumentsCard'
-import { StalenessReportCard } from '@/components/analytics/StalenessReportCard'
+import {
+  WorkspaceAnalyticsHeader,
+  ExecutiveKpiGrid,
+  WorkspaceActivityChart,
+  PopularTopicsCard,
+  UnansweredQueriesCard,
+  MostCitedDocumentsCard,
+  StalenessReportCard,
+  type AnalyticsTimeRange,
+} from '@/components/analytics'
 
 export function WorkspaceAnalyticsPage() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['workspace-overview'],
-    queryFn: () => analyticsService.getWorkspaceOverview(),
+  const shouldReduceMotion = useReducedMotion()
+  const queryClient = useQueryClient()
+  const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
+
+  const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>('30d')
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date())
+
+  // Compute start_time & end_time ISO strings based on timeRange
+  const { startTime, endTime } = useMemo(() => {
+    const now = new Date()
+    let start: Date | null = null
+
+    switch (timeRange) {
+      case '24h':
+        start = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        break
+      case '7d':
+        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        break
+      case '30d':
+        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        break
+      case '90d':
+        start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        break
+      case 'all':
+      default:
+        start = null
+        break
+    }
+
+    return {
+      startTime: start ? start.toISOString() : undefined,
+      endTime: start ? now.toISOString() : undefined,
+    }
+  }, [timeRange])
+
+  // Overview telemetry (Active users, documents, queries)
+  const {
+    data: overviewData,
+    isLoading: isOverviewLoading,
+    isError: isOverviewError,
+    refetch: refetchOverview,
+    isFetching: isOverviewFetching,
+  } = useQuery({
+    queryKey: ['workspace-overview', startTime, endTime],
+    queryFn: () => analyticsService.getWorkspaceOverview(startTime, endTime),
     staleTime: 5 * 60 * 1000,
   })
 
-  return (
-    <div className="container max-w-6xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Workspace Analytics</h1>
-        <p className="text-muted-foreground text-lg">
-          High-level snapshot of your workspace activity and usage.
-        </p>
-      </div>
+  // Grounded Success & Failure rate metrics
+  const {
+    data: successRateData,
+    isLoading: isSuccessRateLoading,
+    isError: isSuccessRateError,
+    refetch: refetchSuccessRate,
+    isFetching: isSuccessRateFetching,
+  } = useQuery({
+    queryKey: ['workspace-success-rate', startTime, endTime],
+    queryFn: () => analyticsService.getSuccessRate(startTime, endTime),
+    staleTime: 5 * 60 * 1000,
+  })
 
-      {error ? (
-        <ErrorState 
-          title="Error"
-          error={error}
-        />
-      ) : null}
+  // Reliability trends history
+  const {
+    data: trendsData,
+    isLoading: isTrendsLoading,
+    isError: isTrendsError,
+    refetch: refetchTrends,
+    isFetching: isTrendsFetching,
+  } = useQuery({
+    queryKey: ['workspace-reliability-trends', startTime, endTime],
+    queryFn: () => analyticsService.getReliabilityTrends(startTime, endTime),
+    staleTime: 5 * 60 * 1000,
+  })
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <MetricCard
-          title="Active Users"
-          value={data?.active_users}
-          icon={<Users className="w-6 h-6 text-blue-500" />}
-          description="Unique users active in the current period"
-          isLoading={isLoading}
-        />
-        <MetricCard
-          title="Document Count"
-          value={data?.document_count}
-          icon={<FileText className="w-6 h-6 text-green-500" />}
-          description="Total active, processed documents"
-          isLoading={isLoading}
-        />
-        <MetricCard
-          title="Total Queries"
-          value={data?.total_queries}
-          icon={<Activity className="w-6 h-6 text-purple-500" />}
-          description="Total AI queries processed"
-          isLoading={isLoading}
-        />
-      </div>
+  // Server latency percentiles
+  const {
+    data: latencyData,
+    isLoading: isLatencyLoading,
+    isError: isLatencyError,
+    refetch: refetchLatency,
+    isFetching: isLatencyFetching,
+  } = useQuery({
+    queryKey: ['workspace-latency', startTime, endTime],
+    queryFn: () => analyticsService.getLatencyAnalytics(startTime, endTime),
+    staleTime: 5 * 60 * 1000,
+  })
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <PopularTopicsCard />
-        <UnansweredQueriesCard />
-      </div>
+  // Coordinated manual refresh
+  const isRefreshing =
+    isOverviewFetching || isSuccessRateFetching || isTrendsFetching || isLatencyFetching
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <MostCitedDocumentsCard />
-        <StalenessReportCard />
-      </div>
-    </div>
-  )
-}
+  const handleRefresh = async () => {
+    setLastUpdated(new Date())
+    await Promise.all([
+      refetchOverview(),
+      refetchSuccessRate(),
+      refetchTrends(),
+      refetchLatency(),
+      queryClient.invalidateQueries({ queryKey: ['popular-topics'] }),
+      queryClient.invalidateQueries({ queryKey: ['unanswered-queries'] }),
+      queryClient.invalidateQueries({ queryKey: ['most-cited-documents'] }),
+      queryClient.invalidateQueries({ queryKey: ['staleness-report'] }),
+    ])
+  }
 
-function MetricCard({
-  title,
-  value,
-  icon,
-  description,
-  isLoading
-}: {
-  title: string
-  value?: number
-  icon: React.ReactNode
-  description: string
-  isLoading: boolean
-}) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: shouldReduceMotion ? 0.1 : 0.35 }}
+      className="container max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8"
     >
-      <Card className="h-full border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:shadow-md hover:bg-card/80">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {title}
-          </CardTitle>
-          <div className="p-2 bg-background rounded-full shadow-sm ring-1 ring-border/20">
-            {icon}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-9 w-24 mb-1" />
-          ) : (
-            <div className="text-3xl font-bold tracking-tight">
-              {value?.toLocaleString() ?? 0}
-            </div>
-          )}
-          <CardDescription className="text-xs mt-2 line-clamp-2">
-            {description}
-          </CardDescription>
-        </CardContent>
-      </Card>
+      {/* 1. Header with Context, Time Range Controls, and Refresh */}
+      <WorkspaceAnalyticsHeader
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        lastUpdated={lastUpdated}
+        workspaceName={currentWorkspace?.name || 'Primary Workspace'}
+        workspaceStatus={currentWorkspace?.status || 'ACTIVE'}
+      />
+
+      {/* 2. Executive KPI Summary Grid (Active Users, Docs, Queries, Grounded Reliability) */}
+      <ExecutiveKpiGrid
+        overview={overviewData}
+        successRate={successRateData}
+        isLoading={isOverviewLoading || isSuccessRateLoading}
+        isError={isOverviewError || isSuccessRateError}
+        onRetry={() => {
+          refetchOverview()
+          refetchSuccessRate()
+        }}
+      />
+
+      {/* 3. Activity & Grounding Reliability Telemetry */}
+      <WorkspaceActivityChart
+        trends={trendsData}
+        latency={latencyData}
+        isLoading={isTrendsLoading || isLatencyLoading}
+        isError={isTrendsError || isLatencyError}
+        onRetry={() => {
+          refetchTrends()
+          refetchLatency()
+        }}
+      />
+
+      {/* 4. Topic Intelligence & Unanswered Query Forensics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PopularTopicsCard startTime={startTime} endTime={endTime} />
+        <UnansweredQueriesCard startTime={startTime} endTime={endTime} />
+      </div>
+
+      {/* 5. Most Cited Knowledge Assets & Document Staleness Matrix */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MostCitedDocumentsCard startTime={startTime} endTime={endTime} />
+        <StalenessReportCard />
+      </div>
     </motion.div>
   )
 }
+export default WorkspaceAnalyticsPage

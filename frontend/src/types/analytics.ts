@@ -179,3 +179,29 @@ export interface ReliabilityTrendDTO {
   date: string
   average_score: number
 }
+
+export interface MostCitedDocumentDTO {
+  document_id: string
+  document_title: string
+  citation_count: number
+  last_cited_at: string | null
+}
+
+export interface StaleDocumentItemDTO {
+  document_id: string
+  filename: string
+  age_days: number
+  freshness_score: number
+  is_expired: boolean
+  last_updated_at: string
+}
+
+export interface StalenessReportDTO {
+  workspace_id: string
+  total_documents: number
+  stale_count: number
+  stale_ratio: number
+  aging_distribution: Record<string, number>
+  stale_documents: StaleDocumentItemDTO[]
+}
+
