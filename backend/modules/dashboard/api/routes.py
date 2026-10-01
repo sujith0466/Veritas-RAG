@@ -12,11 +12,16 @@ from backend.modules.dashboard.schemas.dashboard_dto import (
     ExecutiveDashboardDTO,
     HallucinationTrendDTO,
     KnowledgeIntelligenceSummaryDTO,
+    QueryExecutionLedgerDTO,
+    QueryExecutionTraceDTO,
     SLAComplianceReportDTO,
 )
 from backend.modules.dashboard.services.audit_export import AuditExportService
 from backend.modules.dashboard.services.command_center_service import CommandCenterService
 from backend.modules.dashboard.services.dashboard_service import DashboardService
+from backend.modules.dashboard.services.execution_intelligence_service import (
+    ExecutionIntelligenceService,
+)
 
 # NOTE: This router is mounted at /dashboard by the v1 router.
 # The internal /v1 prefix was removed to align with the frontend client.
@@ -29,6 +34,12 @@ def get_dashboard_service(session: AsyncSession = Depends(get_db)) -> DashboardS
 
 def get_command_center_service(session: AsyncSession = Depends(get_db)) -> CommandCenterService:
     return CommandCenterService(session)
+
+
+def get_execution_intelligence_service(
+    session: AsyncSession = Depends(get_db),
+) -> ExecutionIntelligenceService:
+    return ExecutionIntelligenceService(session)
 
 
 def get_audit_service():
@@ -50,6 +61,48 @@ async def get_command_center(
 ) -> SuccessResponse[CommandCenterDTO]:
     """Return consolidated Enterprise AI Reliability Command Center telemetry."""
     data = await svc.get_command_center(user.tenant_id, time_window=time_window)
+    return SuccessResponse(data=data, metadata=_meta(request))
+
+
+@router.get("/executions", response_model=SuccessResponse[QueryExecutionLedgerDTO])
+async def get_executions(
+    request: Request,
+    time_window: str = Query("24h", pattern="^(1h|24h|7d|30d|all)$"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    status: str | None = Query(None),
+    search: str | None = Query(None),
+    min_reliability: float | None = Query(None, ge=0.0, le=1.0),
+    user: UserContext = Depends(get_current_user),
+    svc: ExecutionIntelligenceService = Depends(get_execution_intelligence_service),
+) -> SuccessResponse[QueryExecutionLedgerDTO]:
+    """Return paginated execution ledger for the tenant."""
+    data = await svc.list_executions(
+        tenant_id=user.tenant_id,
+        time_window=time_window,
+        limit=limit,
+        offset=offset,
+        status=status,
+        search=search,
+        min_reliability=min_reliability,
+    )
+    return SuccessResponse(data=data, metadata=_meta(request))
+
+
+@router.get("/executions/{query_id}/trace", response_model=SuccessResponse[QueryExecutionTraceDTO])
+async def get_execution_trace(
+    query_id: str,
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+    svc: ExecutionIntelligenceService = Depends(get_execution_intelligence_service),
+) -> SuccessResponse[QueryExecutionTraceDTO]:
+    """Return deep forensic trace for a specific execution, enforcing tenant isolation."""
+    data = await svc.get_execution_trace(tenant_id=user.tenant_id, query_id=query_id)
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Execution record not found or access forbidden for this tenant.",
+        )
     return SuccessResponse(data=data, metadata=_meta(request))
 
 

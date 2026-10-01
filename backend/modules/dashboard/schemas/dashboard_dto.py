@@ -259,3 +259,61 @@ class CommandCenterDTO(BaseModel):
     knowledge_health: CommandKnowledgeHealthDTO
     alerts: list[ExecutiveDashboardAlertDTO] = Field(default_factory=list)
 
+
+class QueryExecutionLedgerItemDTO(BaseModel):
+    """Individual execution summary row in the admin execution ledger."""
+
+    id: str
+    correlation_id: str
+    query_text: str
+    outcome: str
+    confidence_score: float | None = None
+    reliability_score: float | None = None
+    hallucination_score: float | None = None
+    retry_attempts: int = 0
+    duration_ms: float
+    is_safe_to_serve: bool = True
+    timestamp: str
+    has_retrieval_trace: bool = False
+
+
+class QueryExecutionLedgerDTO(BaseModel):
+    """Paginated execution ledger response."""
+
+    items: list[QueryExecutionLedgerItemDTO] = Field(default_factory=list)
+    total: int = 0
+    limit: int = 20
+    offset: int = 0
+    time_window: str = "24h"
+
+
+class RetrievalTraceDetailDTO(BaseModel):
+    """Hybrid retrieval stage metrics and candidate counts."""
+
+    dense_candidate_count: int = 0
+    sparse_candidate_count: int = 0
+    merged_unique_count: int = 0
+    final_top_k: int = 0
+    retrieval_duration_ms: float = 0.0
+    stage_breakdown: dict[str, Any] = Field(default_factory=dict)
+
+
+class QueryExecutionTraceDTO(BaseModel):
+    """Deep forensic trace for an individual AI query execution."""
+
+    id: str
+    correlation_id: str
+    tenant_id: str
+    query_text: str
+    outcome: str
+    confidence_score: float | None = None
+    reliability_score: float | None = None
+    hallucination_score: float | None = None
+    retry_attempts: int = 0
+    total_duration_ms: float
+    is_safe_to_serve: bool = True
+    timestamp: str
+    retrieval: RetrievalTraceDetailDTO | None = None
+    diagnostics: dict[str, Any] = Field(default_factory=dict)
+
+
