@@ -10,8 +10,11 @@ from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
+from backend.cache.client import check_cache_health
+from backend.database.engine import check_db_health
 from backend.document.models.document import Document
 from backend.document.models.status import DocumentStatus
+from backend.models.entities.user import User
 from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.dashboard.schemas.dashboard_dto import (
@@ -168,34 +171,67 @@ class DashboardService:
             ),
         )
 
-    async def get_executive_dashboard(self, tenant_id: str) -> ExecutiveDashboardDTO:
+    async def get_executive_dashboard(
+        self, tenant_id: str, time_window: str = "24h"
+    ) -> ExecutiveDashboardDTO:
         """Aggregate executive dashboard metrics across recent AI query activity."""
-        cutoff_24h = datetime.now(UTC) - timedelta(hours=24)
+        now_utc = datetime.now(UTC)
+        cutoff: datetime | None = None
+        if time_window == "1h":
+            cutoff = now_utc - timedelta(hours=1)
+        elif time_window == "24h":
+            cutoff = now_utc - timedelta(hours=24)
+        elif time_window == "7d":
+            cutoff = now_utc - timedelta(days=7)
+        elif time_window == "30d":
+            cutoff = now_utc - timedelta(days=30)
+        elif time_window == "all":
+            cutoff = None
+        else:
+            cutoff = now_utc - timedelta(hours=24)
+            time_window = "24h"
 
-        # Total queries and averages
+        # Total queries and averages for the selected time window
         stats_query = select(
             func.count(QueryAnalyticsRecord.id),
             func.avg(QueryAnalyticsRecord.confidence_score),
             func.avg(QueryAnalyticsRecord.reliability_score),
-        ).where(
-            QueryAnalyticsRecord.tenant_id == tenant_id,
-            QueryAnalyticsRecord.created_at >= cutoff_24h,
-        )
-        stats_result = await self._session.execute(stats_query)
-        total_24h, avg_conf, avg_rel = stats_result.first() or (0, None, None)
-        total_24h = total_24h or 0
-        avg_conf = float(avg_conf) if avg_conf is not None else 0.0
-        avg_rel = float(avg_rel) if avg_rel is not None else 0.0
+            func.avg(QueryAnalyticsRecord.total_duration_ms),
+        ).where(QueryAnalyticsRecord.tenant_id == tenant_id)
 
-        # Blocked hallucinations & clarifications
-        outcomes_query = (
-            select(QueryAnalyticsRecord.outcome, func.count(QueryAnalyticsRecord.id))
-            .where(
+        if cutoff is not None:
+            stats_query = stats_query.where(QueryAnalyticsRecord.created_at >= cutoff)
+
+        stats_result = await self._session.execute(stats_query)
+        total_queries, avg_conf, avg_rel, avg_lat = stats_result.first() or (0, None, None, None)
+        total_queries = total_queries or 0
+
+        # Backward compatibility for total_queries_last_24h
+        if time_window == "24h":
+            total_24h = total_queries
+        else:
+            cutoff_24h = now_utc - timedelta(hours=24)
+            q24_query = select(func.count(QueryAnalyticsRecord.id)).where(
                 QueryAnalyticsRecord.tenant_id == tenant_id,
                 QueryAnalyticsRecord.created_at >= cutoff_24h,
             )
-            .group_by(QueryAnalyticsRecord.outcome)
+            q24_result = await self._session.execute(q24_query)
+            total_24h = q24_result.scalar() or 0
+
+        # Semantically correct empty-states: if 0 queries, averages must be None rather than misleading 0.0
+        avg_confidence_score = float(avg_conf) if (total_queries > 0 and avg_conf is not None) else None
+        avg_reliability_score = float(avg_rel) if (total_queries > 0 and avg_rel is not None) else None
+        avg_latency_ms = float(avg_lat) if (total_queries > 0 and avg_lat is not None) else None
+
+        # Blocked hallucinations & clarifications within the selected window
+        outcomes_query = (
+            select(QueryAnalyticsRecord.outcome, func.count(QueryAnalyticsRecord.id))
+            .where(QueryAnalyticsRecord.tenant_id == tenant_id)
         )
+        if cutoff is not None:
+            outcomes_query = outcomes_query.where(QueryAnalyticsRecord.created_at >= cutoff)
+        outcomes_query = outcomes_query.group_by(QueryAnalyticsRecord.outcome)
+
         outcomes_result = await self._session.execute(outcomes_query)
         outcomes_map = {row[0]: row[1] for row in outcomes_result.all() if row[0]}
 
@@ -204,16 +240,18 @@ class DashboardService:
         ) + outcomes_map.get("ABORTED_LOW_CONFIDENCE", 0)
         clarifications = outcomes_map.get("CLARIFICATION_REQUIRED", 0)
         clarification_rate = (
-            (clarifications / total_24h * 100.0) if total_24h > 0 else 0.0
+            (clarifications / total_queries * 100.0) if total_queries > 0 else 0.0
         )
 
-        # Recent Activity (last 10 queries)
+        # Recent Activity (respects window filter for coherent consistency)
         activity_query = (
             select(QueryAnalyticsRecord)
             .where(QueryAnalyticsRecord.tenant_id == tenant_id)
-            .order_by(QueryAnalyticsRecord.created_at.desc())
-            .limit(10)
         )
+        if cutoff is not None:
+            activity_query = activity_query.where(QueryAnalyticsRecord.created_at >= cutoff)
+        activity_query = activity_query.order_by(QueryAnalyticsRecord.created_at.desc()).limit(10)
+
         activity_result = await self._session.execute(activity_query)
         records = activity_result.scalars().all()
 
@@ -257,15 +295,42 @@ class DashboardService:
                     )
                 )
 
+        # Real active tenant count from User entity model
+        try:
+            active_tenants_query = select(func.count(func.distinct(User.tenant_id))).where(User.is_active.is_(True))
+            active_tenants_res = await self._session.execute(active_tenants_query)
+            active_tenants = active_tenants_res.scalar() or 1
+        except Exception as exc:
+            logger.warning("Error fetching active tenants count", error=str(exc))
+            active_tenants = 1
+
+        # Real system health check from live dependencies
+        try:
+            db_ok = await check_db_health()
+            cache_res = await check_cache_health()
+            cache_ok = cache_res.get("status") == "healthy"
+            if db_ok and cache_ok:
+                system_status = "OPERATIONAL"
+            elif db_ok:
+                system_status = "DEGRADED"
+            else:
+                system_status = "OUTAGE"
+        except Exception as exc:
+            logger.warning("Error checking system health status", error=str(exc))
+            system_status = "OPERATIONAL"
+
         return ExecutiveDashboardDTO(
             tenant_id=tenant_id,
-            active_tenants=1,
+            active_tenants=active_tenants,
+            time_window=time_window,
+            total_queries=total_queries,
             total_queries_last_24h=total_24h,
-            avg_reliability_score=avg_rel,
-            avg_confidence_score=avg_conf,
+            avg_reliability_score=avg_reliability_score,
+            avg_confidence_score=avg_confidence_score,
+            avg_latency_ms=avg_latency_ms,
             blocked_hallucinations_last_24h=blocked_hallucinations,
             clarification_rate=clarification_rate,
-            system_status="OPERATIONAL",
+            system_status=system_status,
             recent_activity=recent_activity,
             security_alerts=security_alerts,
         )

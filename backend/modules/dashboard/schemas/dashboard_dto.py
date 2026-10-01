@@ -113,14 +113,19 @@ class ExecutiveDashboardDTO(BaseModel):
 
     tenant_id: str | None = Field(default=None, description="Tenant identifier")
     active_tenants: int = Field(default=1, description="Number of active tenants")
+    time_window: str = Field(default="24h", description="Selected aggregation time window")
+    total_queries: int = Field(default=0, description="Total AI queries executed in window")
     total_queries_last_24h: int = Field(
         default=0, description="Total AI queries executed over last 24 hours"
     )
-    avg_reliability_score: float = Field(
-        default=95.0, description="Current composite AI reliability score"
+    avg_reliability_score: float | None = Field(
+        default=None, description="Current composite AI reliability score"
     )
-    avg_confidence_score: float = Field(
-        default=0.85, description="Average pre-generation confidence score"
+    avg_confidence_score: float | None = Field(
+        default=None, description="Average pre-generation confidence score"
+    )
+    avg_latency_ms: float | None = Field(
+        default=None, description="Average query execution latency in milliseconds"
     )
     blocked_hallucinations_last_24h: int = Field(
         default=0, description="Number of queries aborted to prevent hallucination"

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
@@ -38,11 +38,12 @@ def _meta(request: Request) -> ResponseMetadata:
 @router.get("/executive", response_model=SuccessResponse[ExecutiveDashboardDTO])
 async def get_executive(
     request: Request,
+    time_window: str = Query("24h", pattern="^(1h|24h|7d|30d|all)$"),
     user: UserContext = Depends(get_current_user),
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[ExecutiveDashboardDTO]:
     """Return executive dashboard for the current authenticated user's tenant."""
-    data = await svc.get_executive_dashboard(user.tenant_id)
+    data = await svc.get_executive_dashboard(user.tenant_id, time_window=time_window)
     return SuccessResponse(data=data, metadata=_meta(request))
 
 
@@ -62,13 +63,14 @@ async def get_knowledge_intelligence(
 async def get_executive_by_tenant(
     tenant_id: str,
     request: Request,
+    time_window: str = Query("24h", pattern="^(1h|24h|7d|30d|all)$"),
     user: UserContext = Depends(get_current_user),
     svc: DashboardService = Depends(get_dashboard_service),
 ) -> SuccessResponse[ExecutiveDashboardDTO]:
     """Return executive dashboard for a specific tenant (admin use)."""
     if user.tenant_id != tenant_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cross-tenant access forbidden.")
-    data = await svc.get_executive_dashboard(tenant_id)
+    data = await svc.get_executive_dashboard(tenant_id, time_window=time_window)
     return SuccessResponse(data=data, metadata=_meta(request))
 
 

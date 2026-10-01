@@ -66,9 +66,12 @@ export interface ExecutiveDashboardAlertDTO {
 export interface ExecutiveDashboardDTO {
   tenant_id: string
   active_tenants: number
+  time_window?: string
+  total_queries?: number
   total_queries_last_24h: number
-  avg_reliability_score: number
-  avg_confidence_score: number
+  avg_reliability_score: number | null
+  avg_confidence_score: number | null
+  avg_latency_ms?: number | null
   blocked_hallucinations_last_24h: number
   clarification_rate: number
   system_status: string

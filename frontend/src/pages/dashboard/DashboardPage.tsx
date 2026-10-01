@@ -21,14 +21,15 @@ import { listContainerVariants, listItemVariants, cardHover } from '@/motion'
 
 export function DashboardPage() {
   const [data, setData] = useState<ExecutiveDashboardDTO | null>(null)
+  const [timeWindow, setTimeWindow] = useState<'1h' | '24h' | '7d' | '30d' | 'all'>('24h')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (window: string = timeWindow) => {
     setIsLoading(true)
     setError(null)
     try {
-      const execSummary = await dashboardService.getExecutiveDashboard()
+      const execSummary = await dashboardService.getExecutiveDashboard(window)
       setData(execSummary)
     } catch (err) {
       console.error('Failed to load executive dashboard summary:', err)
@@ -36,11 +37,14 @@ export function DashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [timeWindow])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadData(timeWindow)
+  }, [loadData, timeWindow])
+
+  const totalQueries = data?.total_queries ?? data?.total_queries_last_24h ?? 0
+  const hasQueries = totalQueries > 0
 
   const stats = [
     {
@@ -51,17 +55,25 @@ export function DashboardPage() {
       color: 'text-info bg-info-subtle',
     },
     {
-      title: 'Total Queries (24h)',
-      value: isLoading ? '...' : (data?.total_queries_last_24h ?? 0).toLocaleString(),
+      title: `Total Queries (${timeWindow.toUpperCase()})`,
+      value: isLoading ? '...' : totalQueries.toLocaleString(),
       icon: FileText,
-      trend: `Avg Confidence: ${((data?.avg_confidence_score ?? 0.88) * 100).toFixed(1)}%`,
+      trend: hasQueries && data?.avg_confidence_score !== null && data?.avg_confidence_score !== undefined
+        ? `Avg Confidence: ${(data.avg_confidence_score * 100).toFixed(1)}%`
+        : 'No queries in selected window',
       color: 'text-primary bg-primary-subtle',
     },
     {
       title: 'Reliability Score',
-      value: isLoading ? '...' : `${(data?.avg_reliability_score ?? 95.4).toFixed(1)}%`,
+      value: isLoading
+        ? '...'
+        : (data?.avg_reliability_score !== null && data?.avg_reliability_score !== undefined
+            ? `${data.avg_reliability_score.toFixed(1)}%`
+            : 'N/A'),
       icon: Activity,
-      trend: `Clarification rate: ${(data?.clarification_rate ?? 0.0).toFixed(1)}%`,
+      trend: hasQueries
+        ? `Clarification rate: ${(data?.clarification_rate ?? 0.0).toFixed(1)}%`
+        : 'Requires active query samples',
       color: 'text-success bg-success-subtle',
     },
     {
@@ -73,6 +85,8 @@ export function DashboardPage() {
     },
   ]
 
+  const timeWindowOptions: Array<'1h' | '24h' | '7d' | '30d' | 'all'> = ['1h', '24h', '7d', '30d', 'all']
+
   return (
     <PageTransition>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -81,16 +95,35 @@ export function DashboardPage() {
           description="Autonomous AI observability, query reliability scoring, and hallucination prevention activity."
         />
 
-        <Button
-          onClick={loadData}
-          isLoading={isLoading}
-          variant="secondary"
-          size="sm"
-          className="shrink-0"
-        >
-          {!isLoading && <RefreshCw className="h-3.5 w-3.5 mr-2" />}
-          Refresh Metrics
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center bg-muted/60 p-1 rounded-lg border border-border/50 text-xs">
+            {timeWindowOptions.map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setTimeWindow(w)}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  timeWindow === w
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {w.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <Button
+            onClick={() => loadData(timeWindow)}
+            isLoading={isLoading}
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
+          >
+            {!isLoading && <RefreshCw className="h-3.5 w-3.5 mr-2" />}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {error ? (
@@ -167,8 +200,8 @@ export function DashboardPage() {
                     <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
                       <FileText className="h-6 w-6 text-muted-foreground/60" />
                     </div>
-                    <p className="text-sm font-medium text-foreground">No Query Execution Records Yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">Execute queries to view live evaluation dynamics.</p>
+                    <p className="text-sm font-medium text-foreground">No Query Execution Records ({timeWindow.toUpperCase()})</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-[320px] mx-auto">No queries were executed in the selected time window. Switch to a wider window (e.g. 7D or ALL) or execute new queries in chat.</p>
                   </div>
                 ) : (
                   <div className="overflow-auto flex-1">

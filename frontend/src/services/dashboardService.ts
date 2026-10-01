@@ -5,8 +5,8 @@ import type {
 } from '@/types'
 
 export const dashboardService = {
-  getExecutiveDashboard: async (): Promise<ExecutiveDashboardDTO> => {
-    return get<ExecutiveDashboardDTO>('/dashboard/executive')
+  getExecutiveDashboard: async (timeWindow: string = '24h'): Promise<ExecutiveDashboardDTO> => {
+    return get<ExecutiveDashboardDTO>(`/dashboard/executive?time_window=${encodeURIComponent(timeWindow)}`)
   },
 
   getKnowledgeIntelligenceSummary: async (): Promise<KnowledgeIntelligenceSummaryDTO> => {
