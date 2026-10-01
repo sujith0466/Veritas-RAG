@@ -14,7 +14,6 @@ from backend.cache.client import check_cache_health
 from backend.database.engine import check_db_health
 from backend.document.models.document import Document
 from backend.document.models.status import DocumentStatus
-from backend.models.entities.user import User
 from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.dashboard.schemas.dashboard_dto import (
@@ -295,14 +294,8 @@ class DashboardService:
                     )
                 )
 
-        # Real active tenant count from User entity model
-        try:
-            active_tenants_query = select(func.count(func.distinct(User.tenant_id))).where(User.is_active.is_(True))
-            active_tenants_res = await self._session.execute(active_tenants_query)
-            active_tenants = active_tenants_res.scalar() or 1
-        except Exception as exc:
-            logger.warning("Error fetching active tenants count", error=str(exc))
-            active_tenants = 1
+        # Multi-Tenant Boundary Telemetry (Strictly scoped to tenant boundary)
+        active_tenants = 1
 
         # Real system health check from live dependencies
         try:

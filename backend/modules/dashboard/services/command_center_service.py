@@ -21,6 +21,7 @@ from backend.document.models.job import ProcessingJob
 from backend.document.models.status import DocumentStatus
 from backend.models.entities.user import User
 from backend.models.entities.workspace import Workspace, WorkspaceStatus
+from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
 from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
 from backend.modules.chunking.models.chunk import DocumentChunk
 from backend.modules.dashboard.schemas.dashboard_dto import (
@@ -251,20 +252,23 @@ class CommandCenterService:
             total_count=total_queries,
         )
 
-        # 5. Active Tenants & Workspaces
-        try:
-            tenants_res = await self._session.execute(
-                select(func.count(func.distinct(User.tenant_id))).where(User.is_active.is_(True))
-            )
-            active_tenants = tenants_res.scalar() or 1
-        except Exception:
-            active_tenants = 1
+        # 5. Multi-Tenant Boundary Telemetry (Strictly scoped to tenant_id)
+        # Prevents cross-tenant aggregate disclosure under Enterprise Isolation Policy
+        active_tenants = 1
 
         try:
             ws_res = await self._session.execute(
-                select(func.count(Workspace.id)).where(Workspace.status == WorkspaceStatus.ACTIVE)
+                select(func.count(func.distinct(WorkspaceMember.workspace_id)))
+                .join(User, WorkspaceMember.user_id == User.id)
+                .join(Workspace, WorkspaceMember.workspace_id == Workspace.id)
+                .where(
+                    User.tenant_id == tenant_id,
+                    Workspace.status == WorkspaceStatus.ACTIVE.value,
+                    WorkspaceMember.status == MemberStatus.ACTIVE.value,
+                )
             )
-            active_workspaces = ws_res.scalar() or 1
+            count = ws_res.scalar()
+            active_workspaces = count if (count is not None and count > 0) else 1
         except Exception:
             active_workspaces = 1
 

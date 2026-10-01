@@ -46,3 +46,34 @@ async def test_command_center_empty_window():
         assert res.latency_percentiles.p95_ms is None
         assert len(res.reliability_trend) == 0
         break
+
+
+@pytest.mark.asyncio
+async def test_command_center_tenant_isolation():
+    """Verify CommandCenterService strictly isolates data between different tenants."""
+    async for session in get_async_session():
+        svc = CommandCenterService(session)
+        primary_tenant = "63e0de56-cb8a-45dd-a417-688f0c88ffbb"
+        isolated_tenant = "00000000-0000-0000-0000-000000000001"
+
+        res_primary = await svc.get_command_center(primary_tenant, time_window="all")
+        res_isolated = await svc.get_command_center(isolated_tenant, time_window="all")
+
+        # Verify tenant scoping
+        assert res_primary.tenant_id == primary_tenant
+        assert res_isolated.tenant_id == isolated_tenant
+
+        # Tenant boundary isolation: active_tenants must be 1 (never global cross-tenant count)
+        assert res_primary.kpis.active_tenants == 1
+        assert res_isolated.kpis.active_tenants == 1
+
+        # Isolated tenant must see zero queries and documents from primary tenant
+        assert res_isolated.kpis.total_queries == 0
+        assert res_isolated.kpis.avg_reliability_score is None
+        assert res_isolated.knowledge_health.total_documents == 0
+        assert res_isolated.knowledge_health.total_chunks == 0
+        assert res_isolated.knowledge_health.total_embeddings == 0
+        assert len(res_isolated.reliability_trend) == 0
+        assert len(res_isolated.alerts) == 0
+        break
+
