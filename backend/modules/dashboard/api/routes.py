@@ -8,12 +8,14 @@ from backend.core.dependencies.database import get_db
 from backend.modules.dashboard.schemas.dashboard_dto import (
     AuditExportBundleDTO,
     AuditExportRequestDTO,
+    CommandCenterDTO,
     ExecutiveDashboardDTO,
     HallucinationTrendDTO,
     KnowledgeIntelligenceSummaryDTO,
     SLAComplianceReportDTO,
 )
 from backend.modules.dashboard.services.audit_export import AuditExportService
+from backend.modules.dashboard.services.command_center_service import CommandCenterService
 from backend.modules.dashboard.services.dashboard_service import DashboardService
 
 # NOTE: This router is mounted at /dashboard by the v1 router.
@@ -25,6 +27,10 @@ def get_dashboard_service(session: AsyncSession = Depends(get_db)) -> DashboardS
     return DashboardService(session)
 
 
+def get_command_center_service(session: AsyncSession = Depends(get_db)) -> CommandCenterService:
+    return CommandCenterService(session)
+
+
 def get_audit_service():
     return AuditExportService()
 
@@ -33,6 +39,18 @@ def _meta(request: Request) -> ResponseMetadata:
     return ResponseMetadata(
         request_id=request.headers.get("x-correlation-id", "n/a")
     )
+
+
+@router.get("/command-center", response_model=SuccessResponse[CommandCenterDTO])
+async def get_command_center(
+    request: Request,
+    time_window: str = Query("24h", pattern="^(1h|24h|7d|30d|all)$"),
+    user: UserContext = Depends(get_current_user),
+    svc: CommandCenterService = Depends(get_command_center_service),
+) -> SuccessResponse[CommandCenterDTO]:
+    """Return consolidated Enterprise AI Reliability Command Center telemetry."""
+    data = await svc.get_command_center(user.tenant_id, time_window=time_window)
+    return SuccessResponse(data=data, metadata=_meta(request))
 
 
 @router.get("/executive", response_model=SuccessResponse[ExecutiveDashboardDTO])

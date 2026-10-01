@@ -182,3 +182,80 @@ class LiveDashboardEventDTO(BaseModel):
     tenant_id: str
     event_type: str
     payload: dict
+
+
+class CommandHealthComponentDTO(BaseModel):
+    name: str
+    status: str
+    latency_ms: float | None = None
+    detail: str | None = None
+
+
+class CommandSystemHealthDTO(BaseModel):
+    status: str
+    components: list[CommandHealthComponentDTO] = Field(default_factory=list)
+
+
+class CommandKpisDTO(BaseModel):
+    total_queries: int = 0
+    avg_reliability_score: float | None = None
+    avg_confidence_score: float | None = None
+    avg_latency_ms: float | None = None
+    p95_latency_ms: float | None = None
+    self_correction_rate: float = 0.0
+    clarification_rate: float = 0.0
+    hallucination_prevention_count: int = 0
+    active_tenants: int = 1
+    active_workspaces: int = 1
+
+
+class CommandReliabilityTrendPointDTO(BaseModel):
+    timestamp: str
+    reliability: float
+    query_count: int
+
+
+class CommandLatencyPercentilesDTO(BaseModel):
+    p50_ms: float | None = None
+    p90_ms: float | None = None
+    p95_ms: float | None = None
+    p99_ms: float | None = None
+    avg_ms: float | None = None
+
+
+class CommandOutcomesBreakdownDTO(BaseModel):
+    success_count: int = 0
+    aborted_hallucination_count: int = 0
+    aborted_low_confidence_count: int = 0
+    clarification_count: int = 0
+    no_relevant_chunks_count: int = 0
+    policy_violation_count: int = 0
+    total_count: int = 0
+
+
+class CommandKnowledgeHealthDTO(BaseModel):
+    total_documents: int = 0
+    processed_documents: int = 0
+    failed_documents: int = 0
+    total_chunks: int = 0
+    total_embeddings: int = 0
+    pending_jobs: int = 0
+    failed_jobs: int = 0
+    vector_status: str = "green"
+
+
+class CommandCenterDTO(BaseModel):
+    """Consolidated Command Center payload for Enterprise AI Reliability."""
+
+    model_config = ConfigDict(frozen=True)
+
+    tenant_id: str
+    time_window: str
+    system_health: CommandSystemHealthDTO
+    kpis: CommandKpisDTO
+    reliability_trend: list[CommandReliabilityTrendPointDTO] = Field(default_factory=list)
+    latency_percentiles: CommandLatencyPercentilesDTO
+    outcomes: CommandOutcomesBreakdownDTO
+    knowledge_health: CommandKnowledgeHealthDTO
+    alerts: list[ExecutiveDashboardAlertDTO] = Field(default_factory=list)
+
