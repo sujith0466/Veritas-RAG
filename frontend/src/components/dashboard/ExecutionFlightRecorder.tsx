@@ -104,16 +104,20 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
               />
             </div>
 
-            <div className="flex items-center bg-background/60 border border-border/60 rounded-lg p-1 text-xs">
+            <div className="flex items-center bg-background/60 hover:bg-background/80 border border-border/60 hover:border-border rounded-lg p-1 text-xs transition-colors">
               <Filter className="h-3 w-3 text-muted-foreground ml-1.5 mr-1" />
               <select
                 value={statusFilter}
                 onChange={(e) => onStatusFilterChange(e.target.value)}
-                className="bg-transparent text-foreground text-xs focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-foreground text-xs focus:outline-none cursor-pointer pr-1 [color-scheme:light] dark:[color-scheme:dark]"
                 aria-label="Filter by outcome"
               >
                 {STATUS_FILTERS.map((f) => (
-                  <option key={f.value} value={f.value} className="bg-popover text-popover-foreground">
+                  <option
+                    key={f.value}
+                    value={f.value}
+                    className="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 py-1"
+                  >
                     {f.label}
                   </option>
                 ))}
