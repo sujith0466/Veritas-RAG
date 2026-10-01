@@ -11,8 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
 from backend.cache.client import check_cache_health
+from backend.core.config import get_settings
 from backend.database.engine import check_db_health
 from backend.document.models.document import Document
+from backend.document.models.job import ProcessingJob
 from backend.document.models.status import DocumentStatus
 from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
 from backend.modules.chunking.models.chunk import DocumentChunk
@@ -24,7 +26,10 @@ from backend.modules.dashboard.schemas.dashboard_dto import (
     KnowledgeStageMetric,
 )
 from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
+from backend.modules.embedding.models.embedding_job import EmbeddingJob
 from backend.modules.knowledge_health.models.health_scan import HealthScanJob
+from backend.modules.vector.models.vector_metadata import VectorIndexMetadata
+from backend.modules.vector.providers.factory import VectorProviderFactory
 
 logger = structlog.get_logger(__name__)
 
@@ -39,20 +44,26 @@ class DashboardService:
         self, tenant_id: str
     ) -> KnowledgeIntelligenceSummaryDTO:
         """Aggregate knowledge foundation metrics: documents, chunks, embeddings, and health scans."""
-        # 1. Total Chunks & Average Tokens
+        # 1. Total Chunks & Average Tokens (exclude soft-deleted)
         chunk_query = select(
             func.count(DocumentChunk.id),
             func.avg(DocumentChunk.token_count),
-        ).where(DocumentChunk.tenant_id == tenant_id)
+        ).where(
+            DocumentChunk.tenant_id == tenant_id,
+            DocumentChunk.is_deleted.is_(False),
+        )
         chunk_result = await self._session.execute(chunk_query)
         total_chunks, avg_tokens = chunk_result.first() or (0, 0.0)
         total_chunks = total_chunks or 0
         avg_tokens = float(avg_tokens or 0.0)
 
-        # 2. Strategy Breakdown
+        # 2. Strategy Breakdown (exclude soft-deleted)
         strategy_query = (
             select(DocumentChunk.strategy_used, func.count(DocumentChunk.id))
-            .where(DocumentChunk.tenant_id == tenant_id)
+            .where(
+                DocumentChunk.tenant_id == tenant_id,
+                DocumentChunk.is_deleted.is_(False),
+            )
             .group_by(DocumentChunk.strategy_used)
         )
         strategy_result = await self._session.execute(strategy_query)
@@ -60,26 +71,51 @@ class DashboardService:
         if not strategy_counts and total_chunks > 0:
             strategy_counts = {"semantic": total_chunks}
 
-        # 3. Total Embeddings & Token Usage
-        emb_query = select(
-            func.count(ChunkEmbedding.id),
-            func.max(ChunkEmbedding.provider),
-            func.max(ChunkEmbedding.model_name),
-        ).where(ChunkEmbedding.tenant_id == tenant_id)
+        # 3. Total Embeddings & Token Usage (exclude soft-deleted)
+        # Select predominant active embedding provider, model, and dimension
+        emb_query = (
+            select(
+                ChunkEmbedding.provider,
+                ChunkEmbedding.model_name,
+                ChunkEmbedding.dimension,
+                func.count(ChunkEmbedding.id).label("count"),
+            )
+            .where(
+                ChunkEmbedding.tenant_id == tenant_id,
+                ChunkEmbedding.is_deleted.is_(False),
+            )
+            .group_by(
+                ChunkEmbedding.provider,
+                ChunkEmbedding.model_name,
+                ChunkEmbedding.dimension,
+            )
+            .order_by(func.count(ChunkEmbedding.id).desc())
+        )
         emb_result = await self._session.execute(emb_query)
-        total_embeddings, provider, model_name = emb_result.first() or (
-            0,
-            "openai",
-            "text-embedding-3-large",
-        )
-        total_embeddings = total_embeddings or 0
-        provider = provider or "openai"
-        model_name = model_name or "text-embedding-3-large"
+        emb_rows = emb_result.all()
+        total_embeddings = sum(r[3] for r in emb_rows)
+        if emb_rows:
+            provider = emb_rows[0][0]
+            model_name = emb_rows[0][1]
+            detected_dim = emb_rows[0][2]
+        else:
+            provider = "local"
+            model_name = "all-MiniLM-L6-v2"
+            detected_dim = 384
 
-        # Calculate approximate embedding tokens consumed if not stored separately
-        total_emb_tokens = (
-            int(total_embeddings * avg_tokens) if total_embeddings > 0 else 0
+        # Query real token consumption from EmbeddingJob if recorded
+        token_query = select(func.sum(EmbeddingJob.total_tokens_consumed)).where(
+            EmbeddingJob.tenant_id == tenant_id,
+            EmbeddingJob.is_deleted.is_(False),
         )
+        token_result = await self._session.execute(token_query)
+        actual_tokens = token_result.scalar_one_or_none()
+        if actual_tokens and actual_tokens > 0:
+            total_emb_tokens = int(actual_tokens)
+        else:
+            total_emb_tokens = (
+                int(total_embeddings * avg_tokens) if total_embeddings > 0 else 0
+            )
 
         # 4. Recent Health Scans
         scans_query = (
@@ -103,52 +139,161 @@ class DashboardService:
             for s in scans
         ]
 
-        # 5. Stage Latencies (Derived or default SLA targets)
+        # 5. Real Document Metrics (exclude soft-deleted)
+        doc_query = select(
+            func.count(Document.id),
+            func.sum(case((Document.status == DocumentStatus.READY, 1), else_=0)),
+            func.sum(case((Document.status == DocumentStatus.FAILED, 1), else_=0)),
+            func.sum(
+                case(
+                    (
+                        Document.status.notin_([
+                            DocumentStatus.READY,
+                            DocumentStatus.FAILED,
+                            DocumentStatus.DELETED,
+                            DocumentStatus.ARCHIVED,
+                        ]),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+        ).where(
+            Document.tenant_id == tenant_id,
+            Document.is_deleted.is_(False),
+        )
+        doc_result = await self._session.execute(doc_query)
+        total_docs, processed_docs, failed_docs, pending_docs = doc_result.first() or (0, 0, 0, 0)
+        total_docs = total_docs or 0
+        processed_docs = processed_docs or 0
+        failed_docs = failed_docs or 0
+        pending_docs = pending_docs or 0
+
+        # Honest validation pass rate: ratio of successfully ready documents to completed (ready + failed) documents
+        processed_and_failed = processed_docs + failed_docs
+        validation_pass_rate = (
+            round(100.0 * processed_docs / processed_and_failed, 1)
+            if processed_and_failed > 0
+            else 100.0
+        )
+
+        # 6. Real Qdrant Cluster Parity Inspection
+        qdrant_points = 0
+        vector_dim = detected_dim
+        vector_status = "green"
+        primary_col: str | None = None
+        collections_count = 0
+
+        try:
+            meta_stmt = (
+                select(VectorIndexMetadata.collection_name)
+                .where(
+                    VectorIndexMetadata.tenant_id == tenant_id,
+                    VectorIndexMetadata.is_deleted.is_(False),
+                )
+                .distinct()
+            )
+            cols = (await self._session.execute(meta_stmt)).scalars().all()
+            collection_names = (
+                list(cols)
+                if cols
+                else [get_settings().qdrant.collection_name(tenant_id)]
+            )
+
+            vector_provider = VectorProviderFactory.get_provider("qdrant")
+            collections_count = len(collection_names)
+
+            for col in collection_names:
+                primary_col = col
+                try:
+                    col_info = await vector_provider.get_collection_info(col)
+                    qdrant_points += col_info.points_count
+                    if col_info.vector_dimension:
+                        vector_dim = col_info.vector_dimension
+                    if col_info.status.lower() in ("yellow", "red"):
+                        vector_status = col_info.status.lower()
+                except Exception as col_err:
+                    logger.warning(
+                        "Could not fetch collection info from Qdrant",
+                        collection=col,
+                        error=str(col_err),
+                    )
+                    vector_status = "yellow"
+        except Exception as q_exc:
+            logger.warning(
+                "Vector provider unavailable for knowledge summary",
+                error=str(q_exc),
+            )
+            vector_status = "yellow"
+
+        # Determine true parity status: compare PostgreSQL active chunks against Qdrant vector points
+        if total_chunks == qdrant_points:
+            parity_audit_status = (
+                f"PARITY_CONFIRMED ({total_chunks} == {qdrant_points})"
+            )
+        else:
+            parity_audit_status = (
+                f"MISMATCH_DETECTED ({total_chunks} DB != {qdrant_points} Qdrant)"
+            )
+
+        # 7. Measured Processing Job Duration
+        job_stmt = (
+            select(
+                func.avg(
+                    func.extract("epoch", ProcessingJob.completed_at - ProcessingJob.started_at) * 1000.0
+                )
+            )
+            .join(Document, Document.id == ProcessingJob.document_id)
+            .where(
+                Document.tenant_id == tenant_id,
+                ProcessingJob.is_deleted.is_(False),
+                ProcessingJob.status == "COMPLETED",
+                ProcessingJob.completed_at.is_not(None),
+                ProcessingJob.started_at.is_not(None),
+            )
+        )
+        job_res = await self._session.execute(job_stmt)
+        avg_processing_duration_ms = job_res.scalar_one_or_none()
+        if avg_processing_duration_ms is not None:
+            avg_processing_duration_ms = round(float(avg_processing_duration_ms), 1)
+
+        # 8. Stage Latencies (Labeled honestly with is_measured=False for SLA targets)
         stage_latencies = [
             KnowledgeStageMetric(
                 stage_name="Validation & Checksum",
                 avg_duration_ms=18.5,
                 success_count=total_chunks,
                 failure_count=0,
+                is_measured=False,
             ),
             KnowledgeStageMetric(
                 stage_name="Text Extraction & OCR",
                 avg_duration_ms=145.2,
                 success_count=total_chunks,
                 failure_count=0,
+                is_measured=False,
             ),
             KnowledgeStageMetric(
                 stage_name="Semantic Chunking Engine",
                 avg_duration_ms=42.0,
                 success_count=total_chunks,
                 failure_count=0,
+                is_measured=False,
             ),
             KnowledgeStageMetric(
                 stage_name="Vector Embedding & Storage",
                 avg_duration_ms=210.8,
                 success_count=total_embeddings,
                 failure_count=0,
+                is_measured=False,
             ),
         ]
-
-        # 6. Real Document Metrics
-        doc_query = select(
-            func.count(Document.id),
-            func.sum(case((Document.status == DocumentStatus.READY, 1), else_=0)),
-            func.sum(case((Document.status == DocumentStatus.FAILED, 1), else_=0)),
-        ).where(Document.tenant_id == tenant_id)
-        doc_result = await self._session.execute(doc_query)
-        total_docs, processed_docs, failed_docs = doc_result.first() or (0, 0, 0)
-        total_docs = total_docs or 0
-        processed_docs = processed_docs or 0
-        failed_docs = failed_docs or 0
-
-        validation_pass_rate = 100.0 if total_docs == 0 else round(100.0 * (total_docs - failed_docs) / total_docs, 1)
 
         return KnowledgeIntelligenceSummaryDTO(
             tenant_id=tenant_id,
             total_documents=total_docs,
             processed_documents=processed_docs,
+            pending_documents=pending_docs,
             failed_documents=failed_docs,
             validation_pass_rate=validation_pass_rate,
             total_chunks=total_chunks,
@@ -158,16 +303,15 @@ class DashboardService:
             total_embedding_tokens_consumed=total_emb_tokens,
             active_embedding_provider=provider,
             active_embedding_model=model_name,
-            vector_collections_count=1 if total_embeddings > 0 else 0,
-            vector_cluster_status="green",
-            total_vector_points=total_embeddings,
+            vector_collections_count=collections_count,
+            vector_cluster_status=vector_status,
+            total_vector_points=qdrant_points,
+            vector_dimension=vector_dim,
+            vector_collection_name=primary_col,
+            avg_processing_duration_ms=avg_processing_duration_ms,
             stage_latencies=stage_latencies,
             recent_health_scans=recent_scans,
-            parity_audit_status=(
-                "PARITY_CONFIRMED"
-                if total_embeddings == total_chunks
-                else "PARITY_SYNCING"
-            ),
+            parity_audit_status=parity_audit_status,
         )
 
     async def get_executive_dashboard(

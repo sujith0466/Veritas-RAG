@@ -7,12 +7,14 @@ export interface KnowledgeStageMetricDTO {
   avg_duration_ms: number
   success_count: number
   failure_count: number
+  is_measured?: boolean
 }
 
 export interface KnowledgeIntelligenceSummaryDTO {
   tenant_id: string
   total_documents: number
   processed_documents: number
+  pending_documents?: number
   failed_documents: number
   validation_pass_rate: number
   total_chunks: number
@@ -25,12 +27,10 @@ export interface KnowledgeIntelligenceSummaryDTO {
   vector_collections_count: number
   vector_cluster_status: string
   total_vector_points: number
-  stage_latencies: {
-    stage_name: string
-    avg_duration_ms: number
-    success_count: number
-    failure_count: number
-  }[]
+  vector_dimension?: number
+  vector_collection_name?: string | null
+  avg_processing_duration_ms?: number | null
+  stage_latencies: KnowledgeStageMetricDTO[]
   recent_health_scans: {
     id: string
     scan_type: string

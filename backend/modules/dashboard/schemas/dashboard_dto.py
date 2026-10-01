@@ -14,6 +14,10 @@ class KnowledgeStageMetric(BaseModel):
     avg_duration_ms: float
     success_count: int
     failure_count: int
+    is_measured: bool = Field(
+        default=False,
+        description="True if derived from measured job execution telemetry vs SLA budget allocation",
+    )
 
 
 class KnowledgeIntelligenceSummaryDTO(BaseModel):
@@ -26,11 +30,14 @@ class KnowledgeIntelligenceSummaryDTO(BaseModel):
     processed_documents: int = Field(
         default=0, description="Successfully processed documents"
     )
+    pending_documents: int = Field(
+        default=0, description="Documents queued or in-flight (UPLOADED, PROCESSING, etc.)"
+    )
     failed_documents: int = Field(
         default=0, description="Documents failed processing or validation"
     )
     validation_pass_rate: float = Field(
-        default=100.0, description="Percentage of documents passing strict validation"
+        default=100.0, description="Percentage of processed documents passing strict validation"
     )
 
     total_chunks: int = Field(default=0, description="Total knowledge chunks created")
@@ -43,7 +50,7 @@ class KnowledgeIntelligenceSummaryDTO(BaseModel):
     )
 
     total_embeddings: int = Field(
-        default=0, description="Total vector embeddings generated"
+        default=0, description="Total vector embeddings generated in database"
     )
     total_embedding_tokens_consumed: int = Field(
         default=0, description="Total LLM API tokens consumed for embeddings"
@@ -64,7 +71,16 @@ class KnowledgeIntelligenceSummaryDTO(BaseModel):
     total_vector_points: int = Field(
         default=0, description="Total indexed points across vector collections"
     )
+    vector_dimension: int = Field(
+        default=0, description="Dimension of active vector embeddings"
+    )
+    vector_collection_name: str | None = Field(
+        default=None, description="Primary Qdrant collection name"
+    )
 
+    avg_processing_duration_ms: float | None = Field(
+        default=None, description="Average measured document processing duration in ms"
+    )
     stage_latencies: list[KnowledgeStageMetric] = Field(
         default_factory=list, description="Average processing stage durations"
     )
