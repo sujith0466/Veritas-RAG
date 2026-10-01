@@ -10,7 +10,7 @@ import math
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -496,48 +496,54 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
         end_time: datetime | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
-        """Aggregate citation counts from chat message JSONB."""
-        from backend.modules.chat.models.chat_message import ChatMessage
-        from backend.modules.chat.models.chat_session import ChatSession
-
-        citation_elem = func.jsonb_array_elements(
-            func.cast(ChatMessage.citations, func.jsonb())
-        ).label('citation')
-
-        query = select(
-            citation_elem.op('->>')('document_id').label('document_id'),
-            citation_elem.op('->>')('document_name').label('document_name'),
-            func.count().label('citation_count'),
-            func.max(ChatMessage.created_at).label('last_cited_at')
-        ).select_from(
-            ChatMessage
-        ).join(
-            ChatSession, ChatMessage.session_id == ChatSession.id
-        ).where(
-            ChatSession.tenant_id == tenant_id,
-            ChatMessage.citations.is_not(None)
-        )
+        """Aggregate citation counts from chat message JSON arrays and resolve document titles."""
+        query_sql = """
+            SELECT 
+                elem->>'document_id' AS document_id,
+                COALESCE(elem->>'document_name', d.filename, d.original_filename, 'Unknown Document') AS document_title,
+                COUNT(*)::int AS citation_count,
+                MAX(m.created_at) AS last_cited_at
+            FROM chat_messages m
+            JOIN chat_sessions s ON m.session_id = s.id
+            CROSS JOIN LATERAL json_array_elements(
+                CASE 
+                    WHEN json_typeof(m.citations) = 'array' THEN m.citations 
+                    ELSE '[]'::json 
+                END
+            ) AS elem
+            LEFT JOIN documents d ON elem->>'document_id' = d.id::text AND d.tenant_id = :tenant_id
+            WHERE s.tenant_id = :tenant_id
+              AND elem->>'document_id' IS NOT NULL
+        """
+        params: dict[str, Any] = {
+            "tenant_id": str(tenant_id),
+            "limit": limit,
+        }
 
         if start_time:
-            query = query.where(ChatMessage.created_at >= start_time)
+            query_sql += " AND m.created_at >= :start_time"
+            params["start_time"] = start_time
         if end_time:
-            query = query.where(ChatMessage.created_at <= end_time)
+            query_sql += " AND m.created_at <= :end_time"
+            params["end_time"] = end_time
 
-        query = query.group_by(
-            citation_elem.op('->>')('document_id'),
-            citation_elem.op('->>')('document_name')
-        ).order_by(
-            desc('citation_count')
-        ).limit(limit)
+        query_sql += """
+            GROUP BY elem->>'document_id', elem->>'document_name', d.filename, d.original_filename
+            ORDER BY citation_count DESC
+            LIMIT :limit
+        """
 
-        result = await self.session.execute(query)
+        result = await self.session.execute(text(query_sql), params)
+        rows = result.mappings().all()
         return [
             {
-                "document_id": row.document_id,
-                "document_title": row.document_name or "Unknown Document",
-                "citation_count": row.citation_count,
-                "last_cited_at": row.last_cited_at
-            } for row in result.all() if row.document_id
+                "document_id": str(row["document_id"]),
+                "document_title": str(row["document_title"]),
+                "citation_count": int(row["citation_count"]),
+                "last_cited_at": row["last_cited_at"],
+            }
+            for row in rows
+            if row["document_id"]
         ]
 
     async def get_search_analytics(self, tenant_id: str) -> SearchAnalyticsDTO:
