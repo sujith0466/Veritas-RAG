@@ -6,6 +6,7 @@ from .domain_events import (
                             EVENT_DOCUMENT_PROCESSED,
                             EVENT_DOCUMENT_RESTORED,
                             EVENT_DOCUMENT_ROLLED_BACK,
+                            EVENT_DOCUMENT_DELETED,
                             EVENT_DOCUMENT_STORED,
                             EVENT_DOCUMENT_UPLOADED,
                             EVENT_DOCUMENT_VALIDATED,
@@ -30,6 +31,7 @@ __all__ = [
     "EVENT_DOCUMENT_RESTORED",
     "EVENT_DOCUMENT_VERSION_CREATED",
     "EVENT_DOCUMENT_ROLLED_BACK",
+    "EVENT_DOCUMENT_DELETED",
     "DomainEventPayload",
     "create_domain_event",
 ]

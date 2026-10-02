@@ -39,6 +39,7 @@ def create_celery_app() -> Celery:
             "backend.tasks.webhooks",
             "backend.tasks.quota",
             "backend.tasks.retention",
+            "backend.document.workers.archive",
         ],
     )
 

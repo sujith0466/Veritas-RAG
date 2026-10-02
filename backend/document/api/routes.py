@@ -23,8 +23,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
-from backend.core.dependencies.auth import get_optional_user
+from backend.core.auth.context import UserContext
+from backend.core.dependencies.auth import require_role
 from backend.core.dependencies.database import get_db
+from backend.core.permissions.rbac import Role
 from backend.document.schemas import (
     DocumentDetailResponse,
     DocumentListResponse,
@@ -44,7 +46,7 @@ def _build_metadata(request: Request) -> ResponseMetadata:
 
 
 def _resolve_tenant_and_owner(
-    user: Any | None,
+    user: UserContext | Any | None,
 ) -> tuple[str, uuid.UUID | None]:
     tenant_id = getattr(user, "tenant_id", None)
     if not user or not tenant_id or str(tenant_id) == "None":
@@ -64,7 +66,7 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     relative_path: str | None = Form(default=None),
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.MEMBER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[UploadResponse]:
     """Handle synchronous upload screening, storage persistence, and Celery job dispatch."""
@@ -125,7 +127,7 @@ async def upload_document(
 async def get_document_status(
     request: Request,
     document_id: uuid.UUID,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.VIEWER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[ProcessingStatusResponse]:
     """Retrieve processing status for a specific document."""
@@ -154,7 +156,7 @@ async def get_document_status(
 async def get_document_detail(
     request: Request,
     document_id: uuid.UUID,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.VIEWER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[DocumentDetailResponse]:
     """Retrieve detailed document metadata and manifest."""
@@ -189,7 +191,7 @@ async def list_documents(
         alias="status",
         description="Filter by status (PENDING, VALIDATING, EXTRACTING, PROCESSED, FAILED)",
     ),
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.VIEWER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[DocumentListResponse]:
     """List documents with pagination."""
@@ -215,15 +217,15 @@ async def list_documents(
     "/{document_id}",
     response_model=SuccessResponse[dict[str, Any]],
     summary="Soft-delete document and purge artifacts",
-    description="Soft-delete document database record and remove all physical artifacts from storage.",
+    description="Soft-delete document database record, purge physical artifacts from storage, and delete Qdrant vectors.",
 )
 async def delete_document(
     request: Request,
     document_id: uuid.UUID,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.ADMIN)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
-    """Delete document entity and clean up physical files."""
+    """Delete document entity, clean up physical files, and remove vectors."""
     tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
@@ -250,7 +252,7 @@ async def delete_document(
 async def archive_document(
     request: Request,
     document_id: uuid.UUID,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.ADMIN)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
     """Archive a document."""
@@ -281,7 +283,7 @@ async def archive_document(
 async def restore_document(
     request: Request,
     document_id: uuid.UUID,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.ADMIN)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict[str, Any]]:
     """Restore a document."""
@@ -314,7 +316,7 @@ async def upload_document_version(
     request: Request,
     document_id: uuid.UUID,
     file: UploadFile = File(...),
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.MEMBER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[UploadResponse]:
     """Upload a new version of a document."""
@@ -366,7 +368,7 @@ async def rollback_document_version(
     request: Request,
     document_id: uuid.UUID,
     version_id: uuid.UUID,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.ADMIN)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[UploadResponse]:
     """Rollback to a previous version."""
@@ -414,7 +416,7 @@ async def update_document_metadata(
     document_id: uuid.UUID,
     payload: MetadataUpdatePayload,
     request: Request,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.MEMBER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Overwrite all user_metadata keys for a document."""
@@ -442,7 +444,7 @@ async def patch_document_metadata(
     document_id: uuid.UUID,
     payload: MetadataUpdatePayload,
     request: Request,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.MEMBER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Merge new keys into the document's user_metadata."""
@@ -470,7 +472,7 @@ async def remove_document_metadata_key(
     document_id: uuid.UUID,
     key: str,
     request: Request,
-    user: Any | None = Depends(get_optional_user),
+    user: UserContext = Depends(require_role(Role.MEMBER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Remove a specific key from the document's user_metadata."""

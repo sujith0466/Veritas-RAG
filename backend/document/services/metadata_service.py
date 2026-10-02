@@ -8,9 +8,9 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.redis_client import acquire_lock
+from backend.cache.locks import acquire_lock
 from backend.document.repositories.document_repository import DocumentRepository
-from backend.document.services.exceptions import DocumentDomainException
+from backend.document.schemas.errors import DocumentDomainException
 
 
 class MetadataService:

@@ -73,7 +73,14 @@ def restore_archived_document_vectors_job(self, document_id: str, version_id: st
                     document_version_id=uuid.UUID(version_id),
                     tenant_id=tenant_id
                 )
-                log.info("Finished restore vector sync job", synced_count=synced_count)
+                from backend.document.models.document import Document
+                from backend.document.models.status import DocumentStatus
+                doc = await session.get(Document, uuid.UUID(document_id))
+                if doc and doc.status != DocumentStatus.READY.value:
+                    doc.status = DocumentStatus.READY.value
+                    await session.commit()
+
+                log.info("Finished restore vector sync job and transitioned document to READY", synced_count=synced_count)
                 return {"status": "success", "synced_ops": synced_count}
             except Exception as e:
                 log.error("Restore vector sync failed", error=str(e))
@@ -87,4 +94,19 @@ def restore_archived_document_vectors_job(self, document_id: str, version_id: st
             error=str(exc),
             document_id=document_id,
         )
+        if hasattr(self, "request") and self.request.retries >= self.max_retries:
+            # Mark document as FAILED so failure is observable
+            async def _mark_failed():
+                async with get_session_factory()() as session:
+                    from backend.document.models.document import Document
+                    from backend.document.models.status import DocumentStatus
+                    doc = await session.get(Document, uuid.UUID(document_id))
+                    if doc:
+                        doc.status = DocumentStatus.FAILED.value
+                        await session.commit()
+            try:
+                asyncio.run(_mark_failed())
+            except Exception as mark_err:
+                logger.warning("Failed to mark document as FAILED after retries exhausted", error=str(mark_err))
+            raise exc
         raise self.retry(exc=exc, countdown=2 ** self.request.retries * 5)

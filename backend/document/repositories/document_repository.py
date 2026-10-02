@@ -174,7 +174,7 @@ class DocumentRepository:
         doc = result.scalar_one_or_none()
         if not doc:
             return None
-        doc.status = DocumentStatus.PROCESSED.value
+        doc.status = DocumentStatus.VECTOR_SYNC.value
         doc.archived_at = None
         doc.archived_by_user_id = None
         await session.flush()

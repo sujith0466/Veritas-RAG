@@ -54,6 +54,27 @@ class RetrievalRepository(BaseRepository[RetrievalQueryLog]):
         )
         return log_entry.id
 
+    async def filter_active_ready_document_ids(
+        self, document_ids: set[UUID], tenant_id: str
+    ) -> set[UUID]:
+        """Filter candidate document IDs, ensuring they are active (not deleted) and in READY status for tenant."""
+        if not document_ids:
+            return set()
+        from backend.document.models.document import Document
+        from backend.document.models.status import DocumentStatus
+
+        stmt = (
+            select(Document.id)
+            .where(
+                Document.id.in_(document_ids),
+                Document.tenant_id == tenant_id,
+                Document.is_deleted.is_(False),
+                Document.status == DocumentStatus.READY.value,
+            )
+        )
+        result = await self.session.execute(stmt)
+        return set(result.scalars().all())
+
     async def get_query_history(
         self, tenant_id: str, limit: int = 50, offset: int = 0
     ) -> Sequence[RetrievalQueryLog]:

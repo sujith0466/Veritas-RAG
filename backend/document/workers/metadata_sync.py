@@ -5,7 +5,7 @@ import uuid
 import structlog
 from backend.database.session import get_session_factory
 from backend.document.repositories.document_repository import DocumentRepository
-from backend.document.services.vector_service import VectorStorageService
+from backend.modules.vector.services.vector_service import VectorStorageService
 from backend.tasks.celery_app import celery_app
 
 logger = structlog.get_logger(__name__)

@@ -307,11 +307,19 @@ class VectorStorageService:
                 op_id = await self.provider.delete_points_by_filter(col, filter_conds)
                 total_ops += op_id
             except Exception as exc:
-                log.warning(
-                    "Failed to delete points from collection during purge",
-                    collection=col,
-                    error=str(exc),
-                )
+                err_str = str(exc).lower()
+                if "not found" in err_str:
+                    log.info(
+                        "Target collection not found during point deletion; vectors already absent",
+                        collection=col,
+                    )
+                else:
+                    log.error(
+                        "Failed to delete points from collection during purge",
+                        collection=col,
+                        error=str(exc),
+                    )
+                    raise
 
         # Soft delete metadata records
         meta_stmt = select(VectorIndexMetadata).where(

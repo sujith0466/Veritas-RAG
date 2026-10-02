@@ -336,6 +336,20 @@ class RetrievalOrchestrator:
             )
             rrf_ms = (time.perf_counter() - rrf_start) * 1000.0
 
+            # Stage 2.5: Defense-in-depth: Exclude soft-deleted or non-READY documents
+            if self.repository and hasattr(self.repository, "filter_active_ready_document_ids"):
+                try:
+                    candidate_doc_ids = {
+                        c.document_id for c in deduped if getattr(c, "document_id", None)
+                    }
+                    if candidate_doc_ids:
+                        valid_doc_ids = await self.repository.filter_active_ready_document_ids(
+                            candidate_doc_ids, tenant_id
+                        )
+                        deduped = [c for c in deduped if getattr(c, "document_id", None) in valid_doc_ids]
+                except Exception as exc:
+                    logger.warning("Defense-in-depth document validity check failed; proceeding with caution", error=str(exc))
+
             # Stage 3: Cross-Encoder Reranking (`strictly bounded to top N <= 30 per ADR-M4-002`)
             rerank_start = time.perf_counter()
             rerank_input = deduped[:30]

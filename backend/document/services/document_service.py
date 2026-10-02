@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.cache.locks import acquire_lock
 from backend.document.events import (
     EVENT_DOCUMENT_ARCHIVED,
+    EVENT_DOCUMENT_DELETED,
     EVENT_DOCUMENT_RESTORED,
     EVENT_DOCUMENT_ROLLED_BACK,
     EVENT_DOCUMENT_UPLOADED,
@@ -317,7 +318,7 @@ class DocumentService:
     async def delete_document(
         self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
     ) -> bool:
-        """Soft-delete a document and remove its physical artifacts from storage."""
+        """Soft-delete a document, remove physical artifacts from storage, and clean up Qdrant vectors."""
         doc = await self.doc_repo.get_by_id_with_versions(
             document_id, tenant_id, session
         )
@@ -329,11 +330,58 @@ class DocumentService:
         if not success:
             return False
 
-        await session.commit()
-
         # Delete physical artifacts from storage prefix (`documents/{tenant_id}/{document_id}`)
         prefix = f"documents/{tenant_id}/{document_id}"
         await self.storage.delete_prefix(prefix)
+
+        # Clean up vector points from Qdrant via VectorStorageService
+        from backend.modules.vector.services.vector_service import VectorStorageService
+
+        vector_service = VectorStorageService(session=session)
+        await vector_service.delete_document_points(
+            document_id=document_id, tenant_id=tenant_id
+        )
+
+        # Log deletion audit event
+        payload = create_domain_event(
+            event_type=EVENT_DOCUMENT_DELETED,
+            tenant_id=tenant_id,
+            document_id=document_id,
+        )
+        event_log = DocumentEventLog(
+            document_id=document_id,
+            event_type=EVENT_DOCUMENT_DELETED,
+            payload=payload.model_dump(mode="json"),
+            triggered_by="delete_api",
+        )
+        await self.event_repo.append_event(event_log, session)
+        await session.commit()
+
+        # Invalidate BM25 sparse index via domain event
+        try:
+            from dataclasses import dataclass
+            from backend.core.events.base import BaseEvent
+            from backend.core.events.dispatcher import get_dispatcher
+            from backend.core.events.types import EventType
+
+            @dataclass(frozen=True)
+            class DocumentDeletedDomainEvent(BaseEvent):
+                event_type: EventType = EventType.DOCUMENT_DELETED
+                tenant_id: str = ""
+                document_id: str = ""
+
+            del_event = DocumentDeletedDomainEvent(
+                tenant_id=tenant_id, document_id=str(document_id)
+            )
+            dispatcher = get_dispatcher()
+            await dispatcher.publish(del_event)
+        except Exception as exc:
+            import structlog
+
+            logger = structlog.get_logger(__name__)
+            logger.warning(
+                "Failed to publish DOCUMENT_DELETED event", error=str(exc)
+            )
 
         return True
 
