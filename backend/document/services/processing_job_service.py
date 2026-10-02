@@ -262,27 +262,92 @@ class ProcessingJobService:
 
     async def requeue_stale_jobs(
         self,
-        threshold_minutes: int,
-        session: AsyncSession,
+        threshold_minutes: int = 5,
+        pending_threshold_minutes: int = 15,
+        max_age_hours: int | None = 24,
+        session: AsyncSession | None = None,
     ) -> int:
-        """Find stale claimed jobs and requeue them (for cron worker)."""
-        stale_jobs = await self.job_repo.get_stale_claimed_jobs(threshold_minutes, session)
-        if not stale_jobs:
+        """Find stale claimed and unacknowledged pending jobs and re-dispatch them with real Celery apply_async.
+
+        Guards against concurrent execution using distributed locking.
+        Ignores historical records older than max_age_hours (default 24h) to protect stranded baseline documents.
+        """
+        if session is None:
             return 0
 
-        requeued_count = 0
-        for job in stale_jobs:
-            # Check redis if worker is still holding lock / heartbeating
-            lock_key = f"job_lock:{job.id}"
-            is_locked = await self.redis.exists(lock_key)
-            if not is_locked:
-                job.status = "QUEUED"
-                job.claimed_by_worker = None
-                job.claimed_at = None
-                await self.audit_repo.append(
-                    job.id, "JOB_REQUEUED_STALE", "system_cron", None, session
-                )
-                requeued_count += 1
+        from backend.document.services.job_dispatcher import JobDispatcher
+        import structlog
+        logger = structlog.get_logger(__name__)
 
-        await session.flush()
+        # 1. Distributed lock to prevent concurrent sweeper executions
+        lock_key = "cron_lock:requeue_stale_jobs"
+        lock_acquired = False
+        try:
+            # redis set nx=True returns True/b"OK" or None/False
+            lock_res = await self.redis.set(lock_key, "locked", ex=120, nx=True)
+            if not lock_res:
+                logger.info("Concurrent stale job sweeper execution skipped due to active lock")
+                return 0
+            lock_acquired = True
+        except Exception as lock_err:
+            logger.warning("Redis lock acquisition failed for stale sweeper, continuing with cautious execution", error=str(lock_err))
+
+        requeued_count = 0
+        try:
+            # 2. Recover Stale CLAIMED/PROCESSING jobs where worker heartbeats died
+            stale_claimed = await self.job_repo.get_stale_claimed_jobs(threshold_minutes, session)
+            for job in stale_claimed:
+                job_lock = f"job_lock:{job.id}"
+                is_locked = await self.redis.exists(job_lock)
+                if not is_locked:
+                    if job.retry_count >= job.max_retries:
+                        job.status = "FAILED"
+                        job.error_code = "MAX_RETRIES_EXCEEDED"
+                        job.error_message = f"Stale job exceeded maximum retries ({job.max_retries})"
+                        job.completed_at = datetime.now(UTC)
+                        await self.audit_repo.append(
+                            job.id, "JOB_FAILED_MAX_RETRIES", "system_cron", None, session
+                        )
+                        logger.warning("Stale job marked FAILED due to retry exhaustion", job_id=str(job.id), retries=job.retry_count)
+                    else:
+                        job.status = "QUEUED"
+                        job.retry_count += 1
+                        job.claimed_by_worker = None
+                        job.claimed_at = None
+
+                        # Real Celery dispatch
+                        dispatch_res = await JobDispatcher.dispatch_job(job, session=session, queue="ingestion", force=True)
+                        if dispatch_res.success:
+                            await self.audit_repo.append(
+                                job.id, "JOB_REQUEUED_STALE", "system_cron", {"task_id": dispatch_res.task_id}, session
+                            )
+                            requeued_count += 1
+                        else:
+                            await self.audit_repo.append(
+                                job.id, "JOB_REQUEUE_DISPATCH_FAILED", "system_cron", {"error": dispatch_res.error}, session
+                            )
+
+            # 3. Recover Stale PENDING / FAILED_DISPATCH jobs created within recovery window
+            stale_pending = await self.job_repo.get_stale_pending_jobs(pending_threshold_minutes, max_age_hours, session)
+            for job in stale_pending:
+                job.status = "QUEUED"
+                dispatch_res = await JobDispatcher.dispatch_job(job, session=session, queue="ingestion", force=True)
+                if dispatch_res.success:
+                    await self.audit_repo.append(
+                        job.id, "JOB_REDISPATCHED_PENDING", "system_cron", {"task_id": dispatch_res.task_id}, session
+                    )
+                    requeued_count += 1
+                else:
+                    await self.audit_repo.append(
+                        job.id, "JOB_REDISPATCH_FAILED", "system_cron", {"error": dispatch_res.error}, session
+                    )
+
+            await session.flush()
+        finally:
+            if lock_acquired:
+                try:
+                    await self.redis.delete(lock_key)
+                except Exception:
+                    pass
+
         return requeued_count

@@ -219,18 +219,109 @@ async def test_record_step_error_retries_and_dlq(
 
 
 async def test_requeue_stale_jobs(job_service, mock_job_repo, mock_redis, mock_session):
+    from unittest.mock import MagicMock, patch
+
     stale_job1 = ProcessingJob(
         id=uuid.uuid4(),
         document_id=uuid.uuid4(),
         status="CLAIMED",
         claimed_by_worker="dead_worker",
+        retry_count=0,
+        max_retries=3,
     )
     mock_job_repo.get_stale_claimed_jobs.return_value = [stale_job1]
+    mock_job_repo.get_stale_pending_jobs.return_value = []
+    mock_redis.set.return_value = True
     mock_redis.exists.return_value = False  # Lock released/expired
+
+    mock_task = MagicMock()
+    mock_task.id = "task-requeued-1"
+
+    with patch("backend.document.workers.ingestion.process_document_job.apply_async", return_value=mock_task) as mock_apply:
+        count = await job_service.requeue_stale_jobs(threshold_minutes=5, session=mock_session)
+
+        assert count == 1
+        assert stale_job1.status == "QUEUED"
+        assert stale_job1.claimed_by_worker is None
+        assert stale_job1.claimed_at is None
+        assert stale_job1.dispatch_state == "DISPATCHED"
+        assert stale_job1.celery_task_id == "task-requeued-1"
+        mock_apply.assert_called_once()
+
+
+async def test_requeue_stale_jobs_pending(job_service, mock_job_repo, mock_redis, mock_session):
+    from unittest.mock import MagicMock, patch
+
+    stale_pending = ProcessingJob(
+        id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        status="PENDING",
+        dispatch_state="FAILED_DISPATCH",
+        retry_count=0,
+        max_retries=3,
+    )
+    mock_job_repo.get_stale_claimed_jobs.return_value = []
+    mock_job_repo.get_stale_pending_jobs.return_value = [stale_pending]
+    mock_redis.set.return_value = True
+
+    mock_task = MagicMock()
+    mock_task.id = "task-requeued-pending"
+
+    with patch("backend.document.workers.ingestion.process_document_job.apply_async", return_value=mock_task) as mock_apply:
+        count = await job_service.requeue_stale_jobs(threshold_minutes=5, pending_threshold_minutes=15, session=mock_session)
+
+        assert count == 1
+        assert stale_pending.status == "QUEUED"
+        assert stale_pending.dispatch_state == "DISPATCHED"
+        assert stale_pending.celery_task_id == "task-requeued-pending"
+        mock_apply.assert_called_once()
+
+
+async def test_requeue_stale_jobs_max_retries_exhaustion(job_service, mock_job_repo, mock_redis, mock_session):
+    stale_job = ProcessingJob(
+        id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        status="CLAIMED",
+        claimed_by_worker="dead_worker",
+        retry_count=3,
+        max_retries=3,
+    )
+    mock_job_repo.get_stale_claimed_jobs.return_value = [stale_job]
+    mock_job_repo.get_stale_pending_jobs.return_value = []
+    mock_redis.set.return_value = True
+    mock_redis.exists.return_value = False
 
     count = await job_service.requeue_stale_jobs(threshold_minutes=5, session=mock_session)
 
-    assert count == 1
-    assert stale_job1.status == "QUEUED"
-    assert stale_job1.claimed_by_worker is None
-    assert stale_job1.claimed_at is None
+    assert count == 0
+    assert stale_job.status == "FAILED"
+    assert stale_job.error_code == "MAX_RETRIES_EXCEEDED"
+
+
+async def test_requeue_stale_jobs_concurrent_lock_prevention(job_service, mock_job_repo, mock_redis, mock_session):
+    mock_redis.set.return_value = False  # Lock already held by another sweeper
+
+    count = await job_service.requeue_stale_jobs(threshold_minutes=5, session=mock_session)
+
+    assert count == 0
+    mock_job_repo.get_stale_claimed_jobs.assert_not_called()
+
+
+async def test_requeue_stale_jobs_worker_alive_skip(job_service, mock_job_repo, mock_redis, mock_session):
+    stale_job = ProcessingJob(
+        id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        status="CLAIMED",
+        claimed_by_worker="active_worker",
+        retry_count=0,
+        max_retries=3,
+    )
+    mock_job_repo.get_stale_claimed_jobs.return_value = [stale_job]
+    mock_job_repo.get_stale_pending_jobs.return_value = []
+    mock_redis.set.return_value = True
+    mock_redis.exists.return_value = True  # Worker is still holding lock
+
+    count = await job_service.requeue_stale_jobs(threshold_minutes=5, session=mock_session)
+
+    assert count == 0
+    assert stale_job.status == "CLAIMED"

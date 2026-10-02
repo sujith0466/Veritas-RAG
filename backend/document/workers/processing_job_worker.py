@@ -38,9 +38,9 @@ def requeue_stale_jobs(self):
 
     async def run():
         async with _get_job_service() as (service, session):
-            # Find jobs claimed more than 5 minutes ago and requeue them
             count = await service.requeue_stale_jobs(threshold_minutes=5, session=session)
             if count > 0:
+                await session.commit()
                 print(f"Requeued {count} stale jobs")
 
     loop = asyncio.get_event_loop()

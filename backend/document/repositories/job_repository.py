@@ -178,10 +178,33 @@ class JobRepository:
         from datetime import timedelta
         threshold = datetime.now(UTC) - timedelta(minutes=threshold_minutes)
         stmt = select(ProcessingJob).where(
-            ProcessingJob.status == "CLAIMED",
+            ProcessingJob.status.in_(["CLAIMED", "PROCESSING"]),
             ProcessingJob.claimed_at < threshold,
             ProcessingJob.is_deleted.is_(False),
         )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_stale_pending_jobs(
+        self,
+        pending_threshold_minutes: int,
+        max_age_hours: int | None,
+        session: AsyncSession,
+    ) -> list[ProcessingJob]:
+        """Find pending/queued jobs with unacknowledged or failed dispatch within the recovery window."""
+        from datetime import timedelta
+        now = datetime.now(UTC)
+        threshold = now - timedelta(minutes=pending_threshold_minutes)
+        stmt = select(ProcessingJob).where(
+            ProcessingJob.status.in_(["PENDING", "QUEUED"]),
+            ProcessingJob.dispatch_state.in_(["FAILED_DISPATCH", "PENDING_DISPATCH"]),
+            ProcessingJob.created_at < threshold,
+            ProcessingJob.is_deleted.is_(False),
+        )
+        if max_age_hours is not None:
+            min_created = now - timedelta(hours=max_age_hours)
+            stmt = stmt.where(ProcessingJob.created_at >= min_created)
+
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
