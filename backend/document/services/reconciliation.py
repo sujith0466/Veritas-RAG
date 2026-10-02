@@ -45,11 +45,11 @@ class ReconciliationItem:
 
 @dataclass
 class ReconciliationReport:
-    """Tenant-scoped reconciliation audit findings."""
+    """Tenant-scoped or global reconciliation audit findings."""
 
-    tenant_id: str
-    dry_run: bool
-    scanned_at: str
+    tenant_id: str | None = None
+    dry_run: bool = True
+    scanned_at: str = ""
     total_documents: int = 0
     healthy_count: int = 0
     class_a_count: int = 0  # Stranded with intact physical file
@@ -110,26 +110,30 @@ class DocumentReconciliationService:
     @classmethod
     async def scan_tenant(
         cls,
-        tenant_id: str,
+        tenant_id: str | None,
         session: AsyncSession,
         dry_run: bool = True,
         limit: int = 500,
     ) -> ReconciliationReport:
-        """Scan and classify all documents in a tenant namespace.
+        """Scan and classify all documents in a tenant namespace (or globally if None).
         
         Args:
-            tenant_id: Tenant UUID string.
+            tenant_id: Tenant UUID string, or None for all tenants.
             session: AsyncSession for read-only querying.
             dry_run: Must default to True.
             limit: Maximum document records to evaluate per batch.
         """
         now_iso = datetime.now(timezone.utc).isoformat()
-        report = ReconciliationReport(tenant_id=tenant_id, dry_run=dry_run, scanned_at=now_iso)
+        report = ReconciliationReport(tenant_id=tenant_id or "ALL", dry_run=dry_run, scanned_at=now_iso)
 
-        # 1. Fetch documents within tenant
+        # 1. Fetch documents within tenant or globally
+        where_clauses = [Document.is_deleted.is_(False)]
+        if tenant_id:
+            where_clauses.append(Document.tenant_id == tenant_id)
+
         doc_stmt = (
             select(Document)
-            .where(Document.tenant_id == tenant_id, Document.is_deleted.is_(False))
+            .where(*where_clauses)
             .order_by(Document.created_at.desc())
             .limit(limit)
         )
@@ -151,8 +155,9 @@ class DocumentReconciliationService:
             storage_valid = False
             storage_anomaly = None
             if version and version.storage_object:
+                expected_tenant = tenant_id if tenant_id else str(doc.tenant_id)
                 preflight = StoragePreflightValidator.validate(
-                    version.storage_object, expected_tenant_id=tenant_id
+                    version.storage_object, expected_tenant_id=expected_tenant
                 )
                 storage_valid = preflight.is_valid
                 storage_anomaly = preflight.anomaly_type

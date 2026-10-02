@@ -81,6 +81,11 @@ api_v1_router.include_router(storage_webhooks_router)
 # ── Document Intelligence Foundation (`/documents`) ────────────────────────────
 api_v1_router.include_router(document_router)
 
+# ── Admin Document Diagnostics (`/admin/documents`) ───────────────────────────
+from .routes.admin_documents import router as admin_documents_router
+
+api_v1_router.include_router(admin_documents_router)
+
 # ── Knowledge Layer Foundation (`/chunks`) ─────────────────────────────────────
 from backend.modules.chunking.api import router as chunk_router
 
