@@ -11,6 +11,7 @@ from typing import Any
 import uuid
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -146,6 +147,7 @@ class DocumentReconciliationService:
             # 2. Latest version & storage object
             ver_stmt = (
                 select(DocumentVersion)
+                .options(selectinload(DocumentVersion.storage_object))
                 .where(DocumentVersion.document_id == doc_id, DocumentVersion.is_deleted.is_(False))
                 .order_by(DocumentVersion.version_number.desc())
                 .limit(1)

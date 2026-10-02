@@ -142,20 +142,22 @@ async def _async_sync_vectors_task(
             )
             await session.commit()
 
+        from dataclasses import dataclass, field
         from backend.core.events.base import BaseEvent
         from backend.core.events.dispatcher import get_dispatcher
         from backend.core.events.types import EventType
 
+        @dataclass(frozen=True)
         class VectorIndexedEvent(BaseEvent):
+            document_id: str = ""
+            tenant_id: str = ""
+            data: dict = field(default_factory=dict)
             event_type: EventType = EventType.VECTORS_INDEXED
-            document_id: str
-            tenant_id: str
-            data: dict
 
         success_event = VectorIndexedEvent(
             document_id=document_id,
             tenant_id=tenant_id,
-            data={"upserted_points": upserted}
+            data={"upserted_points": upserted},
         )
         dispatcher = get_dispatcher()
         await dispatcher.publish(success_event)
