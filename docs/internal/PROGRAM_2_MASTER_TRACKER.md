@@ -246,3 +246,27 @@
 #### F15.8 — Production Operations & Emergency Runbooks
 [x] Architecture Reviewed | [x] Operations Runbook | [x] Incident Response | [x] Rollback Procedure | [x] Service Restart | [x] Disaster Recovery | [x] Backup Recovery | [x] Health Checks | [x] Startup Runbook | [x] Shutdown Runbook | [x] Load Testing | [x] Chaos Engineering
 **Status**: ✅ DOCUMENTATION VALIDATED | **Progress**: 100%
+
+---
+
+## Documents Program: Pipeline Reliability & Stranded Document Recovery (Phases D1 & D2)
+| Phase | Status | Baseline SHA | Notes |
+|---|---|---|---|
+| Phase D1 — Document Security & Retrieval Integrity | ✅ FROZEN / CLOSED | `4065915` | RBAC boundaries, deletion lifecycle hardening, defense-in-depth vector filters, restore reconciliation |
+| Phase D2 — Pipeline Reliability & Stranded Document Recovery | ✅ FROZEN / CLOSED | `55a5235` | D2.1–D2.9 fully certified, 0 stranded documents remaining, resilient dispatch, preflight validator, failure synchronizer, admin diagnostics |
+
+### Phase D2 Milestone Implementation Ledger (D2.1 → D2.9)
+- **D2.1 — Resilient Dispatch & Durable State Architecture**: ✅ CERTIFIED / FROZEN (`19bde58`)
+- **D2.2 — Hardened Ingestion Dispatcher**: ✅ CERTIFIED / FROZEN (`920e0a5`)
+- **D2.3 — Comprehensive Stale Job Sweeper**: ✅ CERTIFIED / FROZEN (`251ac16`)
+- **D2.4 — Storage Pre-Flight Validator**: ✅ CERTIFIED / FROZEN (`2a8e497`)
+- **D2.5 — Resilient Failure State Synchronization**: ✅ CERTIFIED / FROZEN (`dd63ceb`)
+- **D2.6 — Read-Only Reconciliation Engine**: ✅ CERTIFIED / FROZEN (`a470f64`)
+- **D2.7 — Admin Diagnostics API Integration**: ✅ CERTIFIED / FROZEN (`dba3713`)
+- **D2.8 — Controlled Recovery of 86 Stranded Documents**: ✅ CERTIFIED / FROZEN (`56d13ca`)
+- **D2.9 — End-to-End Regression & Parity Verification**: ✅ CERTIFIED / FROZEN (`55a5235`)
+
+**Final Documents Phase D2 Baseline**: `55a5235d86e4b3ba9698f9fa68fbd73b6bf6d04e`  
+**Certification Document**: `docs/Certification/VERITAS_RAG_DOCUMENTS_D2_FINAL_CERTIFICATION.md`  
+**Freeze Status**: ✅ FROZEN / CLOSED (Zero remaining D2 blockers; no reopening permitted without formal defect authorization)
+
