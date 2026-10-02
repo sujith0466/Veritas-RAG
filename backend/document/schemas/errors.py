@@ -31,6 +31,7 @@ class DocumentErrorCode(StrEnum):
     STORE_001 = "STORE_001"  # Object storage write operation failed
     STORE_002 = "STORE_002"  # Storage object not found or read failure
     STORE_003 = "STORE_003"  # Storage provider connection or quota failure
+    STORAGE_OBJECT_NOT_FOUND = "STORAGE_OBJECT_NOT_FOUND"  # Physical object missing (FATAL pre-flight)
 
     # Extraction errors (EXTRACT_xxx)
     EXTRACT_001 = (
@@ -63,6 +64,7 @@ ERROR_SEVERITY_MAP: dict[DocumentErrorCode | str, ErrorSeverity] = {
     DocumentErrorCode.STORE_001: ErrorSeverity.RECOVERABLE,
     DocumentErrorCode.STORE_002: ErrorSeverity.RECOVERABLE,
     DocumentErrorCode.STORE_003: ErrorSeverity.RECOVERABLE,
+    DocumentErrorCode.STORAGE_OBJECT_NOT_FOUND: ErrorSeverity.FATAL,
     DocumentErrorCode.EXTRACT_001: ErrorSeverity.FATAL,
     DocumentErrorCode.EXTRACT_002: ErrorSeverity.RECOVERABLE,
     DocumentErrorCode.EXTRACT_003: ErrorSeverity.FATAL,

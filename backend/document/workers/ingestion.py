@@ -129,6 +129,33 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
 
             tenant_id = doc.tenant_id
 
+            # ── Pre-flight Storage Check ─────────────────────────────────────────
+            from backend.document.storage.preflight import StoragePreflightValidator
+
+            preflight = StoragePreflightValidator.validate(
+                version.storage_object,
+                expected_tenant_id=tenant_id,
+            )
+            if not preflight.is_valid:
+                logger.error(
+                    "Storage pre-flight validation failed",
+                    job_id=str(job.id),
+                    doc_id=str(doc.id),
+                    error_code=preflight.error_code,
+                    error_message=preflight.error_message,
+                    anomaly=preflight.anomaly_type,
+                )
+                raise DocumentDomainException(
+                    code=DocumentErrorCode.STORAGE_OBJECT_NOT_FOUND,
+                    message=preflight.error_message or "Physical storage artifact not found.",
+                    detail={
+                        "error_code": preflight.error_code,
+                        "anomaly_type": preflight.anomaly_type,
+                        "bucket_or_container": preflight.bucket_or_container,
+                        "object_key": preflight.object_key,
+                    },
+                )
+
             # ── Stage 1: Validation ──────────────────────────────────────────────
             t0 = time.perf_counter()
             doc.status = DocumentStatus.VALIDATING
