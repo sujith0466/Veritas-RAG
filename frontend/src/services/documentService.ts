@@ -6,6 +6,8 @@ import type {
   ProcessingStatusResponse,
   SuccessResponse,
   UploadResponse,
+  UrlIngestResponse,
+  UrlRefreshResponse,
 } from '@/types'
 import { ApiError } from '@/types'
 
@@ -47,6 +49,20 @@ export const documentService = {
     }
 
     return response.data.data
+  },
+
+  async ingestUrl(
+    url: string,
+    userMetadata?: Record<string, unknown>,
+  ): Promise<UrlIngestResponse> {
+    return post<UrlIngestResponse>('/documents/urls', {
+      url,
+      user_metadata: userMetadata,
+    })
+  },
+
+  async refreshWebsiteDocument(id: string): Promise<UrlRefreshResponse> {
+    return post<UrlRefreshResponse>(`/documents/${id}/refresh`)
   },
 
   async getDocumentStatus(id: string): Promise<ProcessingStatusResponse> {

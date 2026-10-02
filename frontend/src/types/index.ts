@@ -12,6 +12,8 @@ export type {
   ProcessingStatusResponse,
   UploadResponse,
   DocumentListResponse,
+  UrlIngestResponse,
+  UrlRefreshResponse,
 } from './document'
 export type {
   StrategyInfoDTO,

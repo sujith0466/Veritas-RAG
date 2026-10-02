@@ -5,6 +5,7 @@ import {
   Filter,
   Search,
   X,
+  Globe,
 } from 'lucide-react'
 import { PageTransition } from '@/components/layouts'
 import { Button, PageHeader } from '@/components/common'
@@ -16,6 +17,7 @@ import {
   DocumentList,
   DocumentDetailDrawer,
   ZipPreviewDialog,
+  AddWebsiteDialog,
 } from './components'
 
 export function DocumentsPage() {
@@ -24,6 +26,9 @@ export function DocumentsPage() {
   const [statusFilter, setStatusFilter] = React.useState<string>('ALL')
   const [searchQuery, setSearchQuery] = React.useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = React.useState<string>('')
+
+  // Add website dialog state
+  const [isAddWebsiteOpen, setIsAddWebsiteOpen] = React.useState(false)
 
   // Pagination & Sorting state
   const [page, setPage] = React.useState(1)
@@ -272,6 +277,35 @@ export function DocumentsPage() {
     }
   }
 
+  const handleRefreshWebsite = async (docId: string) => {
+    try {
+      const resp = await documentService.refreshWebsiteDocument(docId)
+      const doc = documents.find((d) => d.id === docId)
+      setActiveDocName(doc?.filename || doc?.source_url || 'Refreshing website knowledge')
+      const initialStatus: ProcessingStatusResponse = {
+        document_id: resp.document_id,
+        status: resp.status,
+        current_step: 'fetching',
+        progress_percent: 15,
+        retry_count: 0,
+        updated_at: new Date().toISOString(),
+      }
+      setActiveStatus(initialStatus)
+      try {
+        sessionStorage.setItem(
+          'raguard_active_doc_poll',
+          JSON.stringify({ ...initialStatus, document_name: doc?.filename || doc?.source_url || 'Website Document' })
+        )
+      } catch {
+        // Safe fallback
+      }
+      setIsPolling(true)
+      await fetchDocuments()
+    } catch (err) {
+      console.error('Failed to refresh website knowledge:', err)
+    }
+  }
+
   const handleDownloadOriginal = async (doc: DocumentResponse) => {
     try {
       await documentService.downloadOriginal(doc.id, doc.original_filename || doc.filename)
@@ -312,16 +346,27 @@ export function DocumentsPage() {
         title="Document Intelligence & Knowledge Store"
         description="Enterprise-grade document ingestion, OCR density extraction, vector sync, resilient retry, and lifecycle management."
         actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => fetchDocuments()}
-            isLoading={isLoading}
-            className="flex items-center gap-1.5 shadow-sm"
-          >
-            {!isLoading && <RefreshCw className="h-3.5 w-3.5" />}
-            Refresh Registry
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsAddWebsiteOpen(true)}
+              className="flex items-center gap-1.5 shadow-sm"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              Add Website
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => fetchDocuments()}
+              isLoading={isLoading}
+              className="flex items-center gap-1.5 shadow-sm"
+            >
+              {!isLoading && <RefreshCw className="h-3.5 w-3.5" />}
+              Refresh Registry
+            </Button>
+          </div>
         }
       />
 
@@ -331,6 +376,34 @@ export function DocumentsPage() {
         onZipSelect={(file) => setSelectedZipFile(file)}
         isUploading={isUploading}
         uploadProgress={uploadProgress}
+      />
+
+      {/* Add Website Dialog */}
+      <AddWebsiteDialog
+        isOpen={isAddWebsiteOpen}
+        onClose={() => setIsAddWebsiteOpen(false)}
+        onSuccess={(resp, url) => {
+          setActiveDocName(url)
+          const initialStatus: ProcessingStatusResponse = {
+            document_id: resp.document_id,
+            status: resp.status,
+            current_step: 'fetching',
+            progress_percent: 15,
+            retry_count: 0,
+            updated_at: new Date().toISOString(),
+          }
+          setActiveStatus(initialStatus)
+          try {
+            sessionStorage.setItem(
+              'raguard_active_doc_poll',
+              JSON.stringify({ ...initialStatus, document_name: url })
+            )
+          } catch {
+            // Safe fallback
+          }
+          setIsPolling(true)
+          fetchDocuments()
+        }}
       />
 
       {/* ZIP Preview Dialog */}
@@ -425,6 +498,7 @@ export function DocumentsPage() {
           onRestoreDocument={handleRestore}
           onRetryDocument={handleRetry}
           onReingestDocument={handleReingest}
+          onRefreshWebsite={handleRefreshWebsite}
           onDownloadOriginal={handleDownloadOriginal}
           onDownloadExtractedText={handleDownloadExtractedText}
         />
@@ -435,6 +509,7 @@ export function DocumentsPage() {
         documentId={selectedDocId}
         onClose={() => setSelectedDocId(null)}
         onReingest={handleReingest}
+        onRefreshWebsite={handleRefreshWebsite}
       />
     </PageTransition>
   )

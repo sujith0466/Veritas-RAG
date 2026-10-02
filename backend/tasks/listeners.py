@@ -151,9 +151,27 @@ async def handle_vector_sync_completed(event) -> None:
             if not doc:
                 return
 
+            event_data = getattr(event, "data", {}) if isinstance(getattr(event, "data", None), dict) else {}
+            payload_obj = getattr(event, "payload", None)
+
+            target_ver_id = (
+                event_data.get("document_version_id")
+                or event_data.get("version_id")
+                or (getattr(payload_obj, "document_version_id", None) if payload_obj else None)
+                or (getattr(payload_obj, "version_id", None) if payload_obj else None)
+                or doc.latest_version_id
+            )
+
+            if target_ver_id and isinstance(target_ver_id, (str, uuid.UUID)):
+                from backend.document.repositories.document_repository import DocumentRepository
+                doc_repo = DocumentRepository()
+                target_ver_uuid = uuid.UUID(str(target_ver_id))
+                await doc_repo.set_active_version(doc.id, target_ver_uuid, session)
+                doc.latest_version_id = target_ver_uuid
+
             doc.status = DocumentStatus.READY
             await session.commit()
-            logger.info("Document is now READY for RAG", document_id=str(doc.id))
+            logger.info("Document is now READY for RAG with active version", document_id=str(doc.id), version_id=str(doc.latest_version_id))
     except Exception as e:
         logger.error("Pipeline Orchestrator: Failed to handle vector sync completed", error=str(e))
 

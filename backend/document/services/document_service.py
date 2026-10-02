@@ -1,13 +1,16 @@
-from backend.document.models.status import DocumentStatus
-
 """Document Domain Service (`DocumentService`).
 
 Orchestrates synchronous file upload processing, validation screening, physical artifact storage,
 database entity persistence, event emitting, and asynchronous Celery worker task dispatch (`ADR-005`).
 """
 
+from __future__ import annotations
+
+from datetime import UTC, datetime
 import math
+import posixpath
 from typing import BinaryIO
+import urllib.parse
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +35,7 @@ from backend.document.models import (
     StorageObject,
 )
 from backend.document.models.job import DispatchState
-
+from backend.document.models.status import DocumentStatus
 from backend.document.repositories import (
     DocumentEventRepository,
     DocumentRepository,
@@ -47,7 +50,13 @@ from backend.document.schemas import (
     DocumentVersionDTO,
     ProcessingStatusResponse,
 )
-from backend.document.schemas.errors import DocumentDomainException
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
+from backend.document.services.job_dispatcher import JobDispatcher
+from backend.document.services.url_security import (
+    SSRFSafeUrlValidator,
+    SSRFSecurityException,
+    normalize_url_identity,
+)
 from backend.document.storage import LocalStorageProvider, StorageProvider, get_versioned_path
 from backend.document.validators import ValidationPipeline, check_duplicate_content
 
@@ -191,6 +200,259 @@ class DocumentService:
 
         return document, version, job
 
+    async def _create_website_document(
+        self,
+        normalized_url: str,
+        tenant_id: str,
+        owner_user_id: uuid.UUID | None,
+        session: AsyncSession,
+        user_metadata: dict | None = None,
+    ) -> tuple[Document, DocumentVersion, ProcessingJob]:
+        """Helper to create initial Document, StorageObject, DocumentVersion and ProcessingJob."""
+        parsed = urllib.parse.urlsplit(normalized_url)
+        path = parsed.path.strip("/")
+        if path:
+            base = posixpath.basename(path)
+            derived_name = base if "." in base else f"{base}.html"
+        else:
+            host_clean = (parsed.hostname or "website").replace(".", "_")
+            derived_name = f"{host_clean}.html"
+
+        document_id = uuid.uuid4()
+        version_number = 1
+        storage_key = get_versioned_path(
+            tenant_id=tenant_id,
+            document_id=document_id,
+            version_number=version_number,
+            category="original",
+            filename="snapshot.html",
+        )
+
+        storage_obj = StorageObject(
+            provider="local",
+            bucket_or_container="raguard-storage",
+            object_key=storage_key,
+            file_size_bytes=0,
+            mime_type="text/html",
+            checksum_sha256="pending_fetch",
+        )
+        storage_obj = await self.storage_repo.create(storage_obj, session)
+
+        document = Document(
+            id=document_id,
+            tenant_id=tenant_id,
+            owner_user_id=owner_user_id,
+            filename=derived_name,
+            original_filename=normalized_url,
+            source_type="website",
+            source_url=normalized_url,
+            status=DocumentStatus.PENDING,
+            word_count=0,
+            page_count=0,
+            user_metadata=user_metadata or {},
+        )
+        document = await self.doc_repo.create(document, session)
+
+        version = DocumentVersion(
+            document_id=document.id,
+            version_number=version_number,
+            storage_object_id=storage_obj.id,
+            content_hash="pending_fetch",
+            is_active_vector=True,
+        )
+        version = await self.doc_repo.add_version(version, session)
+        document.latest_version_id = version.id
+        await session.flush()
+
+        job = ProcessingJob(
+            document_id=document.id,
+            version_id=version.id,
+            status=DocumentStatus.PENDING,
+            current_step="fetch",
+            retry_count=0,
+            max_retries=3,
+        )
+        job = await self.job_repo.create(job, session)
+
+        payload = create_domain_event(
+            event_type=EVENT_DOCUMENT_UPLOADED,
+            tenant_id=tenant_id,
+            document_id=document.id,
+            job_id=job.id,
+            data={
+                "filename": document.filename,
+                "source_type": "website",
+                "source_url": normalized_url,
+                "status": DocumentStatus.PENDING,
+            },
+        )
+        event_log = DocumentEventLog(
+            document_id=document.id,
+            job_id=job.id,
+            event_type=EVENT_DOCUMENT_UPLOADED,
+            payload=payload.model_dump(mode="json"),
+            triggered_by="url_api",
+        )
+        await self.event_repo.append_event(event_log, session)
+        await session.commit()
+
+        await JobDispatcher.dispatch_job(job, session=session, queue="ingestion")
+        await session.commit()
+        return document, version, job
+
+    async def ingest_url(
+        self,
+        url: str,
+        tenant_id: str,
+        owner_user_id: uuid.UUID | None,
+        session: AsyncSession,
+        user_metadata: dict | None = None,
+    ) -> tuple[Document, DocumentVersion, ProcessingJob | None, bool]:
+        """Ingest a remote website URL as a Knowledge Source Document."""
+        # 1. Normalize URL identity
+        try:
+            normalized_url = normalize_url_identity(url)
+        except SSRFSecurityException as e:
+            raise DocumentDomainException(
+                code=DocumentErrorCode.VAL_002,
+                message=f"Invalid URL syntax: {e.message}",
+                detail=e.detail,
+            ) from e
+
+        # 2. Validate URL safety & resolve destination (SSRF check)
+        try:
+            await SSRFSafeUrlValidator.validate_destination(normalized_url)
+        except SSRFSecurityException as ssrf_err:
+            raise DocumentDomainException(
+                code=DocumentErrorCode.VAL_002,
+                message=f"SSRF validation rejected URL: {ssrf_err.message}",
+                detail=ssrf_err.detail,
+            ) from ssrf_err
+
+        # 3. Check for existing website Document within tenant namespace
+        existing_doc = await self.doc_repo.get_by_source_url(normalized_url, tenant_id, session)
+        if existing_doc:
+            active_statuses = {
+                DocumentStatus.PENDING.value,
+                DocumentStatus.UPLOADED.value,
+                DocumentStatus.FETCHING.value,
+                DocumentStatus.VALIDATING.value,
+                DocumentStatus.EXTRACTING.value,
+                DocumentStatus.OCR.value,
+                DocumentStatus.MANIFEST_GENERATING.value,
+                DocumentStatus.PROCESSED.value,
+                DocumentStatus.CHUNKING.value,
+                DocumentStatus.CHUNKED.value,
+                DocumentStatus.EMBEDDING.value,
+                DocumentStatus.EMBEDDED.value,
+                DocumentStatus.VECTOR_SYNC.value,
+            }
+            if existing_doc.status in active_statuses:
+                active_job = await self.job_repo.get_by_document_id(existing_doc.id, session)
+                v = await self.doc_repo.get_version_by_id(existing_doc.latest_version_id, session) if existing_doc.latest_version_id else None
+                return existing_doc, v or existing_doc.versions[0], active_job, True
+
+            if existing_doc.status == DocumentStatus.READY.value:
+                v = await self.doc_repo.get_version_by_id(existing_doc.latest_version_id, session) if existing_doc.latest_version_id else None
+                return existing_doc, v or existing_doc.versions[0], None, True
+
+            # If FAILED, trigger re-processing on existing document
+            job = ProcessingJob(
+                document_id=existing_doc.id,
+                version_id=existing_doc.latest_version_id,
+                status=DocumentStatus.PENDING,
+                current_step="fetch",
+                retry_count=0,
+                max_retries=3,
+            )
+            job = await self.job_repo.create(job, session)
+            existing_doc.status = DocumentStatus.PENDING
+            await session.commit()
+            await JobDispatcher.dispatch_job(job, session=session, queue="ingestion")
+            await session.commit()
+            v = await self.doc_repo.get_version_by_id(existing_doc.latest_version_id, session) if existing_doc.latest_version_id else None
+            return existing_doc, v or existing_doc.versions[0], job, True
+
+        # 4. First ingestion path
+        doc, ver, job = await self._create_website_document(
+            normalized_url=normalized_url,
+            tenant_id=tenant_id,
+            owner_user_id=owner_user_id,
+            session=session,
+            user_metadata=user_metadata,
+        )
+        return doc, ver, job, False
+
+    async def refresh_url(
+        self,
+        document_id: uuid.UUID,
+        tenant_id: str,
+        owner_user_id: uuid.UUID | None,
+        session: AsyncSession,
+    ) -> tuple[Document, DocumentVersion, ProcessingJob]:
+        """Refresh an existing website document by staging a new version."""
+        _ = owner_user_id
+        doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+        if not doc or doc.is_deleted or doc.source_type != "website" or not doc.source_url:
+            raise DocumentDomainException(
+                code=DocumentErrorCode.SYS_001,
+                message=f"Website knowledge document '{document_id}' not found in workspace.",
+                detail={"document_id": str(document_id)},
+            )
+
+        existing_job = await self.job_repo.get_by_document_id(doc.id, session)
+        if existing_job and existing_job.status in {
+            "CLAIMED", "PROCESSING", "VALIDATING", "EXTRACTING", "OCR", "CHUNKING", "EMBEDDING", "VECTOR_SYNC", "FETCHING"
+        }:
+            active_version = await self.doc_repo.get_version_by_id(existing_job.version_id, session) if existing_job.version_id else doc.versions[0]
+            return doc, active_version or doc.versions[0], existing_job
+
+        max_v = max((v.version_number for v in doc.versions), default=1)
+        next_version_number = max_v + 1
+
+        storage_key = get_versioned_path(
+            tenant_id=tenant_id,
+            document_id=doc.id,
+            version_number=next_version_number,
+            category="original",
+            filename="snapshot.html",
+        )
+
+        storage_obj = StorageObject(
+            provider="local",
+            bucket_or_container="raguard-storage",
+            object_key=storage_key,
+            file_size_bytes=0,
+            mime_type="text/html",
+            checksum_sha256="pending_fetch",
+        )
+        storage_obj = await self.storage_repo.create(storage_obj, session)
+
+        staged_version = DocumentVersion(
+            document_id=doc.id,
+            version_number=next_version_number,
+            storage_object_id=storage_obj.id,
+            content_hash="pending_fetch",
+            is_active_vector=False,
+        )
+        staged_version = await self.doc_repo.add_version(staged_version, session)
+
+        job = ProcessingJob(
+            document_id=doc.id,
+            version_id=staged_version.id,
+            status=DocumentStatus.PENDING,
+            current_step="fetch",
+            retry_count=0,
+            max_retries=3,
+        )
+        job = await self.job_repo.create(job, session)
+        await session.commit()
+
+        await JobDispatcher.dispatch_job(job, session=session, queue="ingestion")
+        await session.commit()
+
+        return doc, staged_version, job
+
     async def get_status(
         self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
     ) -> ProcessingStatusResponse | None:
@@ -204,6 +466,7 @@ class DocumentService:
         # Monotonic progress calculation based on authoritative Document.status
         status_map = {
             "UPLOADED": 10,
+            "FETCHING": 15,
             "VALIDATING": 20,
             "EXTRACTING": 30,
             "OCR": 40,
@@ -213,14 +476,15 @@ class DocumentService:
             "EMBEDDING": 80,
             "VECTOR_SYNC": 90,
             "READY": 100,
-            "FAILED": 100
+            "FAILED": 100,
         }
 
         progress = status_map.get(doc.status, 15)
 
         # If it's still UPLOADED, use job progress if available, but cap it so it never exceeds PROCESSED
-        if doc.status == DocumentStatus.UPLOADED and job:
+        if doc.status == DocumentStatus.UPLOADED and job and job.current_step:
             job_step_progress = {
+                "fetch": 15,
                 "upload": 10,
                 "validation": 20,
                 "extraction": 30,
@@ -233,12 +497,12 @@ class DocumentService:
         return ProcessingStatusResponse(
             document_id=doc.id,
             status=doc.status,
-            current_step=job.current_step if job else doc.status.lower(),
+            current_step=job.current_step if (job and job.current_step) else doc.status.lower(),
             progress_percent=progress,
-            retry_count=job.retry_count if job else 0,
+            retry_count=(job.retry_count or 0) if job else 0,
             error_code=job.error_code if job else None,
             error_message=job.error_message if job else None,
-            updated_at=doc.updated_at,
+            updated_at=doc.updated_at or doc.created_at or datetime.now(UTC),
         )
 
     async def get_document_detail(

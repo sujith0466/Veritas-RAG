@@ -1,9 +1,10 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class DocumentStatus(str, Enum):
+class DocumentStatus(StrEnum):
     """Canonical document lifecycle statuses."""
     UPLOADED = "UPLOADED"
+    FETCHING = "FETCHING"
     VALIDATING = "VALIDATING"
     EXTRACTING = "EXTRACTING"
     OCR = "OCR"

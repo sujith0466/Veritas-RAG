@@ -32,6 +32,7 @@ from .job import (
 from .metadata import MetadataUpdatePayload
 from .status import JobDTO, ProcessingStatusResponse
 from .upload import UploadResponse
+from .url_ingest import UrlIngestRequest, UrlIngestResponse, UrlRefreshResponse
 
 __all__ = [
     "ERROR_SEVERITY_MAP",
@@ -47,6 +48,9 @@ __all__ = [
     "ProcessingStatusResponse",
     "StageMetricDTO",
     "UploadResponse",
+    "UrlIngestRequest",
+    "UrlIngestResponse",
+    "UrlRefreshResponse",
     "get_error_severity",
     "MetadataUpdatePayload",
     "BulkUploadFile",

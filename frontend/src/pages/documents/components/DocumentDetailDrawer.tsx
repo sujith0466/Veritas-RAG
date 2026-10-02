@@ -1,6 +1,8 @@
 import * as React from 'react'
 import {
   FileText,
+  Globe,
+  ExternalLink,
   CheckCircle2,
   Clock,
   Database,
@@ -10,6 +12,7 @@ import {
   ShieldCheck,
   Download,
   RotateCw,
+  RefreshCw,
 } from 'lucide-react'
 import {
   Button,
@@ -32,12 +35,19 @@ export interface DocumentDetailDrawerProps {
   documentId: string | null
   onClose: () => void
   onReingest?: (docId: string) => Promise<void>
+  onRefreshWebsite?: (docId: string) => Promise<void>
 }
 
-export function DocumentDetailDrawer({ documentId, onClose, onReingest }: DocumentDetailDrawerProps) {
+export function DocumentDetailDrawer({
+  documentId,
+  onClose,
+  onReingest,
+  onRefreshWebsite,
+}: DocumentDetailDrawerProps) {
   const [detail, setDetail] = React.useState<DocumentDetailResponse | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
   const [isReingesting, setIsReingesting] = React.useState(false)
+  const [isRefreshing, setIsRefreshing] = React.useState(false)
   const [selectedVersion, setSelectedVersion] = React.useState<DocumentVersionDTO | null>(null)
   const [showManifestJson, setShowManifestJson] = React.useState(false)
 
@@ -97,19 +107,42 @@ export function DocumentDetailDrawer({ documentId, onClose, onReingest }: Docume
     }
   }
 
+  const handleRefreshWebsite = async () => {
+    if (!detail || !onRefreshWebsite) return
+    setIsRefreshing(true)
+    try {
+      await onRefreshWebsite(detail.id)
+      onClose()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   if (!documentId) return null
+
+  const isWebsite = detail?.source_type === 'website' || !!detail?.source_url
+  const websiteUrl = detail?.final_url || detail?.source_url
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'READY':
       case 'PROCESSED':
         return <Badge variant="success">{status}</Badge>
+      case 'FETCHING':
+      case 'VALIDATING':
+      case 'EXTRACTING':
+      case 'OCR':
+      case 'CHUNKING':
+      case 'EMBEDDING':
+      case 'VECTOR_SYNC':
+      case 'RETRYING':
+        return <Badge variant="warning" className="animate-pulse">{status}</Badge>
       case 'FAILED':
         return <Badge variant="destructive">FAILED</Badge>
       case 'ARCHIVED':
         return <Badge variant="outline">ARCHIVED</Badge>
       default:
-        return <Badge variant="warning">{status}</Badge>
+        return <Badge variant="subtle">{status}</Badge>
     }
   }
 
@@ -119,16 +152,44 @@ export function DocumentDetailDrawer({ documentId, onClose, onReingest }: Docume
         <DialogHeader className="border-b border-border/50 pb-4">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                <FileText className="h-5 w-5" />
+              <div
+                className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
+                  isWebsite
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/25'
+                    : 'bg-primary/10 text-primary'
+                }`}
+              >
+                {isWebsite ? <Globe className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
               </div>
               <div>
-                <span className="text-lg font-bold text-foreground block">
-                  {detail?.filename || 'Loading Document Detail...'}
-                </span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  ID: {documentId}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-foreground block">
+                    {detail?.filename || 'Loading Document Detail...'}
+                  </span>
+                  {isWebsite && (
+                    <Badge
+                      variant="subtle"
+                      className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20"
+                    >
+                      Website Knowledge
+                    </Badge>
+                  )}
+                </div>
+                {isWebsite && websiteUrl ? (
+                  <a
+                    href={websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 mt-0.5"
+                  >
+                    <span>{websiteUrl}</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    ID: {documentId}
+                  </span>
+                )}
               </div>
             </div>
             {detail && getStatusBadge(detail.status)}
@@ -144,15 +205,28 @@ export function DocumentDetailDrawer({ documentId, onClose, onReingest }: Docume
           <div className="space-y-6 pt-4">
             {/* Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-surface border border-border/80">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDownloadOriginal}
-                className="flex items-center gap-1.5"
-              >
-                <Download className="h-3.5 w-3.5 text-primary" />
-                Download Original File
-              </Button>
+              {isWebsite && websiteUrl ? (
+                <a
+                  href={websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-muted/60 text-foreground hover:bg-muted hover:text-primary transition-colors border border-border/60"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                  Visit Live Webpage
+                </a>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadOriginal}
+                  className="flex items-center gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5 text-primary" />
+                  Download Original File
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 size="sm"
@@ -162,19 +236,67 @@ export function DocumentDetailDrawer({ documentId, onClose, onReingest }: Docume
                 <Download className="h-3.5 w-3.5 text-primary" />
                 Download Extracted Text
               </Button>
-              {onReingest && detail.status !== 'ARCHIVED' && (
+
+              {isWebsite && onRefreshWebsite && detail.status !== 'ARCHIVED' && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleRefreshWebsite}
+                  isLoading={isRefreshing}
+                  className="flex items-center gap-1.5 ml-auto text-xs"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Refresh Website Knowledge
+                </Button>
+              )}
+
+              {!isWebsite && onReingest && detail.status !== 'ARCHIVED' && (
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={handleReingest}
                   isLoading={isReingesting}
-                  className="flex items-center gap-1.5 ml-auto"
+                  className="flex items-center gap-1.5 ml-auto text-xs"
                 >
                   <RotateCw className="h-3.5 w-3.5" />
                   Re-ingest Document
                 </Button>
               )}
             </div>
+
+            {/* Website Provenance Details Box (when applicable) */}
+            {isWebsite && (
+              <div className="p-4 rounded-lg bg-muted/20 border border-border/80 space-y-3">
+                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-primary" />
+                  Website Source Provenance
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Source URL:</span>
+                    <span className="font-mono text-foreground break-all">{detail.source_url || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[11px]">Final Resolved URL:</span>
+                    <span className="font-mono text-foreground break-all">{detail.final_url || detail.source_url || '—'}</span>
+                  </div>
+                  {detail.canonical_url && (
+                    <div className="sm:col-span-2">
+                      <span className="text-muted-foreground block text-[11px]">Canonical URL:</span>
+                      <span className="font-mono text-foreground break-all">{detail.canonical_url}</span>
+                    </div>
+                  )}
+                  {detail.last_fetched_at && (
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">Last Fetched:</span>
+                      <span className="text-foreground">
+                        {new Date(detail.last_fetched_at).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Overview Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

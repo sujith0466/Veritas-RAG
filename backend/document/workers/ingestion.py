@@ -1,14 +1,15 @@
-from backend.document.models.status import DocumentStatus
-
 """Celery Ingestion Worker (`process_document_job`).
 
 Runs asynchronous document ingestion tasks on the dedicated `ingestion` queue.
-Executes extraction, OCR, normalization, manifest generation, and contract verification,
-enforcing strict retry policy based on error severity (`RECOVERABLE` vs `FATAL`).
+Executes website fetching (if applicable), extraction, OCR, normalization, manifest generation,
+and contract verification, enforcing strict retry policy based on error severity (`RECOVERABLE` vs `FATAL`).
 """
+
+from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
+import hashlib
 import time
 from typing import Any
 import uuid
@@ -27,6 +28,7 @@ from backend.document.events import (
 from backend.document.extractors import create_default_registry, normalize_text
 from backend.document.models import DocumentEventLog
 from backend.document.models.job import DispatchState
+from backend.document.models.status import DocumentStatus
 from backend.document.ocr import OCRPipeline
 from backend.document.repositories import DocumentEventRepository, DocumentRepository, JobRepository
 from backend.document.schemas import DocumentManifestDTO, StageMetricDTO
@@ -36,6 +38,8 @@ from backend.document.schemas.errors import (
     ErrorSeverity,
     get_error_severity,
 )
+from backend.document.services.url_security import SSRFSecurityException
+from backend.document.services.web_fetcher import SecureWebFetcher, WebFetchException
 from backend.document.storage import (
     DocumentProcessingContract,
     LocalStorageProvider,
@@ -128,6 +132,84 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
                 )
 
             tenant_id = doc.tenant_id
+
+            # ── Stage 0: Website Fetching (if source_type == "website") ──────────
+            if doc.source_type == "website":
+                t_fetch = time.perf_counter()
+                doc.status = DocumentStatus.FETCHING
+                job.current_step = "fetch"
+                job.status = "FETCHING"
+                job.dispatch_state = DispatchState.ACKNOWLEDGED.value
+                job.claimed_at = datetime.now(UTC)
+                await session.commit()
+
+                if not doc.source_url:
+                    raise DocumentDomainException(
+                        code=DocumentErrorCode.VAL_002,
+                        message="Document source_url is missing for website source.",
+                    )
+
+                # Securely fetch HTML content with SSRF and redirect validation
+                try:
+                    fetch_result = await SecureWebFetcher.fetch_url(doc.source_url)
+                except SSRFSecurityException as ssrf_err:
+                    raise DocumentDomainException(
+                        code=DocumentErrorCode.VAL_002,
+                        message=f"SSRF validation rejected target URL: {ssrf_err}",
+                    ) from ssrf_err
+                except WebFetchException as fetch_err:
+                    raise DocumentDomainException(
+                        code=DocumentErrorCode.SYS_002,
+                        message=f"Web fetch failed: {fetch_err}",
+                    ) from fetch_err
+
+                # Update document metadata from fetch result
+                doc.final_url = fetch_result.final_url
+                doc.canonical_url = getattr(fetch_result, "canonical_url", None) or fetch_result.final_url
+                doc.last_fetched_at = datetime.now(UTC)
+
+                raw_html_bytes = fetch_result.body_bytes
+                content_hash = hashlib.sha256(raw_html_bytes).hexdigest()
+
+                # Check for unchanged content on refresh (deduplication)
+                if version.version_number > 1:
+                    active_v = next(
+                        (v for v in doc.versions if v.is_active_vector and v.id != version.id),
+                        None,
+                    )
+                    if active_v and active_v.content_hash == content_hash:
+                        logger.info(
+                            "Website content hash matches active version; completing refresh without re-indexing",
+                            document_id=str(doc.id),
+                            content_hash=content_hash,
+                        )
+                        doc.status = DocumentStatus.READY
+                        job.status = "COMPLETED"
+                        job.current_step = "completed"
+                        job.completed_at = datetime.now(UTC)
+                        await session.commit()
+                        return {
+                            "status": "unchanged",
+                            "document_id": str(doc.id),
+                            "message": "Website content unchanged",
+                        }
+
+                # Save fetched snapshot to storage
+                await storage.save_bytes(raw_html_bytes, version.storage_object.object_key)
+                version.storage_object.file_size_bytes = len(raw_html_bytes)
+                version.storage_object.checksum_sha256 = content_hash
+                version.storage_object.mime_type = fetch_result.content_type.split(";")[0].strip()
+                version.content_hash = content_hash
+                await session.commit()
+
+                fetch_duration = (time.perf_counter() - t_fetch) * 1000.0
+                stage_metrics.append(
+                    StageMetricDTO(
+                        stage="fetch",
+                        duration_ms=round(fetch_duration, 2),
+                        status="COMPLETED",
+                    )
+                )
 
             # ── Pre-flight Storage Check ─────────────────────────────────────────
             from backend.document.storage.preflight import StoragePreflightValidator
@@ -463,7 +545,15 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
                 job.completed_at = datetime.now(UTC)
 
                 if doc:
-                    doc.status = DocumentStatus.FAILED
+                    all_versions = await doc_repo.get_versions_by_document_id(doc.id, session)
+                    has_active = any(
+                        v.is_active_vector and v.id != job.version_id for v in all_versions
+                    )
+                    if has_active:
+                        doc.status = DocumentStatus.READY
+                    else:
+                        doc.status = DocumentStatus.FAILED
+
                     fail_payload = create_domain_event(
                         event_type=EVENT_DOCUMENT_FAILED,
                         tenant_id=doc.tenant_id,

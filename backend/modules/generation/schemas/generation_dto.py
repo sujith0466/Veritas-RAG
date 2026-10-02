@@ -11,6 +11,25 @@ class CitationDTO(BaseModel):
     )
     chunk_id: str = Field(..., description="The source chunk ID")
     document_id: str = Field(..., description="The source document ID")
+    document_version_id: str | None = Field(
+        default=None, description="The source document version ID"
+    )
+    source_type: str | None = Field(
+        default="file_upload",
+        description="Source type, e.g. 'website' or 'file_upload'",
+    )
+    source_url: str | None = Field(
+        default=None, description="Original requested source URL"
+    )
+    canonical_url: str | None = Field(
+        default=None, description="Canonical URL if available"
+    )
+    final_url: str | None = Field(
+        default=None, description="Final resolved URL after redirects"
+    )
+    title: str | None = Field(
+        default=None, description="Document or web page title"
+    )
     source_name: str | None = Field(None, description="Human-readable filename or source")
     document_name: str | None = Field(None, description="Human-readable document name")
     excerpt: str = Field(

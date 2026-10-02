@@ -34,7 +34,11 @@ from backend.document.schemas import (
     DocumentListResponse,
     ProcessingStatusResponse,
     UploadResponse,
+    UrlIngestRequest,
+    UrlIngestResponse,
+    UrlRefreshResponse,
 )
+from backend.document.schemas.metadata import MetadataUpdatePayload
 from backend.document.services import DocumentService
 
 logger = structlog.get_logger(__name__)
@@ -115,6 +119,99 @@ async def upload_document(
             original_filename=doc.original_filename,
             file_size_bytes=file_size,
             created_at=doc.created_at,
+        ),
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/urls",
+    response_model=SuccessResponse[UrlIngestResponse],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Ingest a remote website knowledge source",
+    description="Submit a public HTTP/HTTPS URL for SSRF validation, snapshot fetching, HTML extraction, and vector indexing.",
+)
+async def ingest_url(
+    request: Request,
+    payload: UrlIngestRequest,
+    user: UserContext = Depends(require_role(Role.MEMBER)),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[UrlIngestResponse]:
+    """Screen website URL, validate against SSRF boundaries, persist Document aggregate, and enqueue processing."""
+    tenant_id, owner_id = _resolve_tenant_and_owner(user)
+
+    ws_uuid = None
+    try:
+        ws_uuid = uuid.UUID(tenant_id)
+    except (ValueError, TypeError):
+        pass
+
+    from backend.modules.analytics.services.quota import QuotaGovernor
+    governor = QuotaGovernor()
+    is_exceeded, _, _, _ = await governor.check_quota(workspace_id=ws_uuid, tenant_id=tenant_id, session=session)
+    if is_exceeded:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Workspace token quota exceeded",
+            headers={"Retry-After": "3600"},
+        )
+
+    service = DocumentService()
+    doc, version, job, is_existing = await service.ingest_url(
+        url=payload.url,
+        tenant_id=tenant_id,
+        owner_user_id=owner_id,
+        session=session,
+        user_metadata=payload.user_metadata,
+    )
+
+    return SuccessResponse(
+        success=True,
+        data=UrlIngestResponse(
+            document_id=doc.id,
+            version_id=version.id if version else doc.latest_version_id,
+            job_id=job.id if job else None,
+            source_url=doc.source_url or payload.url,
+            status=doc.status,
+            is_existing=is_existing,
+            created_at=doc.created_at,
+        ),
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/{document_id}/refresh",
+    response_model=SuccessResponse[UrlRefreshResponse],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Refresh an existing website knowledge source",
+    description="Trigger a background refresh for a website Document. Stages a replacement version while keeping the active version online.",
+)
+async def refresh_website_document(
+    request: Request,
+    document_id: uuid.UUID,
+    user: UserContext = Depends(require_role(Role.MEMBER)),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[UrlRefreshResponse]:
+    """Trigger background refresh with version staging."""
+    tenant_id, owner_id = _resolve_tenant_and_owner(user)
+
+    service = DocumentService()
+    doc, staged_version, job = await service.refresh_url(
+        document_id=document_id,
+        tenant_id=tenant_id,
+        owner_user_id=owner_id,
+        session=session,
+    )
+
+    return SuccessResponse(
+        success=True,
+        data=UrlRefreshResponse(
+            document_id=doc.id,
+            version_id=staged_version.id,
+            job_id=job.id,
+            status=doc.status,
+            message="Website refresh job scheduled. Existing knowledge remains active during processing.",
         ),
         metadata=_build_metadata(request),
     )
@@ -569,9 +666,6 @@ async def rollback_document_version(
         ),
         metadata=_build_metadata(request),
     )
-
-
-from backend.document.schemas.metadata import MetadataUpdatePayload
 
 
 @router.put(

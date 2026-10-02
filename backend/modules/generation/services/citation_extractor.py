@@ -51,9 +51,8 @@ class CitationExtractor:
         """
         import hashlib
 
-        if seen_markers is not None:
-            if marker in seen_markers:
-                return None
+        if seen_markers is not None and marker in seen_markers:
+            return None
 
         chunk_pos = marker - 1
         # EP8-030: Reject hallucinated chunk IDs
@@ -65,9 +64,15 @@ class CitationExtractor:
         excerpt = (chunk.content if hasattr(chunk, "content") else chunk.get("content", ""))[:200].strip()
 
         metadata = chunk.metadata if hasattr(chunk, "metadata") else chunk.get("metadata", {})
-        source_name = metadata.get("source_name") or metadata.get("filename")
-        document_name = metadata.get("document_name")
+        source_type = metadata.get("source_type", "file_upload")
+        source_url = metadata.get("source_url")
+        canonical_url = metadata.get("canonical_url")
+        final_url = metadata.get("final_url")
+        title = metadata.get("title")
+        source_name = metadata.get("source_name") or metadata.get("filename") or title or (source_url if source_type == "website" else None)
+        document_name = metadata.get("document_name") or title or source_name
         document_id = str(chunk.document_id if hasattr(chunk, "document_id") else chunk.get("document_id", ""))
+        doc_version_id = str(chunk.document_version_id) if hasattr(chunk, "document_version_id") and chunk.document_version_id else metadata.get("document_version_id")
 
         cit_id = hashlib.sha256(f"{document_id}:{excerpt}".encode()).hexdigest()
 
@@ -76,6 +81,12 @@ class CitationExtractor:
             citation_index=marker,
             chunk_id=str(chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", "")),
             document_id=document_id,
+            document_version_id=str(doc_version_id) if doc_version_id else None,
+            source_type=source_type,
+            source_url=source_url,
+            canonical_url=canonical_url,
+            final_url=final_url,
+            title=title,
             source_name=source_name,
             document_name=document_name,
             excerpt=excerpt,
@@ -99,7 +110,7 @@ class CitationExtractor:
         """
         # Find all unique citation indices referenced in the answer
         marker_pattern = re.compile(r"\[(\d+)\]")
-        found_indices = sorted(set(int(m) for m in marker_pattern.findall(answer_text)))
+        found_indices = sorted({int(m) for m in marker_pattern.findall(answer_text)})
 
         citations = []
         for idx in found_indices:
@@ -113,14 +124,26 @@ class CitationExtractor:
             excerpt = (chunk.content if hasattr(chunk, "content") else chunk.get("content", ""))[:200].strip()
 
             metadata = chunk.metadata if hasattr(chunk, "metadata") else chunk.get("metadata", {})
-            source_name = metadata.get("source_name") or metadata.get("filename")
-            document_name = metadata.get("document_name")
+            source_type = metadata.get("source_type", "file_upload")
+            source_url = metadata.get("source_url")
+            canonical_url = metadata.get("canonical_url")
+            final_url = metadata.get("final_url")
+            title = metadata.get("title")
+            source_name = metadata.get("source_name") or metadata.get("filename") or title or (source_url if source_type == "website" else None)
+            document_name = metadata.get("document_name") or title or source_name
+            doc_version_id = str(chunk.document_version_id) if hasattr(chunk, "document_version_id") and chunk.document_version_id else metadata.get("document_version_id")
 
             citations.append(
                 CitationDTO(
                     citation_index=idx,
                     chunk_id=str(chunk.chunk_id if hasattr(chunk, "chunk_id") else chunk.get("chunk_id", "")),
                     document_id=str(chunk.document_id if hasattr(chunk, "document_id") else chunk.get("document_id", "")),
+                    document_version_id=str(doc_version_id) if doc_version_id else None,
+                    source_type=source_type,
+                    source_url=source_url,
+                    canonical_url=canonical_url,
+                    final_url=final_url,
+                    title=title,
                     source_name=source_name,
                     document_name=document_name,
                     excerpt=excerpt,

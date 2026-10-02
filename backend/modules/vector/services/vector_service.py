@@ -114,11 +114,22 @@ class VectorStorageService:
         )
         await self.repo.update_sync_status(metadata_record.id, status="PROCESSING")
 
-        # Fetch document to attach user_metadata
+        # Fetch document to attach user_metadata and website provenance
         from backend.document.repositories.document_repository import DocumentRepository
         doc_repo = DocumentRepository()
         doc = await doc_repo.get_by_id(doc_uuid, tenant_id, self.session)
         user_meta = dict(getattr(doc, "user_metadata", {})) if doc else {}
+
+        raw_source_type = getattr(doc, "source_type", None) or "file_upload"
+        doc_source_type = (
+            raw_source_type.value
+            if hasattr(raw_source_type, "value")
+            else str(raw_source_type)
+        )
+        doc_source_url = getattr(doc, "source_url", None)
+        doc_canonical_url = getattr(doc, "canonical_url", None)
+        doc_final_url = getattr(doc, "final_url", None)
+        doc_title = getattr(doc, "filename", None)
 
         try:
             # 4. Ensure collection exists with exact HNSW & INT8 scalar quantization (`ADR-M3-002`)
@@ -140,6 +151,7 @@ class VectorStorageService:
                     "document_version_id",
                     "content_hash",
                     "strategy_used",
+                    "source_type",
                 ],
             )
 
@@ -173,6 +185,11 @@ class VectorStorageService:
                     ),
                     "provider": emb.provider,
                     "model_name": emb.model_name,
+                    "source_type": doc_source_type,
+                    "source_url": doc_source_url,
+                    "canonical_url": doc_canonical_url,
+                    "final_url": doc_final_url,
+                    "title": doc_title,
                     **user_meta,  # Inject dynamic metadata tags
                 }
 

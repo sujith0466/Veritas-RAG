@@ -1,6 +1,8 @@
 import * as React from 'react'
 import {
   FileText,
+  Globe,
+  ExternalLink,
   Eye,
   Trash2,
   Calendar,
@@ -54,6 +56,7 @@ export interface DocumentListProps {
   onRestoreDocument?: (docId: string) => Promise<void>
   onRetryDocument?: (docId: string) => Promise<void>
   onReingestDocument?: (docId: string) => Promise<void>
+  onRefreshWebsite?: (docId: string) => Promise<void>
   onDownloadOriginal?: (doc: DocumentResponse) => Promise<void>
   onDownloadExtractedText?: (doc: DocumentResponse) => Promise<void>
 }
@@ -76,6 +79,7 @@ export function DocumentList({
   onRestoreDocument,
   onRetryDocument,
   onReingestDocument,
+  onRefreshWebsite,
   onDownloadOriginal,
   onDownloadExtractedText,
 }: DocumentListProps) {
@@ -86,6 +90,7 @@ export function DocumentList({
   const [isArchiving, setIsArchiving] = React.useState(false)
   const [isReingesting, setIsReingesting] = React.useState(false)
   const [retryingDocId, setRetryingDocId] = React.useState<string | null>(null)
+  const [refreshingDocId, setRefreshingDocId] = React.useState<string | null>(null)
 
   const handleDelete = async () => {
     if (!deleteConfirmDoc) return
@@ -130,11 +135,22 @@ export function DocumentList({
     }
   }
 
+  const handleRefreshWebsite = async (docId: string) => {
+    if (!onRefreshWebsite) return
+    setRefreshingDocId(docId)
+    try {
+      await onRefreshWebsite(docId)
+    } finally {
+      setRefreshingDocId(null)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'READY':
       case 'PROCESSED':
         return <Badge variant="success">{status}</Badge>
+      case 'FETCHING':
       case 'VALIDATING':
       case 'EXTRACTING':
       case 'OCR':
@@ -185,8 +201,8 @@ export function DocumentList({
       <Card className="p-8">
         <EmptyState
           icon={FileCheck2}
-          title="No Documents Found"
-          description="No documents matched your criteria. Upload a document or adjust filters/search query."
+          title="No Knowledge Sources Found"
+          description="No documents or website sources matched your criteria. Upload a file or add a website URL."
         />
       </Card>
     )
@@ -216,7 +232,7 @@ export function DocumentList({
                   onClick={() => onSortChange('filename')}
                 >
                   <span className="flex items-center">
-                    Document Name {renderSortIcon('filename')}
+                    Source Name {renderSortIcon('filename')}
                   </span>
                 </TableHead>
                 <TableHead
@@ -247,141 +263,209 @@ export function DocumentList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documents.map((doc) => (
-                <TableRow key={doc.id} className="hover:bg-muted/40 transition-colors">
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                        <FileText className="h-4 w-4" />
-                      </div>
-                      <div className="overflow-hidden">
-                        <div className="font-semibold text-foreground truncate max-w-[200px]" title={doc.filename}>
-                          {doc.filename}
+              {documents.map((doc) => {
+                const isWebsite = doc.source_type === 'website' || !!doc.source_url
+                const websiteUrl = doc.final_url || doc.source_url
+
+                return (
+                  <TableRow key={doc.id} className="hover:bg-muted/40 transition-colors">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
+                            isWebsite
+                              ? 'bg-primary/15 text-primary ring-1 ring-primary/25'
+                              : 'bg-primary/10 text-primary'
+                          }`}
+                        >
+                          {isWebsite ? <Globe className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate max-w-[200px]" title={doc.original_filename}>
-                          {doc.original_filename}
+                        <div className="overflow-hidden">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className="font-semibold text-foreground truncate max-w-[200px]"
+                              title={doc.filename}
+                            >
+                              {doc.filename}
+                            </span>
+                            {isWebsite && (
+                              <Badge
+                                variant="subtle"
+                                className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20 shrink-0"
+                              >
+                                Website
+                              </Badge>
+                            )}
+                          </div>
+                          {isWebsite && websiteUrl ? (
+                            <a
+                              href={websiteUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-muted-foreground hover:text-primary transition-colors truncate max-w-[200px] flex items-center gap-1"
+                              title={`Open ${websiteUrl}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span className="truncate">{websiteUrl}</span>
+                              <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                            </a>
+                          ) : (
+                            <div
+                              className="text-[11px] text-muted-foreground truncate max-w-[200px]"
+                              title={doc.original_filename}
+                            >
+                              {doc.original_filename}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                  <TableCell>
-                    <div className="text-xs space-y-0.5">
-                      <div><strong className="text-foreground">{doc.word_count.toLocaleString()}</strong> words</div>
-                      <div className="text-muted-foreground">{doc.page_count} pages ({doc.language || 'en'})</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5 shrink-0" />
-                      <span>
-                        {new Date(doc.created_at).toLocaleDateString()} {new Date(doc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {/* Download Original */}
-                      {onDownloadOriginal && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Download Original File"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
-                          onClick={() => onDownloadOriginal(doc)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      )}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(doc.status)}</TableCell>
+                    <TableCell>
+                      <div className="text-xs space-y-0.5">
+                        <div><strong className="text-foreground">{doc.word_count.toLocaleString()}</strong> words</div>
+                        <div className="text-muted-foreground">{doc.page_count} pages ({doc.language || 'en'})</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {new Date(doc.created_at).toLocaleDateString()} {new Date(doc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {/* Visit Live Webpage */}
+                        {isWebsite && websiteUrl && (
+                          <a
+                            href={websiteUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Visit Live Webpage"
+                            className="h-8 w-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
 
-                      {/* Download Extracted Text */}
-                      {onDownloadExtractedText && (doc.status === 'READY' || doc.status === 'PROCESSED') && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Download Normalized Text"
-                          className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
-                          onClick={() => onDownloadExtractedText(doc)}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      )}
-
-                      {/* Retry on Failed */}
-                      {doc.status === 'FAILED' && onRetryDocument && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Retry Failed Ingestion"
-                          className="h-8 w-8 p-0 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
-                          isLoading={retryingDocId === doc.id}
-                          onClick={() => handleRetry(doc.id)}
-                        >
-                          <RotateCw className="h-4 w-4" />
-                        </Button>
-                      )}
-
-                      {/* Re-ingest on Completed */}
-                      {(doc.status === 'READY' || doc.status === 'PROCESSED') && onReingestDocument && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Re-ingest Document"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                          onClick={() => setReingestConfirmDoc(doc)}
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      )}
-
-                      {/* Details Drawer */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-2.5 text-xs flex items-center gap-1"
-                        onClick={() => onSelectDocument(doc)}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        Inspect
-                      </Button>
-
-                      {/* Archive / Restore */}
-                      {doc.status === 'ARCHIVED' && onRestoreDocument ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-xs text-success hover:bg-success/10"
-                          onClick={() => onRestoreDocument(doc.id)}
-                        >
-                          Restore
-                        </Button>
-                      ) : (
-                        doc.status !== 'ARCHIVED' && onArchiveDocument && (
+                        {/* Refresh Website Knowledge */}
+                        {isWebsite && onRefreshWebsite && (doc.status === 'READY' || doc.status === 'PROCESSED') && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 px-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10"
-                            onClick={() => setArchiveConfirmDoc(doc)}
+                            title="Refresh Website Knowledge (Non-destructive staging)"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            isLoading={refreshingDocId === doc.id}
+                            onClick={() => handleRefreshWebsite(doc.id)}
                           >
-                            Archive
+                            <RefreshCw className="h-4 w-4" />
                           </Button>
-                        )
-                      )}
+                        )}
 
-                      {/* Delete */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Delete Document"
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-danger hover:bg-danger/10"
-                        onClick={() => setDeleteConfirmDoc(doc)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {/* Download Original File (for file uploads) */}
+                        {!isWebsite && onDownloadOriginal && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Download Original File"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                            onClick={() => onDownloadOriginal(doc)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {/* Download Extracted Text */}
+                        {onDownloadExtractedText && (doc.status === 'READY' || doc.status === 'PROCESSED') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Download Normalized Text"
+                            className="h-8 w-8 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={() => onDownloadExtractedText(doc)}
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {/* Retry on Failed */}
+                        {doc.status === 'FAILED' && onRetryDocument && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Retry Failed Ingestion"
+                            className="h-8 w-8 p-0 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                            isLoading={retryingDocId === doc.id}
+                            onClick={() => handleRetry(doc.id)}
+                          >
+                            <RotateCw className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {/* Re-ingest on Completed (for files) */}
+                        {!isWebsite && (doc.status === 'READY' || doc.status === 'PROCESSED') && onReingestDocument && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Re-ingest Document"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            onClick={() => setReingestConfirmDoc(doc)}
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        )}
+
+                        {/* Details Drawer */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs flex items-center gap-1"
+                          onClick={() => onSelectDocument(doc)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          Inspect
+                        </Button>
+
+                        {/* Archive / Restore */}
+                        {doc.status === 'ARCHIVED' && onRestoreDocument ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-xs text-success hover:bg-success/10"
+                            onClick={() => onRestoreDocument(doc.id)}
+                          >
+                            Restore
+                          </Button>
+                        ) : (
+                          doc.status !== 'ARCHIVED' && onArchiveDocument && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 px-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10"
+                              onClick={() => setArchiveConfirmDoc(doc)}
+                            >
+                              Archive
+                            </Button>
+                          )
+                        )}
+
+                        {/* Delete */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Delete Document"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-danger hover:bg-danger/10"
+                          onClick={() => setDeleteConfirmDoc(doc)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

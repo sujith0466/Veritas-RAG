@@ -1,19 +1,18 @@
-"""Document & DocumentVersion Entity Models.
+from __future__ import annotations
 
-Represents the core document aggregate root and its immutable content revisions.
-"""
-
-import datetime
-from typing import Any
-import uuid
+import datetime  # noqa: TC003
+from typing import TYPE_CHECKING, Any
+import uuid  # noqa: TC003
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.document.models.status import DocumentStatus
-from backend.document.models.storage_object import StorageObject
 from backend.models.base import BaseModel
+
+if TYPE_CHECKING:
+    from backend.document.models.storage_object import StorageObject
 
 
 class Document(BaseModel):
@@ -49,6 +48,16 @@ class Document(BaseModel):
     user_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONB(none_as_null=True), default=dict, server_default='{}', nullable=False
     )
+    # D4 Knowledge Source & Remote Ingestion attributes
+    source_type: Mapped[str] = mapped_column(
+        String(50), default="file_upload", server_default="file_upload", index=True, nullable=False
+    )
+    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    canonical_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    final_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    last_fetched_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     archived_at: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -56,7 +65,7 @@ class Document(BaseModel):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    versions: Mapped[list["DocumentVersion"]] = relationship(
+    versions: Mapped[list[DocumentVersion]] = relationship(
         "DocumentVersion", back_populates="document", cascade="all, delete-orphan"
     )
 
@@ -88,8 +97,8 @@ class DocumentVersion(BaseModel):
     requires_ocr: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     ocr_languages: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
-    document: Mapped["Document"] = relationship("Document", back_populates="versions")
-    storage_object: Mapped["StorageObject"] = relationship("StorageObject")
+    document: Mapped[Document] = relationship("Document", back_populates="versions")
+    storage_object: Mapped[StorageObject] = relationship("StorageObject")
 
     def __repr__(self) -> str:
         return f"<DocumentVersion(id={self.id}, document_id={self.document_id}, v={self.version_number})>"

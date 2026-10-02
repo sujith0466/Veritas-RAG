@@ -288,3 +288,36 @@ class DocumentRepository:
         await session.flush()
         await session.refresh(doc)
         return doc
+
+    async def get_by_source_url(
+        self, source_url: str, tenant_id: str, session: AsyncSession
+    ) -> Document | None:
+        """Fetch a website Document by its normalized source URL and tenant ID namespace."""
+        stmt = (
+            select(Document)
+            .where(
+                Document.tenant_id == tenant_id,
+                Document.source_type == "website",
+                Document.source_url == source_url,
+                Document.is_deleted.is_(False),
+            )
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_source_url_for_update(
+        self, source_url: str, tenant_id: str, session: AsyncSession
+    ) -> Document | None:
+        """Fetch a website Document by its normalized source URL with row lock (FOR UPDATE)."""
+        stmt = (
+            select(Document)
+            .where(
+                Document.tenant_id == tenant_id,
+                Document.source_type == "website",
+                Document.source_url == source_url,
+                Document.is_deleted.is_(False),
+            )
+            .with_for_update()
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()

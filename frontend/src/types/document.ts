@@ -73,6 +73,11 @@ export interface DocumentResponse {
   word_count: number
   page_count: number
   language?: string
+  source_type?: 'file_upload' | 'website' | string
+  source_url?: string | null
+  canonical_url?: string | null
+  final_url?: string | null
+  last_fetched_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -102,6 +107,24 @@ export interface UploadResponse {
   original_filename: string
   file_size_bytes: number
   created_at: string
+}
+
+export interface UrlIngestResponse {
+  document_id: string
+  version_id?: string | null
+  job_id?: string | null
+  source_url: string
+  status: DocumentStatus | string
+  is_existing: boolean
+  created_at: string
+}
+
+export interface UrlRefreshResponse {
+  document_id: string
+  version_id: string
+  job_id: string
+  status: DocumentStatus | string
+  message: string
 }
 
 export interface DocumentListResponse {
