@@ -180,18 +180,10 @@ class DocumentService:
         # Commit transaction before enqueuing asynchronous Celery task
         await session.commit()
 
-        # 10. Dispatch Celery ingestion task
-        try:
-            # Import inside method to avoid circular imports during startup
-            from backend.document.workers.ingestion import process_document_job
-
-            process_document_job.apply_async(args=[str(job.id)], queue="ingestion")
-        except Exception as e:
-            # If broker dispatch fails, log warning/error without failing the upload record
-            import structlog
-            logger = structlog.get_logger(__name__)
-            logger.error("Failed to dispatch process_document_job", error=str(e), job_id=str(job.id))
-            pass
+        # 10. Resilient dispatch of Celery ingestion task
+        from backend.document.services.job_dispatcher import JobDispatcher
+        await JobDispatcher.dispatch_job(job, session=session, queue="ingestion")
+        await session.commit()
 
         return document, version, job
 
@@ -551,13 +543,10 @@ class DocumentService:
             await self.event_repo.append_event(event_log, session)
             await session.commit()
 
-            try:
-                from backend.document.workers.ingestion import process_document_job
-                process_document_job.apply_async(args=[str(job.id)], queue="ingestion")
-            except Exception as e:
-                import structlog
-                logger = structlog.get_logger(__name__)
-                logger.error("Failed to dispatch process_document_job for new version", error=str(e), job_id=str(job.id))
+            # Resilient dispatch of Celery ingestion task
+            from backend.document.services.job_dispatcher import JobDispatcher
+            await JobDispatcher.dispatch_job(job, session=session, queue="ingestion")
+            await session.commit()
 
             return doc, version, job
 
@@ -624,12 +613,9 @@ class DocumentService:
             await self.event_repo.append_event(event_log, session)
             await session.commit()
 
-            try:
-                from backend.document.workers.ingestion import process_document_job
-                process_document_job.apply_async(args=[str(job.id)], queue="ingestion")
-            except Exception as e:
-                import structlog
-                logger = structlog.get_logger(__name__)
-                logger.error("Failed to dispatch process_document_job for rollback", error=str(e), job_id=str(job.id))
+            # Resilient dispatch of Celery ingestion task
+            from backend.document.services.job_dispatcher import JobDispatcher
+            await JobDispatcher.dispatch_job(job, session=session, queue="ingestion")
+            await session.commit()
 
             return doc, version, job

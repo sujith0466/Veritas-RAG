@@ -133,3 +133,51 @@ async def test_rollback_to_version_success(service, mock_session):
         assert doc.status == DocumentStatus.UPLOADED
         mock_session.commit.assert_called()
         mock_job_task.apply_async.assert_called_once()
+
+
+async def test_rollback_to_version_dispatch_failure_preserves_state(service, mock_session):
+    """Test broker failure in rollback marks job as FAILED_DISPATCH without losing record."""
+    from backend.document.models.job import DispatchState, ProcessingJob
+
+    doc_id = uuid.uuid4()
+    target_version_id = uuid.uuid4()
+    tenant_id = "test-tenant"
+
+    mock_doc = MagicMock()
+    mock_doc.id = doc_id
+    mock_doc.tenant_id = tenant_id
+    mock_doc.status = DocumentStatus.PROCESSED
+
+    mock_version = MagicMock()
+    mock_version.id = target_version_id
+    mock_version.document_id = doc_id
+    mock_version.storage_object = MagicMock()
+    mock_version.version_number = 1
+    mock_doc.versions = [mock_version]
+
+    service.doc_repo.get_by_id_with_versions.return_value = mock_doc
+    service.doc_repo.get_version_by_id.return_value = mock_version
+    service.storage.clone_object = AsyncMock(return_value=MagicMock())
+    service.doc_repo.add_version = AsyncMock()
+
+    job_instance = ProcessingJob(
+        id=uuid.uuid4(),
+        document_id=doc_id,
+        version_id=target_version_id,
+        status="PENDING",
+        current_step="upload",
+        dispatch_state=DispatchState.PENDING_DISPATCH.value,
+    )
+    service.job_repo.create = AsyncMock(return_value=job_instance)
+
+    with patch("backend.document.services.document_service.acquire_lock", return_value=DummyAsyncContextManager()), \
+         patch("backend.document.workers.ingestion.process_document_job.apply_async", side_effect=ConnectionError("Broker unreachable")):
+
+        doc, new_version, job = await service.rollback_to_version(
+            doc_id, target_version_id, tenant_id, mock_session
+        )
+
+        assert doc.status == DocumentStatus.UPLOADED
+        assert job.dispatch_state == DispatchState.FAILED_DISPATCH.value
+        assert "Broker unreachable" in job.dispatch_error
+        mock_session.commit.assert_called()
