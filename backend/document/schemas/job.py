@@ -55,8 +55,9 @@ class ProcessingJobBase(BaseModel):
     error_code: str | None = None
     error_message: str | None = None
     step_metrics: dict[str, Any] | None = None
-    dispatch_state: str = "PENDING_DISPATCH"
+    dispatch_state: str | None = "PENDING_DISPATCH"
     celery_task_id: str | None = None
+
     dispatched_at: datetime | None = None
     dispatch_error: str | None = None
 

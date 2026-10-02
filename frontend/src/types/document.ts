@@ -2,6 +2,24 @@
  * Document Intelligence frontend domain models (`ADR-005`).
  */
 
+export type DocumentStatus =
+  | 'UPLOADED'
+  | 'PENDING'
+  | 'VALIDATING'
+  | 'EXTRACTING'
+  | 'OCR'
+  | 'MANIFEST_GENERATING'
+  | 'PROCESSED'
+  | 'CHUNKING'
+  | 'CHUNKED'
+  | 'EMBEDDING'
+  | 'EMBEDDED'
+  | 'VECTOR_SYNC'
+  | 'READY'
+  | 'FAILED'
+  | 'ARCHIVED'
+  | 'DELETED'
+
 export interface StageMetricDTO {
   stage: string
   duration_ms: number
@@ -49,7 +67,7 @@ export interface DocumentResponse {
   tenant_id: string
   filename: string
   original_filename: string
-  status: string
+  status: DocumentStatus | string
   relative_path?: string
   latest_version_id?: string
   word_count: number
@@ -66,7 +84,7 @@ export interface DocumentDetailResponse extends DocumentResponse {
 
 export interface ProcessingStatusResponse {
   document_id: string
-  status: string
+  status: DocumentStatus | string
   current_step: string
   progress_percent: number
   retry_count: number
@@ -79,7 +97,7 @@ export interface UploadResponse {
   document_id: string
   version_id: string
   job_id: string
-  status: string
+  status: DocumentStatus | string
   filename: string
   original_filename: string
   file_size_bytes: number
@@ -93,3 +111,4 @@ export interface DocumentListResponse {
   page_size: number
   pages: number
 }
+

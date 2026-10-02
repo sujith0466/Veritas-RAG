@@ -7,8 +7,9 @@ import {
   Hash,
   Activity,
   Code2,
-  ExternalLink,
   ShieldCheck,
+  Download,
+  RotateCw,
 } from 'lucide-react'
 import {
   Button,
@@ -30,11 +31,13 @@ import type { DocumentDetailResponse, DocumentVersionDTO } from '@/types'
 export interface DocumentDetailDrawerProps {
   documentId: string | null
   onClose: () => void
+  onReingest?: (docId: string) => Promise<void>
 }
 
-export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDrawerProps) {
+export function DocumentDetailDrawer({ documentId, onClose, onReingest }: DocumentDetailDrawerProps) {
   const [detail, setDetail] = React.useState<DocumentDetailResponse | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
+  const [isReingesting, setIsReingesting] = React.useState(false)
   const [selectedVersion, setSelectedVersion] = React.useState<DocumentVersionDTO | null>(null)
   const [showManifestJson, setShowManifestJson] = React.useState(false)
 
@@ -65,7 +68,50 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
     }
   }, [documentId])
 
+  const handleDownloadOriginal = async () => {
+    if (!detail) return
+    try {
+      await documentService.downloadOriginal(detail.id, detail.original_filename || detail.filename, selectedVersion?.id)
+    } catch (err) {
+      console.error('Download original failed:', err)
+    }
+  }
+
+  const handleDownloadExtracted = async () => {
+    if (!detail) return
+    try {
+      await documentService.downloadExtractedText(detail.id, `${detail.filename}.extracted.txt`, selectedVersion?.id)
+    } catch (err) {
+      console.error('Download extracted text failed:', err)
+    }
+  }
+
+  const handleReingest = async () => {
+    if (!detail || !onReingest) return
+    setIsReingesting(true)
+    try {
+      await onReingest(detail.id)
+      onClose()
+    } finally {
+      setIsReingesting(false)
+    }
+  }
+
   if (!documentId) return null
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'READY':
+      case 'PROCESSED':
+        return <Badge variant="success">{status}</Badge>
+      case 'FAILED':
+        return <Badge variant="destructive">FAILED</Badge>
+      case 'ARCHIVED':
+        return <Badge variant="outline">ARCHIVED</Badge>
+      default:
+        return <Badge variant="warning">{status}</Badge>
+    }
+  }
 
   return (
     <Dialog open={!!documentId} onOpenChange={(open) => !open && onClose()}>
@@ -85,11 +131,7 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
                 </span>
               </div>
             </div>
-            {detail && (
-              <Badge variant={detail.status === 'PROCESSED' ? 'success' : 'subtle'} className="mr-6">
-                {detail.status}
-              </Badge>
-            )}
+            {detail && getStatusBadge(detail.status)}
           </DialogTitle>
         </DialogHeader>
 
@@ -100,6 +142,40 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
           </div>
         ) : (
           <div className="space-y-6 pt-4">
+            {/* Quick Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-surface border border-border/80">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadOriginal}
+                className="flex items-center gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5 text-primary" />
+                Download Original File
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadExtracted}
+                className="flex items-center gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5 text-primary" />
+                Download Extracted Text
+              </Button>
+              {onReingest && detail.status !== 'ARCHIVED' && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleReingest}
+                  isLoading={isReingesting}
+                  className="flex items-center gap-1.5 ml-auto"
+                >
+                  <RotateCw className="h-3.5 w-3.5" />
+                  Re-ingest Document
+                </Button>
+              )}
+            </div>
+
             {/* Overview Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-3.5 rounded-lg bg-muted/40 border border-border/50">
@@ -113,10 +189,10 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
 
               <div className="p-3.5 rounded-lg bg-muted/40 border border-border/50">
                 <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Database className="h-3.5 w-3.5 text-primary" /> Storage Provider
+                  <Database className="h-3.5 w-3.5 text-primary" /> Storage Engine
                 </div>
                 <div className="text-base font-bold text-foreground mt-1 uppercase">
-                  {detail.manifest?.storage_provider || 'LOCAL VOLUME'}
+                  {detail.manifest?.storage_provider || 'SECURE LOCAL'}
                 </div>
               </div>
 
@@ -131,7 +207,7 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
 
               <div className="p-3.5 rounded-lg bg-muted/40 border border-border/50">
                 <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-success" /> Contract Status
+                  <ShieldCheck className="h-3.5 w-3.5 text-success" /> Contract Verification
                 </div>
                 <div className="text-base font-bold text-success mt-1 flex items-center gap-1">
                   <CheckCircle2 className="h-4 w-4" /> VERIFIED
@@ -142,7 +218,7 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
             {/* Version Selector */}
             <div className="p-4 rounded-lg border border-border bg-surface">
               <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center justify-between">
-                <span>Version History & Checksums</span>
+                <span>Version History & Cryptographic Checksum</span>
                 {selectedVersion && (
                   <Badge variant="outline" className="text-xs font-mono">
                     SHA-256: {selectedVersion.content_hash.slice(0, 16)}...
@@ -171,7 +247,7 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
-                  Stage Duration & Pipeline Metrics (Refinement 3)
+                  Stage Duration & Pipeline Metrics
                 </h4>
                 <div className="border border-border rounded-lg overflow-hidden">
                   <Table>
@@ -204,34 +280,46 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
               </div>
             )}
 
-            {/* Canonical Manifest Viewer (`DocumentManifestDTO`) */}
+            {/* Canonical Manifest Details */}
             {detail.manifest && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <Code2 className="h-4 w-4 text-primary" />
-                    Canonical Document Manifest (Refinement 1)
+                    Canonical Document Specification
                   </h4>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowManifestJson(!showManifestJson)}
                   >
-                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                    {showManifestJson ? 'Hide Raw JSON' : 'Inspect Manifest JSON'}
+                    {showManifestJson ? 'Hide Details' : 'View Spec JSON'}
                   </Button>
                 </div>
 
                 {showManifestJson ? (
                   <pre className="p-4 rounded-lg bg-surface-elevated text-xs font-mono text-foreground border border-border overflow-x-auto max-h-[300px]">
-                    {JSON.stringify(detail.manifest, null, 2)}
+                    {JSON.stringify(
+                      {
+                        manifest_version: detail.manifest.manifest_version,
+                        document_id: detail.manifest.document_id,
+                        version_number: detail.manifest.version_number,
+                        page_count: detail.manifest.page_count,
+                        word_count: detail.manifest.word_count,
+                        language: detail.manifest.language,
+                        checksum_sha256: detail.manifest.checksum_sha256,
+                        stage_metrics: detail.manifest.stage_metrics,
+                      },
+                      null,
+                      2
+                    )}
                   </pre>
                 ) : (
                   <div className="p-4 rounded-lg bg-muted/30 border border-border/60 text-xs space-y-2 font-mono">
-                    <div className="flex justify-between"><span className="text-muted-foreground">manifest_version:</span> <span>{detail.manifest.manifest_version}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">original_storage_key:</span> <span>{detail.manifest.original_storage_key}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">normalized_text_path:</span> <span>{detail.manifest.normalized_text_path}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">metadata_json_path:</span> <span>{detail.manifest.metadata_json_path}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Specification Version:</span> <span>{detail.manifest.manifest_version}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Language / Encoding:</span> <span>{detail.manifest.language} / utf-8</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Total Words / Pages:</span> <span>{detail.manifest.word_count} words / {detail.manifest.page_count} pgs</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Integrity Checksum:</span> <span className="truncate max-w-[280px]">{detail.manifest.checksum_sha256}</span></div>
                   </div>
                 )}
               </div>
@@ -248,3 +336,4 @@ export function DocumentDetailDrawer({ documentId, onClose }: DocumentDetailDraw
     </Dialog>
   )
 }
+

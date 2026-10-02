@@ -67,26 +67,49 @@ class DocumentRepository:
         page: int = 1,
         page_size: int = 20,
         status: str | None = None,
+        search: str | None = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> tuple[list[Document], int]:
-        """List documents within a tenant namespace with pagination and optional status filter."""
+        """List documents within a tenant namespace with pagination, search, and sorting."""
         base_query = select(Document).outerjoin(Folder, Document.folder_id == Folder.id).where(
             Document.tenant_id == tenant_id,
             Document.is_deleted.is_(False),
             or_(Document.folder_id.is_(None), Folder.is_deleted.is_(False)),
         )
-        if status:
+        if status and status != "ALL":
             base_query = base_query.where(Document.status == status)
-        else:
+        elif not status:
             base_query = base_query.where(Document.status != DocumentStatus.ARCHIVED.value)
+
+        if search and search.strip():
+            term = f"%{search.strip()}%"
+            base_query = base_query.where(
+                or_(
+                    Document.filename.ilike(term),
+                    Document.original_filename.ilike(term),
+                )
+            )
 
         # Count total
         count_stmt = select(func.count()).select_from(base_query.subquery())
         total_result = await session.execute(count_stmt)
         total = total_result.scalar_one() or 0
 
+        # Dynamic sorting
+        sort_column_map = {
+            "created_at": Document.created_at,
+            "filename": Document.filename,
+            "word_count": Document.word_count,
+            "status": Document.status,
+            "updated_at": Document.updated_at,
+        }
+        col = sort_column_map.get(sort_by.lower(), Document.created_at)
+        order_clause = col.asc() if sort_order.lower() == "asc" else col.desc()
+
         # Paginate
         items_stmt = (
-            base_query.order_by(Document.created_at.desc())
+            base_query.order_by(order_clause)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

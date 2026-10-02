@@ -187,19 +187,18 @@ async def test_authorization_matrix(client, setup_data):
     res = client.get("/api/v1/analytics/popular-topics")
     assert res.status_code in (401, 403)
 
-    # Insufficient Role (MEMBER instead of VIEWER/ADMIN - wait, is member insufficient?)
-    # Usually ADMIN/VIEWER is required for workspace overview
-    # Let's assume MEMBER is insufficient as in earlier tests
+    # Insufficient Role (MEMBER on admin-gated quota endpoint)
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.MEMBER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.MEMBER)
-    res = client.get("/api/v1/analytics/popular-topics")
+    res = client.get(f"/api/v1/analytics/v1/quotas/{tenant_a}")
     assert res.status_code == 403
 
-    # Authorized (VIEWER)
+    # Authorized (VIEWER on workspace viewer endpoint)
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
     res = client.get("/api/v1/analytics/popular-topics")
     assert res.status_code == 200
+
 
 @pytest.mark.asyncio
 async def test_popular_topics_correctness(client):

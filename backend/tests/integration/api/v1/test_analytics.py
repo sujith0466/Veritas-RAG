@@ -72,10 +72,11 @@ def test_authorization_insufficient_role():
     app.dependency_overrides[get_current_user] = lambda: get_mock_user("Workspace-A", Role.MEMBER)
     client = TestClient(app)
 
-    res = client.get("/api/v1/analytics/workspace-overview")
+    res = client.get("/api/v1/analytics/v1/quotas/Workspace-A")
     assert res.status_code == 403, "Insufficient role should be rejected"
 
     app.dependency_overrides.clear()
+
 
 def test_authorization_authorized():
     mock_service = AsyncMock()

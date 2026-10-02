@@ -19,26 +19,43 @@ export interface DocumentProgressProps {
 }
 
 const STAGES = [
-  { key: 'upload', label: 'File Uploaded', desc: 'SHA-256 check & physical volume storage' },
-  { key: 'validation', label: 'Validation Pipeline', desc: 'Magic bytes, MIME check & virus scan' },
-  { key: 'extraction', label: 'Content Extraction', desc: 'Capability registry routing & parsing' },
-  { key: 'ocr', label: 'OCR Screening', desc: 'Density check & engine fallback' },
-  { key: 'manifest', label: 'Canonical Manifest', desc: 'NFC normalization & contract check' },
+  { key: 'upload', label: '1. Upload & Storage', desc: 'SHA-256 validation & storage object' },
+  { key: 'validation', label: '2. Security Screening', desc: 'MIME magic bytes & virus scan' },
+  { key: 'extraction', label: '3. Extraction & OCR', desc: 'Capability registry & text extraction' },
+  { key: 'manifest', label: '4. Manifest & Contract', desc: 'Normalization & contract verification' },
+  { key: 'chunking', label: '5. Text Chunking', desc: 'Semantic boundary chunk partitioning' },
+  { key: 'embedding', label: '6. Embeddings & Index', desc: 'Dense vectors & Qdrant synchronization' },
 ]
+
+const STATUS_STAGE_MAP: Record<string, number> = {
+  UPLOADED: 0,
+  PENDING: 0,
+  VALIDATING: 1,
+  EXTRACTING: 2,
+  OCR: 2,
+  MANIFEST_GENERATING: 3,
+  PROCESSED: 4,
+  CHUNKING: 4,
+  CHUNKED: 4,
+  EMBEDDING: 5,
+  EMBEDDED: 5,
+  VECTOR_SYNC: 5,
+  READY: 6,
+}
 
 export function DocumentProgress({ status, documentName, isPolling }: DocumentProgressProps) {
   if (!status) return null
 
+  const currentIdx = STATUS_STAGE_MAP[status.status] ?? 0
+
   const getStageState = (_stageKey: string, index: number) => {
-    if (status.status === 'PROCESSED') return 'completed'
+    if (status.status === 'READY') return 'completed'
     if (status.status === 'FAILED') {
-      const currentIdx = STAGES.findIndex((s) => s.key === status.current_step)
       if (index < currentIdx) return 'completed'
       if (index === currentIdx) return 'failed'
       return 'pending'
     }
 
-    const currentIdx = STAGES.findIndex((s) => s.key === status.current_step)
     if (index < currentIdx) return 'completed'
     if (index === currentIdx) return 'active'
     return 'pending'
@@ -46,16 +63,41 @@ export function DocumentProgress({ status, documentName, isPolling }: DocumentPr
 
   const getStatusBadge = () => {
     switch (status.status) {
+      case 'READY':
+        return <Badge variant="success">READY (RETRIEVAL ACTIVE)</Badge>
       case 'PROCESSED':
-        return <Badge variant="success">PROCESSED (CONTRACT VERIFIED)</Badge>
-      case 'FAILED':
-        return <Badge variant="destructive">FAILED (SEVERITY CHECKED)</Badge>
-      case 'VALIDATING':
-      case 'EXTRACTING':
-      case 'RETRYING':
         return (
           <Badge variant="warning" className="animate-pulse">
-            {status.status} (RETRY {status.retry_count}/3)
+            PROCESSED (CHUNKING & EMBEDDINGS DISPATCHED)
+          </Badge>
+        )
+      case 'CHUNKING':
+        return (
+          <Badge variant="warning" className="animate-pulse">
+            CHUNKING IN PROGRESS
+          </Badge>
+        )
+      case 'EMBEDDING':
+        return (
+          <Badge variant="warning" className="animate-pulse">
+            GENERATING EMBEDDINGS
+          </Badge>
+        )
+      case 'VECTOR_SYNC':
+        return (
+          <Badge variant="warning" className="animate-pulse">
+            INDEXING TO QDRANT
+          </Badge>
+        )
+      case 'FAILED':
+        return <Badge variant="destructive">FAILED ({status.error_code || 'PIPELINE_ERROR'})</Badge>
+      case 'VALIDATING':
+      case 'EXTRACTING':
+      case 'OCR':
+      case 'MANIFEST_GENERATING':
+        return (
+          <Badge variant="warning" className="animate-pulse">
+            {status.status} {status.retry_count > 0 ? `(RETRY ${status.retry_count}/3)` : ''}
           </Badge>
         )
       default:
@@ -73,12 +115,12 @@ export function DocumentProgress({ status, documentName, isPolling }: DocumentPr
           <div>
             <div className="flex items-center gap-2">
               <h4 className="font-semibold text-foreground text-sm sm:text-base">
-                Pipeline Lifecycle: {documentName || status.document_id.slice(0, 8)}
+                Pipeline Lifecycle: {documentName || String(status.document_id).slice(0, 8)}
               </h4>
               {getStatusBadge()}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-              <span>Current Step: <strong className="text-foreground uppercase">{status.current_step}</strong></span>
+              <span>Status: <strong className="text-foreground uppercase">{status.status}</strong></span>
               {isPolling && (
                 <span className="inline-flex items-center gap-1 text-primary">
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -101,15 +143,19 @@ export function DocumentProgress({ status, documentName, isPolling }: DocumentPr
         <motion.div
           className={cn(
             'h-full rounded-full transition-all duration-300',
-            status.status === 'PROCESSED' ? 'bg-success' : status.status === 'FAILED' ? 'bg-danger' : 'bg-gradient-primary',
+            status.status === 'READY'
+              ? 'bg-success'
+              : status.status === 'FAILED'
+              ? 'bg-danger'
+              : 'bg-gradient-primary',
           )}
           initial={{ width: 0 }}
           animate={{ width: `${status.progress_percent}%` }}
         />
       </div>
 
-      {/* Stages Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+      {/* Stages Grid (6-stage grid) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {STAGES.map((stage, i) => {
           const state = getStageState(stage.key, i)
           return (
@@ -146,7 +192,7 @@ export function DocumentProgress({ status, documentName, isPolling }: DocumentPr
           <AlertTriangle className="h-5 w-5 text-danger shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h5 className="font-semibold text-sm text-danger flex items-center gap-2">
-              Ingestion Pipeline Failure [{status.error_code || 'SYS_002'}]
+              Ingestion Pipeline Failure [{status.error_code || 'PIPELINE_ERROR'}]
               {status.retry_count > 0 && (
                 <Badge variant="destructive" className="text-[10px] h-4">
                   <RotateCcw className="h-3 w-3 mr-1" /> Retried {status.retry_count}/3 times
@@ -162,3 +208,4 @@ export function DocumentProgress({ status, documentName, isPolling }: DocumentPr
     </Card>
   )
 }
+

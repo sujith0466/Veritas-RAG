@@ -16,7 +16,9 @@ from backend.cache.locks import acquire_lock
 from backend.document.events import (
     EVENT_DOCUMENT_ARCHIVED,
     EVENT_DOCUMENT_DELETED,
+    EVENT_DOCUMENT_REINGESTED,
     EVENT_DOCUMENT_RESTORED,
+    EVENT_DOCUMENT_RETRIED,
     EVENT_DOCUMENT_ROLLED_BACK,
     EVENT_DOCUMENT_UPLOADED,
     EVENT_DOCUMENT_VERSION_CREATED,
@@ -29,6 +31,8 @@ from backend.document.models import (
     ProcessingJob,
     StorageObject,
 )
+from backend.document.models.job import DispatchState
+
 from backend.document.repositories import (
     DocumentEventRepository,
     DocumentRepository,
@@ -291,10 +295,20 @@ class DocumentService:
         page: int = 1,
         page_size: int = 20,
         status: str | None = None,
+        search: str | None = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> DocumentListResponse:
-        """List documents within a tenant namespace with pagination."""
+        """List documents within a tenant namespace with pagination, search, and sorting."""
         items, total = await self.doc_repo.list_documents(
-            tenant_id, session, page, page_size, status
+            tenant_id=tenant_id,
+            session=session,
+            page=page,
+            page_size=page_size,
+            status=status,
+            search=search,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
         items_dto = [DocumentResponse.model_validate(item) for item in items]
         pages = math.ceil(total / page_size) if page_size > 0 else 1
@@ -619,3 +633,288 @@ class DocumentService:
             await session.commit()
 
             return doc, version, job
+
+    async def get_original_file_stream(
+        self,
+        document_id: uuid.UUID,
+        tenant_id: str,
+        session: AsyncSession,
+        version_id: uuid.UUID | None = None,
+    ) -> tuple[BinaryIO, str, str, int]:
+        """Retrieve original binary file stream securely without path exposure.
+
+        Returns:
+            tuple of (stream, original_filename, mime_type, file_size_bytes)
+        """
+        doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+        if not doc:
+            raise DocumentDomainException("STORE_002", "Document not found")
+
+        target_version: DocumentVersion | None = None
+        if version_id:
+            target_version = next((v for v in doc.versions if v.id == version_id), None)
+            if not target_version:
+                raise DocumentDomainException("STORE_002", "Target document version not found")
+        else:
+            if doc.latest_version_id:
+                target_version = next((v for v in doc.versions if v.id == doc.latest_version_id), None)
+            if not target_version and doc.versions:
+                target_version = max(doc.versions, key=lambda v: v.version_number)
+
+        if not target_version or not target_version.storage_object:
+            raise DocumentDomainException("STORE_002", "Document version storage object not found")
+
+        storage_obj = target_version.storage_object
+        if not await self.storage.object_exists(storage_obj.object_key):
+            raise DocumentDomainException(
+                "STORE_002", "Physical storage file is missing on storage volume"
+            )
+
+        stream = await self.storage.get_stream(storage_obj.object_key)
+        filename = doc.original_filename or doc.filename
+        mime_type = storage_obj.mime_type or "application/octet-stream"
+        file_size = storage_obj.file_size_bytes or 0
+
+        return stream, filename, mime_type, file_size
+
+    async def get_extracted_text_stream(
+        self,
+        document_id: uuid.UUID,
+        tenant_id: str,
+        session: AsyncSession,
+        version_id: uuid.UUID | None = None,
+    ) -> tuple[BinaryIO, str, int]:
+        """Retrieve normalized extracted text artifact stream securely.
+
+        Returns:
+            tuple of (stream, download_filename, file_size_bytes)
+        """
+        doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+        if not doc:
+            raise DocumentDomainException("STORE_002", "Document not found")
+
+        target_version: DocumentVersion | None = None
+        if version_id:
+            target_version = next((v for v in doc.versions if v.id == version_id), None)
+            if not target_version:
+                raise DocumentDomainException("STORE_002", "Target document version not found")
+        else:
+            if doc.latest_version_id:
+                target_version = next((v for v in doc.versions if v.id == doc.latest_version_id), None)
+            if not target_version and doc.versions:
+                target_version = max(doc.versions, key=lambda v: v.version_number)
+
+        if not target_version or not target_version.extracted_text_path:
+            raise DocumentDomainException(
+                "VAL_001", "Extracted content is not yet available for this document"
+            )
+
+        if not await self.storage.object_exists(target_version.extracted_text_path):
+            raise DocumentDomainException(
+                "STORE_002", "Extracted text artifact is missing on storage volume"
+            )
+
+        stream = await self.storage.get_stream(target_version.extracted_text_path)
+        content_bytes = stream.read()
+        stream.seek(0)
+        file_size = len(content_bytes)
+        download_filename = f"{doc.filename}.extracted.txt"
+
+        return stream, download_filename, file_size
+
+    async def retry_document(
+        self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
+    ) -> tuple[Document, ProcessingJob]:
+        """Retry processing for a FAILED document using existing uploaded storage artifact."""
+        async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
+            doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+            if not doc:
+                raise DocumentDomainException("STORE_002", "Document not found")
+            if doc.status in (DocumentStatus.ARCHIVED, DocumentStatus.DELETED):
+                raise DocumentDomainException("VAL_001", f"Cannot retry a {doc.status.lower()} document")
+            if doc.status != DocumentStatus.FAILED:
+                raise DocumentDomainException(
+                    "VAL_001",
+                    f"Only documents in FAILED status can be retried (current status: {doc.status}). Use re-ingest for completed documents."
+                )
+
+            # Resolve target version (active or latest)
+            target_version: DocumentVersion | None = None
+            if doc.latest_version_id:
+                target_version = next((v for v in doc.versions if v.id == doc.latest_version_id), None)
+            if not target_version and doc.versions:
+                target_version = max(doc.versions, key=lambda v: v.version_number)
+
+            if not target_version or not target_version.storage_object:
+                raise DocumentDomainException("STORE_002", "Storage object metadata missing for document")
+
+            # Execute StoragePreflightValidator
+            from backend.document.storage.preflight import StoragePreflightValidator
+            preflight = StoragePreflightValidator.validate(
+                target_version.storage_object, expected_tenant_id=tenant_id
+            )
+            if not preflight.is_valid:
+                raise DocumentDomainException(
+                    "STORE_002",
+                    f"Storage pre-flight check failed: {preflight.error_message or 'Physical storage object missing'}"
+                )
+
+            # Find existing processing job or create a new one
+            job = await self.job_repo.get_by_document_id(doc.id, session)
+            if not job:
+                job = ProcessingJob(
+                    document_id=doc.id,
+                    version_id=target_version.id,
+                    status=DocumentStatus.PENDING,
+                    current_step="upload",
+                    retry_count=0,
+                    max_retries=3,
+                )
+                job = await self.job_repo.create(job, session)
+            else:
+                job.version_id = target_version.id
+                job.status = DocumentStatus.PENDING
+                job.current_step = "upload"
+                job.error_code = None
+                job.error_message = None
+                job.retry_count = 0
+                job.dispatch_state = DispatchState.PENDING_DISPATCH.value
+                job.dispatch_error = None
+                job.completed_at = None
+
+            doc.status = DocumentStatus.UPLOADED
+            await session.flush()
+
+            # Record domain event
+            payload = create_domain_event(
+                event_type=EVENT_DOCUMENT_RETRIED,
+                tenant_id=tenant_id,
+                document_id=doc.id,
+                job_id=job.id,
+                data={
+                    "version_id": str(target_version.id),
+                    "version_number": target_version.version_number,
+                },
+            )
+            event_log = DocumentEventLog(
+                document_id=doc.id,
+                job_id=job.id,
+                event_type=EVENT_DOCUMENT_RETRIED,
+                payload=payload.model_dump(mode="json"),
+                triggered_by="retry_api",
+            )
+            await self.event_repo.append_event(event_log, session)
+            await session.commit()
+
+            # Dispatch Celery ingestion task
+            from backend.document.services.job_dispatcher import JobDispatcher
+            await JobDispatcher.dispatch_job(job, session=session, queue="ingestion", force=True)
+            await session.commit()
+
+            return doc, job
+
+    async def reingest_document(
+        self, document_id: uuid.UUID, tenant_id: str, session: AsyncSession
+    ) -> tuple[Document, ProcessingJob]:
+        """Re-ingest an existing document from scratch (wipes chunks/vectors, re-runs complete pipeline)."""
+        async with acquire_lock(f"ws:{tenant_id}:doc:{document_id}"):
+            doc = await self.doc_repo.get_by_id_with_versions(document_id, tenant_id, session)
+            if not doc:
+                raise DocumentDomainException("STORE_002", "Document not found")
+            if doc.status in (DocumentStatus.ARCHIVED, DocumentStatus.DELETED):
+                raise DocumentDomainException("VAL_001", f"Cannot re-ingest a {doc.status.lower()} document")
+
+            # Resolve target version
+            target_version: DocumentVersion | None = None
+            if doc.latest_version_id:
+                target_version = next((v for v in doc.versions if v.id == doc.latest_version_id), None)
+            if not target_version and doc.versions:
+                target_version = max(doc.versions, key=lambda v: v.version_number)
+
+            if not target_version or not target_version.storage_object:
+                raise DocumentDomainException("STORE_002", "Storage object metadata missing for document")
+
+            # Execute StoragePreflightValidator
+            from backend.document.storage.preflight import StoragePreflightValidator
+            preflight = StoragePreflightValidator.validate(
+                target_version.storage_object, expected_tenant_id=tenant_id
+            )
+            if not preflight.is_valid:
+                raise DocumentDomainException(
+                    "STORE_002",
+                    f"Storage pre-flight check failed: {preflight.error_message or 'Physical storage object missing'}"
+                )
+
+            # Purge existing Qdrant vectors and DB chunks
+            try:
+                from backend.modules.vector.services.vector_service import VectorStorageService
+                vector_service = VectorStorageService(session=session)
+                await vector_service.delete_document_points(doc.id, tenant_id)
+            except Exception as v_err:
+                import structlog
+                logger = structlog.get_logger(__name__)
+                logger.warning("Failed to purge vectors during re-ingest", error=str(v_err), doc_id=str(doc.id))
+
+            from sqlalchemy import delete
+            from backend.modules.chunking.models.chunk import DocumentChunk
+            await session.execute(
+                delete(DocumentChunk).where(
+                    DocumentChunk.tenant_id == tenant_id,
+                    DocumentChunk.document_id == doc.id,
+                )
+            )
+
+            # Reset / Create ProcessingJob
+            job = await self.job_repo.get_by_document_id(doc.id, session)
+            if not job:
+                job = ProcessingJob(
+                    document_id=doc.id,
+                    version_id=target_version.id,
+                    status=DocumentStatus.PENDING,
+                    current_step="upload",
+                    retry_count=0,
+                    max_retries=3,
+                )
+                job = await self.job_repo.create(job, session)
+            else:
+                job.version_id = target_version.id
+                job.status = DocumentStatus.PENDING
+                job.current_step = "upload"
+                job.error_code = None
+                job.error_message = None
+                job.retry_count = 0
+                job.dispatch_state = DispatchState.PENDING_DISPATCH.value
+                job.dispatch_error = None
+                job.completed_at = None
+
+            doc.status = DocumentStatus.UPLOADED
+            await session.flush()
+
+            # Record domain event
+            payload = create_domain_event(
+                event_type=EVENT_DOCUMENT_REINGESTED,
+                tenant_id=tenant_id,
+                document_id=doc.id,
+                job_id=job.id,
+                data={
+                    "version_id": str(target_version.id),
+                    "version_number": target_version.version_number,
+                },
+            )
+            event_log = DocumentEventLog(
+                document_id=doc.id,
+                job_id=job.id,
+                event_type=EVENT_DOCUMENT_REINGESTED,
+                payload=payload.model_dump(mode="json"),
+                triggered_by="reingest_api",
+            )
+            await self.event_repo.append_event(event_log, session)
+            await session.commit()
+
+            # Dispatch Celery ingestion task
+            from backend.document.services.job_dispatcher import JobDispatcher
+            await JobDispatcher.dispatch_job(job, session=session, queue="ingestion", force=True)
+            await session.commit()
+
+            return doc, job
+

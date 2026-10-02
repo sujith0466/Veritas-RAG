@@ -19,6 +19,8 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.responses import StreamingResponse
+import urllib.parse
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -176,11 +178,95 @@ async def get_document_detail(
     )
 
 
+def _format_content_disposition(filename: str) -> str:
+    """Format RFC 5987 / 6266 Content-Disposition header with UTF-8 support."""
+    ascii_name = filename.encode("ascii", "ignore").decode("ascii").replace('"', '\\"') or "download.bin"
+    encoded_name = urllib.parse.quote(filename)
+    return f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{encoded_name}'
+
+
+@router.get(
+    "/{document_id}/download",
+    summary="Download original document binary",
+    description="Stream the original uploaded binary file securely. Requires VIEWER role within the tenant.",
+)
+async def download_original_document(
+    document_id: uuid.UUID,
+    version_id: uuid.UUID | None = Query(None, description="Optional specific version ID to download"),
+    user: UserContext = Depends(require_role(Role.VIEWER)),
+    session: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Download original document file stream."""
+    tenant_id, _ = _resolve_tenant_and_owner(user)
+    service = DocumentService()
+
+    try:
+        stream, filename, mime_type, file_size = await service.get_original_file_stream(
+            document_id=document_id,
+            tenant_id=tenant_id,
+            session=session,
+            version_id=version_id,
+        )
+    except Exception as e:
+        err_msg = str(e)
+        if "not found" in err_msg.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    headers = {
+        "Content-Disposition": _format_content_disposition(filename),
+    }
+    if file_size > 0:
+        headers["Content-Length"] = str(file_size)
+
+    return StreamingResponse(stream, media_type=mime_type, headers=headers)
+
+
+@router.get(
+    "/{document_id}/extracted-text",
+    summary="Download normalized extracted text content",
+    description="Stream the clean, extracted and normalized UTF-8 text content. Requires VIEWER role.",
+)
+async def download_extracted_text(
+    document_id: uuid.UUID,
+    version_id: uuid.UUID | None = Query(None, description="Optional specific version ID"),
+    user: UserContext = Depends(require_role(Role.VIEWER)),
+    session: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Download extracted text artifact stream."""
+    tenant_id, _ = _resolve_tenant_and_owner(user)
+    service = DocumentService()
+
+    try:
+        stream, filename, file_size = await service.get_extracted_text_stream(
+            document_id=document_id,
+            tenant_id=tenant_id,
+            session=session,
+            version_id=version_id,
+        )
+    except Exception as e:
+        err_msg = str(e)
+        if "not found" in err_msg.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        if "not yet available" in err_msg.lower():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    headers = {
+        "Content-Disposition": _format_content_disposition(filename),
+    }
+    if file_size > 0:
+        headers["Content-Length"] = str(file_size)
+
+    return StreamingResponse(stream, media_type="text/plain; charset=utf-8", headers=headers)
+
+
+
 @router.get(
     "",
     response_model=SuccessResponse[DocumentListResponse],
     summary="List tenant documents",
-    description="List all documents within the caller's tenant namespace with pagination and optional status filter.",
+    description="List all documents within the caller's tenant namespace with pagination, search, sorting, and optional status filter.",
 )
 async def list_documents(
     request: Request,
@@ -189,12 +275,15 @@ async def list_documents(
     status_filter: str | None = Query(
         None,
         alias="status",
-        description="Filter by status (PENDING, VALIDATING, EXTRACTING, PROCESSED, FAILED)",
+        description="Filter by status (PENDING, VALIDATING, EXTRACTING, PROCESSED, CHUNKING, EMBEDDING, VECTOR_SYNC, READY, FAILED)",
     ),
+    q: str | None = Query(None, description="Search term across filename and original filename"),
+    sort_by: str = Query("created_at", description="Sort field: created_at, filename, word_count, status, updated_at"),
+    sort_order: str = Query("desc", description="Sort order: asc or desc"),
     user: UserContext = Depends(require_role(Role.VIEWER)),
     session: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[DocumentListResponse]:
-    """List documents with pagination."""
+    """List documents with pagination, search, and sorting."""
     tenant_id, _ = _resolve_tenant_and_owner(user)
     service = DocumentService()
 
@@ -204,6 +293,9 @@ async def list_documents(
         page=page,
         page_size=page_size,
         status=status_filter,
+        search=q,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
     return SuccessResponse(
@@ -306,7 +398,82 @@ async def restore_document(
 
 
 @router.post(
+    "/{document_id}/retry",
+    response_model=SuccessResponse[dict[str, Any]],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Retry ingestion for a failed document",
+    description="Retry the ingestion pipeline for a document currently in FAILED status, verifying storage artifact preflight.",
+)
+async def retry_document(
+    request: Request,
+    document_id: uuid.UUID,
+    user: UserContext = Depends(require_role(Role.MEMBER)),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict[str, Any]]:
+    """Retry failed document ingestion."""
+    tenant_id, _ = _resolve_tenant_and_owner(user)
+    service = DocumentService()
+
+    try:
+        doc, job = await service.retry_document(document_id, tenant_id, session)
+    except Exception as e:
+        err_msg = str(e)
+        if "not found" in err_msg.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    return SuccessResponse(
+        success=True,
+        data={
+            "document_id": str(doc.id),
+            "job_id": str(job.id),
+            "status": doc.status,
+            "retried": True,
+        },
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/{document_id}/reingest",
+    response_model=SuccessResponse[dict[str, Any]],
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Re-ingest document from scratch",
+    description="Re-extract, re-chunk, re-embed, and re-index an existing document from its original storage object, purging stale vectors.",
+)
+async def reingest_document(
+    request: Request,
+    document_id: uuid.UUID,
+    user: UserContext = Depends(require_role(Role.MEMBER)),
+    session: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict[str, Any]]:
+    """Re-ingest an existing document."""
+    tenant_id, _ = _resolve_tenant_and_owner(user)
+    service = DocumentService()
+
+    try:
+        doc, job = await service.reingest_document(document_id, tenant_id, session)
+    except Exception as e:
+        err_msg = str(e)
+        if "not found" in err_msg.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=err_msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err_msg)
+
+    return SuccessResponse(
+        success=True,
+        data={
+            "document_id": str(doc.id),
+            "job_id": str(job.id),
+            "status": doc.status,
+            "reingested": True,
+        },
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
     "/{document_id}/versions",
+
     response_model=SuccessResponse[UploadResponse],
     status_code=status.HTTP_202_ACCEPTED,
     summary="Upload a new document version",

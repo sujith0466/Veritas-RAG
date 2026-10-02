@@ -61,13 +61,21 @@ export const documentService = {
     page = 1,
     pageSize = 20,
     status?: string,
+    search?: string,
+    sortBy = 'created_at',
+    sortOrder: 'asc' | 'desc' = 'desc',
   ): Promise<DocumentListResponse> {
     const params: Record<string, unknown> = {
       page,
       page_size: pageSize,
+      sort_by: sortBy,
+      sort_order: sortOrder,
     }
     if (status && status !== 'ALL') {
       params.status = status
+    }
+    if (search && search.trim()) {
+      params.q = search.trim()
     }
     return get<DocumentListResponse>('/documents', params)
   },
@@ -123,4 +131,45 @@ export const documentService = {
   async rollbackDocumentVersion(id: string, versionId: string): Promise<UploadResponse> {
     return post<UploadResponse>(`/documents/${id}/versions/${versionId}/rollback`)
   },
+
+  async retryDocument(id: string): Promise<{ retried: boolean; document_id: string; job_id: string; status: string }> {
+    return post<{ retried: boolean; document_id: string; job_id: string; status: string }>(`/documents/${id}/retry`)
+  },
+
+  async reingestDocument(id: string): Promise<{ reingested: boolean; document_id: string; job_id: string; status: string }> {
+    return post<{ reingested: boolean; document_id: string; job_id: string; status: string }>(`/documents/${id}/reingest`)
+  },
+
+  async downloadOriginal(id: string, filename = 'document.bin', versionId?: string): Promise<void> {
+    const url = versionId ? `/documents/${id}/download?version_id=${versionId}` : `/documents/${id}/download`
+    const response = await apiClient.get(url, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data])
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(downloadUrl)
+  },
+
+  async downloadExtractedText(id: string, filename = 'document.extracted.txt', versionId?: string): Promise<void> {
+    const url = versionId ? `/documents/${id}/extracted-text?version_id=${versionId}` : `/documents/${id}/extracted-text`
+    const response = await apiClient.get(url, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data], { type: 'text/plain;charset=utf-8' })
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(downloadUrl)
+  },
 }
+
