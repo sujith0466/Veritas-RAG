@@ -136,4 +136,23 @@ class CeleryEmbeddingWorker:
                     )
                     raise celery_task.retry(exc=exc, countdown=countdown)
 
+            # Fatal error or retries exhausted: Synchronize terminal failure state
+            try:
+                from backend.document.services.failure_service import PipelineFailureSynchronizer
+                job_record = await self.repository.get_job_by_id(job_id)
+                doc_id = job_record.document_id if job_record else None
+                if doc_id:
+                    await PipelineFailureSynchronizer.record_pipeline_failure(
+                        session=self.session,
+                        document_id=doc_id,
+                        failing_stage="embedding",
+                        error_code=str(error_code),
+                        error_message=str(exc),
+                        exception=exc,
+                        embedding_job_id=job_id,
+                        tenant_id=tenant_id,
+                    )
+            except Exception as sync_err:
+                logger.warning("failed_to_sync_embedding_failure", error=str(sync_err))
+
             raise exc

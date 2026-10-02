@@ -70,6 +70,24 @@ def sync_vectors_to_qdrant_task(
             error_code=exc.code,
             error=str(exc),
         )
+        try:
+            import uuid
+            from backend.document.services.failure_service import PipelineFailureSynchronizer
+            async def _record_fail():
+                session_factory = get_session_factory()
+                async with session_factory() as session:
+                    await PipelineFailureSynchronizer.record_pipeline_failure(
+                        session=session,
+                        document_id=uuid.UUID(document_id),
+                        failing_stage="vector_sync",
+                        error_code=str(exc.code),
+                        error_message=str(exc),
+                        exception=exc,
+                        tenant_id=tenant_id,
+                    )
+            asyncio.run(_record_fail())
+        except Exception as sync_err:
+            logger.warning("failed_to_sync_vector_failure", error=str(sync_err))
         raise
     except Exception as exc:
         if self.request.retries < self.max_retries:
@@ -80,6 +98,24 @@ def sync_vectors_to_qdrant_task(
                 error=str(exc),
             )
             raise self.retry(exc=exc, countdown=countdown) from exc
+        try:
+            import uuid
+            from backend.document.services.failure_service import PipelineFailureSynchronizer
+            async def _record_unhandled_fail():
+                session_factory = get_session_factory()
+                async with session_factory() as session:
+                    await PipelineFailureSynchronizer.record_pipeline_failure(
+                        session=session,
+                        document_id=uuid.UUID(document_id),
+                        failing_stage="vector_sync",
+                        error_code="VEC_UNHANDLED",
+                        error_message=str(exc),
+                        exception=exc,
+                        tenant_id=tenant_id,
+                    )
+            asyncio.run(_record_unhandled_fail())
+        except Exception as sync_err:
+            logger.warning("failed_to_sync_unhandled_vector_failure", error=str(sync_err))
         raise
 
 

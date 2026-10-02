@@ -160,10 +160,25 @@ async def _async_process_chunking(
                     logger.warning("failed_to_log_chunking_error_event", error=str(log_exc))
 
             if (
-                    severity == ErrorSeverity.RECOVERABLE
-                    and task_instance.request.retries < task_instance.max_retries
+                severity == ErrorSeverity.RECOVERABLE
+                and task_instance.request.retries < task_instance.max_retries
             ):
-                    backoff_seconds = 2**task_instance.request.retries * 5
-                    raise task_instance.retry(exc=exc, countdown=backoff_seconds) from exc
+                backoff_seconds = 2**task_instance.request.retries * 5
+                raise task_instance.retry(exc=exc, countdown=backoff_seconds) from exc
+
+            # Fatal error or retries exhausted: Synchronize terminal failure state
+            try:
+                from backend.document.services.failure_service import PipelineFailureSynchronizer
+                await PipelineFailureSynchronizer.record_pipeline_failure(
+                    session=session,
+                    document_id=document_id,
+                    failing_stage="chunking",
+                    error_code=str(error_code),
+                    error_message=str(exc),
+                    exception=exc,
+                    tenant_id=tenant_id,
+                )
+            except Exception as sync_err:
+                logger.warning("failed_to_sync_chunking_failure", error=str(sync_err))
 
             raise exc
