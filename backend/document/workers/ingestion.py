@@ -26,6 +26,7 @@ from backend.document.events import (
 )
 from backend.document.extractors import create_default_registry, normalize_text
 from backend.document.models import DocumentEventLog
+from backend.document.models.job import DispatchState
 from backend.document.ocr import OCRPipeline
 from backend.document.repositories import DocumentEventRepository, DocumentRepository, JobRepository
 from backend.document.schemas import DocumentManifestDTO, StageMetricDTO
@@ -133,6 +134,8 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             doc.status = DocumentStatus.VALIDATING
             job.current_step = "validation"
             job.status = "VALIDATING"
+            job.dispatch_state = DispatchState.ACKNOWLEDGED.value
+            job.claimed_at = datetime.now(UTC)
             await session.commit()
 
             stream = await storage.get_stream(version.storage_object.object_key)

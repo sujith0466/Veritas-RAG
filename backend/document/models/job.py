@@ -6,11 +6,22 @@ Tracks asynchronous background pipeline execution, step metrics, and retry state
 from datetime import datetime
 import uuid
 
+from enum import Enum
+
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base import BaseModel
+
+
+class DispatchState(str, Enum):
+    """Lifecycle states for background job broker dispatch."""
+
+    PENDING_DISPATCH = "PENDING_DISPATCH"
+    DISPATCHED = "DISPATCHED"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    FAILED_DISPATCH = "FAILED_DISPATCH"
 
 
 class ProcessingJob(BaseModel):
@@ -66,6 +77,14 @@ class ProcessingJob(BaseModel):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     resume_from_step: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Resilient dispatch / outbox tracking
+    dispatch_state: Mapped[str] = mapped_column(
+        String(50), default=DispatchState.PENDING_DISPATCH.value, index=True, nullable=False
+    )
+    celery_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    dispatch_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     def __repr__(self) -> str:
         return f"<ProcessingJob(id={self.id}, doc_id={self.document_id}, status='{self.status}', step='{self.current_step}')>"
