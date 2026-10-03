@@ -246,6 +246,10 @@ class StageTraceDTO(BaseModel):
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional stage execution diagnostics"
     )
+    is_authoritative: bool = Field(
+        default=True,
+        description="True if measured from retrieval_queries hardware telemetry; False if estimated.",
+    )
 
 
 class RetrievalCandidateTraceDTO(BaseModel):
@@ -308,6 +312,10 @@ class QueryTraceDetailDTO(BaseModel):
     )
     self_corrections: list[SelfCorrectionTraceDTO] = Field(
         default_factory=list, description="Self-correction iteration timeline"
+    )
+    is_authoritative: bool = Field(
+        default=True,
+        description="True if full stage breakdown was retrieved from authoritative logs; False if estimated.",
     )
 
 

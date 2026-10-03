@@ -157,6 +157,19 @@ class AnalyticsRepository(BaseRepository[QueryAnalyticsRecord]):
         )
         return await self.session.scalar(query)
 
+    async def get_retrieval_query_log(
+        self, correlation_id: str, tenant_id: str
+    ) -> Any | None:
+        """Fetch retrieval query log with stage breakdown for a correlation trace."""
+        from backend.modules.retrieval.models.retrieval_log import RetrievalQueryLog
+
+        query = select(RetrievalQueryLog).where(
+            RetrievalQueryLog.correlation_id == correlation_id,
+            RetrievalQueryLog.tenant_id == tenant_id,
+            RetrievalQueryLog.is_deleted.is_(False),
+        )
+        return await self.session.scalar(query)
+
     async def get_success_rate_metrics(
         self,
         tenant_id: str,

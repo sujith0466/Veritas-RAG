@@ -297,41 +297,111 @@ class QueryAnalyticsService:
         base_dto = QueryHistoryItemDTO.model_validate(record)
         total_ms = record.total_duration_ms or 250.0
 
-        stage_traces = [
-            StageTraceDTO(
-                stage_name="Validation & Authentication",
-                duration_ms=round(total_ms * 0.05, 2),
-                status="COMPLETED",
-                metadata={"jwt_verified": True, "tenant_isolated": True},
-            ),
-            StageTraceDTO(
-                stage_name="Hybrid Retrieval & RRF",
-                duration_ms=round(total_ms * 0.35, 2),
-                status="COMPLETED",
-                metadata={"strategy": "dense_sparse_rrf", "candidates_merged": 12},
-            ),
-            StageTraceDTO(
-                stage_name="Pre-Generation Confidence Scoring",
-                duration_ms=round(total_ms * 0.10, 2),
-                status="COMPLETED",
-                metadata={"confidence_score": record.confidence_score or 0.88},
-            ),
-            StageTraceDTO(
-                stage_name="LLM Generation & Safety Check",
-                duration_ms=round(total_ms * 0.40, 2),
-                status="COMPLETED" if record.outcome == "SUCCESS" else "INTERCEPTED",
-                metadata={
-                    "provider": "gemini-1.5-pro",
-                    "is_safe": record.is_safe_to_serve,
-                },
-            ),
-            StageTraceDTO(
-                stage_name="Answer Claim Validation",
-                duration_ms=round(total_ms * 0.10, 2),
-                status="COMPLETED",
-                metadata={"hallucination_score": record.hallucination_score or 0.02},
-            ),
-        ]
+        retrieval_log = await self.repository.get_retrieval_query_log(
+            correlation_id=correlation_id, tenant_id=tenant_id
+        )
+
+        is_authoritative = False
+        stage_traces: list[StageTraceDTO] = []
+
+        if (
+            retrieval_log
+            and isinstance(retrieval_log.stage_breakdown_json, dict)
+            and retrieval_log.stage_breakdown_json
+        ):
+            is_authoritative = True
+            breakdown = retrieval_log.stage_breakdown_json
+            dense_ms = float(breakdown.get("dense_ms", 0.0))
+            sparse_ms = float(breakdown.get("sparse_ms", 0.0))
+            rrf_ms = float(breakdown.get("rrf_fusion_ms", 0.0))
+            rerank_ms = float(breakdown.get("rerank_ms", 0.0))
+            retrieval_measured_ms = dense_ms + sparse_ms + rrf_ms + rerank_ms
+            llm_duration_ms = max(0.0, round(total_ms - retrieval_measured_ms, 2))
+
+            stage_traces = [
+                StageTraceDTO(
+                    stage_name="Dense Vector Search (Qdrant)",
+                    duration_ms=round(dense_ms, 2),
+                    status="COMPLETED",
+                    metadata={"candidates_retrieved": retrieval_log.dense_candidate_count},
+                    is_authoritative=True,
+                ),
+                StageTraceDTO(
+                    stage_name="Sparse Keyword Search (BM25)",
+                    duration_ms=round(sparse_ms, 2),
+                    status="COMPLETED",
+                    metadata={"candidates_retrieved": retrieval_log.sparse_candidate_count},
+                    is_authoritative=True,
+                ),
+                StageTraceDTO(
+                    stage_name="Reciprocal Rank Fusion (RRF)",
+                    duration_ms=round(rrf_ms, 2),
+                    status="COMPLETED",
+                    metadata={"merged_unique_count": retrieval_log.merged_unique_count},
+                    is_authoritative=True,
+                ),
+                StageTraceDTO(
+                    stage_name="Cross-Encoder Reranking",
+                    duration_ms=round(rerank_ms, 2),
+                    status="COMPLETED",
+                    metadata={"final_top_k": retrieval_log.final_top_k},
+                    is_authoritative=True,
+                ),
+                StageTraceDTO(
+                    stage_name="LLM Generation & Verification",
+                    duration_ms=llm_duration_ms,
+                    status="COMPLETED" if record.outcome == "SUCCESS" else "INTERCEPTED",
+                    metadata={
+                        "is_safe": record.is_safe_to_serve,
+                        "confidence_score": record.confidence_score,
+                    },
+                    is_authoritative=True,
+                ),
+            ]
+        else:
+            # Fallback path for historical or sandbox records without dedicated retrieval logs
+            is_authoritative = False
+            stage_traces = [
+                StageTraceDTO(
+                    stage_name="Validation & Authentication",
+                    duration_ms=round(total_ms * 0.05, 2),
+                    status="COMPLETED",
+                    metadata={"jwt_verified": True, "tenant_isolated": True, "estimated": True},
+                    is_authoritative=False,
+                ),
+                StageTraceDTO(
+                    stage_name="Hybrid Retrieval & RRF",
+                    duration_ms=round(total_ms * 0.35, 2),
+                    status="COMPLETED",
+                    metadata={"strategy": "dense_sparse_rrf", "estimated": True},
+                    is_authoritative=False,
+                ),
+                StageTraceDTO(
+                    stage_name="Pre-Generation Confidence Scoring",
+                    duration_ms=round(total_ms * 0.10, 2),
+                    status="COMPLETED",
+                    metadata={"confidence_score": record.confidence_score or 0.88, "estimated": True},
+                    is_authoritative=False,
+                ),
+                StageTraceDTO(
+                    stage_name="LLM Generation & Safety Check",
+                    duration_ms=round(total_ms * 0.40, 2),
+                    status="COMPLETED" if record.outcome == "SUCCESS" else "INTERCEPTED",
+                    metadata={
+                        "provider": "gemini-1.5-pro",
+                        "is_safe": record.is_safe_to_serve,
+                        "estimated": True,
+                    },
+                    is_authoritative=False,
+                ),
+                StageTraceDTO(
+                    stage_name="Answer Claim Validation",
+                    duration_ms=round(total_ms * 0.10, 2),
+                    status="COMPLETED",
+                    metadata={"hallucination_score": record.hallucination_score or 0.02, "estimated": True},
+                    is_authoritative=False,
+                ),
+            ]
 
         retrieval_candidates = [
             RetrievalCandidateTraceDTO(
@@ -394,6 +464,7 @@ class QueryAnalyticsService:
             retrieval_candidates=retrieval_candidates,
             confidence_signals=confidence_signals,
             self_corrections=self_corrections,
+            is_authoritative=is_authoritative,
         )
 
     async def execute_query_sandbox(
@@ -438,7 +509,7 @@ class QueryAnalyticsService:
             total_duration_ms=total_duration_ms,
             confidence_score=base_confidence,
             hallucination_score=0.01 if outcome == "SUCCESS" else 0.0,
-            reliability_score=round(base_confidence * 100, 1),
+            reliability_score=round(base_confidence, 4),
             retry_attempts=retry_attempts,
             is_safe_to_serve=(outcome == "SUCCESS"),
         )
