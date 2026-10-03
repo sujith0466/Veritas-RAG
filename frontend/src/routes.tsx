@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { Suspense } from 'react'
 import { lazyRetry } from '@/utils/lazyRetry'
 import { AppProvider } from '@/providers/AppProvider'
@@ -20,7 +20,7 @@ const KnowledgeProcessingPage = lazyRetry(() => import('@/pages/knowledge-proces
 const KnowledgeHealthPage = lazyRetry(() => import('@/pages/knowledge_health').then(m => ({ default: m.KnowledgeHealthPage })), 'KnowledgeHealthPage')
 const ReliabilityDashboardPage = lazyRetry(() => import('@/pages/analytics').then(m => ({ default: m.ReliabilityDashboardPage })), 'ReliabilityDashboardPage')
 const WorkspaceAnalyticsPage = lazyRetry(() => import('@/pages/analytics/WorkspaceAnalyticsPage').then(m => ({ default: m.WorkspaceAnalyticsPage })), 'WorkspaceAnalyticsPage')
-const DeveloperInvestigationPage = lazyRetry(() => import('@/pages/investigation').then(m => ({ default: m.DeveloperInvestigationPage })), 'DeveloperInvestigationPage')
+
 
 const SettingsLayout = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.SettingsLayout })), 'SettingsLayout')
 const ProfileSettings = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.ProfileSettings })), 'ProfileSettings')
@@ -99,6 +99,30 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+export function LegacyAnalyticsRedirect() {
+  const [searchParams] = useSearchParams()
+  const params = new URLSearchParams(searchParams)
+  if (!params.has('tab')) {
+    params.set('tab', 'overview')
+  }
+  return <Navigate to={`/reliability?${params.toString()}`} replace />
+}
+
+export function LegacyDiagnosticsRedirect() {
+  const [searchParams] = useSearchParams()
+  const params = new URLSearchParams(searchParams)
+  if (!params.has('tab')) {
+    params.set('tab', 'explorer')
+  }
+  return <Navigate to={`/reliability?${params.toString()}`} replace />
+}
+
+export function LegacyHealthRedirect() {
+  const [searchParams] = useSearchParams()
+  const search = searchParams.toString()
+  return <Navigate to={`/knowledge-health${search ? `?${search}` : ''}`} replace />
+}
+
 // ─── Router Configuration ─────────────────────────────────────────────────────
 
 export const router = createBrowserRouter([
@@ -151,13 +175,19 @@ export const router = createBrowserRouter([
               { path: 'workspace-analytics', element: <ProtectedRoute adminOnly><WorkspaceAnalyticsPage /></ProtectedRoute> },
               { path: 'knowledge', element: <ProtectedRoute adminOnly><KnowledgeIntelligenceDashboardPage /></ProtectedRoute> },
               { path: 'documents', element: <ProtectedRoute adminOnly><DocumentsPage /></ProtectedRoute> },
-              { path: 'analytics', element: <ProtectedRoute adminOnly><ReliabilityDashboardPage /></ProtectedRoute> },
               { path: 'knowledge-processing', element: <ProtectedRoute adminOnly><KnowledgeProcessingPage /></ProtectedRoute> },
               { path: 'chunks', element: <ProtectedRoute adminOnly><Navigate to="/knowledge-processing?stage=chunks" replace /></ProtectedRoute> },
               { path: 'embeddings', element: <ProtectedRoute adminOnly><Navigate to="/knowledge-processing?stage=embeddings" replace /></ProtectedRoute> },
               { path: 'vectors', element: <ProtectedRoute adminOnly><Navigate to="/knowledge-processing?stage=vectors" replace /></ProtectedRoute> },
-              { path: 'health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
-              { path: 'diagnostics', element: <ProtectedRoute adminOnly><DeveloperInvestigationPage /></ProtectedRoute> },
+
+              // Canonical Operational Consoles
+              { path: 'reliability', element: <ProtectedRoute adminOnly><ReliabilityDashboardPage /></ProtectedRoute> },
+              { path: 'knowledge-health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
+
+              // Legacy Compatibility Redirects
+              { path: 'analytics', element: <ProtectedRoute adminOnly><LegacyAnalyticsRedirect /></ProtectedRoute> },
+              { path: 'diagnostics', element: <ProtectedRoute adminOnly><LegacyDiagnosticsRedirect /></ProtectedRoute> },
+              { path: 'health', element: <ProtectedRoute adminOnly><LegacyHealthRedirect /></ProtectedRoute> },
 
               // Settings
               {
