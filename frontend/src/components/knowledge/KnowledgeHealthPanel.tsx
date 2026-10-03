@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/common'
+import { DestructivePurgeModal } from './DestructivePurgeModal'
 import { useKnowledgeHealthStore } from '@/stores/knowledgeHealthStore'
 import type { ScanType } from '@/types'
 
@@ -43,7 +44,6 @@ export function KnowledgeHealthPanel() {
     runScan,
     fetchScanHistory,
     rotateModel,
-    purgeDocument,
     clearError,
   } = useKnowledgeHealthStore()
 
@@ -52,6 +52,8 @@ export function KnowledgeHealthPanel() {
   const [purgeDocId, setPurgeDocId] = useState('')
   const [purgeFeedback, setPurgeFeedback] = useState<string | null>(null)
   const [rotationFeedback, setRotationFeedback] = useState<string | null>(null)
+  const [isPurgeModalOpen, setIsPurgeModalOpen] = useState(false)
+  const [activePurgeTarget, setActivePurgeTarget] = useState('')
 
   useEffect(() => {
     fetchParity()
@@ -75,21 +77,13 @@ export function KnowledgeHealthPanel() {
     }
   }
 
-  const handlePurge = async (e: React.FormEvent) => {
+  const handlePurge = (e: React.FormEvent) => {
     e.preventDefault()
     if (!purgeDocId.trim()) return
     clearError()
     setPurgeFeedback(null)
-    const summary = await purgeDocument(purgeDocId.trim())
-    if (summary) {
-      const qdrantCount = summary.qdrant_points_deleted ?? summary.purged_points_count ?? 0
-      const pgCount = summary.pg_chunks_deleted ?? 0
-      const duration = summary.duration_ms ?? 0
-      setPurgeFeedback(
-        `Purged ${qdrantCount} vector points and ${pgCount} DB chunks for document ${summary.document_id.slice(0, 8)}... (${duration.toFixed(1)}ms).`,
-      )
-      setPurgeDocId('')
-    }
+    setActivePurgeTarget(purgeDocId.trim())
+    setIsPurgeModalOpen(true)
   }
 
   return (
@@ -463,6 +457,19 @@ export function KnowledgeHealthPanel() {
           )}
         </CardContent>
       </Card>
+
+      {/* Preflight Destruction Guard Modal */}
+      <DestructivePurgeModal
+        isOpen={isPurgeModalOpen}
+        onClose={() => setIsPurgeModalOpen(false)}
+        documentId={activePurgeTarget}
+        onPurgeSuccess={(summary) => {
+          setPurgeFeedback(
+            `Purged ${summary.qdrant_points_deleted} vector points and ${summary.pg_chunks_deleted} DB chunks for document ${summary.document_id.slice(0, 8)}... (${summary.duration_ms.toFixed(1)}ms).`
+          )
+          setPurgeDocId('')
+        }}
+      />
     </div>
   )
 }
