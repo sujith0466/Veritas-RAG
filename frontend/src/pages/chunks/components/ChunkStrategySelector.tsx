@@ -69,7 +69,7 @@ export function ChunkStrategySelector({
               </option>
             ))}
           </select>
-          <p className="text-[11px] text-muted-foreground mt-1">Select a PROCESSED document to split into chunks.</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Select an extracted or ready document to split into chunks.</p>
         </div>
 
         {/* Strategy Grid Choice */}

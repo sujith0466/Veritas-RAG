@@ -62,6 +62,7 @@ export function ChunkDetailDrawer({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
+                aria-label="Close Chunk Detail"
                 className="p-2 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-5 h-5" />

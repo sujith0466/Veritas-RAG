@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader } from '@/components/common'
 import { PageTransition } from '@/components/layouts'
+import { ChunksStageView } from '@/pages/chunks'
 import { cn } from '@/utils/cn'
 
 export type ProcessingStage = 'overview' | 'chunks' | 'embeddings' | 'vectors' | 'activity'
@@ -375,30 +376,7 @@ export function KnowledgeProcessingPage() {
           </div>
         )}
 
-        {activeStage === 'chunks' && (
-          <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-indigo-400" />
-                  Stage 1: Document Chunking Foundation
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Content-aware splitting algorithm registry and doubly-linked chunk exploration.
-                </p>
-              </div>
-              <Badge variant="outline" className="border-indigo-500/30 text-indigo-400">
-                Stage 1 Workspace
-              </Badge>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/50 p-4 text-xs text-muted-foreground leading-relaxed">
-              <p>
-                In subsequent integration steps, the full chunk strategy selector and doubly-linked registry table
-                will render directly within this tab. Legacy bookmarks to <code className="text-foreground">/chunks</code> automatically route to this view.
-              </p>
-            </div>
-          </Card>
-        )}
+        {activeStage === 'chunks' && <ChunksStageView />}
 
         {activeStage === 'embeddings' && (
           <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
