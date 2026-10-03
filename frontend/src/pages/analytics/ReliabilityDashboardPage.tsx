@@ -1,5 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, FileText } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import {
+  RefreshCw,
+  FileText,
+  BarChart3,
+  TrendingUp,
+  Search,
+  Terminal,
+} from 'lucide-react'
 import { PageTransition } from '@/components/layouts'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ReportExportDialog } from '@/components/analytics/ReportExportDialog'
@@ -13,15 +21,72 @@ import type {
   ReliabilityTrendDTO,
   SearchAnalyticsDTO,
   SuccessRateDTO,
+  QueryTraceDetailDTO,
+  QuerySandboxResponseDTO,
 } from '@/types'
-import { ReliabilityScoreCard } from './components/ReliabilityScoreCard'
-import { ConfidenceTrendsChart } from './components/ConfidenceTrendsChart'
-import { ReliabilityTrendsChart } from './components/ReliabilityTrendsChart'
-import { RetryAnalysisCard } from './components/RetryAnalysisCard'
-import { RetrievalQualityCard } from './components/RetrievalQualityCard'
-import { LiveQueryMonitorTable } from './components/LiveQueryMonitorTable'
+import {
+  OverviewTab,
+  TrendsPerformanceTab,
+  QueryExplorerTab,
+  DiagnosticSandboxTab,
+  ForensicTraceDrawer,
+} from './components'
+
+type TabType = 'overview' | 'trends' | 'explorer' | 'sandbox'
 
 export function ReliabilityDashboardPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // Read active tab from URL query params (default: 'overview')
+  const currentTabParam = searchParams.get('tab')
+  const activeTab: TabType =
+    currentTabParam === 'trends' ||
+    currentTabParam === 'explorer' ||
+    currentTabParam === 'sandbox'
+      ? currentTabParam
+      : 'overview'
+
+  const setActiveTab = (tab: TabType) => {
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', tab)
+    setSearchParams(next)
+  }
+
+  // Deep-linked trace inspection
+  const deepLinkedTraceId = searchParams.get('traceId') || searchParams.get('query_id')
+  const [selectedTraceId, setSelectedTraceId] = useState<string | null>(deepLinkedTraceId)
+  const [selectedTraceData, setSelectedTraceData] = useState<QueryTraceDetailDTO | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(Boolean(deepLinkedTraceId))
+
+  // Sync state if URL changes
+  useEffect(() => {
+    if (deepLinkedTraceId) {
+      setSelectedTraceId(deepLinkedTraceId)
+      setSelectedTraceData(null)
+      setIsDrawerOpen(true)
+    }
+  }, [deepLinkedTraceId])
+
+  const handleOpenTrace = (correlationId: string, initialData?: QueryTraceDetailDTO) => {
+    setSelectedTraceId(correlationId)
+    setSelectedTraceData(initialData || null)
+    setIsDrawerOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.set('traceId', correlationId)
+    setSearchParams(next)
+  }
+
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false)
+    setSelectedTraceId(null)
+    setSelectedTraceData(null)
+    const next = new URLSearchParams(searchParams)
+    next.delete('traceId')
+    next.delete('query_id')
+    setSearchParams(next)
+  }
+
+  // Filters & Pagination
   const [timeInterval, setTimeInterval] = useState<'hourly' | 'daily' | 'weekly'>('daily')
   const [page, setPage] = useState(1)
   const [outcomeFilter, setOutcomeFilter] = useState<string | undefined>(undefined)
@@ -92,20 +157,32 @@ export function ReliabilityDashboardPage() {
   }, [autoRefresh, fetchAllData])
 
   // Derive latest reliability score & moving average
-  const latestScore = relHistory && relHistory.scores.length > 0
-    ? relHistory.scores[relHistory.scores.length - 1]
-    : successRate ? successRate.success_rate_percentage : 95.0
+  const latestScore =
+    relHistory && relHistory.scores.length > 0
+      ? relHistory.scores[relHistory.scores.length - 1]
+      : successRate
+      ? successRate.success_rate_percentage
+      : 95.0
 
-  const latestMovingAvg = relHistory && relHistory.moving_average_scores.length > 0
-    ? relHistory.moving_average_scores[relHistory.moving_average_scores.length - 1]
-    : latestScore
+  const latestMovingAvg =
+    relHistory && relHistory.moving_average_scores.length > 0
+      ? relHistory.moving_average_scores[relHistory.moving_average_scores.length - 1]
+      : latestScore
+
+  const tabs = [
+    { id: 'overview' as const, label: 'Overview', icon: BarChart3 },
+    { id: 'trends' as const, label: 'Trends & Performance', icon: TrendingUp },
+    { id: 'explorer' as const, label: 'Query Explorer', icon: Search },
+    { id: 'sandbox' as const, label: 'Diagnostic Sandbox', icon: Terminal },
+  ]
 
   return (
     <PageTransition>
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <PageHeader
-          title="AI Reliability & Verification Intelligence"
-          description="Real-time observability into pre-generation confidence, self-correction interventions, and retrieval precision."
+          title="AI Reliability & Diagnostics Console"
+          description="Authoritative observability into pre-generation confidence, verification telemetry, forensic traces, and pipeline diagnostics."
         />
 
         <div className="flex flex-wrap items-center gap-2">
@@ -163,64 +240,96 @@ export function ReliabilityDashboardPage() {
         </div>
       </div>
 
-      {/* Top Banner / Executive Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        <div className="lg:col-span-12">
-          <ReliabilityScoreCard
-            score={latestScore}
-            movingAverage={latestMovingAvg}
-            successRate={successRate}
-            latency={latency}
-            isLoading={isLoading}
-          />
-        </div>
+      {/* Navigation Tabs Bar */}
+      <div className="flex items-center border-b border-border/60 mb-6 gap-2">
+        {tabs.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                isActive
+                  ? 'border-primary text-primary bg-primary/5'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/60'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        <div className="lg:col-span-12">
-          <ReliabilityTrendsChart
-            trends={relTrends}
-            isLoading={isLoading}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-        <div className="lg:col-span-7">
-          <ConfidenceTrendsChart
-            trends={trends}
-            distribution={confidence}
-            isLoading={isLoading}
-          />
-        </div>
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <RetryAnalysisCard
-            successRate={successRate}
-            isLoading={isLoading}
-          />
-          <RetrievalQualityCard
-            searchAnalytics={searchAnalytics}
-            isLoading={isLoading}
-          />
-        </div>
-      </div>
-
-      {/* Bottom Grid: Live Query Execution Audit Monitor */}
-      <div className="grid grid-cols-1 gap-6">
-        <LiveQueryMonitorTable
-          items={historyItems}
-          total={historyTotal}
+      {/* Tab Panels */}
+      {activeTab === 'overview' && (
+        <OverviewTab
+          latestScore={latestScore}
+          latestMovingAvg={latestMovingAvg}
+          successRate={successRate}
+          latency={latency}
+          relTrends={relTrends}
+          historyItems={historyItems}
+          historyTotal={historyTotal}
           page={page}
           pageSize={20}
           isLoading={isLoading}
+          outcomeFilter={outcomeFilter}
+          selectedTraceId={selectedTraceId}
           onPageChange={(newPage) => setPage(newPage)}
           onOutcomeFilterChange={(outcome) => {
             setOutcomeFilter(outcome)
             setPage(1)
           }}
-          selectedOutcome={outcomeFilter}
+          onSelectTrace={(corrId) => handleOpenTrace(corrId)}
         />
-      </div>
+      )}
+
+      {activeTab === 'trends' && (
+        <TrendsPerformanceTab
+          relTrends={relTrends}
+          trends={trends}
+          confidence={confidence}
+          successRate={successRate}
+          searchAnalytics={searchAnalytics}
+          isLoading={isLoading}
+        />
+      )}
+
+      {activeTab === 'explorer' && (
+        <QueryExplorerTab
+          items={historyItems}
+          total={historyTotal}
+          page={page}
+          pageSize={20}
+          isLoading={isLoading}
+          outcomeFilter={outcomeFilter}
+          selectedTraceId={selectedTraceId}
+          onPageChange={(newPage) => setPage(newPage)}
+          onOutcomeFilterChange={(outcome) => {
+            setOutcomeFilter(outcome)
+            setPage(1)
+          }}
+          onSelectTrace={(corrId) => handleOpenTrace(corrId)}
+        />
+      )}
+
+      {activeTab === 'sandbox' && (
+        <DiagnosticSandboxTab
+          onInspectTrace={(res: QuerySandboxResponseDTO) =>
+            handleOpenTrace(res.correlation_id, res.trace_detail)
+          }
+        />
+      )}
+
+      {/* Forensic Trace Drawer (Accessible from any tab, deep-linkable) */}
+      <ForensicTraceDrawer
+        isOpen={isDrawerOpen}
+        onClose={handleCloseDrawer}
+        correlationId={selectedTraceId}
+        initialTrace={selectedTraceData}
+      />
 
       <ReportExportDialog isOpen={isExportOpen} onClose={() => setIsExportOpen(false)} />
     </PageTransition>

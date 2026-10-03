@@ -88,6 +88,7 @@ export interface StageTraceDTO {
   duration_ms: number
   status: string
   metadata: Record<string, unknown>
+  is_authoritative?: boolean
 }
 
 export interface RetrievalCandidateTraceDTO {
@@ -121,6 +122,7 @@ export interface QueryTraceDetailDTO {
   retrieval_candidates: RetrievalCandidateTraceDTO[]
   confidence_signals: ConfidenceSignalTraceDTO[]
   self_corrections: SelfCorrectionTraceDTO[]
+  is_authoritative?: boolean
 }
 
 export interface QuerySandboxRequestDTO {

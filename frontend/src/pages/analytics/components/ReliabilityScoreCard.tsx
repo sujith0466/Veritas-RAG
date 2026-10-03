@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { ShieldAlert, ShieldCheck, Activity, TrendingUp, Clock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/common/Card'
+import { toPresentationPercentage } from '@/utils/telemetryAdapters'
 import type { SuccessRateDTO, LatencyAnalyticsDTO } from '@/types'
 
 interface ReliabilityScoreCardProps {
@@ -18,8 +19,8 @@ export function ReliabilityScoreCard({
   latency,
   isLoading = false,
 }: ReliabilityScoreCardProps) {
-  const displayScore = score ?? 95.0
-  const displayAvg = movingAverage ?? displayScore
+  const displayScore = toPresentationPercentage(score, 95.0)
+  const displayAvg = toPresentationPercentage(movingAverage, displayScore)
 
   const getStatusInfo = (s: number) => {
     if (s >= 90) {

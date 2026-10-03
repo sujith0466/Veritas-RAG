@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, BarChart3 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/common/Card'
+import { toPresentationPercentage } from '@/utils/telemetryAdapters'
 import type { ReliabilityTrendDTO } from '@/types'
 
 interface ReliabilityTrendsChartProps {
@@ -47,7 +48,7 @@ export function ReliabilityTrendsChart({ trends, isLoading }: ReliabilityTrendsC
             {/* Custom SVG Bar/Trend Chart */}
             <div className="relative h-[220px] w-full pt-4 pb-6 px-2 flex items-end justify-between gap-2 border-b border-border/50">
               {trends.map((t, idx) => {
-                const rel = t.average_score
+                const rel = toPresentationPercentage(t.average_score)
                 const relHeightPct = Math.min(Math.max(rel, 4), 100)
 
                 return (

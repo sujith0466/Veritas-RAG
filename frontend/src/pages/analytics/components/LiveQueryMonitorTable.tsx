@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ShieldCheck, ShieldAlert, HelpCircle, Clock, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/common/Card'
+import { toPresentationPercentage } from '@/utils/telemetryAdapters'
 import type { QueryHistoryItemDTO } from '@/types'
 
 interface LiveQueryMonitorTableProps {
@@ -12,6 +13,8 @@ interface LiveQueryMonitorTableProps {
   onPageChange: (newPage: number) => void
   onOutcomeFilterChange: (outcome: string | undefined) => void
   selectedOutcome?: string
+  onSelectTrace?: (correlationId: string) => void
+  selectedTraceId?: string | null
 }
 
 export function LiveQueryMonitorTable({
@@ -23,6 +26,8 @@ export function LiveQueryMonitorTable({
   onPageChange,
   onOutcomeFilterChange,
   selectedOutcome,
+  onSelectTrace,
+  selectedTraceId,
 }: LiveQueryMonitorTableProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -127,12 +132,20 @@ export function LiveQueryMonitorTable({
                 </tr>
               ) : (
                 filteredItems.map((item) => {
-                  const conf = item.confidence_score ?? 0
+                  const confPct = toPresentationPercentage(item.confidence_score)
                   const confColor =
-                    conf >= 0.75 ? 'text-emerald-500 bg-emerald-500/10' : conf >= 0.4 ? 'text-amber-500 bg-amber-500/10' : 'text-rose-500 bg-rose-500/10'
+                    confPct >= 75 ? 'text-emerald-500 bg-emerald-500/10' : confPct >= 40 ? 'text-amber-500 bg-amber-500/10' : 'text-rose-500 bg-rose-500/10'
+                  const isSelected = selectedTraceId === item.correlation_id
 
                   return (
-                    <tr key={item.id} className="hover:bg-surface/50 transition-colors">
+                    <tr
+                      key={item.id}
+                      onClick={() => onSelectTrace?.(item.correlation_id)}
+                      className={`hover:bg-surface/70 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-primary/10 border-l-2 border-primary' : ''
+                      }`}
+                      title="Click to view detailed forensic trace telemetry"
+                    >
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="font-medium text-foreground">
                           {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -149,7 +162,7 @@ export function LiveQueryMonitorTable({
                           <span className="text-muted-foreground text-[11px]">N/A</span>
                         ) : (
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${confColor}`}>
-                            {(conf * 100).toFixed(0)}%
+                            {confPct.toFixed(0)}%
                           </span>
                         )}
                       </td>
