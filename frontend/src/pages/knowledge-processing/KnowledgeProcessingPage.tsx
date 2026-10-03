@@ -14,6 +14,7 @@ import {
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader } from '@/components/common'
 import { PageTransition } from '@/components/layouts'
 import { ChunksStageView } from '@/pages/chunks'
+import { EmbeddingsStageView } from '@/pages/embeddings'
 import { cn } from '@/utils/cn'
 
 export type ProcessingStage = 'overview' | 'chunks' | 'embeddings' | 'vectors' | 'activity'
@@ -378,30 +379,7 @@ export function KnowledgeProcessingPage() {
 
         {activeStage === 'chunks' && <ChunksStageView />}
 
-        {activeStage === 'embeddings' && (
-          <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-amber-400" />
-                  Stage 2: Vector Embeddings & Token Budget
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Semantic embedding model configuration and batch job queue tracking.
-                </p>
-              </div>
-              <Badge variant="outline" className="border-amber-500/30 text-amber-400">
-                Stage 2 Workspace
-              </Badge>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/50 p-4 text-xs text-muted-foreground leading-relaxed">
-              <p>
-                Registered vector engines, token budget utilization gauges, and real-time Celery batch vectorization
-                jobs will render within this tab. Legacy bookmarks to <code className="text-foreground">/embeddings</code> automatically route to this view.
-              </p>
-            </div>
-          </Card>
-        )}
+        {activeStage === 'embeddings' && <EmbeddingsStageView />}
 
         {activeStage === 'vectors' && (
           <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
