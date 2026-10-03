@@ -15,6 +15,8 @@ import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitl
 import { PageTransition } from '@/components/layouts'
 import { ChunksStageView } from '@/pages/chunks'
 import { EmbeddingsStageView } from '@/pages/embeddings'
+import { VectorsStageView } from '@/pages/vectors'
+import { PipelineVisualizer } from './components'
 import { cn } from '@/utils/cn'
 
 export type ProcessingStage = 'overview' | 'chunks' | 'embeddings' | 'vectors' | 'activity'
@@ -278,7 +280,10 @@ export function KnowledgeProcessingPage() {
         className="space-y-6"
       >
         {activeStage === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {/* Contextual Pipeline Visualizer (KP-06) */}
+            <PipelineVisualizer onSelectStage={handleSelectStage} activeStage={activeStage} />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Card 1 */}
               <Card className="border-border/80 bg-surface/60 backdrop-blur-sm shadow-sm flex flex-col justify-between">
@@ -381,30 +386,7 @@ export function KnowledgeProcessingPage() {
 
         {activeStage === 'embeddings' && <EmbeddingsStageView />}
 
-        {activeStage === 'vectors' && (
-          <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Database className="w-4 h-4 text-emerald-400" />
-                  Stage 3: Vector Storage Foundation (Qdrant)
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Qdrant cluster health, multi-tenant collections, and version synchronization state.
-                </p>
-              </div>
-              <Badge variant="outline" className="border-emerald-500/30 text-emerald-400">
-                Stage 3 Workspace
-              </Badge>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/50 p-4 text-xs text-muted-foreground leading-relaxed">
-              <p>
-                Active tenant vector collection cards, point parity tracking, and payload inspection
-                will render within this tab. Legacy bookmarks to <code className="text-foreground">/vectors</code> automatically route to this view.
-              </p>
-            </div>
-          </Card>
-        )}
+        {activeStage === 'vectors' && <VectorsStageView />}
 
         {activeStage === 'activity' && (
           <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
