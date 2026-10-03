@@ -6,7 +6,7 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/common/Button'
 import { Badge } from '@/components/common/Badge'
 import { documentService } from '@/services/documentService'
@@ -32,6 +32,7 @@ export function DestructivePurgeModal({
   onPurgeSuccess,
 }: DestructivePurgeModalProps) {
   const { purgeDocument, fetchParity } = useKnowledgeHealthStore()
+  const shouldReduceMotion = useReducedMotion()
 
   const [isPreflighting, setIsPreflighting] = useState(false)
   const [docDetail, setDocDetail] = useState<DocumentDetailResponse | null>(null)
@@ -108,10 +109,10 @@ export function DestructivePurgeModal({
         <div className="fixed inset-0" onClick={isPurging ? undefined : onClose} />
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.2 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
+          transition={{ duration: shouldReduceMotion ? 0.1 : 0.2 }}
           className="relative z-10 w-full max-w-lg rounded-2xl border border-destructive/40 bg-surface shadow-2xl p-6 space-y-5"
           onClick={(e) => e.stopPropagation()}
         >

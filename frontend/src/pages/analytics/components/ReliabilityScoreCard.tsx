@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ShieldAlert, ShieldCheck, Activity, TrendingUp, Clock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/common/Card'
 import { toPresentationPercentage } from '@/utils/telemetryAdapters'
@@ -52,6 +52,7 @@ export function ReliabilityScoreCard({
 
   const status = getStatusInfo(displayScore)
   const Icon = status.icon
+  const shouldReduceMotion = useReducedMotion()
 
   // Calculate SVG circular progress
   const radius = 64
@@ -97,16 +98,16 @@ export function ReliabilityScoreCard({
                 className="stroke-primary"
                 strokeWidth="12"
                 strokeDasharray={circumference}
-                initial={{ strokeDashoffset: circumference }}
+                initial={{ strokeDashoffset: shouldReduceMotion ? strokeDashoffset : circumference }}
                 animate={{ strokeDashoffset: isLoading ? circumference : strokeDashoffset }}
-                transition={{ duration: 1.2, ease: 'easeOut' }}
+                transition={shouldReduceMotion ? { duration: 0 } : { duration: 1.2, ease: 'easeOut' }}
                 strokeLinecap="round"
                 fill="transparent"
               />
             </svg>
             <div className="absolute flex flex-col items-center justify-center text-center">
               <motion.span
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={shouldReduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-4xl font-extrabold tracking-tight text-foreground"
               >

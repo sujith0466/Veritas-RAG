@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   RefreshCw,
   FileText,
@@ -13,14 +14,6 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { ReportExportDialog } from '@/components/analytics/ReportExportDialog'
 import { analyticsService } from '@/services/analyticsService'
 import type {
-  ConfidenceAnalyticsDTO,
-  LatencyAnalyticsDTO,
-  QueryHistoryItemDTO,
-  QueryTrendsDTO,
-  ReliabilityHistoryDTO,
-  ReliabilityTrendDTO,
-  SearchAnalyticsDTO,
-  SuccessRateDTO,
   QueryTraceDetailDTO,
   QuerySandboxResponseDTO,
 } from '@/types'
@@ -91,70 +84,81 @@ export function ReliabilityDashboardPage() {
   const [page, setPage] = useState(1)
   const [outcomeFilter, setOutcomeFilter] = useState<string | undefined>(undefined)
   const [autoRefresh, setAutoRefresh] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [isExportOpen, setIsExportOpen] = useState(false)
 
-  // Analytical state
-  const [successRate, setSuccessRate] = useState<SuccessRateDTO | null>(null)
-  const [latency, setLatency] = useState<LatencyAnalyticsDTO | null>(null)
-  const [confidence, setConfidence] = useState<ConfidenceAnalyticsDTO | null>(null)
-  const [trends, setTrends] = useState<QueryTrendsDTO | null>(null)
-  const [relHistory, setRelHistory] = useState<ReliabilityHistoryDTO | null>(null)
-  const [relTrends, setRelTrends] = useState<ReliabilityTrendDTO[] | null>(null)
-  const [searchAnalytics, setSearchAnalytics] = useState<SearchAnalyticsDTO | null>(null)
-  const [historyItems, setHistoryItems] = useState<QueryHistoryItemDTO[]>([])
-  const [historyTotal, setHistoryTotal] = useState(0)
+  const queryClient = useQueryClient()
 
-  const fetchAllData = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const [
-        srData,
-        latData,
-        confData,
-        trendsData,
-        relData,
-        relTrendsData,
-        searchData,
-        historyData,
-      ] = await Promise.all([
+  // 1. Core analytics metrics (cached with 60s stale time)
+  const {
+    data: coreData,
+    isLoading: isCoreLoading,
+    isFetching: isCoreFetching,
+  } = useQuery({
+    queryKey: ['reliability-core-metrics'],
+    queryFn: async () => {
+      const [sr, lat, conf, search] = await Promise.all([
         analyticsService.getSuccessRate(),
         analyticsService.getLatencyAnalytics(),
         analyticsService.getConfidenceAnalytics(),
+        analyticsService.getSearchAnalytics(),
+      ])
+      return { sr, lat, conf, search }
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: autoRefresh ? 15000 : false,
+  })
+
+  // 2. Trends & historical scores (keyed by timeInterval, cached 60s)
+  const {
+    data: trendsGroup,
+    isLoading: isTrendsLoading,
+    isFetching: isTrendsFetching,
+  } = useQuery({
+    queryKey: ['reliability-trends', timeInterval],
+    queryFn: async () => {
+      const [trends, relHistory, relTrends] = await Promise.all([
         analyticsService.getQueryTrends(timeInterval),
         analyticsService.getReliabilityHistory(timeInterval),
         analyticsService.getReliabilityTrends(),
-        analyticsService.getSearchAnalytics(),
-        analyticsService.getQueryHistory(page, 20, outcomeFilter),
       ])
+      return { trends, relHistory, relTrends }
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: autoRefresh ? 15000 : false,
+  })
 
-      setSuccessRate(srData)
-      setLatency(latData)
-      setConfidence(confData)
-      setTrends(trendsData)
-      setRelHistory(relData)
-      setRelTrends(relTrendsData)
-      setSearchAnalytics(searchData)
-      setHistoryItems(historyData.items)
-      setHistoryTotal(historyData.total)
-    } catch (err) {
-      console.error('Failed to load reliability analytics:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [timeInterval, page, outcomeFilter])
+  // 3. Query history (keyed by page, outcomeFilter, cached 30s)
+  const {
+    data: historyData,
+    isLoading: isHistoryLoading,
+    isFetching: isHistoryFetching,
+  } = useQuery({
+    queryKey: ['reliability-history', page, outcomeFilter],
+    queryFn: () => analyticsService.getQueryHistory(page, 20, outcomeFilter),
+    staleTime: 30 * 1000,
+    refetchInterval: autoRefresh ? 15000 : false,
+  })
 
-  useEffect(() => {
-    fetchAllData()
-  }, [fetchAllData])
+  const isLoading = isCoreLoading || isTrendsLoading || isHistoryLoading
+  const isRefreshing = isCoreFetching || isTrendsFetching || isHistoryFetching
 
-  useEffect(() => {
-    if (!autoRefresh) return
-    const timer = setInterval(() => {
-      fetchAllData()
-    }, 15000)
-    return () => clearInterval(timer)
-  }, [autoRefresh, fetchAllData])
+  const handleRefreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['reliability-core-metrics'] })
+    queryClient.invalidateQueries({ queryKey: ['reliability-trends'] })
+    queryClient.invalidateQueries({ queryKey: ['reliability-history'] })
+  }
+
+  const successRate = coreData?.sr ?? null
+  const latency = coreData?.lat ?? null
+  const confidence = coreData?.conf ?? null
+  const searchAnalytics = coreData?.search ?? null
+
+  const trends = trendsGroup?.trends ?? null
+  const relHistory = trendsGroup?.relHistory ?? null
+  const relTrends = trendsGroup?.relTrends ?? null
+
+  const historyItems = historyData?.items ?? []
+  const historyTotal = historyData?.total ?? 0
 
   // Derive latest reliability score & moving average
   const latestScore =
@@ -221,11 +225,11 @@ export function ReliabilityDashboardPage() {
 
           {/* Manual Refresh */}
           <button
-            onClick={fetchAllData}
-            disabled={isLoading}
+            onClick={handleRefreshAll}
+            disabled={isLoading || isRefreshing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </button>
 

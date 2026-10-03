@@ -13,7 +13,7 @@ import {
   XCircle,
   HelpCircle,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Badge } from '@/components/common/Badge'
 import { Button } from '@/components/common/Button'
 import { analyticsService } from '@/services/analyticsService'
@@ -104,6 +104,8 @@ export function ForensicTraceDrawer({
   const isAuthoritative = trace?.is_authoritative !== false
   const totalDuration = trace?.record.total_duration_ms || 1
 
+  const shouldReduceMotion = useReducedMotion()
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm flex justify-end">
@@ -111,10 +113,14 @@ export function ForensicTraceDrawer({
         <div className="absolute inset-0" onClick={onClose} />
 
         <motion.div
-          initial={{ x: '100%' }}
-          animate={{ x: 0 }}
-          exit={{ x: '100%' }}
-          transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+          initial={shouldReduceMotion ? { opacity: 0 } : { x: '100%' }}
+          animate={shouldReduceMotion ? { opacity: 1 } : { x: 0 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { x: '100%' }}
+          transition={
+            shouldReduceMotion
+              ? { duration: 0.15 }
+              : { type: 'spring', damping: 25, stiffness: 220 }
+          }
           className="relative z-10 w-full max-w-3xl bg-surface border-l border-border/80 shadow-2xl h-full flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
@@ -301,9 +307,13 @@ export function ForensicTraceDrawer({
                           </div>
                           <div className="w-full bg-border/40 rounded-full h-2 overflow-hidden flex">
                             <motion.div
-                              initial={{ width: 0 }}
+                              initial={shouldReduceMotion ? { width: `${pct}%` } : { width: 0 }}
                               animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.6, delay: idx * 0.05, ease: 'easeOut' }}
+                              transition={
+                                shouldReduceMotion
+                                  ? { duration: 0 }
+                                  : { duration: 0.6, delay: idx * 0.05, ease: 'easeOut' }
+                              }
                               className={`h-full ${isSuccess ? 'bg-primary' : 'bg-warning'}`}
                             />
                           </div>

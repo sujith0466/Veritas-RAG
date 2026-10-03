@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   toPresentationPercentage,
   formatPresentationPercentage,
@@ -260,12 +261,18 @@ describe('DiagnosticSandboxTab (Simulation Mode)', () => {
 
 describe('ReliabilityDashboardPage Tabs & Navigation', () => {
   it('renders Overview tab by default and allows switching between tabs', async () => {
+    const testQueryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
     render(
-      <MemoryRouter initialEntries={['/reliability']}>
-        <Routes>
-          <Route path="/reliability" element={<ReliabilityDashboardPage />} />
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={testQueryClient}>
+        <MemoryRouter initialEntries={['/reliability']}>
+          <Routes>
+            <Route path="/reliability" element={<ReliabilityDashboardPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     )
 
     await waitFor(() => {
