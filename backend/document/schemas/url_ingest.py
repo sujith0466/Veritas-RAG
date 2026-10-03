@@ -1,14 +1,10 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Any
+import uuid
+from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.document.models.status import DocumentStatus
-
-if TYPE_CHECKING:
-    from datetime import datetime
-    import uuid
 
 
 class UrlIngestRequest(BaseModel):

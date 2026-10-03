@@ -1,13 +1,18 @@
 """Unit tests for Document Domain DTOs & Schemas (`ADR-005`)."""
 
-from datetime import UTC, datetime
 import uuid
+from datetime import UTC, datetime
 
 from backend.document.schemas.document import (
     DocumentDetailResponse,
     DocumentManifestDTO,
     DocumentResponse,
     StageMetricDTO,
+)
+from backend.document.schemas.url_ingest import (
+    UrlIngestRequest,
+    UrlIngestResponse,
+    UrlRefreshResponse,
 )
 
 
@@ -90,3 +95,54 @@ class TestDocumentSchemas:
         )
         assert detail.versions == []
         assert detail.manifest is None
+
+    def test_url_ingest_response_runtime_evaluation(self):
+        """Verify UrlIngestResponse resolves uuid and datetime types without PydanticUserError (ISSUE-001)."""
+        doc_id = uuid.uuid4()
+        ver_id = uuid.uuid4()
+        job_id = uuid.uuid4()
+        now = datetime.now(UTC)
+
+        response = UrlIngestResponse(
+            document_id=doc_id,
+            version_id=ver_id,
+            job_id=job_id,
+            source_url="https://docs.python.org/3/library/urllib.parse.html",
+            status="PENDING",
+            is_existing=False,
+            created_at=now,
+        )
+        assert response.document_id == doc_id
+        assert response.version_id == ver_id
+        assert response.job_id == job_id
+        assert response.source_url == "https://docs.python.org/3/library/urllib.parse.html"
+        assert response.status == "PENDING"
+        assert response.is_existing is False
+        assert response.created_at == now
+
+    def test_url_refresh_response_runtime_evaluation(self):
+        """Verify UrlRefreshResponse resolves uuid and status types without PydanticUserError (ISSUE-001)."""
+        doc_id = uuid.uuid4()
+        ver_id = uuid.uuid4()
+        job_id = uuid.uuid4()
+
+        response = UrlRefreshResponse(
+            document_id=doc_id,
+            version_id=ver_id,
+            job_id=job_id,
+            status="PENDING",
+            message="Website refresh job scheduled. Existing knowledge remains active during processing.",
+        )
+        assert response.document_id == doc_id
+        assert response.version_id == ver_id
+        assert response.job_id == job_id
+        assert response.status == "PENDING"
+
+    def test_url_ingest_request_validation(self):
+        """Verify UrlIngestRequest validates URL format and user metadata."""
+        req = UrlIngestRequest(
+            url="https://example.com/docs",
+            user_metadata={"category": "documentation"},
+        )
+        assert req.url == "https://example.com/docs"
+        assert req.user_metadata == {"category": "documentation"}
