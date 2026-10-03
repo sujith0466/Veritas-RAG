@@ -7,6 +7,7 @@ const ROUTE_LABELS: Record<string, string> = {
   analytics: 'AI Reliability',
   investigation: 'Investigation Console',
   documents: 'Documents',
+  'knowledge-processing': 'Knowledge Processing',
   chunks: 'Knowledge Chunks',
   embeddings: 'Vector Embeddings',
   vectors: 'Vector Storage',

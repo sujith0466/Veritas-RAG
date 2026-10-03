@@ -16,9 +16,7 @@ const OAuthCallbackPage = lazyRetry(() => import('@/pages/auth').then(m => ({ de
 const DashboardPage = lazyRetry(() => import('@/pages/dashboard').then(m => ({ default: m.DashboardPage })), 'DashboardPage')
 const KnowledgeIntelligenceDashboardPage = lazyRetry(() => import('@/pages/dashboard').then(m => ({ default: m.KnowledgeIntelligenceDashboardPage })), 'KnowledgeIntelligenceDashboardPage')
 const DocumentsPage = lazyRetry(() => import('@/pages/documents').then(m => ({ default: m.DocumentsPage })), 'DocumentsPage')
-const ChunksPage = lazyRetry(() => import('@/pages/chunks').then(m => ({ default: m.ChunksPage })), 'ChunksPage')
-const EmbeddingsPage = lazyRetry(() => import('@/pages/embeddings').then(m => ({ default: m.EmbeddingsPage })), 'EmbeddingsPage')
-const VectorsPage = lazyRetry(() => import('@/pages/vectors').then(m => ({ default: m.VectorsPage })), 'VectorsPage')
+const KnowledgeProcessingPage = lazyRetry(() => import('@/pages/knowledge-processing').then(m => ({ default: m.KnowledgeProcessingPage })), 'KnowledgeProcessingPage')
 const KnowledgeHealthPage = lazyRetry(() => import('@/pages/knowledge_health').then(m => ({ default: m.KnowledgeHealthPage })), 'KnowledgeHealthPage')
 const ReliabilityDashboardPage = lazyRetry(() => import('@/pages/analytics').then(m => ({ default: m.ReliabilityDashboardPage })), 'ReliabilityDashboardPage')
 const WorkspaceAnalyticsPage = lazyRetry(() => import('@/pages/analytics/WorkspaceAnalyticsPage').then(m => ({ default: m.WorkspaceAnalyticsPage })), 'WorkspaceAnalyticsPage')
@@ -154,9 +152,10 @@ export const router = createBrowserRouter([
               { path: 'knowledge', element: <ProtectedRoute adminOnly><KnowledgeIntelligenceDashboardPage /></ProtectedRoute> },
               { path: 'documents', element: <ProtectedRoute adminOnly><DocumentsPage /></ProtectedRoute> },
               { path: 'analytics', element: <ProtectedRoute adminOnly><ReliabilityDashboardPage /></ProtectedRoute> },
-              { path: 'chunks', element: <ProtectedRoute adminOnly><ChunksPage /></ProtectedRoute> },
-              { path: 'embeddings', element: <ProtectedRoute adminOnly><EmbeddingsPage /></ProtectedRoute> },
-              { path: 'vectors', element: <ProtectedRoute adminOnly><VectorsPage /></ProtectedRoute> },
+              { path: 'knowledge-processing', element: <ProtectedRoute adminOnly><KnowledgeProcessingPage /></ProtectedRoute> },
+              { path: 'chunks', element: <ProtectedRoute adminOnly><Navigate to="/knowledge-processing?stage=chunks" replace /></ProtectedRoute> },
+              { path: 'embeddings', element: <ProtectedRoute adminOnly><Navigate to="/knowledge-processing?stage=embeddings" replace /></ProtectedRoute> },
+              { path: 'vectors', element: <ProtectedRoute adminOnly><Navigate to="/knowledge-processing?stage=vectors" replace /></ProtectedRoute> },
               { path: 'health', element: <ProtectedRoute adminOnly><KnowledgeHealthPage /></ProtectedRoute> },
               { path: 'diagnostics', element: <ProtectedRoute adminOnly><DeveloperInvestigationPage /></ProtectedRoute> },
 
