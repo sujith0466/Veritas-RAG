@@ -1,5 +1,10 @@
 import { get, post, patch } from '@/api/wrapper';
-import type { WorkspacePreviewResponse } from '@/types';
+import type {
+  WorkspacePreviewResponse,
+  JoinCodeSettings,
+  JoinCodeSettingsPatchPayload,
+  JoinCodeGenerateResponse,
+} from '@/types';
 
 export interface Workspace {
   id: string;
@@ -126,6 +131,64 @@ class WorkspaceService {
       expected_updated_at: expectedUpdatedAt,
       reason_text: reasonText
     });
+    return response;
+  }
+
+  /**
+   * Get join code settings for a workspace (Admin/Owner only)
+   */
+  async getJoinCodeSettings(workspaceId: string): Promise<JoinCodeSettings> {
+    const response = await get<JoinCodeSettings>(`/api/v1/workspaces/${workspaceId}/join-code`);
+    return response;
+  }
+
+  /**
+   * Update join code settings for a workspace (Admin/Owner only)
+   */
+  async patchJoinCodeSettings(
+    workspaceId: string,
+    payload: JoinCodeSettingsPatchPayload
+  ): Promise<JoinCodeSettings> {
+    const response = await patch<JoinCodeSettings>(
+      `/api/v1/workspaces/${workspaceId}/join-code/settings`,
+      payload
+    );
+    return response;
+  }
+
+  /**
+   * Generate a new join code (Admin/Owner only)
+   */
+  async generateJoinCode(
+    workspaceId: string,
+    params?: {
+      expires_in_days?: number;
+      default_role?: 'MEMBER' | 'VIEWER';
+      require_approval?: boolean;
+      max_uses?: number | null;
+    }
+  ): Promise<JoinCodeGenerateResponse> {
+    const response = await post<JoinCodeGenerateResponse>(
+      `/api/v1/workspaces/${workspaceId}/join-code/generate`,
+      params
+    );
+    return response;
+  }
+
+  /**
+   * Regenerate join code (Admin/Owner only)
+   */
+  async regenerateJoinCode(
+    workspaceId: string,
+    params?: {
+      expires_in_days?: number;
+      max_uses?: number | null;
+    }
+  ): Promise<JoinCodeGenerateResponse> {
+    const response = await post<JoinCodeGenerateResponse>(
+      `/api/v1/workspaces/${workspaceId}/join-code/regenerate`,
+      params
+    );
     return response;
   }
 }

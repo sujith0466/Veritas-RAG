@@ -236,6 +236,18 @@ class APISettings(BaseModel):
     telemetry_enabled: bool = Field(True)
 
 
+class JoinCodeStoragePayload(BaseModel):
+    is_enabled: bool = False
+    code_hash: str | None = None
+    default_role: str = "MEMBER"
+    require_approval: bool = False
+    expires_at: str | None = None
+    generated_at: str | None = None
+    generated_by: str | None = None
+    max_uses: int | None = None
+    current_uses: int = 0
+
+
 # ── 2. Master Settings Document ──────────────────────────────────────────────
 
 class WorkspaceSettingsPayload(BaseModel):
@@ -250,6 +262,7 @@ class WorkspaceSettingsPayload(BaseModel):
     branding: BrandingSettings = Field(default_factory=BrandingSettings)
     api: APISettings = Field(default_factory=APISettings)
     staleness: StalenessPolicyDTO = Field(default_factory=StalenessPolicyDTO)
+    join_code: JoinCodeStoragePayload = Field(default_factory=JoinCodeStoragePayload)
     custom_extensions: dict[str, Any] = Field(default_factory=dict)
 
 

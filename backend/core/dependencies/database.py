@@ -162,6 +162,17 @@ async def get_workspace_settings_service(
     return WorkspaceSettingsService(settings_repo, history_repo, workspace_repo, member_repo)
 
 
+from backend.services.workspace.join_code_service import JoinCodeService
+
+
+async def get_join_code_service(
+    settings_repo: WorkspaceSettingsRepository = Depends(get_workspace_settings_repository),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+) -> JoinCodeService:
+    return JoinCodeService(settings_repo=settings_repo, member_repo=member_repo, workspace_repo=workspace_repo)
+
+
 
 
 # Feature Flag Dependencies

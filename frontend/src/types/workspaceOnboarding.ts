@@ -68,12 +68,15 @@ export interface JoinCodeSettings {
   generated_at?: string | null;
   generated_by?: string | null;
   has_code: boolean;
+  max_uses?: number | null;
+  current_uses?: number;
 }
 
 export interface JoinCodeSettingsPatchPayload {
   enabled?: boolean;
   default_role?: 'MEMBER' | 'VIEWER';
   require_approval?: boolean;
+  max_uses?: number | null;
 }
 
 /**

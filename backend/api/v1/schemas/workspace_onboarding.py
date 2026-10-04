@@ -247,6 +247,14 @@ class JoinCodeSettingsSchema(BaseModel):
         default=False,
         description="Whether an active join code hash exists in settings",
     )
+    max_uses: int | None = Field(
+        default=None,
+        description="Maximum number of times this code can be used (null for unlimited)",
+    )
+    current_uses: int = Field(
+        default=0,
+        description="Number of times this code has been used",
+    )
 
     @field_validator("default_role")
     @classmethod
@@ -267,6 +275,7 @@ class JoinCodeSettingsPatchRequest(BaseModel):
     enabled: bool | None = Field(default=None, description="Enable or disable join code entry")
     default_role: str | None = Field(default=None, description="Updated default role ('MEMBER', 'VIEWER')")
     require_approval: bool | None = Field(default=None, description="Require admin approval for entrants")
+    max_uses: int | None = Field(default=None, ge=1, le=10000, description="Maximum number of allowable uses")
 
     @field_validator("default_role")
     @classmethod

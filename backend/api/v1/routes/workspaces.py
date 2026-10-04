@@ -20,6 +20,9 @@ from backend.api.v1.schemas.workspace import (
     WorkspaceResponse,
 )
 from backend.api.v1.schemas.workspace_onboarding import (
+    JoinCodeGenerateResponse,
+    JoinCodeSettingsPatchRequest,
+    JoinCodeSettingsSchema,
     JoiningMode,
     TENANT_UUID_PATTERN,
     WorkspacePreviewData,
@@ -44,6 +47,7 @@ from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user, require_role
 from backend.core.dependencies.database import (
     get_db,
+    get_join_code_service,
     get_workspace_management_service,
     get_workspace_provisioning_service,
     get_workspace_repository,
@@ -52,6 +56,7 @@ from backend.core.dependencies.database import (
 from backend.core.permissions.rbac import Role
 from backend.models.entities.workspace import WorkspaceStatus
 from backend.repositories.workspace import WorkspaceRepository
+from backend.services.workspace.join_code_service import JoinCodeService
 from backend.services.workspace.management_service import (
     WorkspaceConflictError,
     WorkspaceInvalidStateError,
@@ -1180,4 +1185,180 @@ async def diff_workspace_branding(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while computing branding diff.",
+        ) from e
+
+
+# ── F3.8 Workspace Join Code Administration (WS-A3) ──────────────────────────
+
+@router.get(
+    "/{workspace_id}/join-code",
+    response_model=JoinCodeSettingsSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Get workspace join code settings (Owner/Admin)",
+)
+async def get_join_code_settings(
+    workspace_id: uuid.UUID,
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    join_code_service: JoinCodeService = Depends(get_join_code_service),
+) -> JoinCodeSettingsSchema:
+    """Retrieve safe Join Code settings. Plaintext and hash are NEVER returned."""
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required to access join code settings.",
+        )
+    try:
+        is_platform_admin = current_user.role == Role.ADMIN
+        return await join_code_service.get_join_code_settings(
+            session=session,
+            workspace_id=workspace_id,
+            user_id=current_user.id,
+            is_platform_admin=is_platform_admin,
+        )
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except WorkspaceUnauthorizedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to get join code settings")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching join code settings.",
+        ) from e
+
+
+@router.patch(
+    "/{workspace_id}/join-code/settings",
+    response_model=JoinCodeSettingsSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Update workspace join code settings (Owner/Admin)",
+)
+async def patch_join_code_settings(
+    workspace_id: uuid.UUID,
+    request: JoinCodeSettingsPatchRequest,
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    join_code_service: JoinCodeService = Depends(get_join_code_service),
+) -> JoinCodeSettingsSchema:
+    """Update Join Code settings (enable/disable, default role, approval, max uses)."""
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required to update join code settings.",
+        )
+    try:
+        is_platform_admin = current_user.role == Role.ADMIN
+        return await join_code_service.patch_join_code_settings(
+            session=session,
+            workspace_id=workspace_id,
+            user_id=current_user.id,
+            request=request,
+            is_platform_admin=is_platform_admin,
+        )
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except WorkspaceUnauthorizedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to update join code settings")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while updating join code settings.",
+        ) from e
+
+
+@router.post(
+    "/{workspace_id}/join-code/generate",
+    response_model=JoinCodeGenerateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate workspace join code (Owner/Admin)",
+)
+async def generate_join_code(
+    workspace_id: uuid.UUID,
+    expires_in_days: int = Query(30, ge=0, le=365, description="Expiration in days (0 for no expiration)"),
+    default_role: str = Query("MEMBER", description="Default role ('MEMBER' or 'VIEWER')"),
+    require_approval: bool = Query(False, description="Require admin approval for entrants"),
+    max_uses: int | None = Query(None, ge=1, le=10000, description="Optional maximum allowable uses"),
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    join_code_service: JoinCodeService = Depends(get_join_code_service),
+) -> JoinCodeGenerateResponse:
+    """Generate a new Join Code. Plaintext is returned strictly ONCE in this response."""
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required to generate join code.",
+        )
+    try:
+        is_platform_admin = current_user.role == Role.ADMIN
+        return await join_code_service.generate_new_join_code(
+            session=session,
+            workspace_id=workspace_id,
+            user_id=current_user.id,
+            is_platform_admin=is_platform_admin,
+            expires_in_days=expires_in_days,
+            default_role=default_role,
+            require_approval=require_approval,
+            max_uses=max_uses,
+            is_regeneration=False,
+        )
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except WorkspaceUnauthorizedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to generate join code")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while generating join code.",
+        ) from e
+
+
+@router.post(
+    "/{workspace_id}/join-code/regenerate",
+    response_model=JoinCodeGenerateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Regenerate workspace join code (Owner/Admin)",
+)
+async def regenerate_join_code(
+    workspace_id: uuid.UUID,
+    expires_in_days: int = Query(30, ge=0, le=365, description="Expiration in days (0 for no expiration)"),
+    max_uses: int | None = Query(None, ge=1, le=10000, description="Optional maximum allowable uses"),
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    join_code_service: JoinCodeService = Depends(get_join_code_service),
+) -> JoinCodeGenerateResponse:
+    """Regenerate Join Code, immediately invalidating any prior code. Plaintext revealed ONCE."""
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required to regenerate join code.",
+        )
+    try:
+        is_platform_admin = current_user.role == Role.ADMIN
+        return await join_code_service.generate_new_join_code(
+            session=session,
+            workspace_id=workspace_id,
+            user_id=current_user.id,
+            is_platform_admin=is_platform_admin,
+            expires_in_days=expires_in_days,
+            max_uses=max_uses,
+            is_regeneration=True,
+        )
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except WorkspaceUnauthorizedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to regenerate join code")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while regenerating join code.",
         ) from e
