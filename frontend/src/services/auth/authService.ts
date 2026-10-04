@@ -109,7 +109,7 @@ export const authService = {
 
     try {
       const response = await apiClient.get('/users/me')
-      return { ...authContext, ...response.data }
+      return { ...authContext, ...response.data, role: authContext.role }
     } catch (error) {
       console.error('Failed to fetch extended user profile:', error)
       return authContext

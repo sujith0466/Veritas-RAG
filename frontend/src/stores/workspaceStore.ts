@@ -270,10 +270,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ isResolvingWorkspace: true });
     try {
       const response = await workspaceService.getCurrentWorkspace();
-      if (response && response.data) {
-        const d = response.data;
+      const d = (response as any)?.data || response;
+      if (d && (d.workspace_id || d.id)) {
         const ws: Workspace = {
-          id: d.workspace_id,
+          id: d.workspace_id || d.id,
           public_id: d.public_id || undefined,
           name: d.name,
           slug: d.slug,

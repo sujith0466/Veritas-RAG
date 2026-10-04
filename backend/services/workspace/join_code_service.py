@@ -335,6 +335,7 @@ class JoinCodeService:
         # 5. Snapshot to history table
         history_entry = WorkspaceSettingsHistory(
             workspace_id=workspace_id,
+            schema_version=settings.schema_version or 1,
             version=settings.version,
             settings_json=settings_dict,
             settings_hash=settings.settings_hash,

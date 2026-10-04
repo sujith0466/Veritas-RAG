@@ -184,9 +184,14 @@ class WorkspaceService {
       max_uses?: number | null;
     }
   ): Promise<JoinCodeGenerateResponse> {
+    const q = new URLSearchParams();
+    if (params?.expires_in_days !== undefined) q.set('expires_in_days', String(params.expires_in_days));
+    if (params?.default_role) q.set('default_role', params.default_role);
+    if (params?.require_approval !== undefined) q.set('require_approval', String(params.require_approval));
+    if (params?.max_uses !== undefined && params?.max_uses !== null) q.set('max_uses', String(params.max_uses));
+    const qs = q.toString() ? `?${q.toString()}` : '';
     const response = await post<JoinCodeGenerateResponse>(
-      `/api/v1/workspaces/${workspaceId}/join-code/generate`,
-      params
+      `/api/v1/workspaces/${workspaceId}/join-code/generate${qs}`
     );
     return response;
   }
@@ -201,9 +206,12 @@ class WorkspaceService {
       max_uses?: number | null;
     }
   ): Promise<JoinCodeGenerateResponse> {
+    const q = new URLSearchParams();
+    if (params?.expires_in_days !== undefined) q.set('expires_in_days', String(params.expires_in_days));
+    if (params?.max_uses !== undefined && params?.max_uses !== null) q.set('max_uses', String(params.max_uses));
+    const qs = q.toString() ? `?${q.toString()}` : '';
     const response = await post<JoinCodeGenerateResponse>(
-      `/api/v1/workspaces/${workspaceId}/join-code/regenerate`,
-      params
+      `/api/v1/workspaces/${workspaceId}/join-code/regenerate${qs}`
     );
     return response;
   }
