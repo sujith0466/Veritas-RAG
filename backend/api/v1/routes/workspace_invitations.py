@@ -79,6 +79,7 @@ async def send_workspace_invitation(
             success=True,
             message="Workspace invitation sent successfully.",
             data=WorkspaceInvitationData.model_validate(invitation),
+            invitation_token=getattr(invitation, "invitation_token", None),
         )
     except InvitationNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -167,6 +168,7 @@ async def resend_workspace_invitation(
             success=True,
             message="Workspace invitation resent successfully.",
             data=WorkspaceInvitationData.model_validate(invitation),
+            invitation_token=getattr(invitation, "invitation_token", None),
         )
     except InvitationNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
@@ -224,6 +226,36 @@ async def revoke_workspace_invitation(
 
 
 # ── Standalone Public / Verification Endpoints ─────────────────────────────────
+
+@invitations_router.get(
+    "/preview",
+    response_model=VerifyInvitationResponse,
+    summary="Preview invitation metadata safely without consuming",
+)
+async def preview_invitation(
+    token: str = Query(..., description="Raw invitation token from email magic link"),
+    session: AsyncSession = Depends(get_db),
+    service: WorkspaceInvitationService = Depends(get_workspace_invitation_service),
+) -> VerifyInvitationResponse:
+    """Safe preview endpoint returning public metadata without accepting/consuming token."""
+    try:
+        data = await service.verify_invitation_token(session=session, raw_token=token)
+        return VerifyInvitationResponse(
+            success=True,
+            message="Invitation token is valid.",
+            data=VerifyInvitationData(**data),
+        )
+    except InvitationNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvitationInvalidStateError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.exception("Unexpected error previewing invitation token", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while previewing the invitation token.",
+        )
+
 
 @invitations_router.get(
     "/verify",

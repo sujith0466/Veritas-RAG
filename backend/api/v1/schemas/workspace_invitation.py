@@ -72,6 +72,10 @@ class WorkspaceInvitationResponse(BaseModel):
     success: bool = True
     message: str = "Workspace invitation processed successfully."
     data: WorkspaceInvitationData
+    invitation_token: str | None = Field(
+        default=None,
+        description="One-time plaintext invitation token reveal. Never persisted or shown again.",
+    )
 
 
 class WorkspaceInvitationListResponse(BaseModel):

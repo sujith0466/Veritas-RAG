@@ -70,6 +70,13 @@ class InvitationService {
   }
 
   /**
+   * Safe preview invitation token metadata without accepting.
+   */
+  async previewInvitation(token: string): Promise<VerifyInvitationData> {
+    return get<VerifyInvitationData>('/api/v1/invitations/preview', { token });
+  }
+
+  /**
    * Verify invitation token metadata (public / preview page).
    */
   async verifyInvitation(token: string): Promise<VerifyInvitationData> {

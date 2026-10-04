@@ -26,6 +26,7 @@ export interface WorkspaceInvitation {
   version: number;
   created_at: string;
   updated_at: string;
+  invitation_token?: string | null;
 }
 
 export interface SendInvitationPayload {

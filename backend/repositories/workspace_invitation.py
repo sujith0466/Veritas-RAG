@@ -43,8 +43,41 @@ class WorkspaceInvitationRepository(BaseRepository[WorkspaceInvitation]):
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def get_by_token_selector(self, token_selector: str) -> WorkspaceInvitation | None:
+        """Fetch an invitation by its token selector for verification/acceptance."""
+        stmt = (
+            select(self.model_class)
+            .options(
+                selectinload(self.model_class.workspace),
+                selectinload(self.model_class.invited_by),
+            )
+            .where(
+                self.model_class.token_selector == token_selector,
+                self.model_class.is_deleted == False,
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
+    async def get_by_token_selector_for_update(self, token_selector: str) -> WorkspaceInvitation | None:
+        """Fetch an invitation by its token selector with row-level lock (SELECT FOR UPDATE)."""
+        stmt = (
+            select(self.model_class)
+            .options(
+                selectinload(self.model_class.workspace),
+                selectinload(self.model_class.invited_by),
+            )
+            .where(
+                self.model_class.token_selector == token_selector,
+                self.model_class.is_deleted == False,
+            )
+            .with_for_update()
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def get_by_token_hash(self, token_hash: str) -> WorkspaceInvitation | None:
-        """Fetch an invitation by its SHA-256 token hash for verification/acceptance."""
+        """Fetch an invitation by its legacy SHA-256 token hash for verification/acceptance."""
         stmt = (
             select(self.model_class)
             .options(
@@ -60,7 +93,7 @@ class WorkspaceInvitationRepository(BaseRepository[WorkspaceInvitation]):
         return result.scalars().first()
 
     async def get_by_token_hash_for_update(self, token_hash: str) -> WorkspaceInvitation | None:
-        """Fetch an invitation by its SHA-256 token hash with row-level lock (SELECT FOR UPDATE)."""
+        """Fetch an invitation by its legacy SHA-256 token hash with row-level lock (SELECT FOR UPDATE)."""
         stmt = (
             select(self.model_class)
             .options(

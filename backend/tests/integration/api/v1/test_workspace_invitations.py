@@ -87,6 +87,7 @@ def test_send_invitation_api_success(client, mock_invitation_service):
         created_at=now_utc,
         updated_at=now_utc,
     )
+    mock_inv.invitation_token = "sec_inv_testselector12345678_secrettoken123456"
     mock_invitation_service.send_invitation.return_value = mock_inv
 
     payload = {
@@ -102,6 +103,7 @@ def test_send_invitation_api_success(client, mock_invitation_service):
     assert json_data["data"]["email"] == "newuser@example.com"
     assert json_data["data"]["role"] == "MEMBER"
     assert json_data["data"]["status"] == "PENDING"
+    assert json_data["invitation_token"] == "sec_inv_testselector12345678_secrettoken123456"
     assert "token_hash" not in json_data["data"]  # Ensure hash is never exposed
 
 
@@ -244,3 +246,54 @@ def test_verify_invitation_token_api_success(client, mock_invitation_service):
     assert json_data["data"]["workspace_name"] == "RAGuard Team"
     assert json_data["data"]["email"] == "invitee@example.com"
     assert json_data["data"]["status"] == "PENDING"
+
+
+def test_preview_invitation_token_api_success(client, mock_invitation_service):
+    raw_token = "sec_inv_mockselector12345678_secret123"
+    inv_id = uuid.uuid4()
+    ws_id = uuid.uuid4()
+    now_utc = datetime.datetime.now(UTC)
+
+    mock_invitation_service.verify_invitation_token.return_value = {
+        "invitation_id": inv_id,
+        "workspace_id": ws_id,
+        "workspace_name": "Preview Corp",
+        "email": "preview@example.com",
+        "role": "VIEWER",
+        "inviter_email": "admin@preview.ai",
+        "expires_at": now_utc + datetime.timedelta(days=7),
+        "status": "PENDING",
+    }
+
+    response = client.get(f"/api/v1/invitations/preview?token={raw_token}")
+
+    assert response.status_code == 200
+    json_data = response.json()
+    assert json_data["success"] is True
+    assert json_data["data"]["workspace_name"] == "Preview Corp"
+    assert json_data["data"]["role"] == "VIEWER"
+
+
+def test_accept_invitation_api_success(client, mock_invitation_service):
+    raw_token = "sec_inv_mockselector12345678_secret123"
+    ws_id = uuid.uuid4()
+    mem_id = uuid.uuid4()
+
+    mock_invitation_service.accept_invitation.return_value = {
+        "success": True,
+        "workspace_id": ws_id,
+        "workspace_name": "Preview Corp",
+        "role": "MEMBER",
+        "member_id": mem_id,
+    }
+
+    response = client.post(
+        "/api/v1/invitations/accept",
+        json={"token": raw_token},
+    )
+
+    assert response.status_code == 200
+    json_data = response.json()
+    assert json_data["success"] is True
+    assert json_data["data"]["role"] == "MEMBER"
+    assert json_data["data"]["workspace_id"] == str(ws_id)

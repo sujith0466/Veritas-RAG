@@ -2,11 +2,13 @@
 
 import datetime
 from datetime import UTC
+import re
 from unittest.mock import AsyncMock, MagicMock
 import uuid
 
 import pytest
 
+from backend.api.v1.schemas.workspace_onboarding import INVITATION_TOKEN_PATTERN
 from backend.models.entities.workspace import Workspace, WorkspaceStatus
 from backend.models.entities.workspace_invitation import (
     InvitationStatus,
@@ -23,6 +25,8 @@ from backend.services.workspace.invitation_service import (
     WorkspaceInvitationService,
     generate_invitation_token,
     hash_token,
+    parse_invitation_token,
+    verify_invitation_secret,
 )
 
 
@@ -107,17 +111,38 @@ def invitation_service(
 # ── 1. Cryptographic Token Tests ───────────────────────────────────────────────
 
 def test_generate_invitation_token_entropy_and_hash():
-    raw_token, token_hash = generate_invitation_token()
+    raw_token, token_selector, token_hash = generate_invitation_token()
 
     assert raw_token.startswith("sec_inv_")
-    assert len(raw_token) > 40
-    assert len(token_hash) == 64  # SHA-256 hex digest length
-    assert hash_token(raw_token) == token_hash
+    assert len(raw_token) >= 70
+    assert len(token_selector) == 22
+    assert token_hash.startswith("$2b$")
 
-    # Ensure high entropy (two consecutive tokens are different)
-    raw2, hash2 = generate_invitation_token()
+    # Verify regex conformance with official WS-A1 schema
+    assert re.match(INVITATION_TOKEN_PATTERN, raw_token) is not None
+
+    # Parse and verify secret
+    parsed_selector, parsed_secret = parse_invitation_token(raw_token)
+    assert parsed_selector == token_selector
+    assert verify_invitation_secret(parsed_secret, token_hash) is True
+
+    # High entropy check: successive tokens differ in raw, selector, and verifier
+    raw2, sel2, hash2 = generate_invitation_token()
     assert raw_token != raw2
+    assert token_selector != sel2
     assert token_hash != hash2
+
+
+def test_invitation_token_legacy_sha256_verification():
+    import hashlib
+    legacy_raw = "sec_inv_legacy_opaque_token_without_selector"
+    legacy_hash = hashlib.sha256(legacy_raw.encode("utf-8")).hexdigest()
+
+    parsed_sel, parsed_sec = parse_invitation_token(legacy_raw)
+    assert parsed_sel is None
+    assert parsed_sec == legacy_raw
+    assert verify_invitation_secret(parsed_sec, legacy_hash) is True
+    assert verify_invitation_secret("wrong_token", legacy_hash) is False
 
 
 # ── 2. Send Invitation Tests ───────────────────────────────────────────────────
@@ -168,6 +193,11 @@ async def test_send_invitation_success(
     assert invitation.status == InvitationStatus.PENDING.value
     assert invitation.version == 1
     assert invitation.resend_count == 0
+    assert invitation.token_selector is not None
+    assert len(invitation.token_selector) == 22
+    assert invitation.token_hash.startswith("$2b$")
+    assert getattr(invitation, "invitation_token", None) is not None
+    assert invitation.invitation_token.startswith("sec_inv_")
 
     # Verify session additions (Entity + AuditLog) and commit
     assert mock_session.add.call_count >= 2
@@ -354,6 +384,11 @@ async def test_resend_invitation_success_and_cooldown(
     assert resent_inv.resend_count == 1
     assert resent_inv.version == 2
     assert resent_inv.token_hash != "oldhash"
+    assert resent_inv.token_selector is not None
+    assert len(resent_inv.token_selector) == 22
+    assert resent_inv.token_hash.startswith("$2b$")
+    assert getattr(resent_inv, "invitation_token", None) is not None
+    assert resent_inv.invitation_token.startswith("sec_inv_")
     assert resent_inv.last_resent_at is not None
 
     # Immediate next resend should fail due to 60s cooldown

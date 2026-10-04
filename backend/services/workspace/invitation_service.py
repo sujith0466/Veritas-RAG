@@ -8,9 +8,12 @@ and audit logging.
 import datetime
 from datetime import UTC
 import hashlib
+import hmac
 import secrets
 from typing import Any
 import uuid
+
+import bcrypt
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,24 +76,73 @@ class InvitationInvalidStateError(InvitationError):
     pass
 
 
-# ── Token Generation ──────────────────────────────────────────────────────────
+# ── Token Generation & Cryptographic Verification ─────────────────────────────
 
-def generate_invitation_token() -> tuple[str, str]:
+INVITATION_TOKEN_PREFIX = "sec_inv_"
+BCRYPT_ROUNDS = 12
+
+
+def generate_invitation_token() -> tuple[str, str, str]:
     """
-    Generates a secure high-entropy invitation token.
+    Generates a secure high-entropy invitation token using the Selector + Verifier pattern.
 
     Returns:
-        tuple[str, str]: (raw_token, token_hash)
-        - raw_token is sent ONLY to the recipient via email.
-        - token_hash is stored in the database (SHA-256).
+        tuple[str, str, str]: (raw_token, token_selector, token_hash)
+        - raw_token: Full credential sent to recipient and revealed strictly once upon creation/resend.
+        - token_selector: 16 bytes CSPRNG url-safe string (~22 chars) stored in DB for O(1) indexed lookup.
+        - token_hash: Salted adaptive bcrypt hash (rounds=12) of the 32 bytes CSPRNG secret (~43 chars).
     """
-    raw_token = f"sec_inv_{secrets.token_urlsafe(32)}"
-    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-    return raw_token, token_hash
+    token_selector = secrets.token_urlsafe(16)
+    secret = secrets.token_urlsafe(32)
+    raw_token = f"{INVITATION_TOKEN_PREFIX}{token_selector}_{secret}"
+    token_hash = bcrypt.hashpw(
+        secret.encode("utf-8"),
+        bcrypt.gensalt(rounds=BCRYPT_ROUNDS),
+    ).decode("ascii")
+    return raw_token, token_selector, token_hash
+
+
+def parse_invitation_token(raw_token: str) -> tuple[str | None, str]:
+    """
+    Parses raw invitation token into (token_selector, secret).
+
+    - For selector-based tokens: f"sec_inv_{token_selector}_{secret}" -> (token_selector, secret)
+      token_selector is 16 bytes CSPRNG url-safe (exactly 22 characters).
+    - For legacy tokens: returns (None, raw_token)
+    """
+    token_clean = raw_token.strip()
+    if token_clean.startswith(INVITATION_TOKEN_PREFIX):
+        remainder = token_clean[len(INVITATION_TOKEN_PREFIX):]
+        if len(remainder) >= 24 and remainder[22] == "_":
+            selector = remainder[:22]
+            secret = remainder[23:]
+            if selector and secret:
+                return selector, secret
+    return None, token_clean
+
+
+def verify_invitation_secret(candidate_secret: str, stored_hash: str) -> bool:
+    """
+    Verifies candidate secret against stored hash.
+    Supports bcrypt hashes ($2b$) and fallback to legacy SHA-256 hashes.
+    """
+    if not candidate_secret or not stored_hash:
+        return False
+    if stored_hash.startswith("$2"):
+        try:
+            return bcrypt.checkpw(
+                candidate_secret.encode("utf-8"),
+                stored_hash.encode("ascii"),
+            )
+        except Exception:
+            return False
+    # Legacy SHA-256 fallback
+    candidate_hash = hashlib.sha256(candidate_secret.strip().encode("utf-8")).hexdigest()
+    return hmac.compare_digest(candidate_hash, stored_hash)
 
 
 def hash_token(raw_token: str) -> str:
-    """Computes SHA-256 hash of a raw invitation token."""
+    """Computes SHA-256 hash of a raw invitation token (legacy fallback)."""
     return hashlib.sha256(raw_token.strip().encode("utf-8")).hexdigest()
 
 
@@ -249,7 +301,7 @@ class WorkspaceInvitationService:
             )
 
         # 6. Generate cryptographic token and calculate expiration
-        raw_token, token_hash = generate_invitation_token()
+        raw_token, token_selector, token_hash = generate_invitation_token()
         ttl_days = await self._resolve_ttl_days(workspace_id)
         now_utc = datetime.datetime.now(UTC)
         expires_at = now_utc + datetime.timedelta(days=ttl_days)
@@ -259,6 +311,7 @@ class WorkspaceInvitationService:
             workspace_id=workspace_id,
             email=email_normalized,
             role=role_upper,
+            token_selector=token_selector,
             token_hash=token_hash,
             status=InvitationStatus.PENDING.value,
             invited_by_user_id=actor_id,
@@ -266,6 +319,7 @@ class WorkspaceInvitationService:
             resend_count=0,
             version=1,
         )
+        invitation.invitation_token = raw_token
         session.add(invitation)
 
         # 8. Record audit log
@@ -380,16 +434,18 @@ class WorkspaceInvitationService:
             )
 
         # 6. Generate new token & extend expiry
-        raw_token, token_hash = generate_invitation_token()
+        raw_token, token_selector, token_hash = generate_invitation_token()
         ttl_days = await self._resolve_ttl_days(workspace_id)
         expires_at = now_utc + datetime.timedelta(days=ttl_days)
 
         # 7. Update entity with optimistic concurrency bump
+        invitation.token_selector = token_selector
         invitation.token_hash = token_hash
         invitation.expires_at = expires_at
         invitation.resend_count += 1
         invitation.last_resent_at = now_utc
         invitation.version += 1
+        invitation.invitation_token = raw_token
         session.add(invitation)
 
         # 8. Record audit log
@@ -512,9 +568,17 @@ class WorkspaceInvitationService:
         """
         Verifies raw token for acceptance page preview and logs 'viewed' audit event.
         """
-        token_h = hash_token(raw_token)
-        invitation = await self.invitation_repo.get_by_token_hash(token_h)
-        if not invitation:
+        if not raw_token or not raw_token.strip():
+            raise InvitationError("Invitation token is required.")
+
+        token_selector, secret = parse_invitation_token(raw_token)
+        if token_selector:
+            invitation = await self.invitation_repo.get_by_token_selector(token_selector)
+        else:
+            token_h = hash_token(raw_token)
+            invitation = await self.invitation_repo.get_by_token_hash(token_h)
+
+        if not invitation or not verify_invitation_secret(secret, invitation.token_hash):
             raise InvitationNotFoundError("Invalid or expired invitation token.")
 
         now_utc = datetime.datetime.now(UTC)
@@ -576,18 +640,23 @@ class WorkspaceInvitationService:
         if not raw_token or not raw_token.strip():
             raise InvitationError("Invitation token is required.")
 
-        token_h = hash_token(raw_token)
+        token_selector, secret = parse_invitation_token(raw_token)
         now_utc = datetime.datetime.now(UTC)
 
         # 1. Pessimistic row-level locking
-        invitation = await self.invitation_repo.get_by_token_hash_for_update(token_h)
-        if not invitation:
+        if token_selector:
+            invitation = await self.invitation_repo.get_by_token_selector_for_update(token_selector)
+        else:
+            token_h = hash_token(raw_token)
+            invitation = await self.invitation_repo.get_by_token_hash_for_update(token_h)
+
+        if not invitation or not verify_invitation_secret(secret, invitation.token_hash):
             # Audit failure
             audit_log = AuditLog(
                 action="workspace.invitation.accept_failed",
                 user_id=getattr(user_context, "id", None),
                 resource_type="WORKSPACE_INVITATION",
-                resource_id=token_h[:12],
+                resource_id=token_selector or "anonymous",
                 details={"reason": "Invalid token or invitation not found"},
                 status="failure",
             )
