@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from '../navigation/Sidebar'
 import { Header } from '../navigation/Header'
-import { Footer } from '../navigation/Footer'
 import { BackgroundProvider } from '../backgrounds'
 import { WorkspaceThemeProvider } from '@/providers/WorkspaceThemeProvider'
 
@@ -70,7 +69,6 @@ export function DashboardLayout() {
               <Outlet />
             </div>
           </main>
-          {!isChatRoute && <Footer />}
         </div>
       </div>
     </WorkspaceThemeProvider>
