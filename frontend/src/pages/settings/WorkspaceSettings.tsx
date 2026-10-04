@@ -1,11 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Input, Label, Button, SectionHeader } from '@/components/common'
+import { motion, useReducedMotion } from 'framer-motion'
+import { Card, Input, Label, Button } from '@/components/common'
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { useToast } from '@/hooks/useToast'
 import { userService } from '@/services/userService'
 import { workspaceSettingsService, WorkspaceSettingsData } from '@/services/workspaceSettingsService'
 import { useAuthStore } from '@/stores/authStore'
-import { Briefcase, Database, Users, Loader2, Download, Calendar } from 'lucide-react'
+import {
+  Briefcase,
+  Database,
+  Users,
+  Loader2,
+  Download,
+  Calendar,
+  Copy,
+  Check,
+  ShieldCheck,
+  AlertCircle,
+  FileText,
+} from 'lucide-react'
 
 export function WorkspaceSettings() {
   const navigate = useNavigate()
@@ -13,11 +27,13 @@ export function WorkspaceSettings() {
   const user = useAuthStore(s => s.user)
   const setAuth = useAuthStore(s => s.setAuth)
   const token = useAuthStore(s => s.token)
+  const shouldReduceMotion = useReducedMotion()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settingsData, setSettingsData] = useState<WorkspaceSettingsData | null>(null)
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string>('')
+  const [copiedId, setCopiedId] = useState(false)
   const [formData, setFormData] = useState({
     workspace_name: '',
     retention_policy: '90',
@@ -30,6 +46,14 @@ export function WorkspaceSettings() {
   const [exporting, setExporting] = useState(false)
 
   const workspaceId = user?.workspace_id || user?.tenant_id || ''
+
+  const handleCopyId = () => {
+    if (!workspaceId) return
+    navigator.clipboard.writeText(workspaceId)
+    setCopiedId(true)
+    toast({ title: 'Copied', message: 'Workspace ID copied to clipboard', type: 'info' })
+    setTimeout(() => setCopiedId(false), 2000)
+  }
 
   const handleExport = async () => {
     if (!workspaceId) {
@@ -44,12 +68,12 @@ export function WorkspaceSettings() {
       if (exportEndDate) query.append('end_date', exportEndDate)
 
       const res = await fetch(`/api/v1/workspaces/${workspaceId}/chat/export?${query.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       if (!res.ok) {
         if (res.status === 403) {
-          throw new Error("Insufficient permissions to export workspace data.")
+          throw new Error('Insufficient permissions to export workspace data.')
         }
         throw new Error('Export failed')
       }
@@ -84,7 +108,8 @@ export function WorkspaceSettings() {
   const loadWorkspace = async () => {
     try {
       setLoading(true)
-      let currentWsName = user?.workspace_name && !user?.workspace_name.includes('-') ? user.workspace_name : 'Default Workspace'
+      let currentWsName =
+        user?.workspace_name && !user?.workspace_name.includes('-') ? user.workspace_name : 'Default Workspace'
 
       // 1. Fetch user profile for name if available
       try {
@@ -149,7 +174,7 @@ export function WorkspaceSettings() {
             {
               general: {
                 retention_days: retentionDays,
-              }
+              },
             }
           )
           if (res?.data) {
@@ -174,16 +199,19 @@ export function WorkspaceSettings() {
       await userService.updateProfile({
         profile_data: {
           ...user?.profile_data,
-          workspace_name: formData.workspace_name
-        }
+          workspace_name: formData.workspace_name,
+        },
       })
 
       if (user && token) {
-        setAuth({
-          ...user,
-          workspace_name: formData.workspace_name,
-          profile_data: { ...user.profile_data, workspace_name: formData.workspace_name }
-        }, token)
+        setAuth(
+          {
+            ...user,
+            workspace_name: formData.workspace_name,
+            profile_data: { ...user.profile_data, workspace_name: formData.workspace_name },
+          },
+          token
+        )
       }
 
       toast({ title: 'Success', message: 'Workspace settings updated successfully', type: 'success' })
@@ -196,184 +224,260 @@ export function WorkspaceSettings() {
   }
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>
+    return (
+      <div className="flex flex-col justify-center items-center h-64 gap-3">
+        <Loader2 className="animate-spin text-primary h-8 w-8" />
+        <span className="text-xs text-muted-foreground font-mono">Loading canonical settings...</span>
+      </div>
+    )
   }
 
   const role = String(user?.role || '').trim().toLowerCase()
   const canExport = ['admin', 'owner', 'platform_admin'].includes(role)
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader
+    <div className="space-y-8 animate-in fade-in duration-300">
+      <AdminPageHeader
+        eyebrow="ADMINISTRATION / WORKSPACE"
         title="Workspace Configuration"
-        description="Manage your enterprise workspace identity and data policies."
+        description="Manage your enterprise workspace identity, data compliance policies, and compliance export pipelines."
+        badge={
+          settingsData ? (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-mono font-medium bg-primary/10 text-primary border border-primary/20">
+              <ShieldCheck className="h-3 w-3" />
+              Version {settingsData.version}
+            </span>
+          ) : undefined
+        }
       />
 
-      <div className="grid gap-8">
-        <Card className="p-6 space-y-6">
-          <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Briefcase className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">General Info</h3>
-              <p className="text-sm text-muted-foreground">Basic workspace identity details.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="workspace_name">Workspace Name</Label>
-              <Input
-                id="workspace_name"
-                name="workspace_name"
-                value={formData.workspace_name}
-                onChange={handleChange}
-                placeholder="Acme Corp"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Tenant ID</Label>
-              <Input
-                value={workspaceId || 'Not Assigned'}
-                readOnly
-                className="bg-muted cursor-not-allowed font-mono text-xs"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Unique isolation identifier.</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6 space-y-6">
-          <div className="flex items-center gap-3 border-b border-border pb-4 mb-4">
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Database className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Data Management</h3>
-              <p className="text-sm text-muted-foreground">Compliance and retention configurations.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-border">
-            <div className="space-y-3">
-              <Label htmlFor="retention_policy">Log Retention Policy</Label>
-              <select
-                id="retention_policy"
-                name="retention_policy"
-                value={formData.retention_policy}
-                onChange={handleChange}
-                className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              >
-                <option value="30">30 Days</option>
-                <option value="90">90 Days</option>
-                <option value="180">180 Days</option>
-                <option value="365">1 Year (365 Days)</option>
-              </select>
-              <p className="text-xs text-muted-foreground">Audit logs and query telemetry will be archived after this duration.</p>
-            </div>
-
-            {settingsData && (
-              <div className="space-y-3">
-                <Label>Canonical Settings Version</Label>
-                <div className="h-10 px-3 py-2 rounded-md bg-muted/50 border border-border flex items-center justify-between text-xs font-mono text-muted-foreground">
-                  <span>Version {settingsData.version} (v{settingsData.schema_version})</span>
-                  <span className="truncate max-w-[120px]">{settingsData.settings_hash.slice(0, 12)}…</span>
-                </div>
-                <p className="text-xs text-muted-foreground">Backed by canonical JSON document versioning.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4 pt-2">
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">Chat History Export</h4>
-              <p className="text-xs text-muted-foreground mb-4 mt-1">Export full workspace chat history for compliance or analytics. Available to Owners and Admins.</p>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <div className="space-y-2 flex-1 w-full">
-                <Label htmlFor="export_format">Format</Label>
-                <select
-                  id="export_format"
-                  value={exportFormat}
-                  onChange={e => setExportFormat(e.target.value)}
-                  className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  <option value="json">JSON</option>
-                  <option value="csv">CSV</option>
-                </select>
-              </div>
-
-              <div className="space-y-2 flex-1 w-full">
-                <Label htmlFor="export_start">Start Date (Optional)</Label>
-                <div className="relative">
-                  <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="export_start"
-                    type="date"
-                    className="pl-9"
-                    value={exportStartDate}
-                    onChange={e => setExportStartDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2 flex-1 w-full">
-                <Label htmlFor="export_end">End Date (Optional)</Label>
-                <div className="relative">
-                  <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="export_end"
-                    type="date"
-                    className="pl-9"
-                    value={exportEndDate}
-                    onChange={e => setExportEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="w-full md:w-auto mt-4 md:mt-0">
-                <Button
-                  onClick={handleExport}
-                  disabled={exporting || !canExport}
-                  className="w-full"
-                >
-                  {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-                  Export
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6 space-y-6">
-          <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                <Users className="w-5 h-5" />
+      <div className="grid gap-6">
+        {/* Workspace Identity Card */}
+        <motion.div
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors">
+            <div className="flex items-center gap-3 border-b border-border/60 pb-4 mb-5">
+              <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+                <Briefcase className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground">Workspace Members</h3>
-                <p className="text-sm text-muted-foreground">Invite and manage users in this tenant.</p>
+                <h3 className="font-semibold text-foreground text-base">General Information</h3>
+                <p className="text-xs text-muted-foreground">Primary identity and identifier for this enterprise tenant.</p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => navigate('/admin/members')}>
-              Manage Team
-            </Button>
-          </div>
 
-          <div className="bg-surface-elevated rounded-lg p-4 text-center border border-border">
-            <p className="text-sm text-muted-foreground">
-              Configure team roles, active member invitations, and workspace security boundaries in the Members portal.
-            </p>
-          </div>
-        </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="workspace_name" className="text-xs font-semibold">
+                  Workspace Name
+                </Label>
+                <Input
+                  id="workspace_name"
+                  name="workspace_name"
+                  value={formData.workspace_name}
+                  onChange={handleChange}
+                  placeholder="Acme Corp"
+                  className="bg-background/80 focus:bg-background transition-colors"
+                />
+                <p className="text-2xs text-muted-foreground">Human-readable name displayed across navigation and reports.</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold">Tenant Identifier</Label>
+                  <button
+                    type="button"
+                    onClick={handleCopyId}
+                    className="inline-flex items-center gap-1 text-2xs text-primary hover:underline focus:outline-none"
+                  >
+                    {copiedId ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    <span>{copiedId ? 'Copied' : 'Copy ID'}</span>
+                  </button>
+                </div>
+                <Input
+                  value={workspaceId || 'Not Assigned'}
+                  readOnly
+                  className="bg-muted/40 cursor-not-allowed font-mono text-xs border-dashed"
+                />
+                <p className="text-2xs text-muted-foreground">Cryptographic tenant UUID enforcing isolation across databases.</p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Data Management & Retention Card */}
+        <motion.div
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.05 }}
+        >
+          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors">
+            <div className="flex items-center gap-3 border-b border-border/60 pb-4 mb-5">
+              <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground text-base">Data Retention & Governance</h3>
+                <p className="text-xs text-muted-foreground">Compliance policies, document lifecycle, and telemetry retention.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-border/60">
+              <div className="space-y-2">
+                <Label htmlFor="retention_policy" className="text-xs font-semibold">
+                  Log Retention Policy
+                </Label>
+                <select
+                  id="retention_policy"
+                  name="retention_policy"
+                  value={formData.retention_policy}
+                  onChange={handleChange}
+                  className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="30">30 Days</option>
+                  <option value="90">90 Days</option>
+                  <option value="180">180 Days</option>
+                  <option value="365">1 Year (365 Days)</option>
+                </select>
+                <p className="text-2xs text-muted-foreground">Audit logs and query telemetry will be archived after this duration.</p>
+              </div>
+
+              {settingsData && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold">Canonical Document State</Label>
+                  <div className="h-10 px-3 py-2 rounded-md bg-muted/40 border border-border/60 flex items-center justify-between text-xs font-mono text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-primary" />
+                      Schema v{settingsData.schema_version} / Doc v{settingsData.version}
+                    </span>
+                    <span className="truncate max-w-[120px] font-mono text-2xs bg-muted px-1.5 py-0.5 rounded">
+                      {settingsData.settings_hash.slice(0, 10)}…
+                    </span>
+                  </div>
+                  <p className="text-2xs text-muted-foreground">Backed by optimistic concurrency lock with SHA-256 state hashing.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Chat Export Sub-section */}
+            <div className="space-y-4 pt-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Chat History & Telemetry Export</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Download workspace interaction transcripts and citations for external auditing.
+                  </p>
+                </div>
+                {!canExport && (
+                  <span className="inline-flex items-center gap-1 text-2xs text-amber-500 font-mono">
+                    <AlertCircle className="h-3 w-3" />
+                    Admin / Owner access required
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end pt-1">
+                <div className="space-y-1.5">
+                  <Label htmlFor="export_format" className="text-2xs font-semibold text-muted-foreground">
+                    Format
+                  </Label>
+                  <select
+                    id="export_format"
+                    value={exportFormat}
+                    onChange={e => setExportFormat(e.target.value)}
+                    className="w-full flex h-9 items-center justify-between rounded-md border border-input bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="json">JSON (Structured)</option>
+                    <option value="csv">CSV (Tabular)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="export_start" className="text-2xs font-semibold text-muted-foreground">
+                    Start Date (Optional)
+                  </Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      id="export_start"
+                      type="date"
+                      className="pl-8 h-9 text-xs"
+                      value={exportStartDate}
+                      onChange={e => setExportStartDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="export_end" className="text-2xs font-semibold text-muted-foreground">
+                    End Date (Optional)
+                  </Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      id="export_end"
+                      type="date"
+                      className="pl-8 h-9 text-xs"
+                      value={exportEndDate}
+                      onChange={e => setExportEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Button
+                    onClick={handleExport}
+                    disabled={exporting || !canExport}
+                    variant="outline"
+                    className="w-full h-9 text-xs flex items-center justify-center gap-2"
+                  >
+                    {exporting ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    <span>{exporting ? 'Exporting...' : 'Export Chat Data'}</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Team Members Navigation Card */}
+        <motion.div
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, delay: 0.1 }}
+        >
+          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground text-base">Team Members & Access</h3>
+                  <p className="text-xs text-muted-foreground">Manage authorized users, invitations, and role boundaries.</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/members')} className="flex items-center gap-2">
+                <span>Manage Team</span>
+              </Button>
+            </div>
+
+            <div className="rounded-lg p-4 bg-muted/20 border border-border/50 text-xs text-muted-foreground leading-relaxed">
+              Active workspace permissions, invitations, and role assignments are administered in the dedicated Members portal.
+            </div>
+          </Card>
+        </motion.div>
       </div>
 
-      <div className="flex justify-end pt-4">
-        <Button onClick={handleSave} isLoading={saving}>
+      <div className="flex justify-end pt-2">
+        <Button onClick={handleSave} isLoading={saving} className="shadow-xs px-6">
           Save Workspace Settings
         </Button>
       </div>
