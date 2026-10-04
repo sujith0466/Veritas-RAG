@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { SuspensionReasonCode, Workspace, workspaceService } from '../services/workspaceService';
 import { useAuthStore } from './authStore';
 import { useChatStore } from './chatStore';
+import { useMemberStore } from './memberStore';
+import { useFolderStore } from './folderStore';
+import { useKnowledgeHealthStore } from './knowledgeHealthStore';
+import { appQueryClient } from '../providers/QueryProvider';
 import type { SwitchWorkspaceResult } from '@/types';
 
 interface WorkspaceState {
@@ -180,8 +184,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         );
       }
 
-      // 2. Invalidate workspace-scoped chat state
+      // 2. Invalidate workspace-scoped state across stores & React Query cache
       useChatStore.getState().clearChatState();
+      useMemberStore.getState().clearMemberState();
+      useFolderStore.getState().clearFolderState();
+      useKnowledgeHealthStore.getState().clearKnowledgeHealthState();
+      appQueryClient.clear();
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('workspace:switched', { detail: switchData }));
+      }
 
       // 3. Update currentWorkspace
       const updatedCurrent: Workspace = {

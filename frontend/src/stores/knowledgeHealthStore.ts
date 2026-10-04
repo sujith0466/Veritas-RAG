@@ -25,6 +25,7 @@ interface KnowledgeHealthActions {
   fetchScanHistory: (scanType?: string, page?: number, size?: number) => Promise<void>
   rotateModel: (provider: string, model: string) => Promise<MigrationJobDTO | null>
   purgeDocument: (documentId: string) => Promise<PurgeSummaryDTO | null>
+  clearKnowledgeHealthState: () => void
   clearError: () => void
 }
 
@@ -113,6 +114,18 @@ export const useKnowledgeHealthStore = create<KnowledgeHealthState & KnowledgeHe
         return null
       }
     },
+
+    clearKnowledgeHealthState: () =>
+      set({
+        scanHistory: [],
+        totalJobs: 0,
+        parityAudit: null,
+        activeJob: null,
+        activeMigration: null,
+        error: null,
+        isLoading: false,
+        isScanning: false,
+      }),
 
     clearError: () => set({ error: null }),
   }),

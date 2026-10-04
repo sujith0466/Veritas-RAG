@@ -30,6 +30,7 @@ interface MemberState {
     workspaceId: string,
     payload: BulkMemberActionPayload
   ) => Promise<BulkMemberActionResponse>;
+  clearMemberState: () => void;
   clearError: () => void;
 }
 
@@ -143,5 +144,6 @@ export const useMemberStore = create<MemberState>((set, get) => ({
     }
   },
 
+    clearMemberState: () => set({ members: [], total: 0, error: null, isLoading: false }),
   clearError: () => set({ error: null }),
 }));

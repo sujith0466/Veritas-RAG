@@ -13,6 +13,7 @@ interface FolderState {
   getFolderStats: (workspaceId: string, folderId: string) => Promise<FolderStats>;
   moveFolder: (workspaceId: string, folderId: string, targetParentId: string | null, version: number) => Promise<void>;
   earlyHardDeleteFolder: (workspaceId: string, folderId: string, confirmationName: string) => Promise<void>;
+  clearFolderState: () => void;
   clearError: () => void;
 }
 
@@ -135,5 +136,6 @@ export const useFolderStore = create<FolderState>((set) => ({
       throw error;
     }
   },
+    clearFolderState: () => set({ folders: [], error: null, isLoading: false }),
   clearError: () => set({ error: null }),
 }));
