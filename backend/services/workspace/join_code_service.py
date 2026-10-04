@@ -458,3 +458,28 @@ class JoinCodeService:
 
         default_role = config.get("default_role", "MEMBER")
         return True, None, default_role
+
+    async def record_join_code_usage(
+        self,
+        session: AsyncSession,
+        workspace_id: uuid.UUID,
+    ) -> None:
+        """Increments current_uses in workspace settings when a join code is successfully consumed."""
+        settings = await self.settings_repo.get_by_workspace_id_for_update(workspace_id)
+        if settings and settings.settings_json:
+            settings_dict = dict(settings.settings_json)
+            jc = dict(settings_dict.get("join_code", {}))
+            current = jc.get("current_uses", 0)
+            jc["current_uses"] = current + 1
+            settings_dict["join_code"] = jc
+            settings.settings_json = settings_dict
+            settings.version += 1
+            settings.settings_hash = _compute_settings_hash(settings_dict)
+            session.add(settings)
+            await session.flush()
+            await self._invalidate_settings_cache(workspace_id)
+            logger.info(
+                "Incremented workspace join code usage count",
+                workspace_id=str(workspace_id),
+                current_uses=jc["current_uses"],
+            )

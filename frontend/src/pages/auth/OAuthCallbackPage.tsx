@@ -67,9 +67,20 @@ export function OAuthCallbackPage(): React.JSX.Element {
 
       setStatus('success')
 
-      // Short visual confirmation before entering workspace
+      // Purge client join_intent cache now that backend has processed it
+      try {
+        sessionStorage.removeItem('join_intent')
+      } catch {
+        // Ignore sessionStorage errors
+      }
+
+      // Short visual confirmation before routing to workspace or onboarding
       setTimeout(() => {
-        navigate('/dashboard', { replace: true })
+        if (!userContext.workspace_id) {
+          navigate('/onboarding', { replace: true })
+        } else {
+          navigate('/dashboard', { replace: true })
+        }
       }, 500)
     } catch (err) {
       useAuthStore.getState().clearAuth()

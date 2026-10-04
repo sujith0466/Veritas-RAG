@@ -24,6 +24,9 @@ from backend.api.v1.schemas.workspace_onboarding import (
     JoinCodeSettingsPatchRequest,
     JoinCodeSettingsSchema,
     JoiningMode,
+    JoinWorkspaceData,
+    JoinWorkspaceRequest,
+    JoinWorkspaceResponse,
     TENANT_UUID_PATTERN,
     WorkspacePreviewData,
     WorkspacePreviewResponse,
@@ -48,6 +51,7 @@ from backend.core.dependencies.auth import get_current_user, require_role
 from backend.core.dependencies.database import (
     get_db,
     get_join_code_service,
+    get_workspace_joining_service,
     get_workspace_management_service,
     get_workspace_provisioning_service,
     get_workspace_repository,
@@ -57,6 +61,16 @@ from backend.core.permissions.rbac import Role
 from backend.models.entities.workspace import WorkspaceStatus
 from backend.repositories.workspace import WorkspaceRepository
 from backend.services.workspace.join_code_service import JoinCodeService
+from backend.services.workspace.workspace_joining_service import (
+    WorkspaceIdentifierInvalidError,
+    WorkspaceInvitationJoinError,
+    WorkspaceJoinCodeInvalidError,
+    WorkspaceJoinForbiddenError,
+    WorkspaceJoinIntentMismatchError,
+    WorkspaceJoiningService,
+    WorkspaceMembershipConflictError,
+    WorkspaceTargetNotFoundError,
+)
 from backend.services.workspace.management_service import (
     WorkspaceConflictError,
     WorkspaceInvalidStateError,
@@ -175,6 +189,59 @@ async def lookup_workspace(
             default_join_role="MEMBER",
         ),
     )
+
+
+@router.post(
+    "/join",
+    response_model=JoinWorkspaceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Join an existing workspace",
+)
+async def join_workspace(
+    payload: JoinWorkspaceRequest,
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    joining_service: WorkspaceJoiningService = Depends(get_workspace_joining_service),
+) -> JoinWorkspaceResponse:
+    """Authoritative workspace joining endpoint for authenticated users.
+
+    Supports:
+    - Mode 1: Open Workspace ID (open_join=True)
+    - Mode 2: Protected Workspace ID + Join Code (VR-XXXXXX)
+    - Mode 3: Invitation Token (sec_inv_*)
+    """
+    try:
+        data = await joining_service.join_workspace(
+            session=session,
+            user_id=current_user.id,
+            user_email=current_user.email,
+            workspace_identifier=payload.workspace_id,
+            join_code=payload.join_code,
+            invitation_token=payload.invitation_token,
+        )
+        return JoinWorkspaceResponse(
+            success=True,
+            message="Successfully joined workspace.",
+            data=data,
+        )
+    except WorkspaceIdentifierInvalidError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except WorkspaceTargetNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except WorkspaceMembershipConflictError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except WorkspaceJoinIntentMismatchError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except WorkspaceJoinForbiddenError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except (WorkspaceJoinCodeInvalidError, WorkspaceInvitationJoinError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.exception("Unexpected error in join_workspace")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while joining the workspace.",
+        )
 
 
 @router.get(

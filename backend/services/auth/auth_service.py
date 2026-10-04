@@ -5,6 +5,7 @@ Handles local login validation, bcrypt verification, and JWT issuance.
 
 import datetime
 import hashlib
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
@@ -207,7 +208,8 @@ class AuthService:
         metadata: dict,
         user_agent: str | None = None,
         ip_address: str | None = None,
-        device: str | None = None
+        device: str | None = None,
+        join_intent: dict[str, Any] | None = None,
     ) -> tuple[str, str]:
         """Handles OIDC callback authentication.
 
@@ -252,43 +254,93 @@ class AuthService:
             )
             self.session.add(identity)
 
-        # Ensure user has an active workspace membership (provision default workspace if none exists)
+        # ── WS-A5: Authoritative Join Intent Fulfillment ─────────────────────
+        if join_intent:
+            target_ws_id = join_intent.get("workspace_id")
+            target_join_code = join_intent.get("join_code")
+            target_inv_token = join_intent.get("invitation_token")
+
+            if target_ws_id or target_join_code or target_inv_token:
+                from backend.repositories.workspace import WorkspaceRepository
+                from backend.repositories.workspace_member import WorkspaceMemberRepository
+                from backend.repositories.workspace_settings import WorkspaceSettingsRepository
+                from backend.repositories.workspace_invitation import WorkspaceInvitationRepository
+                from backend.services.email.provider import get_email_provider
+                from backend.services.workspace.invitation_service import WorkspaceInvitationService
+                from backend.services.workspace.join_code_service import JoinCodeService
+                from backend.services.workspace.workspace_joining_service import (
+                    WorkspaceJoiningService,
+                    WorkspaceJoiningError,
+                )
+
+                ws_repo = WorkspaceRepository(self.session)
+                settings_repo = WorkspaceSettingsRepository(self.session)
+                member_repo = WorkspaceMemberRepository(self.session)
+                inv_repo = WorkspaceInvitationRepository(self.session)
+                join_code_svc = JoinCodeService(settings_repo, member_repo, ws_repo)
+                inv_svc = WorkspaceInvitationService(
+                    invitation_repo=inv_repo,
+                    member_repo=member_repo,
+                    workspace_repo=ws_repo,
+                    settings_repo=settings_repo,
+                    email_provider=get_email_provider(),
+                )
+                joining_svc = WorkspaceJoiningService(
+                    workspace_repo=ws_repo,
+                    settings_repo=settings_repo,
+                    member_repo=member_repo,
+                    join_code_service=join_code_svc,
+                    invitation_service=inv_svc,
+                )
+
+                try:
+                    join_data = await joining_svc.join_workspace(
+                        session=self.session,
+                        user_id=user.id,
+                        user_email=email_normalized,
+                        workspace_identifier=target_ws_id,
+                        join_code=target_join_code,
+                        invitation_token=target_inv_token,
+                    )
+                    user.tenant_id = str(join_data.workspace_id)
+                    user.workspace_name = join_data.workspace_name
+                    logger.info(
+                        "OIDC login successfully fulfilled join intent",
+                        user_id=str(user.id),
+                        workspace_id=str(join_data.workspace_id),
+                    )
+                except WorkspaceJoiningError as e:
+                    logger.warning(
+                        "OIDC join intent could not be fulfilled",
+                        user_id=str(user.id),
+                        error=str(e),
+                    )
+
+        # Ensure user's active workspace context reflects active memberships
         from backend.models.entities.workspace import Workspace, WorkspaceStatus
         from backend.models.entities.workspace_member import WorkspaceMember
-        from backend.repositories.workspace import WorkspaceRepository
-        from backend.repositories.workspace_member import WorkspaceMemberRepository
-        from backend.repositories.workspace_settings import WorkspaceSettingsRepository
-        from backend.services.workspace.provisioning_service import WorkspaceProvisioningService
 
         ws_member_stmt = (
-            select(WorkspaceMember.workspace_id)
-            .join(Workspace, Workspace.id == WorkspaceMember.workspace_id)
+            select(Workspace.id, Workspace.name)
+            .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
             .where(
                 WorkspaceMember.user_id == user.id,
                 Workspace.status == WorkspaceStatus.ACTIVE.value
             )
+            .order_by(Workspace.created_at.asc())
             .limit(1)
         )
         ws_res = await self.session.execute(ws_member_stmt)
-        existing_ws_id = ws_res.scalar_one_or_none()
+        active_ws = ws_res.first()
 
-        if not existing_ws_id:
-            raw_name = metadata.get("name") if isinstance(metadata, dict) else None
-            user_display_name = raw_name.strip() if raw_name and raw_name.strip() else email_normalized.split("@")[0].capitalize()
-            ws_name = f"{user_display_name}'s Workspace" if not user_display_name.lower().endswith("workspace") else user_display_name
-
-            provisioning_svc = WorkspaceProvisioningService(
-                workspace_repo=WorkspaceRepository(self.session),
-                workspace_settings_repo=WorkspaceSettingsRepository(self.session),
-                workspace_member_repo=WorkspaceMemberRepository(self.session),
-            )
-            workspace = await provisioning_svc.provision_workspace(
-                session=self.session,
-                name=ws_name,
-                owner_user_id=user.id,
-            )
-            user.tenant_id = str(workspace.id)
-            user.workspace_name = workspace.name
+        if active_ws:
+            user.tenant_id = str(active_ws[0])
+            user.workspace_name = active_ws[1]
+        else:
+            # WS-A5: NO unguided auto-provisioning.
+            # User has no active workspace; JWT will contain workspace_id = None
+            user.tenant_id = None
+            user.workspace_name = None
 
         user.last_login_at = datetime.datetime.now(datetime.UTC)
 

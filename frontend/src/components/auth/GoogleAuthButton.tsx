@@ -2,9 +2,46 @@ import { Button } from '../common'
 
 interface GoogleAuthButtonProps {
   label?: string
+  intentId?: string
+  workspaceId?: string
+  joinCode?: string
+  invitationToken?: string
 }
 
-export function GoogleAuthButton({ label = 'Google' }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({
+  label = 'Google',
+  intentId,
+  workspaceId,
+  joinCode,
+  invitationToken,
+}: GoogleAuthButtonProps) {
+  const handleClick = () => {
+    const params = new URLSearchParams()
+    if (intentId) params.set('intent_id', intentId)
+    if (workspaceId) params.set('workspace_id', workspaceId)
+    if (joinCode) params.set('join_code', joinCode)
+    if (invitationToken) params.set('invitation_token', invitationToken)
+
+    // Fallback to sessionStorage if intent was recorded during onboarding flow
+    if (!intentId && !workspaceId && !invitationToken) {
+      try {
+        const storedIntent = sessionStorage.getItem('join_intent')
+        if (storedIntent) {
+          const parsed = JSON.parse(storedIntent)
+          if (parsed.intent_id) params.set('intent_id', parsed.intent_id)
+          if (parsed.workspace_id) params.set('workspace_id', parsed.workspace_id)
+          if (parsed.join_code) params.set('join_code', parsed.join_code)
+          if (parsed.invitation_token) params.set('invitation_token', parsed.invitation_token)
+        }
+      } catch {
+        // Ignore sessionStorage parse failure
+      }
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : ''
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? ''}/api/v1/auth/sso/login/google${query}`
+  }
+
   return (
     <>
       <div className="relative my-4">
@@ -20,9 +57,7 @@ export function GoogleAuthButton({ label = 'Google' }: GoogleAuthButtonProps) {
         type="button"
         variant="outline"
         className="w-full h-11 bg-surface hover:bg-surface-elevated border-border/60 shadow-sm transition-all"
-        onClick={() => {
-          window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? ''}/api/v1/auth/sso/login/google`
-        }}
+        onClick={handleClick}
       >
         <svg className="mr-3 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
           <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>

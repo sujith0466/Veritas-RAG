@@ -4,9 +4,12 @@ Provides endpoints for inspecting current authentication state (`/status`)
 and retrieving authenticated user profiles (`/me`).
 """
 
+import datetime
+import json
+import secrets
 import uuid
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
@@ -25,6 +28,15 @@ from backend.api.v1.schemas.auth import (
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.api.v1.schemas.registration import RegistrationRequest, RegistrationResponse
 from backend.api.v1.schemas.verification import ResendVerificationRequest
+from backend.api.v1.schemas.workspace_onboarding import (
+    JoinIntentCreateData,
+    JoinIntentCreateRequest,
+    JoinIntentCreateResponse,
+    JoinIntentPreviewData,
+    JoinIntentPreviewResponse,
+    JoiningMode,
+)
+from backend.cache.client import get_redis_client
 from backend.core.dependencies.auth import get_current_user, get_optional_user
 from backend.core.dependencies.database import get_db
 from backend.core.dependencies.rate_limit import RateLimit
@@ -427,16 +439,168 @@ def _get_validated_frontend_url() -> str:
     return raw_url
 
 
+@router.post(
+    "/join-intent",
+    response_model=JoinIntentCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record pre-authentication join intent",
+)
+async def create_join_intent(
+    payload: JoinIntentCreateRequest,
+) -> JoinIntentCreateResponse:
+    """Stores a pre-auth join intent in Redis with a 600-second TTL.
+
+    Returns an opaque intent_id that can be attached to the SSO redirect or frontend session.
+    """
+    redis = get_redis_client()
+    if not redis:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Session cache unavailable. Unable to create join intent.",
+        )
+
+    intent_id = secrets.token_urlsafe(32)
+    session_data = {
+        "intent_id": intent_id,
+        "workspace_id": payload.workspace_id,
+        "join_code": payload.join_code,
+        "invitation_token": payload.invitation_token,
+        "created_at": datetime.datetime.now(datetime.UTC).isoformat(),
+    }
+    await redis.set(f"auth:join_intent:{intent_id}", json.dumps(session_data), ex=600)
+
+    return JoinIntentCreateResponse(
+        success=True,
+        message="Join intent recorded successfully.",
+        data=JoinIntentCreateData(
+            intent_id=intent_id,
+            expires_in_seconds=600,
+        ),
+    )
+
+
+@router.get(
+    "/join-intent/{intent_id}",
+    response_model=JoinIntentPreviewResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Resolve safe pre-auth join intent preview",
+)
+async def get_join_intent_preview(
+    intent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JoinIntentPreviewResponse:
+    """Resolves safe public preview metadata for a join intent without leaking secrets."""
+    redis = get_redis_client()
+    if not redis:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Session cache unavailable.",
+        )
+
+    raw_data = await redis.get(f"auth:join_intent:{intent_id}")
+    if not raw_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Join intent not found or expired.",
+        )
+
+    intent = json.loads(raw_data)
+    workspace_id = intent.get("workspace_id")
+    join_code = intent.get("join_code")
+    invitation_token = intent.get("invitation_token")
+
+    target_name = None
+    target_slug = None
+    target_public_id = None
+    joining_mode = JoiningMode.OPEN
+    requires_code = False
+    has_invitation = False
+    target_email_masked = None
+
+    from backend.repositories.workspace import WorkspaceRepository
+    from backend.repositories.workspace_invitation import WorkspaceInvitationRepository
+    from backend.services.workspace.invitation_service import parse_invitation_token, verify_invitation_secret
+
+    ws_repo = WorkspaceRepository(db)
+
+    if invitation_token:
+        has_invitation = True
+        joining_mode = JoiningMode.INVITE_ONLY
+        inv_repo = WorkspaceInvitationRepository(db)
+        selector, secret = parse_invitation_token(invitation_token)
+        inv = None
+        if selector:
+            inv = await inv_repo.get_by_token_selector(selector)
+        if inv and verify_invitation_secret(secret, inv.token_hash):
+            ws = await ws_repo.get_by_id(inv.workspace_id)
+            if ws:
+                target_name = ws.name
+                target_slug = ws.slug
+                target_public_id = ws.public_id
+            if inv.email and "@" in inv.email:
+                parts = inv.email.split("@")
+                masked_user = parts[0][0] + "***" if parts[0] else "***"
+                target_email_masked = f"{masked_user}@{parts[1]}"
+
+    if workspace_id and not target_public_id:
+        ws = await ws_repo.get_by_public_id(workspace_id.upper())
+        if not ws:
+            ws = await ws_repo.get_by_slug(workspace_id.lower())
+        if ws:
+            target_name = ws.name
+            target_slug = ws.slug
+            target_public_id = ws.public_id
+
+    if join_code:
+        joining_mode = JoiningMode.JOIN_CODE
+        requires_code = True
+
+    return JoinIntentPreviewResponse(
+        success=True,
+        message="Join intent preview retrieved successfully.",
+        data=JoinIntentPreviewData(
+            intent_id=intent_id,
+            workspace_id=target_public_id or workspace_id,
+            workspace_name=target_name,
+            workspace_slug=target_slug,
+            joining_mode=joining_mode,
+            requires_join_code=requires_code,
+            has_invitation=has_invitation,
+            target_email_masked=target_email_masked,
+        ),
+    )
+
+
 @router.get(
     "/sso/login/{provider}",
     summary="Initiate SSO login",
 )
 async def sso_login(
     provider: str,
+    intent_id: str | None = Query(None, description="Pre-created join intent ID"),
+    workspace_id: str | None = Query(None, description="Target Workspace ID or Slug"),
+    join_code: str | None = Query(None, description="Optional Join Code"),
+    invitation_token: str | None = Query(None, description="Optional Invitation Token"),
 ) -> RedirectResponse:
-    """Redirect to SSO provider's authorization URL."""
+    """Redirect to SSO provider's authorization URL, preserving join intent."""
+    join_intent = None
+
+    if intent_id:
+        redis = get_redis_client()
+        if redis:
+            raw_intent = await redis.get(f"auth:join_intent:{intent_id}")
+            if raw_intent:
+                join_intent = json.loads(raw_intent)
+
+    if not join_intent and (workspace_id or join_code or invitation_token):
+        join_intent = {
+            "workspace_id": workspace_id,
+            "join_code": join_code,
+            "invitation_token": invitation_token,
+        }
+
     sso_service = get_sso_provider(provider)
-    auth_url = await sso_service.get_auth_url()
+    auth_url = await sso_service.get_auth_url(join_intent=join_intent)
     return RedirectResponse(url=auth_url)
 
 
@@ -458,6 +622,13 @@ async def sso_callback(
     try:
         sso_service = get_sso_provider(provider)
         profile = await sso_service.exchange_code(code, state)
+        join_intent = profile.get("join_intent")
+
+        # Replay protection: purge pre-auth intent cache if intent_id was used
+        if join_intent and isinstance(join_intent, dict) and join_intent.get("intent_id"):
+            redis = get_redis_client()
+            if redis:
+                await redis.delete(f"auth:join_intent:{join_intent['intent_id']}")
 
         auth_service = AuthService(db)
         user_agent = request.headers.get("user-agent")
@@ -469,7 +640,8 @@ async def sso_callback(
             provider_user_id=profile["provider_user_id"],
             metadata=profile,
             user_agent=user_agent,
-            ip_address=ip_address
+            ip_address=ip_address,
+            join_intent=join_intent,
         )
 
         # Set the refresh token cookie on the redirect response
@@ -492,5 +664,4 @@ async def sso_callback(
         return RedirectResponse(url=f"{frontend_url}/auth/login?error=sso_failed")
     except Exception as e:
         logger.error("SSO Callback unexpected error", error=str(e))
-        from fastapi import HTTPException
         raise HTTPException(status_code=503, detail="SSO provider unavailable or unconfigured.")

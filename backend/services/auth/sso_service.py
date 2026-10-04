@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 class SSOProvider(Protocol):
     """Interface for OIDC providers."""
 
-    async def get_auth_url(self) -> str:
+    async def get_auth_url(self, join_intent: dict[str, Any] | None = None) -> str:
         """Generate the authorization URL including state and PKCE."""
         ...
 
@@ -57,7 +57,7 @@ class GoogleOIDCProvider:
             "issuer": "https://accounts.google.com"
         }
 
-    async def get_auth_url(self) -> str:
+    async def get_auth_url(self, join_intent: dict[str, Any] | None = None) -> str:
         """Generate the authorization URL including state and PKCE."""
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
@@ -70,12 +70,14 @@ class GoogleOIDCProvider:
 
         config = await self._get_oidc_config()
 
-        # Cache state, nonce, and verifier in Redis for 10 minutes
+        # Cache state, nonce, verifier, and optional join_intent in Redis for 10 minutes
         if self.redis:
             session_data = {
                 "nonce": nonce,
-                "code_verifier": code_verifier
+                "code_verifier": code_verifier,
             }
+            if join_intent:
+                session_data["join_intent"] = join_intent
             await self.redis.set(f"oidc:state:{state}", json.dumps(session_data), ex=600)
         else:
             logger.warning("Redis is not available. OIDC state cannot be verified securely.")
@@ -134,6 +136,7 @@ class GoogleOIDCProvider:
         session_data = json.loads(session_data_json)
         nonce = session_data["nonce"]
         code_verifier = session_data["code_verifier"]
+        join_intent = session_data.get("join_intent")
 
         config = await self._get_oidc_config()
 
@@ -219,6 +222,7 @@ class GoogleOIDCProvider:
                 "email": payload["email"],
                 "name": payload.get("name"),
                 "picture": payload.get("picture"),
+                "join_intent": join_intent,
             }
 
 def get_sso_provider(provider_name: str) -> SSOProvider:

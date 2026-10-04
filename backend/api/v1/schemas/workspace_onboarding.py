@@ -14,7 +14,7 @@ import enum
 import re
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 # ── 1. Identifier Validation Constants & Regexes ─────────────────────────────
@@ -143,8 +143,8 @@ class JoinWorkspaceRequest(BaseModel):
     """
     model_config = ConfigDict(extra="forbid")
 
-    workspace_id: str = Field(
-        ...,
+    workspace_id: str | None = Field(
+        default=None,
         min_length=3,
         max_length=64,
         description="Target Workspace ID or Slug (never Tenant UUID)",
@@ -160,7 +160,9 @@ class JoinWorkspaceRequest(BaseModel):
 
     @field_validator("workspace_id")
     @classmethod
-    def validate_workspace_identifier(cls, v: str) -> str:
+    def validate_workspace_identifier(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
         clean = v.strip()
         if re.match(TENANT_UUID_PATTERN, clean):
             raise ValueError(
@@ -190,6 +192,14 @@ class JoinWorkspaceRequest(BaseModel):
         if not re.match(INVITATION_TOKEN_PATTERN, clean):
             raise ValueError("Invalid Invitation Token format.")
         return clean
+
+    @model_validator(mode="after")
+    def validate_join_intent_or_identifier(self) -> "JoinWorkspaceRequest":
+        if not self.workspace_id and not self.invitation_token:
+            raise ValueError(
+                "Either 'workspace_id' or 'invitation_token' must be provided."
+            )
+        return self
 
 
 class JoinWorkspaceData(BaseModel):
@@ -396,6 +406,98 @@ class OnboardingContext(BaseModel):
         return clean
 
 
+# ── 7. Join Intent Contracts (WS-A5) ──────────────────────────────────────────
+
+class JoinIntentCreateRequest(BaseModel):
+    """Payload for creating a pre-authentication join intent."""
+    model_config = ConfigDict(extra="forbid")
+
+    workspace_id: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=64,
+        description="Target Workspace ID or Slug (never Tenant UUID)",
+    )
+    join_code: str | None = Field(
+        default=None,
+        description="Optional Join Code (VR-XXXXXX)",
+    )
+    invitation_token: str | None = Field(
+        default=None,
+        description="Optional Invitation Token (sec_inv_*)",
+    )
+
+    @field_validator("workspace_id")
+    @classmethod
+    def validate_workspace_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.strip()
+        if re.match(TENANT_UUID_PATTERN, clean):
+            raise ValueError("Tenant UUID cannot be used as a public join credential.")
+        return clean
+
+    @field_validator("join_code")
+    @classmethod
+    def normalize_join_code(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.strip().upper()
+        if not re.match(JOIN_CODE_PATTERN, clean):
+            raise ValueError("Invalid Join Code format. Expected 'VR-XXXXXX'.")
+        return clean
+
+    @field_validator("invitation_token")
+    @classmethod
+    def validate_invitation_token(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        clean = v.strip()
+        if not re.match(INVITATION_TOKEN_PATTERN, clean):
+            raise ValueError("Invalid Invitation Token format.")
+        return clean
+
+    @model_validator(mode="after")
+    def check_presence(self) -> "JoinIntentCreateRequest":
+        if not self.workspace_id and not self.invitation_token and not self.join_code:
+            raise ValueError("At least one join credential (workspace_id, join_code, or invitation_token) must be provided.")
+        return self
+
+
+class JoinIntentCreateData(BaseModel):
+    """Data returned upon successful join intent creation."""
+    intent_id: str = Field(..., description="Opaque URL-safe token representing the join intent")
+    expires_in_seconds: int = Field(default=600, description="Expiration TTL in seconds (10 minutes)")
+
+
+class JoinIntentCreateResponse(BaseModel):
+    """Response returned upon successful join intent creation."""
+    success: bool = True
+    message: str = "Join intent recorded successfully."
+    data: JoinIntentCreateData
+
+
+class JoinIntentPreviewData(BaseModel):
+    """Safe public metadata representing a pre-auth join intent without exposing secrets."""
+    model_config = ConfigDict(extra="forbid")
+
+    intent_id: str
+    workspace_id: str | None = Field(default=None, description="Public Workspace ID")
+    workspace_name: str | None = Field(default=None, description="Display name of target workspace")
+    workspace_slug: str | None = Field(default=None, description="URL slug of target workspace")
+    joining_mode: JoiningMode = Field(..., description="Resolved joining mode (OPEN, JOIN_CODE, INVITE_ONLY)")
+    requires_join_code: bool = False
+    has_invitation: bool = False
+    target_email_masked: str | None = Field(default=None, description="Masked recipient email if from an invitation")
+
+
+class JoinIntentPreviewResponse(BaseModel):
+    """Response returned upon resolving a join intent preview."""
+    success: bool = True
+    message: str = "Join intent preview retrieved successfully."
+    data: JoinIntentPreviewData
+
+
 __all__ = [
     "TENANT_UUID_PATTERN",
     "WORKSPACE_ID_PATTERN",
@@ -415,4 +517,9 @@ __all__ = [
     "SwitchWorkspaceData",
     "SwitchWorkspaceResponse",
     "OnboardingContext",
+    "JoinIntentCreateRequest",
+    "JoinIntentCreateData",
+    "JoinIntentCreateResponse",
+    "JoinIntentPreviewData",
+    "JoinIntentPreviewResponse",
 ]
