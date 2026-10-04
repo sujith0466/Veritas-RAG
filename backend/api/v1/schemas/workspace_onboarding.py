@@ -339,15 +339,17 @@ class SwitchWorkspaceRequest(BaseModel):
     """Payload for switching active workspace session context."""
     model_config = ConfigDict(extra="forbid")
 
-    workspace_id: uuid.UUID = Field(
-        ...,
-        description="Target workspace internal tenant UUID",
+    workspace_id: uuid.UUID | str | None = Field(
+        default=None,
+        description="Target workspace identifier (tenant UUID, public Workspace ID, or slug)",
     )
 
 
 class SwitchWorkspaceData(BaseModel):
     """Data returned upon successful workspace context switch."""
     workspace_id: uuid.UUID = Field(..., description="Target workspace tenant UUID")
+    workspace_public_id: str | None = Field(default=None, description="Public Workspace ID")
+    workspace_slug: str | None = Field(default=None, description="Workspace navigation slug")
     workspace_name: str
     role: str
     access_token: str = Field(..., description="Rotated JWT access token bound to the selected workspace")
@@ -359,6 +361,41 @@ class SwitchWorkspaceResponse(BaseModel):
     success: bool = True
     message: str = "Workspace context switched successfully."
     data: SwitchWorkspaceData
+
+
+class CurrentWorkspaceData(BaseModel):
+    """Active workspace session context data for the authenticated user."""
+    workspace_id: uuid.UUID = Field(..., description="Active workspace internal tenant UUID")
+    public_id: str | None = Field(default=None, description="Public Workspace ID")
+    name: str = Field(..., description="Workspace display name")
+    slug: str = Field(..., description="Workspace URL navigation slug")
+    role: str = Field(..., description="Authoritative membership role in this workspace")
+    status: str = Field(default="ACTIVE", description="Workspace lifecycle status")
+    joined_at: datetime | None = Field(default=None, description="Timestamp when user joined workspace")
+
+
+class CurrentWorkspaceResponse(BaseModel):
+    """Response payload for current active workspace context."""
+    success: bool = True
+    data: CurrentWorkspaceData | None = None
+
+
+class UserWorkspaceMembership(BaseModel):
+    """Summary of a user's membership in an active workspace."""
+    workspace_id: uuid.UUID = Field(..., description="Workspace internal tenant UUID")
+    public_id: str | None = Field(default=None, description="Public Workspace ID")
+    name: str = Field(..., description="Workspace display name")
+    slug: str = Field(..., description="Workspace URL navigation slug")
+    role: str = Field(..., description="User's role in this workspace")
+    status: str = Field(default="ACTIVE", description="Membership status")
+    is_active_context: bool = Field(default=False, description="Whether this workspace is the current active session context")
+
+
+class UserWorkspacesListResponse(BaseModel):
+    """Response payload listing all active workspaces for the calling user."""
+    success: bool = True
+    total: int
+    items: list[UserWorkspaceMembership]
 
 
 # ── 6. Onboarding Registration Context Contract ──────────────────────────────
@@ -516,6 +553,10 @@ __all__ = [
     "SwitchWorkspaceRequest",
     "SwitchWorkspaceData",
     "SwitchWorkspaceResponse",
+    "CurrentWorkspaceData",
+    "CurrentWorkspaceResponse",
+    "UserWorkspaceMembership",
+    "UserWorkspacesListResponse",
     "OnboardingContext",
     "JoinIntentCreateRequest",
     "JoinIntentCreateData",

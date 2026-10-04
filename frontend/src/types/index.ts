@@ -111,5 +111,9 @@ export type {
   SwitchWorkspacePayload,
   SwitchWorkspaceResult,
   SwitchWorkspaceResponse,
+  CurrentWorkspaceData,
+  CurrentWorkspaceResponse,
+  UserWorkspaceMembership,
+  UserWorkspacesListResponse,
   OnboardingRegistrationPayload,
 } from './workspaceOnboarding'

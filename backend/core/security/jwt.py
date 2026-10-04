@@ -44,13 +44,25 @@ class JWTService:
         self.issuer = "raguard-auth-server"
         self.audience = "raguard-api"
 
-    async def issue_tokens(self, user: Any, session: Any | None = None) -> tuple[str, str, str]:
+    async def issue_tokens(
+        self,
+        user: Any,
+        session: Any | None = None,
+        workspace_id: str | uuid.UUID | None = None,
+        role: str | None = None,
+    ) -> tuple[str, str, str]:
         """Issue access and refresh tokens.
+
+        Derives active workspace context and authoritative role from:
+        1. Explicitly provided workspace_id and role.
+        2. Saved active workspace on user (user.tenant_id) if active membership exists.
+        3. First active workspace membership.
+        4. None if user belongs to no active workspaces.
 
         Returns:
             Tuple containing:
             - access_token (str)
-            - refresh_token_hash (str)
+            - raw_refresh_token (str)
             - family_id (str)
         """
         now = int(time.time())
@@ -58,26 +70,87 @@ class JWTService:
 
         access_jti = str(uuid.uuid4())
 
-        workspace_id = None
+        resolved_workspace_id = str(workspace_id) if workspace_id else None
+        resolved_role = role
+
         if session:
             from sqlalchemy import select
             from backend.models.entities.workspace import Workspace, WorkspaceStatus
-            from backend.models.entities.workspace_member import WorkspaceMember
+            from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
 
-            stmt = (
-                select(Workspace.id)
-                .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
-                .where(
-                    WorkspaceMember.user_id == user.id,
-                    Workspace.status == WorkspaceStatus.ACTIVE.value
+            # 1. If explicit workspace_id was passed, resolve role from membership if needed
+            if resolved_workspace_id:
+                try:
+                    target_ws_uuid = uuid.UUID(resolved_workspace_id)
+                except (ValueError, TypeError):
+                    target_ws_uuid = None
+
+                if target_ws_uuid and not resolved_role:
+                    stmt = (
+                        select(WorkspaceMember.role)
+                        .where(
+                            WorkspaceMember.workspace_id == target_ws_uuid,
+                            WorkspaceMember.user_id == user.id,
+                            WorkspaceMember.status == MemberStatus.ACTIVE.value,
+                            WorkspaceMember.is_deleted == False,
+                        )
+                        .limit(1)
+                    )
+                    res = await session.execute(stmt)
+                    member_role = res.scalar_one_or_none()
+                    if member_role:
+                        resolved_role = member_role
+
+            # 2. If workspace_id was not passed, check user's saved active workspace context (user.tenant_id)
+            elif getattr(user, "tenant_id", None):
+                try:
+                    saved_ws_uuid = uuid.UUID(str(user.tenant_id))
+                except (ValueError, TypeError):
+                    saved_ws_uuid = None
+
+                if saved_ws_uuid:
+                    stmt = (
+                        select(Workspace.id, WorkspaceMember.role)
+                        .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
+                        .where(
+                            Workspace.id == saved_ws_uuid,
+                            WorkspaceMember.user_id == user.id,
+                            Workspace.status == WorkspaceStatus.ACTIVE.value,
+                            WorkspaceMember.status == MemberStatus.ACTIVE.value,
+                            WorkspaceMember.is_deleted == False,
+                        )
+                        .limit(1)
+                    )
+                    res = await session.execute(stmt)
+                    row = res.first()
+                    if row:
+                        resolved_workspace_id = str(row[0])
+                        if not resolved_role:
+                            resolved_role = row[1]
+
+            # 3. If still not resolved, query user's first active workspace and its role
+            if not resolved_workspace_id:
+                stmt = (
+                    select(Workspace.id, WorkspaceMember.role)
+                    .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
+                    .where(
+                        WorkspaceMember.user_id == user.id,
+                        Workspace.status == WorkspaceStatus.ACTIVE.value,
+                        WorkspaceMember.status == MemberStatus.ACTIVE.value,
+                        WorkspaceMember.is_deleted == False,
+                    )
+                    .order_by(Workspace.created_at.asc())
+                    .limit(1)
                 )
-                .order_by(Workspace.created_at.asc())
-                .limit(1)
-            )
-            result = await session.execute(stmt)
-            ws = result.scalar_one_or_none()
-            if ws:
-                workspace_id = str(ws)
+                res = await session.execute(stmt)
+                row = res.first()
+                if row:
+                    resolved_workspace_id = str(row[0])
+                    if not resolved_role:
+                        resolved_role = row[1]
+
+        if not resolved_role:
+            resolved_role = getattr(user, "role", "viewer")
 
         access_claims = {
             "sub": str(user.id),
@@ -87,21 +160,17 @@ class JWTService:
             "iat": now,
             "nbf": now,
             "jti": access_jti,
-            "role": user.role,
-            "email": user.email,  # Required for invitation identity binding (AUTH-009)
-            "workspace_id": workspace_id,
+            "role": resolved_role,
+            "email": getattr(user, "email", None),
+            "workspace_id": resolved_workspace_id,
         }
 
         access_token = jwt.encode(access_claims, self.private_key, algorithm=self.algorithm)
 
-        # We don't sign refresh tokens as JWTs necessarily, they can be opaque URL-safe strings.
         import secrets
         raw_refresh_token = secrets.token_urlsafe(64)
         family_id = str(uuid.uuid4())
 
-        # We return the RAW refresh token to be sent in the cookie,
-        # but the hash is what we store in the DB.
-        # Wait, the instruction says to return (access, refresh, family), let's just return the raw.
         return access_token, raw_refresh_token, family_id
 
     async def verify_token(self, token: str) -> TokenPayload:

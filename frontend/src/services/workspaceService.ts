@@ -4,6 +4,9 @@ import type {
   JoinCodeSettings,
   JoinCodeSettingsPatchPayload,
   JoinCodeGenerateResponse,
+  SwitchWorkspaceResponse,
+  CurrentWorkspaceResponse,
+  UserWorkspacesListResponse,
 } from '@/types';
 
 export interface Workspace {
@@ -188,6 +191,36 @@ class WorkspaceService {
     const response = await post<JoinCodeGenerateResponse>(
       `/api/v1/workspaces/${workspaceId}/join-code/regenerate`,
       params
+    );
+    return response;
+  }
+
+  /**
+   * Switch active workspace session context (WS-A6)
+   */
+  async switchWorkspace(identifier: string): Promise<SwitchWorkspaceResponse> {
+    const response = await post<SwitchWorkspaceResponse>(
+      `/api/v1/workspaces/${encodeURIComponent(identifier)}/switch`
+    );
+    return response;
+  }
+
+  /**
+   * Retrieve current active workspace context (WS-A6)
+   */
+  async getCurrentWorkspace(): Promise<CurrentWorkspaceResponse> {
+    const response = await get<CurrentWorkspaceResponse>(
+      '/api/v1/workspaces/current'
+    );
+    return response;
+  }
+
+  /**
+   * List all active workspaces the user belongs to (WS-A6)
+   */
+  async getUserWorkspaces(): Promise<UserWorkspacesListResponse> {
+    const response = await get<UserWorkspacesListResponse>(
+      '/api/v1/workspaces/mine'
     );
     return response;
   }

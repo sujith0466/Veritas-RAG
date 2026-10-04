@@ -192,6 +192,21 @@ async def get_workspace_joining_service(
     )
 
 
+from backend.core.security.jwt import JWTService, get_jwt_service
+from backend.services.workspace.workspace_switching_service import WorkspaceSwitchingService
+
+
+async def get_workspace_switching_service(
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+) -> WorkspaceSwitchingService:
+    return WorkspaceSwitchingService(
+        workspace_repo=workspace_repo,
+        member_repo=member_repo,
+        jwt_service=get_jwt_service(),
+    )
+
+
 
 
 

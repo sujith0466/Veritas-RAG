@@ -106,6 +106,8 @@ export interface SwitchWorkspacePayload {
 
 export interface SwitchWorkspaceResult {
   workspace_id: string;
+  workspace_public_id?: string | null;
+  workspace_slug?: string | null;
   workspace_name: string;
   role: string;
   access_token: string;
@@ -116,6 +118,37 @@ export interface SwitchWorkspaceResponse {
   success: boolean;
   message: string;
   data: SwitchWorkspaceResult;
+}
+
+export interface CurrentWorkspaceData {
+  workspace_id: string;
+  public_id?: string | null;
+  name: string;
+  slug: string;
+  role: string;
+  status: string;
+  joined_at?: string | null;
+}
+
+export interface CurrentWorkspaceResponse {
+  success: boolean;
+  data: CurrentWorkspaceData | null;
+}
+
+export interface UserWorkspaceMembership {
+  workspace_id: string;
+  public_id?: string | null;
+  name: string;
+  slug: string;
+  role: string;
+  status: string;
+  is_active_context: boolean;
+}
+
+export interface UserWorkspacesListResponse {
+  success: boolean;
+  total: number;
+  items: UserWorkspaceMembership[];
 }
 
 /**

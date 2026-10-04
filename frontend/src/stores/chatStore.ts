@@ -43,6 +43,7 @@ interface ChatState {
   archiveSession: (id: string) => Promise<void>
   restoreSession: (id: string) => Promise<void>
   setActiveSession: (session: ChatSession | null) => void
+  clearChatState: () => void
   hasMoreMessages: boolean
   messageOffset: number
   loadMoreMessages: (id: string) => Promise<void>
@@ -182,4 +183,12 @@ export const useChatStore = create<ChatState>((set) => ({
   },
 
   setActiveSession: (session) => set({ activeSession: session }),
+  clearChatState: () =>
+    set({
+      sessions: [],
+      activeSession: null,
+      hasMoreMessages: false,
+      messageOffset: 0,
+      isLoading: false,
+    }),
 }))

@@ -2,7 +2,7 @@ import re
 from typing import Any
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -20,6 +20,8 @@ from backend.api.v1.schemas.workspace import (
     WorkspaceResponse,
 )
 from backend.api.v1.schemas.workspace_onboarding import (
+    CurrentWorkspaceData,
+    CurrentWorkspaceResponse,
     JoinCodeGenerateResponse,
     JoinCodeSettingsPatchRequest,
     JoinCodeSettingsSchema,
@@ -27,7 +29,12 @@ from backend.api.v1.schemas.workspace_onboarding import (
     JoinWorkspaceData,
     JoinWorkspaceRequest,
     JoinWorkspaceResponse,
+    SwitchWorkspaceData,
+    SwitchWorkspaceRequest,
+    SwitchWorkspaceResponse,
     TENANT_UUID_PATTERN,
+    UserWorkspaceMembership,
+    UserWorkspacesListResponse,
     WorkspacePreviewData,
     WorkspacePreviewResponse,
 )
@@ -53,13 +60,16 @@ from backend.core.dependencies.database import (
     get_join_code_service,
     get_workspace_joining_service,
     get_workspace_management_service,
+    get_workspace_member_repository,
     get_workspace_provisioning_service,
     get_workspace_repository,
     get_workspace_settings_service,
+    get_workspace_switching_service,
 )
 from backend.core.permissions.rbac import Role
 from backend.models.entities.workspace import WorkspaceStatus
 from backend.repositories.workspace import WorkspaceRepository
+from backend.repositories.workspace_member import WorkspaceMemberRepository
 from backend.services.workspace.join_code_service import JoinCodeService
 from backend.services.workspace.workspace_joining_service import (
     WorkspaceIdentifierInvalidError,
@@ -80,6 +90,13 @@ from backend.services.workspace.management_service import (
 )
 from backend.services.workspace.provisioning_service import WorkspaceProvisioningService
 from backend.services.workspace.settings_service import WorkspaceSettingsService
+from backend.services.workspace.workspace_switching_service import (
+    WorkspaceSwitchError,
+    WorkspaceSwitchForbiddenError,
+    WorkspaceSwitchInvalidIdentifierError,
+    WorkspaceSwitchNotFoundError,
+    WorkspaceSwitchingService,
+)
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 logger = structlog.get_logger(__name__)
@@ -242,6 +259,180 @@ async def join_workspace(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while joining the workspace.",
         )
+
+
+@router.get(
+    "/current",
+    response_model=CurrentWorkspaceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get current active workspace session context",
+)
+async def get_current_workspace(
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+) -> CurrentWorkspaceResponse:
+    """Retrieve authoritative current active workspace context for the authenticated caller."""
+    if not current_user.tenant_id:
+        return CurrentWorkspaceResponse(success=True, data=None)
+
+    try:
+        active_ws_uuid = uuid.UUID(str(current_user.tenant_id))
+    except (ValueError, TypeError):
+        return CurrentWorkspaceResponse(success=True, data=None)
+
+    workspace = await workspace_repo.get_by_id(active_ws_uuid)
+    if not workspace or workspace.status != WorkspaceStatus.ACTIVE.value:
+        return CurrentWorkspaceResponse(success=True, data=None)
+
+    membership = await member_repo.get_membership(workspace.id, current_user.id, include_suspended=False)
+    if not membership:
+        return CurrentWorkspaceResponse(success=True, data=None)
+
+    return CurrentWorkspaceResponse(
+        success=True,
+        data=CurrentWorkspaceData(
+            workspace_id=workspace.id,
+            public_id=workspace.public_id,
+            name=workspace.name,
+            slug=workspace.slug,
+            role=membership.role,
+            status=workspace.status,
+            joined_at=membership.joined_at,
+        ),
+    )
+
+
+@router.get(
+    "/mine",
+    response_model=UserWorkspacesListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="List all active workspaces for the authenticated caller",
+)
+async def list_my_workspaces(
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> UserWorkspacesListResponse:
+    """Returns all active workspaces the calling user belongs to, with membership role and active context flag."""
+    from backend.models.entities.workspace import Workspace, WorkspaceStatus
+    from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
+    from sqlalchemy import select
+
+    stmt = (
+        select(Workspace, WorkspaceMember.role, WorkspaceMember.status)
+        .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
+        .where(
+            WorkspaceMember.user_id == current_user.id,
+            WorkspaceMember.status == MemberStatus.ACTIVE.value,
+            WorkspaceMember.is_deleted == False,
+            Workspace.status == WorkspaceStatus.ACTIVE.value,
+            Workspace.is_deleted == False,
+        )
+        .order_by(Workspace.name.asc())
+    )
+    result = await session.execute(stmt)
+    rows = result.all()
+
+    items = []
+    current_tid = str(current_user.tenant_id) if current_user.tenant_id else None
+
+    for ws, role, member_status in rows:
+        items.append(
+            UserWorkspaceMembership(
+                workspace_id=ws.id,
+                public_id=ws.public_id,
+                name=ws.name,
+                slug=ws.slug,
+                role=role,
+                status=member_status,
+                is_active_context=(str(ws.id) == current_tid),
+            )
+        )
+
+    return UserWorkspacesListResponse(
+        success=True,
+        total=len(items),
+        items=items,
+    )
+
+
+@router.post(
+    "/{workspace_id}/switch",
+    response_model=SwitchWorkspaceResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Switch active workspace session context",
+)
+async def switch_workspace(
+    workspace_id: str,
+    request: Request,
+    response: Response,
+    payload: SwitchWorkspaceRequest | None = None,
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    switching_service: WorkspaceSwitchingService = Depends(get_workspace_switching_service),
+) -> SwitchWorkspaceResponse:
+    """Authoritative workspace context switching endpoint.
+
+    Validates membership server-side, derives authoritative role, rotates session/JWT,
+    and updates user active context.
+    """
+    target_identifier = (
+        str(payload.workspace_id)
+        if (payload and payload.workspace_id is not None)
+        else workspace_id
+    )
+
+    current_jti = None
+    current_exp = None
+    token_payload = getattr(request.state, "token_payload", None)
+    if token_payload:
+        current_jti = token_payload.jti
+        current_exp = token_payload.exp
+
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+
+    try:
+        data, raw_refresh = await switching_service.switch_workspace(
+            session=session,
+            user_id=current_user.id,
+            workspace_identifier=target_identifier,
+            current_jti=current_jti,
+            current_exp=current_exp,
+            user_agent=user_agent,
+            ip_address=ip_address,
+        )
+
+        from backend.core.config import get_settings
+        settings = get_settings()
+        response.set_cookie(
+            key="refresh_token",
+            value=raw_refresh,
+            max_age=7 * 24 * 60 * 60,
+            httponly=True,
+            secure=settings.app.environment == "production",
+            samesite="strict",
+            path="/api/v1/auth/refresh",
+        )
+
+        return SwitchWorkspaceResponse(
+            success=True,
+            message="Workspace context switched successfully.",
+            data=data,
+        )
+    except WorkspaceSwitchInvalidIdentifierError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except WorkspaceSwitchNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except WorkspaceSwitchForbiddenError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        logger.exception("Unexpected error in switch_workspace")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while switching workspace.",
+        ) from e
 
 
 @router.get(
