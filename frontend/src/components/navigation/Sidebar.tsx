@@ -143,7 +143,8 @@ export function Sidebar() {
         {/* Main Navigation */}
         <nav className="px-2 space-y-1 pb-4">
           {navigation.map((section, i) => {
-            const items = section.items.filter(item => !item.adminOnly || ['admin', 'owner', 'platform_admin'].includes(user?.role || ''))
+            const roleStr = String(user?.role || '').trim().toLowerCase()
+            const items = section.items.filter(item => !item.adminOnly || ['admin', 'owner', 'platform_admin'].includes(roleStr))
             if (items.length === 0) return null
 
             return (

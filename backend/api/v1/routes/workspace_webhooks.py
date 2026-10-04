@@ -10,9 +10,10 @@ from backend.api.v1.schemas.workspace_webhook import (
     WorkspaceWebhookSecretResponseDTO,
     WorkspaceWebhookUpdateDTO,
 )
+from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
 from backend.core.dependencies.database import get_db
-from backend.models.entities.user import User
+from backend.core.dependencies.workspace import require_workspace_admin_or_owner
 from backend.services.workspace_webhooks import (
     WebhookNotFoundException,
     WebhookValidationException,
@@ -25,11 +26,10 @@ router = APIRouter(prefix="/workspaces/{tenant_id}/webhooks", tags=["workspace-w
 async def list_webhooks(
     tenant_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user),
 ):
     """List all webhooks for a workspace."""
-    # Check tenant access (Assuming get_current_user handles RBAC or tenant verification, or we do it here)
-    # For Program 2, usually RBAC logic applies. Let's assume user is in tenant context.
+    await require_workspace_admin_or_owner(tenant_id, current_user, db)
     service = WorkspaceWebhookService(db)
     webhooks = await service.get_webhooks(tenant_id)
     return webhooks
@@ -39,9 +39,10 @@ async def create_webhook(
     tenant_id: uuid.UUID,
     data: WorkspaceWebhookCreateDTO,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user),
 ):
     """Create a new webhook and return the raw secret."""
+    await require_workspace_admin_or_owner(tenant_id, current_user, db)
     service = WorkspaceWebhookService(db)
     try:
         webhook, raw_secret = await service.create_webhook(tenant_id, data)
@@ -55,9 +56,10 @@ async def update_webhook(
     webhook_id: uuid.UUID,
     data: WorkspaceWebhookUpdateDTO,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user),
 ):
     """Update an existing webhook configuration."""
+    await require_workspace_admin_or_owner(tenant_id, current_user, db)
     service = WorkspaceWebhookService(db)
     try:
         webhook = await service.update_webhook(tenant_id, webhook_id, data)
@@ -72,9 +74,10 @@ async def delete_webhook(
     tenant_id: uuid.UUID,
     webhook_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: UserContext = Depends(get_current_user),
 ):
     """Delete a webhook configuration."""
+    await require_workspace_admin_or_owner(tenant_id, current_user, db)
     service = WorkspaceWebhookService(db)
     try:
         await service.delete_webhook(tenant_id, webhook_id)

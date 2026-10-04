@@ -1,4 +1,4 @@
-﻿from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine
 from typing import Any
 import uuid
 
@@ -44,6 +44,33 @@ async def get_workspace_member_or_raise(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: You are not an active member of this workspace.",
+        )
+    return member
+
+
+async def require_workspace_admin_or_owner(
+    workspace_id: uuid.UUID,
+    current_user: UserContext,
+    session: AsyncSession,
+) -> WorkspaceMember | None:
+    """Verify authenticated user is an ACTIVE member with OWNER or ADMIN role (or PLATFORM_ADMIN).
+
+    Raises:
+        HTTPException(403): If the caller is not an active member or lacks admin/owner authority.
+    """
+    user_role = Role.from_str(current_user.role) if isinstance(current_user.role, str) else current_user.role
+    if user_role == Role.PLATFORM_ADMIN:
+        return None
+
+    member = await get_workspace_member_or_raise(workspace_id, current_user, session)
+    if member is None:
+        return None
+
+    role_str = (member.role or "").strip().upper()
+    if role_str not in ("OWNER", "ADMIN"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Requires workspace Admin or Owner role.",
         )
     return member
 

@@ -10,7 +10,10 @@ from backend.api.v1.schemas.domains import (
     DomainCreateResponse,
     DomainResponse,
 )
+from backend.core.auth.context import UserContext
+from backend.core.dependencies.auth import get_current_user
 from backend.core.dependencies.database import get_db
+from backend.core.dependencies.workspace import require_workspace_admin_or_owner
 from backend.core.events import EventDispatcher, get_dispatcher
 from backend.services.domain_service import (
     DomainAlreadyVerifiedError,
@@ -34,7 +37,9 @@ async def add_domain(
     payload: DomainCreateRequest,
     session: AsyncSession = Depends(get_db),
     dispatcher: EventDispatcher = Depends(get_dispatcher),
+    current_user: UserContext = Depends(get_current_user),
 ) -> dict:
+    await require_workspace_admin_or_owner(workspace_id, current_user, session)
     service = WorkspaceDomainService(session, dispatcher)
     try:
         domain, token = await service.add_domain(workspace_id, payload.domain_name)
@@ -71,8 +76,13 @@ async def verify_domain(
     domain_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
     dispatcher: EventDispatcher = Depends(get_dispatcher),
+    current_user: UserContext = Depends(get_current_user),
 ) -> None:
+    await require_workspace_admin_or_owner(workspace_id, current_user, session)
     service = WorkspaceDomainService(session, dispatcher)
+    domain = await service.repo.get_by_id(domain_id)
+    if not domain or domain.workspace_id != workspace_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Domain not found")
     try:
         await service.trigger_verification(domain_id)
     except DomainServiceError as e:
@@ -86,7 +96,9 @@ async def verify_domain(
 async def list_domains(
     workspace_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
+    current_user: UserContext = Depends(get_current_user),
 ) -> list[DomainResponse]:
+    await require_workspace_admin_or_owner(workspace_id, current_user, session)
     from sqlalchemy import select
 
     from backend.models.entities.workspace_domain import WorkspaceDomain

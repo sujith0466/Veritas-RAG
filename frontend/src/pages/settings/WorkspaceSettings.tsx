@@ -301,7 +301,7 @@ export function WorkspaceSettings() {
               <div className="w-full md:w-auto mt-4 md:mt-0">
                 <Button
                   onClick={handleExport}
-                  disabled={exporting || (user?.role !== 'admin' && user?.role !== 'owner')}
+                  disabled={exporting || !['admin', 'owner', 'platform_admin'].includes(String(user?.role || '').trim().toLowerCase())}
                   className="w-full"
                 >
                   {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}

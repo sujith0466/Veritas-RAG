@@ -7,7 +7,7 @@ export function PlatformAdminPage() {
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([])
   const [loading, setLoading] = useState(true)
   const user = useAuthStore(s => s.user)
-  const isPlatformAdmin = user?.role === 'platform_admin'
+  const isPlatformAdmin = String(user?.role || '').trim().toLowerCase() === 'platform_admin'
 
   useEffect(() => {
     if (!isPlatformAdmin) return

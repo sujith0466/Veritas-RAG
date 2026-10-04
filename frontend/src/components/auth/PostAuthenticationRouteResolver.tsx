@@ -88,7 +88,8 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
 
   if (isWorkspaceEmpty) {
     // If the workspace is empty, force the onboarding/setup experience
-    if (user?.role === 'admin') {
+    const role = String(user?.role || '').trim().toLowerCase()
+    if (['admin', 'owner', 'platform_admin'].includes(role)) {
       return (
         <PageTransition>
           <OnboardingWizard onComplete={() => resolveWorkspaceState()} />

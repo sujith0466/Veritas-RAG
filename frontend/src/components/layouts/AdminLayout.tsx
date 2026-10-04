@@ -18,7 +18,7 @@ export function AdminLayout() {
   const user = useAuthStore((s) => s.user)
 
   // Determine if user has platform admin role
-  const isPlatformAdmin = user?.role === 'platform_admin'
+  const isPlatformAdmin = String(user?.role || '').trim().toLowerCase() === 'platform_admin'
   const navItems = [...adminNav]
   if (isPlatformAdmin) {
     navItems.push({ name: 'Platform Admin', href: '/admin/platform', icon: ShieldAlert })
