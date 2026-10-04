@@ -68,14 +68,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await workspaceService.joinWorkspace(payload);
+      const joinData = (response as any)?.data || response;
       // If membership was created actively, immediately rotate session to activate context
-      if (response.data.status === 'ACTIVE') {
-        await get().switchWorkspace(response.data.workspace_id);
+      if (joinData.status === 'ACTIVE') {
+        await get().switchWorkspace(joinData.workspace_id);
       }
       set({ isLoading: false });
-      return response.data;
+      return joinData;
     } catch (error: any) {
-      const detail = error.response?.data?.detail || 'Failed to join workspace';
+      const detail =
+        error.response?.data?.detail ||
+        error.response?.data?.error?.message ||
+        error.message ||
+        'Failed to join workspace';
       set({
         error: detail,
         isLoading: false

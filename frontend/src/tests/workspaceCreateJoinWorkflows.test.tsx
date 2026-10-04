@@ -335,7 +335,7 @@ describe('WS-A8: Create & Join Workspace Workflows', () => {
       });
     });
 
-    it('8. Mode 2: Rejects invalid or expired Join Code with truthful error', async () => {
+    it('8. Mode 2: Rejects invalid or expired Join Code from server with truthful error', async () => {
       vi.mocked(workspaceService.joinWorkspace).mockRejectedValueOnce({
         response: {
           status: 400,
@@ -355,13 +355,90 @@ describe('WS-A8: Create & Join Workspace Workflows', () => {
       const codeInput = screen.getByLabelText(/join code/i);
 
       fireEvent.change(idInput, { target: { value: 'CORE-ENG' } });
-      fireEvent.change(codeInput, { target: { value: 'VR-WRONG1' } });
+      fireEvent.change(codeInput, { target: { value: 'VR-888888' } });
 
       const joinBtn = screen.getByRole('button', { name: /join workspace/i });
       fireEvent.click(joinBtn);
 
       await waitFor(() => {
         expect(screen.getByText('Invalid join code.')).toBeInTheDocument();
+      });
+    });
+
+    it('8b. Mode 2: Client rejects malformed Join Code length and invalid Crockford characters', async () => {
+      render(
+        <MemoryRouter initialEntries={['/workspaces/join']}>
+          <JoinWorkspacePage />
+        </MemoryRouter>
+      );
+
+      const idInput = screen.getByLabelText(/workspace id or slug/i);
+      const codeInput = screen.getByLabelText(/join code/i);
+
+      fireEvent.change(idInput, { target: { value: 'CORE-ENG' } });
+      // Malformed length (too short)
+      fireEvent.change(codeInput, { target: { value: 'VR-12' } });
+
+      const joinBtn = screen.getByRole('button', { name: /join workspace/i });
+      fireEvent.click(joinBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Invalid Join Code format/i)).toBeInTheDocument();
+      });
+
+      // Invalid Crockford characters (0, O, 1, I, L)
+      fireEvent.change(codeInput, { target: { value: 'VR-000000' } });
+      fireEvent.click(joinBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Invalid Join Code format/i)).toBeInTheDocument();
+      });
+
+      expect(workspaceService.joinWorkspace).not.toHaveBeenCalled();
+    });
+
+    it('8c. Mode 2: Normalizes lowercase and 6-char payload without prefix', async () => {
+      vi.mocked(workspaceService.joinWorkspace).mockResolvedValueOnce({
+        success: true,
+        message: 'Joined successfully',
+        data: {
+          workspace_id: 'ws-norm-uuid',
+          workspace_name: 'Core Engineering',
+          role: 'MEMBER',
+          status: 'ACTIVE',
+          member_id: 'mem-norm',
+        },
+      });
+
+      vi.mocked(workspaceService.switchWorkspace).mockResolvedValueOnce({
+        success: true,
+        data: {
+          access_token: 'new-token',
+          workspace: { id: 'ws-norm-uuid', name: 'Core Engineering', role: 'MEMBER' },
+        },
+      } as any);
+
+      render(
+        <MemoryRouter initialEntries={['/workspaces/join']}>
+          <JoinWorkspacePage />
+        </MemoryRouter>
+      );
+
+      const idInput = screen.getByLabelText(/workspace id or slug/i);
+      const codeInput = screen.getByLabelText(/join code/i);
+
+      fireEvent.change(idInput, { target: { value: 'CORE-ENG' } });
+      // Lowercase 6-character payload without VR- prefix
+      fireEvent.change(codeInput, { target: { value: '234567' } });
+
+      const joinBtn = screen.getByRole('button', { name: /join workspace/i });
+      fireEvent.click(joinBtn);
+
+      await waitFor(() => {
+        expect(workspaceService.joinWorkspace).toHaveBeenCalledWith({
+          workspace_id: 'CORE-ENG',
+          join_code: 'VR-234567',
+        });
       });
     });
 

@@ -7,7 +7,7 @@ import { ShieldCheck, AlertTriangle, ArrowRight, CheckCircle2, Building2, UserCh
 
 export const AcceptInvitationPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const [token] = useState<string | null>(() => searchParams.get('token'));
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -15,6 +15,16 @@ export const AcceptInvitationPage: React.FC = () => {
   const [invitationData, setInvitationData] = useState<VerifyInvitationData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
+
+  // Sanitize token from browser URL address bar after capturing into memory to prevent leakage
+  useEffect(() => {
+    if (searchParams.has('token')) {
+      const cleanParams = new URLSearchParams(window.location.search);
+      cleanParams.delete('token');
+      const cleanQuery = cleanParams.toString() ? `?${cleanParams.toString()}` : '';
+      window.history.replaceState(null, '', `${window.location.pathname}${cleanQuery}`);
+    }
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -51,6 +61,7 @@ export const AcceptInvitationPage: React.FC = () => {
       // Establish active workspace session context authoritatively
       await useWorkspaceStore.getState().switchWorkspace(res.workspace_id);
       setSuccess(true);
+      window.history.replaceState(null, '', window.location.pathname);
       setTimeout(() => {
         navigate('/dashboard', { replace: true });
       }, 1200);

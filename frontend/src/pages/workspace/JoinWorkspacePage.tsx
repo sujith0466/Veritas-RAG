@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 const TENANT_UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+const CROCKFORD_JOIN_CODE_REGEX = /^VR-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{6}$/;
 
 export const JoinWorkspacePage: React.FC = () => {
   const navigate = useNavigate();
@@ -59,7 +60,22 @@ export const JoinWorkspacePage: React.FC = () => {
       setWorkspaceIdentifier(wsId.trim());
     }
     if (code) {
-      setJoinCode(code.trim().toUpperCase());
+      let formattedCode = code.trim().toUpperCase();
+      if (formattedCode.length === 6 && !formattedCode.startsWith('VR-')) {
+        formattedCode = `VR-${formattedCode}`;
+      }
+      setJoinCode(formattedCode);
+    }
+
+    // Sanitize credentials from URL bar to prevent leakage in browser history/screen capture
+    if (token || code) {
+      const cleanParams = new URLSearchParams(window.location.search);
+      cleanParams.delete('token');
+      cleanParams.delete('invitation_token');
+      cleanParams.delete('code');
+      cleanParams.delete('join_code');
+      const cleanQuery = cleanParams.toString() ? `?${cleanParams.toString()}` : '';
+      window.history.replaceState(null, '', `${window.location.pathname}${cleanQuery}`);
     }
   }, [searchParams]);
 
@@ -80,8 +96,9 @@ export const JoinWorkspacePage: React.FC = () => {
 
     try {
       const res = await workspaceService.lookupWorkspace(id);
-      if (res.data) {
-        setPreview(res.data);
+      const previewData = (res as any)?.data || res;
+      if (previewData && previewData.workspace_name) {
+        setPreview(previewData);
       }
     } catch (err: any) {
       setPreview(null);
@@ -103,7 +120,8 @@ export const JoinWorkspacePage: React.FC = () => {
 
     try {
       const res = await invitationService.verifyInvitation(rawToken);
-      setInvitationPreview(res);
+      const inviteData = (res as any)?.data || res;
+      setInvitationPreview(inviteData);
     } catch (err: any) {
       setInvitationPreview(null);
       setClientError(
@@ -132,7 +150,16 @@ export const JoinWorkspacePage: React.FC = () => {
       return;
     }
 
-    const cleanCode = joinCode.trim().toUpperCase() || undefined;
+    let cleanCode = joinCode.trim().toUpperCase() || undefined;
+    if (cleanCode) {
+      if (!cleanCode.startsWith('VR-') && cleanCode.length === 6) {
+        cleanCode = `VR-${cleanCode}`;
+      }
+      if (!CROCKFORD_JOIN_CODE_REGEX.test(cleanCode)) {
+        setClientError('Invalid Join Code format. Expected "VR-XXXXXX" with 6 Crockford Base32 characters (excluding 0, O, 1, I, L).');
+        return;
+      }
+    }
 
     // Double-submit protection
     if (isSubmitting || isLoading) return;
@@ -153,8 +180,12 @@ export const JoinWorkspacePage: React.FC = () => {
         }, 1200);
       }
     } catch (err: any) {
-      const status = err?.response?.status;
-      const detail = err?.response?.data?.detail || '';
+      const status = err?.response?.status || err?.status || err?.statusCode;
+      const detail =
+        err?.response?.data?.detail ||
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        '';
 
       if (status === 409 || detail.toLowerCase().includes('already a member')) {
         setConflictWorkspaceId(cleanId);
@@ -193,8 +224,12 @@ export const JoinWorkspacePage: React.FC = () => {
         navigate('/dashboard', { replace: true });
       }, 1200);
     } catch (err: any) {
-      const status = err?.response?.status;
-      const detail = err?.response?.data?.detail || '';
+      const status = err?.response?.status || err?.status || err?.statusCode;
+      const detail =
+        err?.response?.data?.detail ||
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        '';
 
       if (status === 409 || detail.toLowerCase().includes('already a member')) {
         setConflictWorkspaceId(invitationPreview?.workspace_id || 'workspace');
@@ -439,11 +474,14 @@ export const JoinWorkspacePage: React.FC = () => {
                     value={joinCode}
                     onChange={(e) => {
                       let val = e.target.value.toUpperCase();
-                      if (val.length === 6 && !val.startsWith('VR-')) {
-                        val = `VR-${val}`;
-                      }
                       setJoinCode(val);
                       setClientError(null);
+                    }}
+                    onBlur={() => {
+                      let val = joinCode.trim().toUpperCase();
+                      if (val.length === 6 && !val.startsWith('VR-')) {
+                        setJoinCode(`VR-${val}`);
+                      }
                     }}
                     className="block w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-mono tracking-wider transition-all uppercase"
                     placeholder="VR-XXXXXX"
@@ -451,7 +489,7 @@ export const JoinWorkspacePage: React.FC = () => {
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-slate-500">
-                  Format: <code className="text-slate-400">VR-XXXXXX</code> (6 alphanumeric characters).
+                  Format: <code className="text-slate-400">VR-XXXXXX</code> (6 Crockford Base32 characters, excluding 0, O, 1, I, L).
                 </p>
               </div>
 
