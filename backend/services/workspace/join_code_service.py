@@ -7,6 +7,7 @@ import secrets
 from typing import Any
 import uuid
 
+import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -43,13 +44,14 @@ class JoinCodeService:
     SECURITY INVARIANTS:
     1. Plaintext Join Code (VR-XXXXXX) is NEVER persisted in PostgreSQL or Redis.
     2. Plaintext is returned strictly once upon generation/regeneration in JoinCodeGenerateResponse.
-    3. Stored credential is SHA-256 hash verified using constant-time comparison (hmac.compare_digest).
+    3. Stored credential is a salted, slow bcrypt hash (cost factor 12) resistant to offline brute-force attacks.
     4. Plaintext or hash is NEVER recorded in audit logs, error messages, or exception traces.
     5. Default role is strictly limited to 'MEMBER' or 'VIEWER'; elevated roles ('OWNER', 'ADMIN') are rejected.
     """
 
     ALLOWED_ROLES = {"MEMBER", "VIEWER"}
     DEFAULT_EXPIRATION_DAYS = 30
+    BCRYPT_ROUNDS = 12
 
     def __init__(
         self,
@@ -73,23 +75,53 @@ class JoinCodeService:
         return code
 
     @classmethod
-    def hash_join_code(cls, code: str) -> str:
-        """Computes deterministic SHA-256 hex digest of normalized join code."""
+    def hash_join_code(cls, code: str, rounds: int = BCRYPT_ROUNDS) -> str:
+        """Computes salted, adaptive bcrypt hash of normalized join code.
+
+        Protects the 32^6 (~1.07B) keyspace against practical offline rainbow table
+        and brute-force enumeration by enforcing a slow, memory-hard adaptive KDF.
+        """
         clean = code.strip().upper()
         if not re.match(JOIN_CODE_PATTERN, clean):
             raise ValueError(f"Malformed join code '{code}'. Expected 'VR-XXXXXX' format.")
-        return hashlib.sha256(clean.encode("utf-8")).hexdigest()
+        salt = bcrypt.gensalt(rounds=rounds)
+        return bcrypt.hashpw(clean.encode("utf-8"), salt).decode("utf-8")
+
+    @classmethod
+    def is_legacy_sha256_hash(cls, stored_hash: str | None) -> bool:
+        """Returns True if the stored verifier is in legacy 64-character SHA-256 hex format."""
+        if not stored_hash or len(stored_hash) != 64:
+            return False
+        return bool(re.match(r"^[a-f0-9]{64}$", stored_hash, re.IGNORECASE))
 
     @classmethod
     def verify_join_code(cls, candidate_code: str, stored_hash: str) -> bool:
-        """Constant-time verification of plaintext candidate against stored SHA-256 hash."""
+        """Verifies candidate join code against stored hash using constant-time verification.
+
+        Supports:
+        1. Primary: Salted bcrypt hash ($2a$, $2b$, $2y$).
+        2. Backward-compatibility: Legacy SHA-256 hex digest verified with hmac.compare_digest.
+        """
         if not candidate_code or not stored_hash:
             return False
-        try:
-            candidate_hash = cls.hash_join_code(candidate_code)
-            return hmac.compare_digest(candidate_hash, stored_hash)
-        except ValueError:
+
+        clean = candidate_code.strip().upper()
+        if not re.match(JOIN_CODE_PATTERN, clean):
             return False
+
+        # Primary: Salted bcrypt verification
+        if stored_hash.startswith(("$2a$", "$2b$", "$2y$")):
+            try:
+                return bcrypt.checkpw(clean.encode("utf-8"), stored_hash.encode("utf-8"))
+            except (ValueError, TypeError):
+                return False
+
+        # Backward compatibility: Legacy SHA-256 verification
+        if cls.is_legacy_sha256_hash(stored_hash):
+            candidate_hash = hashlib.sha256(clean.encode("utf-8")).hexdigest()
+            return hmac.compare_digest(candidate_hash, stored_hash.lower())
+
+        return False
 
     # ── Authorization Guard ───────────────────────────────────────────────────
 
@@ -395,6 +427,34 @@ class JoinCodeService:
         # Constant-time cryptographic verification
         if not self.verify_join_code(clean, stored_hash):
             return False, "Invalid join code.", ""
+
+        # Transparent upgrade from legacy SHA-256 to salted slow bcrypt verifier
+        if self.is_legacy_sha256_hash(stored_hash):
+            try:
+                upgraded_hash = self.hash_join_code(clean)
+                settings_for_update = await self.settings_repo.get_by_workspace_id_for_update(workspace_id)
+                if settings_for_update and settings_for_update.settings_json:
+                    settings_dict = dict(settings_for_update.settings_json)
+                    jc = dict(settings_dict.get("join_code", {}))
+                    jc["code_hash"] = upgraded_hash
+                    settings_dict["join_code"] = jc
+                    settings_for_update.settings_json = settings_dict
+                    settings_for_update.version += 1
+                    settings_for_update.settings_hash = _compute_settings_hash(settings_dict)
+                    session.add(settings_for_update)
+                    await session.flush()
+                    await session.commit()
+                    await self._invalidate_settings_cache(workspace_id)
+                    logger.info(
+                        "Transparently upgraded legacy join code hash to salted slow verifier",
+                        workspace_id=str(workspace_id),
+                    )
+            except Exception as e:
+                logger.warning(
+                    "Failed to transparently upgrade legacy join code hash",
+                    workspace_id=str(workspace_id),
+                    error=str(e),
+                )
 
         default_role = config.get("default_role", "MEMBER")
         return True, None, default_role

@@ -94,12 +94,22 @@ def test_generate_plaintext_code_format(join_code_service):
     assert len(generated_set) == 50
 
 
-def test_hash_join_code_sha256(join_code_service):
-    """Criterion 2: produces 64-character SHA-256 hex digest."""
+def test_hash_join_code_salted_bcrypt(join_code_service):
+    """Criterion 2: produces salted bcrypt hash resistant to offline brute-force."""
     code = "VR-9K2M4P"
-    code_hash = join_code_service.hash_join_code(code)
-    assert len(code_hash) == 64
-    assert re.match(r"^[a-f0-9]{64}$", code_hash)
+    hash1 = join_code_service.hash_join_code(code)
+    hash2 = join_code_service.hash_join_code(code)
+
+    # 1. Matches bcrypt format with cost factor 12
+    assert hash1.startswith("$2b$12$")
+    assert hash2.startswith("$2b$12$")
+
+    # 2. Non-deterministic representation (unique salts per invocation)
+    assert hash1 != hash2, "Salted KDF must generate distinct verifiers for the same plaintext"
+
+    # 3. Both verifiers successfully verify the candidate
+    assert join_code_service.verify_join_code(code, hash1) is True
+    assert join_code_service.verify_join_code(code, hash2) is True
 
 
 def test_verify_join_code_match(join_code_service):
@@ -120,14 +130,20 @@ def test_verify_join_code_tampered_fails(join_code_service):
     assert join_code_service.verify_join_code("", code_hash) is False
 
 
-def test_verify_join_code_constant_time(join_code_service):
-    """Criterion 5: Uses constant-time hmac.compare_digest."""
+def test_verify_join_code_legacy_sha256_compatibility(join_code_service):
+    """Criterion 5: Backward compatibility with legacy SHA-256 hashes."""
     code = "VR-9K2M4P"
-    code_hash = join_code_service.hash_join_code(code)
-    with patch("hmac.compare_digest", wraps=__import__("hmac").compare_digest) as mock_compare:
-        result = join_code_service.verify_join_code(code, code_hash)
-        assert result is True
-        mock_compare.assert_called_once()
+    import hashlib
+    legacy_sha256 = hashlib.sha256(code.encode("utf-8")).hexdigest()
+    assert len(legacy_sha256) == 64
+    assert join_code_service.is_legacy_sha256_hash(legacy_sha256) is True
+
+    # Successfully verifies candidate against legacy SHA-256
+    assert join_code_service.verify_join_code(code, legacy_sha256) is True
+    assert join_code_service.verify_join_code("vr-9k2m4p", legacy_sha256) is True
+
+    # Tampered code rejected
+    assert join_code_service.verify_join_code("VR-234567", legacy_sha256) is False
 
 
 # ==============================================================================
@@ -233,10 +249,11 @@ async def test_generate_new_join_code_reveal_once(
     assert response.default_role == "MEMBER"
     assert "cryptographic hash" in response.warning
 
-    # 2. Plaintext NOT saved in DB model - only hash
+    # 2. Plaintext NOT saved in DB model - only salted bcrypt hash
     stored_join_config = initial_settings.settings_json["join_code"]
     assert "join_code" not in stored_join_config
-    assert stored_join_config["code_hash"] == join_code_service.hash_join_code(response.join_code)
+    assert stored_join_config["code_hash"].startswith("$2b$12$")
+    assert join_code_service.verify_join_code(response.join_code, stored_join_config["code_hash"]) is True
     assert stored_join_config["is_enabled"] is True
     assert stored_join_config["max_uses"] == 100
     assert stored_join_config["current_uses"] == 0
@@ -521,6 +538,52 @@ async def test_validate_join_code_candidate_wrong_code(join_code_service, mock_s
     )
     assert valid is False
     assert "invalid join code" in err.lower()
+
+
+@pytest.mark.asyncio
+async def test_validate_join_code_candidate_transparent_upgrade(join_code_service, mock_session, mock_settings_repo):
+    """Criterion 17: Transparent upgrade from legacy SHA-256 to salted bcrypt verifier."""
+    workspace_id = uuid.uuid4()
+    code = "VR-9K2M4P"
+    import hashlib
+    legacy_sha256 = hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+    settings_dict = {
+        "join_code": {
+            "is_enabled": True,
+            "code_hash": legacy_sha256,
+            "default_role": "MEMBER",
+            "max_uses": 10,
+            "current_uses": 1,
+        }
+    }
+    settings_obj = WorkspaceSettings(
+        workspace_id=workspace_id,
+        settings_json=settings_dict,
+        version=1,
+    )
+    mock_settings_repo.get_by_workspace_id.return_value = settings_obj
+    mock_settings_repo.get_by_workspace_id_for_update.return_value = settings_obj
+
+    mock_redis = AsyncMock()
+    with patch("backend.cache.client.get_redis_client", return_value=mock_redis):
+        valid, err, role = await join_code_service.validate_join_code_candidate(
+            session=mock_session, workspace_id=workspace_id, candidate_code=code
+        )
+
+    # 1. Validation succeeds
+    assert valid is True
+    assert err is None
+    assert role == "MEMBER"
+
+    # 2. Settings were transparently upgraded in DB to salted bcrypt hash
+    upgraded_hash = settings_obj.settings_json["join_code"]["code_hash"]
+    assert upgraded_hash != legacy_sha256
+    assert upgraded_hash.startswith("$2b$12$")
+    assert join_code_service.verify_join_code(code, upgraded_hash) is True
+
+    # 3. Redis cache was invalidated
+    mock_redis.delete.assert_called_once_with(f"workspace:{workspace_id}:settings")
 
 
 # ==============================================================================
