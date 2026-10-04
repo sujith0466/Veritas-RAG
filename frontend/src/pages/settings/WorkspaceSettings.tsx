@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, Input, Label, Button, SectionHeader } from '@/components/common'
 import { useToast } from '@/hooks/useToast'
 import { userService } from '@/services/userService'
+import { workspaceSettingsService, WorkspaceSettingsData } from '@/services/workspaceSettingsService'
 import { useAuthStore } from '@/stores/authStore'
 import { Briefcase, Database, Users, Loader2, Download, Calendar } from 'lucide-react'
 
 export function WorkspaceSettings() {
+  const navigate = useNavigate()
   const { toast } = useToast()
   const user = useAuthStore(s => s.user)
   const setAuth = useAuthStore(s => s.setAuth)
@@ -13,10 +16,11 @@ export function WorkspaceSettings() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [settingsData, setSettingsData] = useState<WorkspaceSettingsData | null>(null)
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string>('')
   const [formData, setFormData] = useState({
     workspace_name: '',
     retention_policy: '90',
-    data_region: 'us-east',
   })
 
   // Export State
@@ -25,15 +29,16 @@ export function WorkspaceSettings() {
   const [exportEndDate, setExportEndDate] = useState('')
   const [exporting, setExporting] = useState(false)
 
+  const workspaceId = user?.workspace_id || user?.tenant_id || ''
+
   const handleExport = async () => {
-    if (!user?.workspace_id && !user?.tenant_id) {
+    if (!workspaceId) {
       toast({ title: 'Error', message: 'No workspace context found', type: 'error' })
       return
     }
 
     setExporting(true)
     try {
-      const workspaceId = user?.tenant_id || user?.workspace_id
       const query = new URLSearchParams({ format: exportFormat })
       if (exportStartDate) query.append('start_date', exportStartDate)
       if (exportEndDate) query.append('end_date', exportEndDate)
@@ -53,7 +58,6 @@ export function WorkspaceSettings() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      // Use content-disposition filename if available, fallback to default
       const contentDisposition = res.headers.get('content-disposition')
       let filename = `chat_export_${workspaceId}.${exportFormat}`
       if (contentDisposition && contentDisposition.includes('filename=')) {
@@ -75,16 +79,45 @@ export function WorkspaceSettings() {
 
   useEffect(() => {
     loadWorkspace()
-  }, [])
+  }, [workspaceId])
 
   const loadWorkspace = async () => {
     try {
-      const { data } = await userService.getProfile()
-      const ws = data.workspace_settings || {}
+      setLoading(true)
+      let currentWsName = user?.workspace_name && !user?.workspace_name.includes('-') ? user.workspace_name : 'Default Workspace'
+
+      // 1. Fetch user profile for name if available
+      try {
+        const { data: profile } = await userService.getProfile()
+        if (profile?.profile_data?.workspace_name) {
+          currentWsName = profile.profile_data.workspace_name
+        }
+      } catch {
+        // Fallback to user auth context name
+      }
+
+      // 2. Fetch canonical settings from /api/v1/workspaces/{id}/settings
+      if (workspaceId) {
+        try {
+          const res = await workspaceSettingsService.getSettings(workspaceId)
+          if (res?.data) {
+            setSettingsData(res.data)
+            setExpectedUpdatedAt(res.data.updated_at)
+            const retentionDays = res.data.settings?.general?.retention_days ?? 90
+            setFormData({
+              workspace_name: currentWsName,
+              retention_policy: String(retentionDays),
+            })
+            return
+          }
+        } catch (settingsErr) {
+          console.warn('Could not fetch canonical settings, falling back to profile defaults', settingsErr)
+        }
+      }
+
       setFormData({
-        workspace_name: data.profile_data?.workspace_name || (user?.workspace_name && !user?.workspace_name.includes('-') ? user.workspace_name : 'E2E Workspace'),
-        retention_policy: ws.retention_policy || '90',
-        data_region: ws.data_region || 'us-east',
+        workspace_name: currentWsName,
+        retention_policy: '90',
       })
     } catch (error) {
       toast({ title: 'Error', message: 'Failed to load workspace settings', type: 'error' })
@@ -99,40 +132,45 @@ export function WorkspaceSettings() {
 
   const handleSave = async () => {
     if (!formData.workspace_name.trim()) {
-      toast({ title: 'Error', message: 'Workspace name is required', type: 'error' })
+      toast({ title: 'Error', message: 'Workspace Name is required', type: 'error' })
       return
     }
 
     setSaving(true)
     try {
-      const workspaceId = user?.workspace_id || user?.tenant_id
+      const retentionDays = parseInt(formData.retention_policy, 10) || 90
 
-      const { data } = await userService.updateWorkspace({
-        workspace_settings: {
-          ...user?.workspace_settings,
-          retention_policy: formData.retention_policy,
-          data_region: formData.data_region,
-        }
-      })
-
-      // Also synchronize to the canonical workspace settings endpoint
-      if (workspaceId && token) {
-        const retentionNum = parseInt(formData.retention_policy, 10) || 365
-        await fetch(`/api/v1/workspaces/${workspaceId}/settings`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            general: {
-              retention_days: retentionNum,
+      // 1. Save canonical workspace settings if workspaceId exists
+      if (workspaceId && expectedUpdatedAt) {
+        try {
+          const res = await workspaceSettingsService.patchSettings(
+            workspaceId,
+            expectedUpdatedAt,
+            {
+              general: {
+                retention_days: retentionDays,
+              }
             }
-          })
-        }).catch(() => {})
+          )
+          if (res?.data) {
+            setSettingsData(res.data)
+            setExpectedUpdatedAt(res.data.updated_at)
+          }
+        } catch (patchErr: any) {
+          if (patchErr?.response?.status === 409 || patchErr?.status === 409) {
+            toast({
+              title: 'Conflict Detected',
+              message: 'Settings were modified by another user. Reloading fresh settings...',
+              type: 'error',
+            })
+            await loadWorkspace()
+            return
+          }
+          throw patchErr
+        }
       }
 
-      // Also update the profile data to keep workspace name in sync if needed
+      // 2. Synchronize workspace name across profile
       await userService.updateProfile({
         profile_data: {
           ...user?.profile_data,
@@ -143,15 +181,15 @@ export function WorkspaceSettings() {
       if (user && token) {
         setAuth({
           ...user,
-          ...data,
           workspace_name: formData.workspace_name,
           profile_data: { ...user.profile_data, workspace_name: formData.workspace_name }
         }, token)
       }
 
       toast({ title: 'Success', message: 'Workspace settings updated successfully', type: 'success' })
-    } catch (error) {
-      toast({ title: 'Error', message: 'Failed to update workspace settings', type: 'error' })
+    } catch (error: any) {
+      const message = error?.response?.data?.detail || error.message || 'Failed to update workspace settings'
+      toast({ title: 'Error', message, type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -160,6 +198,9 @@ export function WorkspaceSettings() {
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>
   }
+
+  const role = String(user?.role || '').trim().toLowerCase()
+  const canExport = ['admin', 'owner', 'platform_admin'].includes(role)
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -195,7 +236,7 @@ export function WorkspaceSettings() {
             <div className="space-y-2">
               <Label>Tenant ID</Label>
               <Input
-                value={user?.tenant_id || 'Not Assigned'}
+                value={workspaceId || 'Not Assigned'}
                 readOnly
                 className="bg-muted cursor-not-allowed font-mono text-xs"
               />
@@ -228,26 +269,21 @@ export function WorkspaceSettings() {
                 <option value="30">30 Days</option>
                 <option value="90">90 Days</option>
                 <option value="180">180 Days</option>
-                <option value="365">1 Year</option>
-                <option value="indefinite">Indefinite (Requires Enterprise Plan)</option>
+                <option value="365">1 Year (365 Days)</option>
               </select>
+              <p className="text-xs text-muted-foreground">Audit logs and query telemetry will be archived after this duration.</p>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="data_region">Primary Data Region</Label>
-              <select
-                id="data_region"
-                name="data_region"
-                value={formData.data_region}
-                onChange={handleChange}
-                className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              >
-                <option value="us-east">US East (N. Virginia)</option>
-                <option value="us-west">US West (Oregon)</option>
-                <option value="eu-central">EU Central (Frankfurt)</option>
-                <option value="ap-southeast">AP Southeast (Sydney)</option>
-              </select>
-            </div>
+            {settingsData && (
+              <div className="space-y-3">
+                <Label>Canonical Settings Version</Label>
+                <div className="h-10 px-3 py-2 rounded-md bg-muted/50 border border-border flex items-center justify-between text-xs font-mono text-muted-foreground">
+                  <span>Version {settingsData.version} (v{settingsData.schema_version})</span>
+                  <span className="truncate max-w-[120px]">{settingsData.settings_hash.slice(0, 12)}…</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Backed by canonical JSON document versioning.</p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4 pt-2">
@@ -301,7 +337,7 @@ export function WorkspaceSettings() {
               <div className="w-full md:w-auto mt-4 md:mt-0">
                 <Button
                   onClick={handleExport}
-                  disabled={exporting || !['admin', 'owner', 'platform_admin'].includes(String(user?.role || '').trim().toLowerCase())}
+                  disabled={exporting || !canExport}
                   className="w-full"
                 >
                   {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
@@ -323,11 +359,15 @@ export function WorkspaceSettings() {
                 <p className="text-sm text-muted-foreground">Invite and manage users in this tenant.</p>
               </div>
             </div>
-            <Button variant="outline">Manage Team</Button>
+            <Button variant="outline" onClick={() => navigate('/admin/members')}>
+              Manage Team
+            </Button>
           </div>
 
           <div className="bg-surface-elevated rounded-lg p-4 text-center border border-border">
-            <p className="text-sm text-muted-foreground">Team management is currently handled through your SSO Provider.</p>
+            <p className="text-sm text-muted-foreground">
+              Configure team roles, active member invitations, and workspace security boundaries in the Members portal.
+            </p>
           </div>
         </Card>
       </div>

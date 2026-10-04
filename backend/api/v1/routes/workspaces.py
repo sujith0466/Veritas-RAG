@@ -639,7 +639,7 @@ async def get_workspace_settings(
 ) -> WorkspaceSettingsResponse:
     """Retrieve full validated workspace settings document."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
         settings = await settings_service.get_settings(
             session=session,
             workspace_id=workspace_id,
@@ -682,7 +682,7 @@ async def patch_workspace_settings(
 ) -> WorkspaceSettingsResponse:
     """Deep merge patch into workspace settings, validate schema, and bump version."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
         settings = await settings_service.patch_settings(
             session=session,
             workspace_id=workspace_id,
@@ -733,7 +733,7 @@ async def reset_workspace_settings(
 ) -> WorkspaceSettingsResponse:
     """Reset entire settings document or a specific category to defaults."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
         settings = await settings_service.reset_settings(
             session=session,
             workspace_id=workspace_id,
@@ -783,7 +783,7 @@ async def export_workspace_settings(
 ) -> WorkspaceSettingsResponse:
     """Export complete workspace configuration with metadata."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
         settings = await settings_service.get_settings(
             session=session,
             workspace_id=workspace_id,
@@ -826,7 +826,7 @@ async def import_workspace_settings(
 ) -> dict[str, Any]:
     """Import and validate settings configuration."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
         result = await settings_service.import_settings(
             session=session,
             workspace_id=workspace_id,
@@ -867,7 +867,7 @@ async def get_workspace_settings_history(
 ) -> WorkspaceSettingsHistoryResponse:
     """Retrieve version history snapshots for workspace settings."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
         history = await settings_service.get_history(
             workspace_id=workspace_id,
             user_id=current_user.id,
