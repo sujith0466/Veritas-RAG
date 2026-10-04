@@ -100,7 +100,7 @@ describe('Audit Ledger & Quota Modernization (ADMIN-03)', () => {
       billing_period_start: '2026-10-01T00:00:00Z',
       used_tokens: 1500000,
       used_queries: 250,
-      monthly_token_limit: 5000000,
+      monthly_token_limit: 6000000,
       monthly_budget_usd: 0,
       warning_threshold_pct: 0.8,
       is_hard_enforced: false,
@@ -148,6 +148,15 @@ describe('Audit Ledger & Quota Modernization (ADMIN-03)', () => {
 
     it('allows Owner to adjust quotas and persists to canonical settings', async () => {
       vi.spyOn(adminService, 'getWorkspaceUsage').mockResolvedValue(mockUsage)
+      const updateQuotaSpy = vi.spyOn(adminService, 'updateQuota').mockResolvedValue({
+        tenant_id: 'ws-777',
+        monthly_token_limit: 6000000,
+        monthly_budget_usd: 150,
+        warning_threshold_pct: 0.8,
+        is_hard_enforced: true,
+        remaining_tokens: 4500000,
+        remaining_budget_usd: 112.5,
+      })
       vi.spyOn(workspaceSettingsService, 'getSettings').mockResolvedValue(mockSettings as any)
       const patchSpy = vi.spyOn(workspaceSettingsService, 'patchSettings').mockResolvedValue({
         success: true,
@@ -167,12 +176,18 @@ describe('Audit Ledger & Quota Modernization (ADMIN-03)', () => {
       const adjustBtn = await screen.findByRole('button', { name: /Adjust Quotas/i })
       fireEvent.click(adjustBtn)
 
-      expect(screen.getByText(/Configure Workspace Limits/i)).toBeInTheDocument()
+      expect(screen.getByText(/Configure Workspace/i)).toBeInTheDocument()
 
       const saveBtn = screen.getByRole('button', { name: /Save Quota Allocation/i })
       fireEvent.click(saveBtn)
 
       await waitFor(() => {
+        expect(updateQuotaSpy).toHaveBeenCalledWith(
+          'ws-777',
+          expect.objectContaining({
+            monthly_token_limit: 6000000,
+          })
+        )
         expect(patchSpy).toHaveBeenCalledWith(
           'ws-777',
           '2026-10-04T05:30:00Z',

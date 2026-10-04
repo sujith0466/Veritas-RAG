@@ -80,6 +80,32 @@ class QuotaGovernor:
                 if item:
                     return item
 
+            # Fallback to workspace_settings canonical limits if tenant_quotas has no record
+            target_wid = workspace_id
+            if target_wid is None and tenant_id:
+                try:
+                    target_wid = uuid.UUID(tenant_id)
+                except (ValueError, TypeError):
+                    pass
+
+            if target_wid:
+                from backend.models.entities.workspace_settings import WorkspaceSettings
+                stmt_ws = select(WorkspaceSettings).where(WorkspaceSettings.workspace_id == target_wid)
+                res_ws = await s.execute(stmt_ws)
+                ws_settings = res_ws.scalar_one_or_none()
+                if ws_settings and ws_settings.settings_json and "limits" in ws_settings.settings_json:
+                    limits = ws_settings.settings_json.get("limits") or {}
+                    tb = limits.get("monthly_token_budget")
+                    if tb is not None and int(tb) > 0:
+                        return TenantQuotaORM(
+                            tenant_id=tenant_id or str(target_wid),
+                            workspace_id=target_wid,
+                            monthly_token_limit=int(tb),
+                            monthly_budget_usd=self.DEFAULT_BUDGET_USD,
+                            warning_threshold_pct=self.DEFAULT_WARNING_THRESHOLD_PCT,
+                            is_hard_enforced=self.DEFAULT_IS_HARD_ENFORCED,
+                        )
+
             return None
 
         if session is not None:

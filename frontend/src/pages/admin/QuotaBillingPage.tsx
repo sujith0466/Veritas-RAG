@@ -22,7 +22,10 @@ export function QuotaBillingPage() {
 
   // Editable limits form state
   const [limitForm, setLimitForm] = useState({
-    monthly_token_budget: 5000000,
+    monthly_token_budget: 10000000,
+    monthly_budget_usd: 150.0,
+    warning_threshold_pct: 80,
+    is_hard_enforced: true,
     monthly_query_budget: 50000,
     max_storage_gb: 100,
     max_members: 50,
@@ -42,11 +45,13 @@ export function QuotaBillingPage() {
 
     setLoading(true)
     try {
+      let currentQuota: TenantQuota | null = null
+
       // 1. Fetch runtime telemetry usage & quota
       try {
         const usageData = await adminService.getWorkspaceUsage(workspaceId)
         setUsage(usageData)
-        setQuota({
+        currentQuota = {
           tenant_id: usageData.workspace_id,
           monthly_token_limit: usageData.monthly_token_limit,
           monthly_budget_usd: usageData.monthly_budget_usd,
@@ -54,33 +59,40 @@ export function QuotaBillingPage() {
           is_hard_enforced: usageData.is_hard_enforced,
           remaining_tokens: usageData.remaining_tokens,
           remaining_budget_usd: usageData.remaining_budget_usd,
-        })
+        }
+        setQuota(currentQuota)
       } catch {
         try {
-          const quotaData = await adminService.getQuota(workspaceId)
-          setQuota(quotaData)
+          currentQuota = await adminService.getQuota(workspaceId)
+          setQuota(currentQuota)
         } catch (qErr) {
           console.warn('Could not load telemetry quota', qErr)
         }
       }
 
       // 2. Fetch canonical workspace limits from /api/v1/workspaces/{id}/settings
+      let currentSettings: WorkspaceSettingsData | null = null
       try {
         const res = await workspaceSettingsService.getSettings(workspaceId)
         if (res?.data) {
+          currentSettings = res.data
           setSettingsData(res.data)
           setExpectedUpdatedAt(res.data.updated_at)
-          const l = res.data.settings?.limits || {}
-          setLimitForm({
-            monthly_token_budget: l.monthly_token_budget ?? 5000000,
-            monthly_query_budget: l.monthly_query_budget ?? 50000,
-            max_storage_gb: l.max_storage_gb ?? 100,
-            max_members: l.max_members ?? 50,
-          })
         }
       } catch (sErr) {
         console.warn('Could not load canonical settings limits', sErr)
       }
+
+      const l = currentSettings?.settings?.limits || {}
+      setLimitForm({
+        monthly_token_budget: currentQuota?.monthly_token_limit ?? l.monthly_token_budget ?? 10000000,
+        monthly_budget_usd: currentQuota?.monthly_budget_usd ?? 150.0,
+        warning_threshold_pct: Math.round((currentQuota?.warning_threshold_pct ?? 0.8) * 100),
+        is_hard_enforced: currentQuota?.is_hard_enforced ?? true,
+        monthly_query_budget: l.monthly_query_budget ?? 50000,
+        max_storage_gb: l.max_storage_gb ?? 100,
+        max_members: l.max_members ?? 50,
+      })
     } catch (e) {
       console.error('Failed to load governance data', e)
     } finally {
@@ -94,39 +106,58 @@ export function QuotaBillingPage() {
 
   const handleSaveLimits = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!workspaceId || !expectedUpdatedAt) {
+    if (!workspaceId) {
       toast({ title: 'Error', message: 'Missing workspace context', type: 'error' })
       return
     }
 
     setSavingLimits(true)
     try {
-      const res = await workspaceSettingsService.patchSettings(
-        workspaceId,
-        expectedUpdatedAt,
-        {
-          limits: {
-            monthly_token_budget: Number(limitForm.monthly_token_budget),
-            monthly_query_budget: Number(limitForm.monthly_query_budget),
-            max_storage_gb: Number(limitForm.max_storage_gb),
-            max_members: Number(limitForm.max_members),
-          }
-        }
-      )
-
-      if (res?.data) {
-        setSettingsData(res.data)
-        setExpectedUpdatedAt(res.data.updated_at)
-        toast({ title: 'Success', message: 'Resource governance limits updated successfully', type: 'success' })
-        setIsEditingLimits(false)
-        await loadData()
-      }
-    } catch (err: any) {
-      if (err?.response?.status === 409 || err?.status === 409) {
-        toast({ title: 'Conflict', message: 'Settings modified concurrently. Reloading latest limits...', type: 'error' })
-        await loadData()
+      const tokenLimitNum = Number(limitForm.monthly_token_budget)
+      if (isNaN(tokenLimitNum) || tokenLimitNum < 1) {
+        toast({ title: 'Validation Error', message: 'Monthly token limit must be a positive integer', type: 'error' })
+        setSavingLimits(false)
         return
       }
+
+      // 1. Authoritative Quota Update via PUT /analytics/v1/quotas/{tenant_id}
+      await adminService.updateQuota(workspaceId, {
+        monthly_token_limit: tokenLimitNum,
+        monthly_budget_usd: Number(limitForm.monthly_budget_usd ?? 150),
+        warning_threshold_pct: Number(limitForm.warning_threshold_pct ?? 80) / 100,
+        is_hard_enforced: Boolean(limitForm.is_hard_enforced),
+      })
+
+      // 2. Ancillary Workspace Settings Update
+      if (expectedUpdatedAt) {
+        try {
+          const res = await workspaceSettingsService.patchSettings(
+            workspaceId,
+            expectedUpdatedAt,
+            {
+              limits: {
+                monthly_token_budget: tokenLimitNum,
+                monthly_query_budget: Number(limitForm.monthly_query_budget),
+                max_storage_gb: Number(limitForm.max_storage_gb),
+                max_members: Number(limitForm.max_members),
+              }
+            }
+          )
+          if (res?.data) {
+            setSettingsData(res.data)
+            setExpectedUpdatedAt(res.data.updated_at)
+          }
+        } catch (settingsErr: any) {
+          if (settingsErr?.response?.status === 409 || settingsErr?.status === 409) {
+            console.warn('Workspace settings concurrency conflict during ancillary save')
+          }
+        }
+      }
+
+      toast({ title: 'Success', message: 'Resource governance limits updated successfully', type: 'success' })
+      setIsEditingLimits(false)
+      await loadData()
+    } catch (err: any) {
       const msg = err?.response?.data?.detail || err.message || 'Failed to update governance limits'
       toast({ title: 'Error', message: msg, type: 'error' })
     } finally {
@@ -142,7 +173,7 @@ export function QuotaBillingPage() {
     )
   }
 
-  const effectiveTokenLimit = settingsData?.settings?.limits?.monthly_token_budget || quota?.monthly_token_limit || 5000000
+  const effectiveTokenLimit = quota?.monthly_token_limit ?? usage?.monthly_token_limit ?? settingsData?.settings?.limits?.monthly_token_budget ?? 10000000
   const effectiveQueryLimit = settingsData?.settings?.limits?.monthly_query_budget || 50000
   const usedTokens = usage ? usage.used_tokens : (quota ? (quota.monthly_token_limit - quota.remaining_tokens) : 0)
   const usedQueries = usage ? usage.used_queries : 0
@@ -178,8 +209,8 @@ export function QuotaBillingPage() {
         <form onSubmit={handleSaveLimits} className="bg-card border border-primary/30 p-6 rounded-lg space-y-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
-              <h3 className="font-semibold text-foreground text-sm">Configure Workspace Limits</h3>
-              <p className="text-xs text-muted-foreground">Persisted canonically via Workspace Settings (Category: limits).</p>
+              <h3 className="font-semibold text-foreground text-sm">Configure Workspace Quotas & Governance</h3>
+              <p className="text-xs text-muted-foreground">Authoritative runtime quotas enforced by QuotaGovernor and synchronized with workspace settings.</p>
             </div>
             <span className="text-xs font-mono text-muted-foreground">
               v{settingsData?.version || 1} ({expectedUpdatedAt ? expectedUpdatedAt.slice(0, 19) : ''})
@@ -188,15 +219,52 @@ export function QuotaBillingPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
             <div className="space-y-1.5">
-              <Label htmlFor="monthly_token_budget" className="text-xs">Monthly Token Budget</Label>
+              <Label htmlFor="monthly_token_budget" className="text-xs">Monthly Token Ceiling</Label>
               <Input
                 id="monthly_token_budget"
                 type="number"
-                min="0"
+                min="1"
                 step="100000"
                 value={limitForm.monthly_token_budget}
                 onChange={e => setLimitForm(prev => ({ ...prev, monthly_token_budget: parseInt(e.target.value, 10) || 0 }))}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="monthly_budget_usd" className="text-xs">Budget Ceiling ($ USD)</Label>
+              <Input
+                id="monthly_budget_usd"
+                type="number"
+                min="0"
+                step="10"
+                value={limitForm.monthly_budget_usd}
+                onChange={e => setLimitForm(prev => ({ ...prev, monthly_budget_usd: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="warning_threshold_pct" className="text-xs">Warning Threshold (%)</Label>
+              <Input
+                id="warning_threshold_pct"
+                type="number"
+                min="1"
+                max="100"
+                value={limitForm.warning_threshold_pct}
+                onChange={e => setLimitForm(prev => ({ ...prev, warning_threshold_pct: parseInt(e.target.value, 10) || 80 }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="is_hard_enforced" className="text-xs">Enforcement Mode</Label>
+              <select
+                id="is_hard_enforced"
+                className="w-full h-10 px-3 py-2 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                value={limitForm.is_hard_enforced ? 'true' : 'false'}
+                onChange={e => setLimitForm(prev => ({ ...prev, is_hard_enforced: e.target.value === 'true' }))}
+              >
+                <option value="true">Hard Throttling (Block on Limit)</option>
+                <option value="false">Soft Warning (Telemetry Only)</option>
+              </select>
             </div>
 
             <div className="space-y-1.5">
@@ -240,7 +308,7 @@ export function QuotaBillingPage() {
             <Button type="button" variant="outline" size="sm" onClick={() => setIsEditingLimits(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={savingLimits}>
+            <Button type="submit" size="sm" disabled={savingLimits} onClick={handleSaveLimits}>
               {savingLimits && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Quota Allocation
             </Button>

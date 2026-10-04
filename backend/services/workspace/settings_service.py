@@ -287,6 +287,38 @@ class WorkspaceSettingsService:
         await session.commit()
         await session.refresh(settings)
 
+        # 8b. Synchronize TenantQuotaORM if monthly_token_budget was configured
+        if "limits" in patch_data and "monthly_token_budget" in patch_data["limits"]:
+            tb = patch_data["limits"]["monthly_token_budget"]
+            if tb is not None and int(tb) > 0:
+                try:
+                    from backend.modules.analytics.repositories.quota_repository import QuotaRepository
+                    quota_repo = QuotaRepository(session)
+                    q = await quota_repo.get_by_tenant_id(str(workspace_id))
+                    if q:
+                        q.monthly_token_limit = int(tb)
+                        if not q.workspace_id:
+                            q.workspace_id = workspace_id
+                        await session.commit()
+                    else:
+                        new_q = await quota_repo.create_or_update(
+                            tenant_id=str(workspace_id),
+                            monthly_token_limit=int(tb),
+                            monthly_budget_usd=150.0,
+                            warning_threshold_pct=0.80,
+                            is_hard_enforced=True,
+                        )
+                        new_q.workspace_id = workspace_id
+                        await session.commit()
+
+                    from backend.modules.analytics.services.quota import QuotaGovernor
+                    gov = QuotaGovernor()
+                    used = await gov.get_durable_usage(workspace_id, session)
+                    rem = max(0, int(tb) - used)
+                    await gov.set_remaining_tokens(str(workspace_id), rem)
+                except Exception as sync_err:
+                    logger.warning("Failed synchronizing TenantQuotaORM from workspace settings: %s", sync_err)
+
         # 9. Invalidate Redis Cache
         try:
             from backend.cache.client import get_redis_client

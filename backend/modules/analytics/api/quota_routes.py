@@ -1,8 +1,9 @@
-﻿import datetime
+import datetime
 from typing import Annotated
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.auth.context import UserContext
@@ -37,9 +38,19 @@ async def get_quota(
     except (ValueError, TypeError):
         pass
 
+    user_role = Role.from_str(auth.role) if isinstance(auth.role, str) else auth.role
+    is_platform_admin = user_role == Role.PLATFORM_ADMIN
+
     if ws_uuid:
-        await get_workspace_member_or_raise(ws_uuid, auth, session)
-    elif auth.tenant_id != tenant_id and Role.from_str(auth.role) != Role.PLATFORM_ADMIN:
+        if not is_platform_admin:
+            member = await get_workspace_member_or_raise(ws_uuid, auth, session)
+            member_role = (member.role or "").strip().upper() if member else ""
+            if member_role not in ("OWNER", "ADMIN"):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Requires workspace Admin or Owner role.",
+                )
+    elif auth.tenant_id != tenant_id and not is_platform_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access quota of another tenant.")
 
     governor = QuotaGovernor()
@@ -72,9 +83,19 @@ async def update_quota(
     except (ValueError, TypeError):
         pass
 
+    user_role = Role.from_str(auth.role) if isinstance(auth.role, str) else auth.role
+    is_platform_admin = user_role == Role.PLATFORM_ADMIN
+
     if ws_uuid:
-        await get_workspace_member_or_raise(ws_uuid, auth, session)
-    elif auth.tenant_id != tenant_id and Role.from_str(auth.role) != Role.PLATFORM_ADMIN:
+        if not is_platform_admin:
+            member = await get_workspace_member_or_raise(ws_uuid, auth, session)
+            member_role = (member.role or "").strip().upper() if member else ""
+            if member_role != "OWNER":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Forbidden: Requires workspace Owner role to update quotas.",
+                )
+    elif auth.tenant_id != tenant_id and not is_platform_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot update quota of another tenant.")
 
     repo = QuotaRepository(session)
@@ -96,6 +117,21 @@ async def update_quota(
     if ws_uuid and not updated_quota.workspace_id:
         updated_quota.workspace_id = ws_uuid
         await session.commit()
+
+    # Synchronize canonical workspace_settings if present
+    if ws_uuid:
+        from backend.models.entities.workspace_settings import WorkspaceSettings
+        stmt_ws = select(WorkspaceSettings).where(WorkspaceSettings.workspace_id == ws_uuid)
+        res_ws = await session.execute(stmt_ws)
+        ws_settings = res_ws.scalar_one_or_none()
+        if ws_settings and ws_settings.settings_json:
+            current_json = dict(ws_settings.settings_json)
+            limits_json = dict(current_json.get("limits") or {})
+            limits_json["monthly_token_budget"] = new_limit
+            current_json["limits"] = limits_json
+            ws_settings.settings_json = current_json
+            ws_settings.version = (ws_settings.version or 1) + 1
+            await session.commit()
 
     governor = QuotaGovernor()
     used_tokens = await governor.get_durable_usage(ws_uuid, session) if ws_uuid else 0

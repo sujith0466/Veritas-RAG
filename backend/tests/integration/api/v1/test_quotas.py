@@ -7,26 +7,27 @@ app = create_app()
 
 async def setup_test_user(client: AsyncClient, role: str = "admin", prefix="quota"):
     user_email = f"{prefix}_{uuid.uuid4()}@example.com"
-    password = "StrongPassword123!"
+    user_id = uuid.uuid4()
+    ws_id = uuid.uuid4()
 
-    reg_res = await client.post("/api/v1/auth/register", json={
-        "email": user_email,
-        "password": password,
-        "full_name": f"{prefix} User",
-    })
-    assert reg_res.status_code == 201
-
-    from sqlalchemy import select
     from backend.database.engine import get_session_factory
     from backend.models.entities.user import User
     from backend.models.entities.workspace import Workspace, WorkspaceStatus
     from backend.models.entities.workspace_member import WorkspaceMember, MemberStatus
+    from backend.core.security.jwt import get_jwt_service
 
-    ws_id = uuid.uuid4()
     async with get_session_factory()() as session:
-        user = (await session.execute(select(User).where(User.email == user_email))).scalar_one()
-        user.is_verified = True
-        user.role = role
+        user = User(
+            id=user_id,
+            email=user_email,
+            hashed_password="mockhashedpassword123",
+            display_name=f"{prefix} User",
+            is_active=True,
+            is_verified=True,
+            role=role.lower(),
+            tenant_id=str(ws_id),
+        )
+        session.add(user)
 
         ws = Workspace(
             id=ws_id,
@@ -46,15 +47,10 @@ async def setup_test_user(client: AsyncClient, role: str = "admin", prefix="quot
             status=MemberStatus.ACTIVE.value,
         )
         session.add(member)
-        user.tenant_id = str(ws_id)
         await session.commit()
 
-    login_res = await client.post("/api/v1/auth/login", json={
-        "email": user_email,
-        "password": password
-    })
-    assert login_res.status_code == 200
-    access_token = login_res.json()["data"]["access_token"]
+        jwt_service = get_jwt_service()
+        access_token, _, _ = await jwt_service.issue_tokens(user, session)
 
     return access_token, str(ws_id)
 

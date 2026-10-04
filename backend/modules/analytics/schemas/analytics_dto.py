@@ -389,10 +389,10 @@ class TenantQuotaDTO(BaseModel):
 
 
 class TenantQuotaUpdateDTO(BaseModel):
-    monthly_token_limit: int | None = None
-    monthly_budget_usd: float | None = None
-    warning_threshold_pct: float | None = None
-    is_hard_enforced: bool | None = None
+    monthly_token_limit: int | None = Field(None, ge=1, le=1_000_000_000, description="Monthly token ceiling (positive integer)")
+    monthly_budget_usd: float | None = Field(None, ge=0.0, le=1_000_000.0, description="Monthly cost budget in USD")
+    warning_threshold_pct: float | None = Field(None, ge=0.0, le=1.0, description="Warning threshold percentage (0.0 to 1.0)")
+    is_hard_enforced: bool | None = Field(None, description="Whether to hard block requests when quota is exceeded")
 
 
 class TrendForecastDTO(BaseModel):
