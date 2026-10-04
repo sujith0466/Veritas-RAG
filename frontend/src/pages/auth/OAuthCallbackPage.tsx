@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Shield, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { useAuthStore } from '@/stores/authStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { authService } from '@/services/auth/authService'
 
 export function OAuthCallbackPage(): React.JSX.Element {
@@ -62,6 +63,13 @@ export function OAuthCallbackPage(): React.JSX.Element {
       // Fetch user profile and workspace context from backend
       const userContext = await authService.fetchBackendProfile()
 
+      // WS-A7: Authoritative workspace context resolution
+      if (userContext.tenant_id) {
+        await useWorkspaceStore.getState().fetchCurrentWorkspace()
+      } else {
+        useWorkspaceStore.getState().resetWorkspaceResolution()
+      }
+
       // Establish authenticated status
       useAuthStore.getState().setAuth(userContext, accessToken)
 
@@ -76,7 +84,8 @@ export function OAuthCallbackPage(): React.JSX.Element {
 
       // Short visual confirmation before routing to workspace or onboarding
       setTimeout(() => {
-        if (!userContext.workspace_id) {
+        const hasWorkspace = !!(userContext.tenant_id || userContext.workspace_id || useWorkspaceStore.getState().currentWorkspace)
+        if (!hasWorkspace) {
           navigate('/onboarding', { replace: true })
         } else {
           navigate('/dashboard', { replace: true })

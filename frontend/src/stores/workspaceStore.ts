@@ -14,6 +14,7 @@ interface WorkspaceState {
   isLoading: boolean;
   error: string | null;
 
+  isResolvingWorkspace: boolean;
   createWorkspace: (name: string, description?: string) => Promise<Workspace>;
   updateWorkspace: (id: string, expectedUpdatedAt: string, name?: string, description?: string) => Promise<Workspace>;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
@@ -23,8 +24,9 @@ interface WorkspaceState {
   suspendWorkspace: (id: string, expectedUpdatedAt: string, confirmationName: string, reasonCode: SuspensionReasonCode, reasonText?: string) => Promise<Workspace>;
   unsuspendWorkspace: (id: string, expectedUpdatedAt: string, reasonText?: string) => Promise<Workspace>;
   switchWorkspace: (identifier: string) => Promise<SwitchWorkspaceResult>;
-  fetchCurrentWorkspace: () => Promise<void>;
+  fetchCurrentWorkspace: () => Promise<Workspace | null>;
   fetchUserWorkspaces: () => Promise<void>;
+  resetWorkspaceResolution: () => void;
 }
 
 let latestSwitchSeq = 0;
@@ -33,6 +35,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   currentWorkspace: null,
   workspaces: [],
   isLoading: false,
+  isResolvingWorkspace: false,
   error: null,
 
   createWorkspace: async (name: string, description?: string) => {
@@ -225,26 +228,48 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     }
   },
 
-  fetchCurrentWorkspace: async () => {
+  fetchCurrentWorkspace: async (): Promise<Workspace | null> => {
+    set({ isResolvingWorkspace: true });
     try {
       const response = await workspaceService.getCurrentWorkspace();
-      if (response.data) {
+      if (response && response.data) {
         const d = response.data;
+        const ws: Workspace = {
+          id: d.workspace_id,
+          public_id: d.public_id || undefined,
+          name: d.name,
+          slug: d.slug,
+          status: d.status,
+          provisioning_status: 'READY',
+          updated_at: new Date().toISOString(),
+        };
         set({
-          currentWorkspace: {
-            id: d.workspace_id,
-            public_id: d.public_id || undefined,
-            name: d.name,
-            slug: d.slug,
-            status: d.status,
-            provisioning_status: 'READY',
-            updated_at: new Date().toISOString(),
-          },
+          currentWorkspace: ws,
+          isResolvingWorkspace: false,
         });
+        return ws;
+      } else {
+        set({
+          currentWorkspace: null,
+          isResolvingWorkspace: false,
+        });
+        return null;
       }
     } catch (error) {
       console.warn('Failed to fetch current workspace', error);
+      set({
+        currentWorkspace: null,
+        isResolvingWorkspace: false,
+      });
+      return null;
     }
+  },
+
+  resetWorkspaceResolution: () => {
+    set({
+      currentWorkspace: null,
+      isResolvingWorkspace: false,
+    });
   },
 
   fetchUserWorkspaces: async () => {

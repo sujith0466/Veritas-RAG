@@ -1,4 +1,5 @@
 import { useAuthStore, selectUser, selectToken, selectAuthStatus, selectIsAuthenticated } from '@/stores/authStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { authService } from '@/services/auth/authService'
 import type { LoginFormData, RegisterFormData } from '@/utils/validators'
 
@@ -17,9 +18,18 @@ export function useAuth() {
     try {
       // The profile will be fetched manually using the token via interceptor
       const profile = await authService.fetchBackendProfile()
+
+      // WS-A7: Resolve workspace context authoritatively
+      if (profile.tenant_id) {
+        await useWorkspaceStore.getState().fetchCurrentWorkspace()
+      } else {
+        useWorkspaceStore.getState().resetWorkspaceResolution()
+      }
+
       useAuthStore.getState().setAuth(profile, tokenStr)
     } catch (error) {
       useAuthStore.getState().clearAuth()
+      useWorkspaceStore.getState().resetWorkspaceResolution()
       throw error
     }
   }
@@ -31,6 +41,7 @@ export function useAuth() {
   const logout = async () => {
     await authService.logout()
     useAuthStore.getState().clearAuth()
+    useWorkspaceStore.getState().resetWorkspaceResolution()
   }
 
   return {

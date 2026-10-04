@@ -40,12 +40,15 @@ const CreateWorkspace = lazyRetry(() => import('@/pages/workspace/CreateWorkspac
 const EditWorkspace = lazyRetry(() => import('@/pages/workspace/EditWorkspace').then(m => ({ default: m.EditWorkspace })), 'EditWorkspace')
 const AcceptInvitationPage = lazyRetry(() => import('@/pages/workspace/AcceptInvitationPage').then(m => ({ default: m.AcceptInvitationPage })), 'AcceptInvitationPage')
 const WorkspaceMembersPage = lazyRetry(() => import('@/pages/workspace/WorkspaceMembersPage').then(m => ({ default: m.WorkspaceMembersPage })), 'WorkspaceMembersPage')
+const WorkspaceOnboardingPage = lazyRetry(() => import('@/pages/onboarding/WorkspaceOnboardingPage').then(m => ({ default: m.WorkspaceOnboardingPage })), 'WorkspaceOnboardingPage')
 
 const AuditLogsPage = lazyRetry(() => import('@/pages/admin').then(m => ({ default: m.AuditLogsPage })), 'AuditLogsPage')
 const QuotaBillingPage = lazyRetry(() => import('@/pages/admin').then(m => ({ default: m.QuotaBillingPage })), 'QuotaBillingPage')
 const PlatformAdminPage = lazyRetry(() => import('@/pages/admin').then(m => ({ default: m.PlatformAdminPage })), 'PlatformAdminPage')
 
 import { useAuthStore } from '@/stores/authStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { getSafeRedirectUrl } from '@/utils/redirect'
 import { AnimatePresence } from 'framer-motion'
 import { MarketingThemeProvider } from '@/providers/MarketingThemeProvider'
 
@@ -55,11 +58,22 @@ import { BackendUnavailableBanner } from '@/components/auth'
 
 // ─── Route Guards ─────────────────────────────────────────────────────────────
 
-function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
+export function ProtectedRoute({
+  children,
+  adminOnly = false,
+  requireWorkspace = true,
+}: {
+  children: React.ReactNode
+  adminOnly?: boolean
+  requireWorkspace?: boolean
+}) {
+  const location = useLocation()
   const status = useAuthStore((s) => s.status)
   const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
   const user = useAuthStore((s) => s.user)
   const error = useAuthStore((s) => s.error)
+  const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
+  const isResolvingWorkspace = useWorkspaceStore((s) => s.isResolvingWorkspace)
 
   if (status === 'ERROR') {
     if (error?.code === 'BACKEND_UNAVAILABLE') {
@@ -69,14 +83,26 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
     return <Navigate to="/auth/login" replace />
   }
 
-  if (status === 'LOADING') {
-    return null
+  // 1. Session / authentication / workspace still resolving -> render loading state
+  if (status === 'LOADING' || isResolvingWorkspace) {
+    return <SuspenseFallback />
   }
 
+  // 2. Unauthenticated -> redirect to login preserving safe redirect destination
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" replace />
+    const rawRedirect = location.pathname + location.search
+    const safeRedirect = getSafeRedirectUrl(rawRedirect, '/dashboard')
+    const query = safeRedirect && safeRedirect !== '/dashboard' ? `?redirect=${encodeURIComponent(safeRedirect)}` : ''
+    return <Navigate to={`/auth/login${query}`} replace />
   }
 
+  // 3. Authenticated but NO active workspace context -> route to onboarding bridge
+  const hasActiveWorkspace = !!(currentWorkspace?.id || user?.tenant_id)
+  if (requireWorkspace && !hasActiveWorkspace) {
+    return <Navigate to="/onboarding" replace />
+  }
+
+  // 4. Role check for adminOnly routes
   const userRole = String(user?.role || '').trim().toLowerCase()
   if (adminOnly && !['admin', 'owner', 'platform_admin'].includes(userRole)) {
     return <Navigate to="/dashboard" replace />
@@ -85,15 +111,48 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   return <>{children}</>
 }
 
-function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+export function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+  const [searchParams] = useSearchParams()
   const status = useAuthStore((s) => s.status)
   const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
+  const user = useAuthStore((s) => s.user)
+  const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
+  const isResolvingWorkspace = useWorkspaceStore((s) => s.isResolvingWorkspace)
 
-  if (status === 'LOADING') {
-    return null
+  if (status === 'LOADING' || isResolvingWorkspace) {
+    return <SuspenseFallback />
   }
 
   if (isAuthenticated) {
+    const hasActiveWorkspace = !!(currentWorkspace?.id || user?.tenant_id)
+    if (!hasActiveWorkspace) {
+      return <Navigate to="/onboarding" replace />
+    }
+    const safeRedirect = getSafeRedirectUrl(searchParams.get('redirect'), '/dashboard')
+    return <Navigate to={safeRedirect} replace />
+  }
+
+  return <>{children}</>
+}
+
+export function OnboardingRoute({ children }: { children: React.ReactNode }) {
+  const status = useAuthStore((s) => s.status)
+  const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
+  const user = useAuthStore((s) => s.user)
+  const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
+  const isResolvingWorkspace = useWorkspaceStore((s) => s.isResolvingWorkspace)
+
+  if (status === 'LOADING' || isResolvingWorkspace) {
+    return <SuspenseFallback />
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/login?redirect=/onboarding" replace />
+  }
+
+  // If user already has an active workspace established, bridge to dashboard
+  const hasActiveWorkspace = !!(currentWorkspace?.id || user?.tenant_id)
+  if (hasActiveWorkspace) {
     return <Navigate to="/dashboard" replace />
   }
 
@@ -158,6 +217,22 @@ export const router = createBrowserRouter([
         ],
       },
       {
+        path: '/onboarding',
+        element: (
+          <OnboardingRoute>
+            <WorkspaceOnboardingPage />
+          </OnboardingRoute>
+        ),
+      },
+      {
+        path: '/workspaces/new',
+        element: (
+          <ProtectedRoute requireWorkspace={false}>
+            <CreateWorkspace />
+          </ProtectedRoute>
+        ),
+      },
+      {
         element: (
           <ProtectedRoute>
             <PostAuthenticationRouteResolver />
@@ -210,7 +285,6 @@ export const router = createBrowserRouter([
               },
 
               // Workspace Management
-              { path: 'workspaces/new', element: <CreateWorkspace /> },
               { path: 'w/:slug/edit', element: <EditWorkspace /> },
               { path: 'workspaces/:workspaceId/members', element: <WorkspaceMembersPage /> },
               { path: 'w/:workspaceId/members', element: <WorkspaceMembersPage /> },

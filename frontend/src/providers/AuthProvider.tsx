@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { AuthContext } from '@/contexts/AuthContext'
 import { useAuthStore } from '@/stores/authStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { authService } from '@/services/auth/authService'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -38,11 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // We have a token in memory, sync with backend
         const userContext = await authService.fetchBackendProfile()
 
+        // WS-A7: Server-authoritative workspace context resolution
+        if (userContext.tenant_id) {
+          await useWorkspaceStore.getState().fetchCurrentWorkspace()
+        } else {
+          useWorkspaceStore.getState().resetWorkspaceResolution()
+        }
+
         if (mounted && currentToken) {
           setAuth(userContext, currentToken)
         }
       } catch (error) {
         if (mounted) {
+          useWorkspaceStore.getState().resetWorkspaceResolution()
           if (token) {
             setErrorAuth(token, {
               code: 'BACKEND_UNAVAILABLE',
@@ -63,7 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const channel = new BroadcastChannel('auth_sync')
     channel.onmessage = (event) => {
       if (event.data?.type === 'LOGOUT') {
-        if (mounted) clearAuth()
+        if (mounted) {
+          clearAuth()
+          useWorkspaceStore.getState().resetWorkspaceResolution()
+        }
       }
     }
 

@@ -1,9 +1,10 @@
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, Navigate } from 'react-router-dom'
 import { dashboardService } from '@/services/dashboardService'
 import { userService } from '@/services/userService'
 import { useAuthStore } from '@/stores/authStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { PageTransition } from '@/components/layouts'
 import { Shield, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/common/Button'
@@ -19,6 +20,15 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
 
   const resolveWorkspaceState = React.useCallback(async () => {
     const currentUser = useAuthStore.getState().user
+    const currentWs = useWorkspaceStore.getState().currentWorkspace
+
+    // WS-A7: If user has no active workspace, do not query workspace services
+    if (!currentUser?.tenant_id && !currentWs) {
+      setIsWorkspaceEmpty(null)
+      setIsResolved(true)
+      return
+    }
+
     // If the user already completed onboarding, skip all checks
     if (currentUser?.workspace_settings?.onboarding_completed) {
       setIsWorkspaceEmpty(false)
@@ -68,6 +78,12 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
         </div>
       </div>
     )
+  }
+
+  // WS-A7: Explicit redirect to onboarding when user has no active workspace
+  const currentWs = useWorkspaceStore.getState().currentWorkspace
+  if (!user?.tenant_id && !currentWs) {
+    return <Navigate to="/onboarding" replace />
   }
 
   if (error) {

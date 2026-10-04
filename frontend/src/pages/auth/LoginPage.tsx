@@ -1,14 +1,18 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { RoleSelector, AIAssistant, LoginForm, WorkspaceLoader, type AIAssistantState } from '@/components/auth'
 import { ArrowLeft } from 'lucide-react'
+import { useAuthStore } from '@/stores/authStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { getSafeRedirectUrl } from '@/utils/redirect'
 
 export function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<'admin' | 'viewer' | null>(null)
   const [aiState, setAiState] = useState<AIAssistantState>('idle')
   const [isSuccess, setIsSuccess] = useState(false)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const handleFocusChange = (field: 'email' | 'password' | 'password_visible' | 'idle') => {
     if (isSuccess || aiState === 'loading' || aiState === 'error') return
@@ -31,7 +35,16 @@ export function LoginPage() {
   }
 
   const handleLoaderComplete = () => {
-    navigate('/dashboard')
+    const user = useAuthStore.getState().user
+    const currentWorkspace = useWorkspaceStore.getState().currentWorkspace
+    const hasWorkspace = !!(user?.tenant_id || user?.workspace_id || currentWorkspace)
+
+    if (!hasWorkspace) {
+      navigate('/onboarding', { replace: true })
+    } else {
+      const redirectTarget = getSafeRedirectUrl(searchParams.get('redirect'), '/dashboard')
+      navigate(redirectTarget, { replace: true })
+    }
   }
 
   return (
