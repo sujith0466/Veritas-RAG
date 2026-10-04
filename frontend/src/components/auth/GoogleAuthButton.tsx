@@ -15,30 +15,54 @@ export function GoogleAuthButton({
   joinCode,
   invitationToken,
 }: GoogleAuthButtonProps) {
-  const handleClick = () => {
-    const params = new URLSearchParams()
-    if (intentId) params.set('intent_id', intentId)
-    if (workspaceId) params.set('workspace_id', workspaceId)
-    if (joinCode) params.set('join_code', joinCode)
-    if (invitationToken) params.set('invitation_token', invitationToken)
+  const handleClick = async () => {
+    let effectiveIntentId = intentId
 
-    // Fallback to sessionStorage if intent was recorded during onboarding flow
-    if (!intentId && !workspaceId && !invitationToken) {
-      try {
-        const storedIntent = sessionStorage.getItem('join_intent')
-        if (storedIntent) {
-          const parsed = JSON.parse(storedIntent)
-          if (parsed.intent_id) params.set('intent_id', parsed.intent_id)
-          if (parsed.workspace_id) params.set('workspace_id', parsed.workspace_id)
-          if (parsed.join_code) params.set('join_code', parsed.join_code)
-          if (parsed.invitation_token) params.set('invitation_token', parsed.invitation_token)
+    if (!effectiveIntentId) {
+      let targetWorkspaceId = workspaceId
+      let targetJoinCode = joinCode
+      let targetInvitationToken = invitationToken
+
+      if (!targetWorkspaceId && !targetInvitationToken) {
+        try {
+          const storedIntent = sessionStorage.getItem('join_intent')
+          if (storedIntent) {
+            const parsed = JSON.parse(storedIntent)
+            if (parsed.intent_id) effectiveIntentId = parsed.intent_id
+            if (parsed.workspace_id) targetWorkspaceId = parsed.workspace_id
+            if (parsed.join_code) targetJoinCode = parsed.join_code
+            if (parsed.invitation_token) targetInvitationToken = parsed.invitation_token
+          }
+        } catch {
+          // Ignore sessionStorage parse failure
         }
-      } catch {
-        // Ignore sessionStorage parse failure
+      }
+
+      // If credentials exist but no intent_id, create intent server-side first
+      if (!effectiveIntentId && (targetWorkspaceId || targetJoinCode || targetInvitationToken)) {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ''}/api/v1/auth/join-intent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              workspace_id: targetWorkspaceId || undefined,
+              join_code: targetJoinCode || undefined,
+              invitation_token: targetInvitationToken || undefined,
+            }),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data?.data?.intent_id) {
+              effectiveIntentId = data.data.intent_id
+            }
+          }
+        } catch {
+          // Fall back to clean login without intent if creation fails
+        }
       }
     }
 
-    const query = params.toString() ? `?${params.toString()}` : ''
+    const query = effectiveIntentId ? `?intent_id=${encodeURIComponent(effectiveIntentId)}` : ''
     window.location.href = `${import.meta.env.VITE_API_BASE_URL ?? ''}/api/v1/auth/sso/login/google${query}`
   }
 

@@ -33,6 +33,27 @@ class SSOProvider(Protocol):
         ...
 
 
+LUA_ATOMIC_CONSUME = """
+local val = redis.call('GET', KEYS[1])
+if val then
+    redis.call('DEL', KEYS[1])
+end
+return val
+"""
+
+
+async def atomic_consume_state(redis_client: Any, key: str) -> str | None:
+    """Atomically consumes and deletes a key from Redis.
+
+    Guarantees that concurrent callback requests cannot both consume the same state,
+    preventing TOCTOU replay vulnerabilities.
+    """
+    try:
+        return await redis_client.getdel(key)
+    except Exception:
+        return await redis_client.eval(LUA_ATOMIC_CONSUME, 1, key)
+
+
 class GoogleOIDCProvider:
     """Google OpenID Connect integration."""
 
@@ -126,12 +147,10 @@ class GoogleOIDCProvider:
         if not self.redis:
             raise AuthenticationException("Redis is required for OIDC state verification.")
 
-        # Verify state and get PKCE verifier
-        session_data_json = await self.redis.get(f"oidc:state:{state}")
+        # Atomically verify and consume single-use state
+        session_data_json = await atomic_consume_state(self.redis, f"oidc:state:{state}")
         if not session_data_json:
             raise AuthenticationException("Invalid or expired state parameter.")
-
-        await self.redis.delete(f"oidc:state:{state}")
 
         session_data = json.loads(session_data_json)
         nonce = session_data["nonce"]

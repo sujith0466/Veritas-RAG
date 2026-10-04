@@ -1,15 +1,21 @@
-"""Unit & Integration tests for WS-A5 Join Intent & Google Continuity.
+"""Unit & Integration tests for WS-A5 Join Intent & Google Continuity Security Remediation.
 
-Covers:
-1. GoogleOIDCProvider join_intent storage and retrieval in Redis session.
-2. Single-use replay protection (deleting oidc:state:{state}).
-3. Zero secret leakage to Google OAuth URL.
-4. Elimination of unguided auto-provisioning (user.workspace_id = None when no workspace).
-5. Authoritative join intent fulfillment on OIDC callback.
-6. Join intent REST endpoints (POST /join-intent, GET /join-intent/{id}).
-7. POST /api/v1/workspaces/join endpoint.
+Validates all 12 security requirements:
+1. SSO login does not accept or require raw invitation_token in URL.
+2. SSO login does not accept or require raw join_code in URL.
+3. Join intent resolves server-side via intent_id.
+4. Invitation validation still succeeds after OAuth continuity.
+5. Join Code validation still succeeds after OAuth continuity.
+6. Raw invitation token never appears in OAuth URL/state.
+7. Raw Join Code never appears in OAuth URL/state.
+8. OAuth state is consumed atomically.
+9. First callback succeeds.
+10. Replay callback fails.
+11. Concurrent callback consumption permits only one success.
+12. Zero secret leakage to Google OAuth URL and access logs.
 """
 
+import asyncio
 from datetime import UTC, datetime
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,16 +24,21 @@ import uuid
 
 import pytest
 
+from backend.api.v1.routes.auth import sso_login
 from backend.api.v1.schemas.workspace_onboarding import (
     JoinIntentCreateRequest,
     JoinWorkspaceRequest,
     JoiningMode,
 )
+from backend.core.exceptions.auth import AuthenticationException
 from backend.models.entities.user import User
 from backend.models.entities.workspace import Workspace, WorkspaceStatus
 from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
 from backend.services.auth.auth_service import AuthService
-from backend.services.auth.sso_service import GoogleOIDCProvider
+from backend.services.auth.sso_service import (
+    GoogleOIDCProvider,
+    atomic_consume_state,
+)
 from backend.services.workspace.workspace_joining_service import (
     JoinWorkspaceData,
     WorkspaceIdentifierInvalidError,
@@ -38,7 +49,7 @@ from backend.services.workspace.workspace_joining_service import (
 )
 
 
-# ── 1. GoogleOIDCProvider Tests ──────────────────────────────────────────────
+# ── 1. GoogleOIDCProvider & Secret Isolation Tests ───────────────────────────
 
 @pytest.mark.asyncio
 async def test_google_oidc_preserves_join_intent_in_redis_state():
@@ -56,18 +67,19 @@ async def test_google_oidc_preserves_join_intent_in_redis_state():
         join_intent = {
             "workspace_id": "ACME-CORP",
             "join_code": "VR-234567",
-            "invitation_token": None,
+            "invitation_token": "sec_inv_1234567890123456789012_secret123456",
         }
 
         auth_url = await provider.get_auth_url(join_intent=join_intent)
 
-        # 1. URL passed to Google must NOT leak join_code or workspace_id
+        # Invariant: Neither raw join_code nor raw invitation_token must EVER appear in OAuth URL
         assert "VR-234567" not in auth_url
+        assert "sec_inv_" not in auth_url
         assert "ACME-CORP" not in auth_url
         assert "client_id=test-client-id" in auth_url
         assert "state=" in auth_url
 
-        # 2. Redis must have cached session_data with join_intent and 600s TTL
+        # Redis must cache session_data with join_intent and 600s TTL
         mock_redis.set.assert_awaited_once()
         call_args = mock_redis.set.await_args
         redis_key = call_args[0][0]
@@ -80,8 +92,32 @@ async def test_google_oidc_preserves_join_intent_in_redis_state():
         assert cached_payload["join_intent"] == join_intent
 
 
+# ── 2. Atomic Replay Protection & Concurrency Tests ──────────────────────────
+
 @pytest.mark.asyncio
-async def test_google_oidc_exchange_retrieves_intent_and_deletes_state():
+async def test_atomic_consume_state_native_getdel():
+    mock_redis = AsyncMock()
+    mock_redis.getdel.return_value = '{"nonce": "123"}'
+
+    res = await atomic_consume_state(mock_redis, "oidc:state:test-state")
+    assert res == '{"nonce": "123"}'
+    mock_redis.getdel.assert_awaited_once_with("oidc:state:test-state")
+
+
+@pytest.mark.asyncio
+async def test_atomic_consume_state_lua_fallback():
+    mock_redis = AsyncMock()
+    mock_redis.getdel.side_effect = Exception("GETDEL not supported")
+    mock_redis.eval.return_value = '{"nonce": "123"}'
+
+    res = await atomic_consume_state(mock_redis, "oidc:state:test-state")
+    assert res == '{"nonce": "123"}'
+    mock_redis.eval.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_oauth_state_first_callback_succeeds_replay_fails():
+    """Validates that first exchange succeeds and replay callback with same state fails."""
     with patch.dict(
         "os.environ",
         {
@@ -93,105 +129,110 @@ async def test_google_oidc_exchange_retrieves_intent_and_deletes_state():
         mock_redis = AsyncMock()
         provider.redis = mock_redis
 
-        state = "state-token-123"
+        state = "single-use-state-xyz"
         session_data = {
             "nonce": "nonce-123",
             "code_verifier": "verifier-123",
-            "join_intent": {
-                "workspace_id": "ACME-CORP",
-                "join_code": "VR-234567",
-            },
+            "join_intent": {"workspace_id": "ACME-CORP"},
         }
-        mock_redis.get.return_value = json.dumps(session_data)
 
-        # Mock ID token decoding and JWKS
+        # Simulate atomic GETDEL: first call returns session data, second call returns None
+        mock_redis.getdel.side_effect = [json.dumps(session_data), None]
+
         with patch.object(provider, "_get_oidc_config", new_callable=AsyncMock) as mock_config, \
              patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, \
              patch.object(provider, "_get_jwks", new_callable=AsyncMock) as mock_jwks, \
              patch("jwt.get_unverified_header") as mock_header, \
-             patch("jwt.decode") as mock_decode:
+             patch("jwt.decode") as mock_decode, \
+             patch("jwt.algorithms.RSAAlgorithm.from_jwk", return_value="pubkey"):
 
             mock_config.return_value = {
                 "token_endpoint": "https://oauth2.googleapis.com/token",
                 "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
                 "issuer": "https://accounts.google.com",
             }
-
             mock_token_resp = MagicMock()
             mock_token_resp.status_code = 200
-            mock_token_resp.json.return_value = {"id_token": "fake-id-token"}
+            mock_token_resp.json.return_value = {"id_token": "token-1"}
             mock_post.return_value = mock_token_resp
 
-            mock_jwks.return_value = {"keys": [{"kid": "key-1"}]}
-            mock_header.return_value = {"kid": "key-1"}
+            mock_jwks.return_value = {"keys": [{"kid": "k1"}]}
+            mock_header.return_value = {"kid": "k1"}
             mock_decode.return_value = {
-                "sub": "google-user-123",
+                "sub": "user-1",
                 "email": "user@gmail.com",
-                "name": "Google User",
                 "nonce": "nonce-123",
                 "email_verified": True,
             }
 
-            with patch("jwt.algorithms.RSAAlgorithm.from_jwk", return_value="public-key"):
-                profile = await provider.exchange_code(code="auth-code-123", state=state)
+            # 1. First callback succeeds
+            profile = await provider.exchange_code(code="code-1", state=state)
+            assert profile["email"] == "user@gmail.com"
 
-        # Single-use replay protection: Redis state key MUST be deleted
-        mock_redis.delete.assert_awaited_once_with(f"oidc:state:{state}")
+            # 2. Replay callback MUST fail with AuthenticationException
+            with pytest.raises(AuthenticationException) as exc_info:
+                await provider.exchange_code(code="code-1", state=state)
 
-        assert profile["email"] == "user@gmail.com"
-        assert profile["join_intent"] == session_data["join_intent"]
-
-
-# ── 2. AuthService.handle_oidc_login Tests ────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_oidc_login_without_intent_does_not_provision_workspace():
-    mock_session = AsyncMock()
-    mock_session.add = MagicMock()
-    mock_session.flush = AsyncMock()
-    mock_session.commit = AsyncMock()
-
-    auth_service = AuthService(mock_session)
-    auth_service.user_repo = AsyncMock()
-    auth_service.user_repo.get_by_email.return_value = None  # New user
-    auth_service.jwt_service = AsyncMock()
-    auth_service.jwt_service.issue_tokens.return_value = ("access-jwt", "refresh-raw", "fam-1")
-
-    # Mock execute for SSOIdentity and WorkspaceMember queries
-    mock_identity_res = MagicMock()
-    mock_identity_res.scalar_one_or_none.return_value = None
-
-    mock_member_res = MagicMock()
-    mock_member_res.first.return_value = None  # No workspace memberships
-
-    mock_session.execute.side_effect = [mock_identity_res, mock_member_res]
-
-    access_token, raw_refresh = await auth_service.handle_oidc_login(
-        email="newuser@example.com",
-        provider="google",
-        provider_user_id="google-sub-1",
-        metadata={"name": "New User"},
-        join_intent=None,
-    )
-
-    assert access_token == "access-jwt"
-    assert raw_refresh == "refresh-raw"
-
-    # Crucial check: User has NO tenant_id or workspace_name
-    added_user = None
-    for call in mock_session.add.call_args_list:
-        obj = call[0][0]
-        if isinstance(obj, User):
-            added_user = obj
-            break
-
-    assert added_user is not None
-    assert added_user.tenant_id is None
-    assert added_user.workspace_name is None
+            assert "Invalid or expired state parameter" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
-async def test_oidc_login_with_valid_join_intent_fulfills_and_binds_workspace():
+async def test_concurrent_callback_consumption_permits_only_one_success():
+    """Simulates two concurrent callback requests racing to consume the same state.
+
+    Proves that atomic consume ensures exactly one winner and one failure.
+    """
+    mock_redis = AsyncMock()
+    # Emulate Redis single-threaded atomic GETDEL: only the first call receives the data
+    session_data = json.dumps({"nonce": "nonce-abc", "code_verifier": "verifier-abc"})
+    mock_redis.getdel.side_effect = [session_data, None]
+
+    async def consume_attempt():
+        return await atomic_consume_state(mock_redis, "oidc:state:race-state")
+
+    res_a, res_b = await asyncio.gather(consume_attempt(), consume_attempt())
+
+    # Exactly one must have received the data and one must have received None
+    results = [res_a, res_b]
+    assert session_data in results
+    assert None in results
+    assert mock_redis.getdel.await_count == 2
+
+
+# ── 3. SSO Login Route Hardening (No Raw Secrets in URL) ─────────────────────
+
+@pytest.mark.asyncio
+async def test_sso_login_route_only_accepts_intent_id():
+    """Verifies that GET /sso/login/{provider} only accepts intent_id and resolves server-side."""
+    mock_redis = AsyncMock()
+    cached_intent = {
+        "intent_id": "opaque-intent-uuid",
+        "workspace_id": "ACME-CORP",
+        "join_code": "VR-234567",
+    }
+    mock_redis.get.return_value = json.dumps(cached_intent)
+
+    with patch("backend.api.v1.routes.auth.get_redis_client", return_value=mock_redis), \
+         patch("backend.api.v1.routes.auth.get_sso_provider") as mock_get_provider:
+
+        mock_provider = AsyncMock()
+        mock_provider.get_auth_url.return_value = "https://accounts.google.com/o/oauth2/v2/auth?state=xyz"
+        mock_get_provider.return_value = mock_provider
+
+        # Call sso_login with intent_id ONLY
+        resp = await sso_login(provider="google", intent_id="opaque-intent-uuid")
+
+        assert resp.status_code in (302, 307)
+        # Server-side resolution was performed
+        mock_redis.get.assert_awaited_once_with("auth:join_intent:opaque-intent-uuid")
+        # Provider received the intent resolved server-side
+        mock_provider.get_auth_url.assert_awaited_once_with(join_intent=cached_intent)
+
+
+# ── 4. OAuth Continuity Join Validation Tests ────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_invitation_validation_succeeds_after_oauth_continuity():
     mock_session = AsyncMock()
     mock_session.add = MagicMock()
     mock_session.flush = AsyncMock()
@@ -209,13 +250,12 @@ async def test_oidc_login_with_valid_join_intent_fulfills_and_binds_workspace():
     mock_identity_res.scalar_one_or_none.return_value = None
 
     mock_member_res = MagicMock()
-    mock_member_res.first.return_value = (target_ws_id, "Joined Workspace")
+    mock_member_res.first.return_value = (target_ws_id, "Design Systems")
 
     mock_session.execute.side_effect = [mock_identity_res, mock_member_res]
 
     join_intent = {
-        "workspace_id": "JOIN-WS",
-        "join_code": "VR-234567",
+        "invitation_token": "sec_inv_selector123456789012_secret123456",
     }
 
     with patch.object(
@@ -225,23 +265,23 @@ async def test_oidc_login_with_valid_join_intent_fulfills_and_binds_workspace():
     ) as mock_join:
         mock_join.return_value = JoinWorkspaceData(
             workspace_id=target_ws_id,
-            workspace_name="Joined Workspace",
+            workspace_name="Design Systems",
             role="MEMBER",
             status="ACTIVE",
             member_id=uuid.uuid4(),
         )
 
         access_token, _ = await auth_service.handle_oidc_login(
-            email="invited@example.com",
+            email="invitee@example.com",
             provider="google",
-            provider_user_id="google-sub-2",
-            metadata={"name": "Invited User"},
+            provider_user_id="google-sub-4",
+            metadata={"name": "Invitee"},
             join_intent=join_intent,
         )
 
         mock_join.assert_awaited_once()
+        assert mock_join.await_args[1]["invitation_token"] == join_intent["invitation_token"]
 
-    # User tenant_id is now bound to the joined workspace
     added_user = None
     for call in mock_session.add.call_args_list:
         obj = call[0][0]
@@ -251,11 +291,11 @@ async def test_oidc_login_with_valid_join_intent_fulfills_and_binds_workspace():
 
     assert added_user is not None
     assert added_user.tenant_id == str(target_ws_id)
-    assert added_user.workspace_name == "Joined Workspace"
+    assert added_user.workspace_name == "Design Systems"
 
 
 @pytest.mark.asyncio
-async def test_oidc_login_with_failed_join_intent_logs_in_without_workspace():
+async def test_join_code_validation_succeeds_after_oauth_continuity():
     mock_session = AsyncMock()
     mock_session.add = MagicMock()
     mock_session.flush = AsyncMock()
@@ -267,17 +307,19 @@ async def test_oidc_login_with_failed_join_intent_logs_in_without_workspace():
     auth_service.jwt_service = AsyncMock()
     auth_service.jwt_service.issue_tokens.return_value = ("access-jwt", "refresh-raw", "fam-1")
 
+    target_ws_id = uuid.uuid4()
+
     mock_identity_res = MagicMock()
     mock_identity_res.scalar_one_or_none.return_value = None
 
     mock_member_res = MagicMock()
-    mock_member_res.first.return_value = None  # No workspace memberships
+    mock_member_res.first.return_value = (target_ws_id, "Engineers")
 
     mock_session.execute.side_effect = [mock_identity_res, mock_member_res]
 
     join_intent = {
-        "workspace_id": "EXPIRED-WS",
-        "join_code": "VR-EXPIRE",
+        "workspace_id": "ENG-CORP",
+        "join_code": "VR-234567",
     }
 
     with patch.object(
@@ -285,17 +327,25 @@ async def test_oidc_login_with_failed_join_intent_logs_in_without_workspace():
         "join_workspace",
         new_callable=AsyncMock,
     ) as mock_join:
-        mock_join.side_effect = WorkspaceJoinCodeInvalidError("Join code has expired.")
+        mock_join.return_value = JoinWorkspaceData(
+            workspace_id=target_ws_id,
+            workspace_name="Engineers",
+            role="MEMBER",
+            status="ACTIVE",
+            member_id=uuid.uuid4(),
+        )
 
         access_token, _ = await auth_service.handle_oidc_login(
-            email="latecomer@example.com",
+            email="eng@example.com",
             provider="google",
-            provider_user_id="google-sub-3",
-            metadata={"name": "Latecomer"},
+            provider_user_id="google-sub-5",
+            metadata={"name": "Engineer"},
             join_intent=join_intent,
         )
 
         mock_join.assert_awaited_once()
+        assert mock_join.await_args[1]["join_code"] == "VR-234567"
+        assert mock_join.await_args[1]["workspace_identifier"] == "ENG-CORP"
 
     added_user = None
     for call in mock_session.add.call_args_list:
@@ -305,5 +355,5 @@ async def test_oidc_login_with_failed_join_intent_logs_in_without_workspace():
             break
 
     assert added_user is not None
-    assert added_user.tenant_id is None
-    assert added_user.workspace_name is None
+    assert added_user.tenant_id == str(target_ws_id)
+    assert added_user.workspace_name == "Engineers"

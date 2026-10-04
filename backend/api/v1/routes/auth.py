@@ -577,12 +577,9 @@ async def get_join_intent_preview(
 )
 async def sso_login(
     provider: str,
-    intent_id: str | None = Query(None, description="Pre-created join intent ID"),
-    workspace_id: str | None = Query(None, description="Target Workspace ID or Slug"),
-    join_code: str | None = Query(None, description="Optional Join Code"),
-    invitation_token: str | None = Query(None, description="Optional Invitation Token"),
+    intent_id: str | None = Query(None, description="Pre-created server-side join intent ID"),
 ) -> RedirectResponse:
-    """Redirect to SSO provider's authorization URL, preserving join intent."""
+    """Redirect to SSO provider's authorization URL, preserving join intent via opaque reference only."""
     join_intent = None
 
     if intent_id:
@@ -591,13 +588,6 @@ async def sso_login(
             raw_intent = await redis.get(f"auth:join_intent:{intent_id}")
             if raw_intent:
                 join_intent = json.loads(raw_intent)
-
-    if not join_intent and (workspace_id or join_code or invitation_token):
-        join_intent = {
-            "workspace_id": workspace_id,
-            "join_code": join_code,
-            "invitation_token": invitation_token,
-        }
 
     sso_service = get_sso_provider(provider)
     auth_url = await sso_service.get_auth_url(join_intent=join_intent)
@@ -624,11 +614,12 @@ async def sso_callback(
         profile = await sso_service.exchange_code(code, state)
         join_intent = profile.get("join_intent")
 
-        # Replay protection: purge pre-auth intent cache if intent_id was used
+        # Replay protection: atomically purge pre-auth intent cache if intent_id was used
         if join_intent and isinstance(join_intent, dict) and join_intent.get("intent_id"):
             redis = get_redis_client()
             if redis:
-                await redis.delete(f"auth:join_intent:{join_intent['intent_id']}")
+                from backend.services.auth.sso_service import atomic_consume_state
+                await atomic_consume_state(redis, f"auth:join_intent:{join_intent['intent_id']}")
 
         auth_service = AuthService(db)
         user_agent = request.headers.get("user-agent")
