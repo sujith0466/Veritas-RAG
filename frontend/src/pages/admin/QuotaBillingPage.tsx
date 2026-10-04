@@ -1,50 +1,138 @@
-﻿import { useState, useEffect } from 'react'
-import { Zap, Server, AlertTriangle, Activity } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Zap, Server, AlertTriangle, Activity, Database, Users, Settings2, Loader2, CheckCircle2 } from 'lucide-react'
 import { adminService, TenantQuota, WorkspaceUsage } from '@/services/adminService'
+import { workspaceSettingsService, WorkspaceSettingsData } from '@/services/workspaceSettingsService'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/utils/cn'
+import { Button } from '@/components/common/Button'
+import { Input } from '@/components/common/Input'
+import { Label } from '@/components/common/Label'
+import { useToast } from '@/hooks/useToast'
 
 export function QuotaBillingPage() {
+  const { toast } = useToast()
+  const user = useAuthStore(s => s.user)
   const [quota, setQuota] = useState<TenantQuota | null>(null)
   const [usage, setUsage] = useState<WorkspaceUsage | null>(null)
+  const [settingsData, setSettingsData] = useState<WorkspaceSettingsData | null>(null)
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const user = useAuthStore(s => s.user)
-  const workspaceId = user?.workspace_id || (user as any)?.workspace_id || user?.tenant_id || user?.workspace_name
+  const [savingLimits, setSavingLimits] = useState(false)
+  const [isEditingLimits, setIsEditingLimits] = useState(false)
+
+  // Editable limits form state
+  const [limitForm, setLimitForm] = useState({
+    monthly_token_budget: 5000000,
+    monthly_query_budget: 50000,
+    max_storage_gb: 100,
+    max_members: 50,
+  })
+
+  // Fixed workspace ID resolution: strictly use workspace_id or tenant_id, never fallback to name
+  const workspaceId = user?.workspace_id || user?.tenant_id || ''
+
+  const userRole = String(user?.role || '').trim().toLowerCase()
+  const canEditLimits = ['owner', 'platform_admin'].includes(userRole)
+
+  const loadData = async () => {
+    if (!workspaceId) {
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    try {
+      // 1. Fetch runtime telemetry usage & quota
+      try {
+        const usageData = await adminService.getWorkspaceUsage(workspaceId)
+        setUsage(usageData)
+        setQuota({
+          tenant_id: usageData.workspace_id,
+          monthly_token_limit: usageData.monthly_token_limit,
+          monthly_budget_usd: usageData.monthly_budget_usd,
+          warning_threshold_pct: usageData.warning_threshold_pct,
+          is_hard_enforced: usageData.is_hard_enforced,
+          remaining_tokens: usageData.remaining_tokens,
+          remaining_budget_usd: usageData.remaining_budget_usd,
+        })
+      } catch {
+        try {
+          const quotaData = await adminService.getQuota(workspaceId)
+          setQuota(quotaData)
+        } catch (qErr) {
+          console.warn('Could not load telemetry quota', qErr)
+        }
+      }
+
+      // 2. Fetch canonical workspace limits from /api/v1/workspaces/{id}/settings
+      try {
+        const res = await workspaceSettingsService.getSettings(workspaceId)
+        if (res?.data) {
+          setSettingsData(res.data)
+          setExpectedUpdatedAt(res.data.updated_at)
+          const l = res.data.settings?.limits || {}
+          setLimitForm({
+            monthly_token_budget: l.monthly_token_budget ?? 5000000,
+            monthly_query_budget: l.monthly_query_budget ?? 50000,
+            max_storage_gb: l.max_storage_gb ?? 100,
+            max_members: l.max_members ?? 50,
+          })
+        }
+      } catch (sErr) {
+        console.warn('Could not load canonical settings limits', sErr)
+      }
+    } catch (e) {
+      console.error('Failed to load governance data', e)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchQuotaAndUsage = async () => {
-      if (!workspaceId) {
-        setLoading(false)
+    loadData()
+  }, [workspaceId])
+
+  const handleSaveLimits = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!workspaceId || !expectedUpdatedAt) {
+      toast({ title: 'Error', message: 'Missing workspace context', type: 'error' })
+      return
+    }
+
+    setSavingLimits(true)
+    try {
+      const res = await workspaceSettingsService.patchSettings(
+        workspaceId,
+        expectedUpdatedAt,
+        {
+          limits: {
+            monthly_token_budget: Number(limitForm.monthly_token_budget),
+            monthly_query_budget: Number(limitForm.monthly_query_budget),
+            max_storage_gb: Number(limitForm.max_storage_gb),
+            max_members: Number(limitForm.max_members),
+          }
+        }
+      )
+
+      if (res?.data) {
+        setSettingsData(res.data)
+        setExpectedUpdatedAt(res.data.updated_at)
+        toast({ title: 'Success', message: 'Resource governance limits updated successfully', type: 'success' })
+        setIsEditingLimits(false)
+        await loadData()
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 409 || err?.status === 409) {
+        toast({ title: 'Conflict', message: 'Settings modified concurrently. Reloading latest limits...', type: 'error' })
+        await loadData()
         return
       }
-      setLoading(true)
-      try {
-        // Attempt fetching full workspace usage first
-        try {
-          const usageData = await adminService.getWorkspaceUsage(String(workspaceId))
-          setUsage(usageData)
-          setQuota({
-            tenant_id: usageData.workspace_id,
-            monthly_token_limit: usageData.monthly_token_limit,
-            monthly_budget_usd: usageData.monthly_budget_usd,
-            warning_threshold_pct: usageData.warning_threshold_pct,
-            is_hard_enforced: usageData.is_hard_enforced,
-            remaining_tokens: usageData.remaining_tokens,
-            remaining_budget_usd: usageData.remaining_budget_usd,
-          })
-        } catch {
-          // Fallback to legacy quota endpoint if needed
-          const data = await adminService.getQuota(String(workspaceId))
-          setQuota(data)
-        }
-      } catch (e) {
-        console.error('Failed to load quota/usage data', e)
-      } finally {
-        setLoading(false)
-      }
+      const msg = err?.response?.data?.detail || err.message || 'Failed to update governance limits'
+      toast({ title: 'Error', message: msg, type: 'error' })
+    } finally {
+      setSavingLimits(false)
     }
-    fetchQuotaAndUsage()
-  }, [workspaceId])
+  }
 
   if (loading) {
     return (
@@ -54,61 +142,146 @@ export function QuotaBillingPage() {
     )
   }
 
-  if (!quota) {
-    return (
-      <div className="p-12 flex flex-col items-center text-center bg-card border border-border rounded-lg">
-        <AlertTriangle className="h-8 w-8 text-destructive mb-4" />
-        <h3 className="font-medium text-lg">Unable to load quota data</h3>
-        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          Please check your connection and try again later.
-        </p>
-      </div>
-    )
-  }
-
-  const usedTokens = usage ? usage.used_tokens : (quota.monthly_token_limit - quota.remaining_tokens)
-  const usagePct = (usedTokens / Math.max(1, quota.monthly_token_limit)) * 100
-  const isWarning = usagePct >= quota.warning_threshold_pct * 100
+  const effectiveTokenLimit = settingsData?.settings?.limits?.monthly_token_budget || quota?.monthly_token_limit || 5000000
+  const effectiveQueryLimit = settingsData?.settings?.limits?.monthly_query_budget || 50000
+  const usedTokens = usage ? usage.used_tokens : (quota ? (quota.monthly_token_limit - quota.remaining_tokens) : 0)
+  const usedQueries = usage ? usage.used_queries : 0
+  const usagePct = (usedTokens / Math.max(1, effectiveTokenLimit)) * 100
+  const queryUsagePct = (usedQueries / Math.max(1, effectiveQueryLimit)) * 100
+  const isWarning = usagePct >= (quota?.warning_threshold_pct ? quota.warning_threshold_pct * 100 : 80)
   const isCritical = usagePct >= 95
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Quota & Billing</h2>
-        <p className="text-muted-foreground">
-          Manage workspace token limits, billing subscriptions, and usage analytics.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Resource & Token Governance</h2>
+          <p className="text-muted-foreground">
+            Manage compute budgets, token consumption ceilings, and workspace resource allocations.
+          </p>
+        </div>
+        {canEditLimits && (
+          <Button
+            variant={isEditingLimits ? 'outline' : 'default'}
+            size="sm"
+            onClick={() => setIsEditingLimits(!isEditingLimits)}
+            className="flex items-center gap-2"
+          >
+            <Settings2 className="h-4 w-4" />
+            {isEditingLimits ? 'Cancel Editing' : 'Adjust Quotas'}
+          </Button>
+        )}
       </div>
 
+      {/* Editable Limits Panel for Owner / Platform Admin */}
+      {isEditingLimits && canEditLimits && (
+        <form onSubmit={handleSaveLimits} className="bg-card border border-primary/30 p-6 rounded-lg space-y-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div>
+              <h3 className="font-semibold text-foreground text-sm">Configure Workspace Limits</h3>
+              <p className="text-xs text-muted-foreground">Persisted canonically via Workspace Settings (Category: limits).</p>
+            </div>
+            <span className="text-xs font-mono text-muted-foreground">
+              v{settingsData?.version || 1} ({expectedUpdatedAt ? expectedUpdatedAt.slice(0, 19) : ''})
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="monthly_token_budget" className="text-xs">Monthly Token Budget</Label>
+              <Input
+                id="monthly_token_budget"
+                type="number"
+                min="0"
+                step="100000"
+                value={limitForm.monthly_token_budget}
+                onChange={e => setLimitForm(prev => ({ ...prev, monthly_token_budget: parseInt(e.target.value, 10) || 0 }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="monthly_query_budget" className="text-xs">Monthly Query Budget</Label>
+              <Input
+                id="monthly_query_budget"
+                type="number"
+                min="0"
+                step="1000"
+                value={limitForm.monthly_query_budget}
+                onChange={e => setLimitForm(prev => ({ ...prev, monthly_query_budget: parseInt(e.target.value, 10) || 0 }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="max_storage_gb" className="text-xs">Storage Cap (GB)</Label>
+              <Input
+                id="max_storage_gb"
+                type="number"
+                min="1"
+                max="10000"
+                value={limitForm.max_storage_gb}
+                onChange={e => setLimitForm(prev => ({ ...prev, max_storage_gb: parseInt(e.target.value, 10) || 1 }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="max_members" className="text-xs">Team Members Limit</Label>
+              <Input
+                id="max_members"
+                type="number"
+                min="1"
+                max="1000"
+                value={limitForm.max_members}
+                onChange={e => setLimitForm(prev => ({ ...prev, max_members: parseInt(e.target.value, 10) || 1 }))}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-border">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsEditingLimits(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={savingLimits}>
+              {savingLimits && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save Quota Allocation
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* Main Resource Cards */}
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="bg-card border border-border rounded-lg p-6">
+        {/* Token Consumption */}
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-primary/10 rounded-md text-primary">
               <Zap className="h-5 w-5" />
             </div>
-            <h3 className="font-medium text-lg">Token Usage</h3>
+            <div>
+              <h3 className="font-semibold text-lg">Inference Token Consumption</h3>
+              <p className="text-xs text-muted-foreground">Monthly LLM tokens utilized across workspace sessions</p>
+            </div>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-end justify-between">
               <div>
-                <div className="text-3xl font-bold">
+                <div className="text-3xl font-bold tracking-tight">
                   {(usedTokens / 1000000).toFixed(2)}M
                 </div>
-                <div className="text-sm text-muted-foreground">Tokens used this month</div>
+                <div className="text-xs text-muted-foreground">Tokens consumed this billing period</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-medium">Limit: {(quota.monthly_token_limit / 1000000).toFixed(1)}M</div>
+                <div className="text-sm font-medium">Ceiling: {(effectiveTokenLimit / 1000000).toFixed(1)}M</div>
                 <div className={cn(
-                  "text-xs font-medium",
+                  "text-xs font-semibold",
                   isCritical ? "text-destructive" : isWarning ? "text-amber-500" : "text-emerald-500"
                 )}>
-                  {quota.remaining_tokens.toLocaleString()} remaining
+                  {Math.max(0, effectiveTokenLimit - usedTokens).toLocaleString()} tokens remaining
                 </div>
               </div>
             </div>
 
-            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+            <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
               <div
                 className={cn(
                   "h-full transition-all duration-1000 ease-out",
@@ -118,53 +291,89 @@ export function QuotaBillingPage() {
               />
             </div>
 
-            {usage && (
-              <div className="flex items-center gap-2 pt-2 text-xs text-muted-foreground">
-                <Activity className="h-3.5 w-3.5" />
-                <span>Total Queries processed: <strong>{usage.used_queries.toLocaleString()}</strong></span>
-              </div>
-            )}
-
             {isCritical && (
-              <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20 flex gap-2">
+              <div className="p-3 bg-destructive/10 text-destructive text-xs rounded-md border border-destructive/20 flex gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <p>Critical limit reached. Inference may be suspended soon.</p>
+                <p>Warning: Workspace inference token consumption has exceeded 95% of allocated capacity.</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-lg p-6">
+        {/* Query Consumption */}
+        <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-primary/10 rounded-md text-primary">
-              <Server className="h-5 w-5" />
+              <Activity className="h-5 w-5" />
             </div>
-            <h3 className="font-medium text-lg">Current Plan</h3>
+            <div>
+              <h3 className="font-semibold text-lg">RAG Queries Processed</h3>
+              <p className="text-xs text-muted-foreground">Retrieved grounded question answering operations</p>
+            </div>
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-end justify-between">
               <div>
-                <div className="text-3xl font-bold">Enterprise</div>
-                <div className="text-sm text-muted-foreground">Self-hosted license</div>
+                <div className="text-3xl font-bold tracking-tight">
+                  {usedQueries.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Queries executed this period</div>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold">${quota.monthly_budget_usd.toFixed(2)}</div>
-                <div className="text-xs text-muted-foreground">/ month</div>
+                <div className="text-sm font-medium">Limit: {effectiveQueryLimit.toLocaleString()}</div>
+                <div className="text-xs font-semibold text-emerald-500">
+                  {Math.max(0, effectiveQueryLimit - usedQueries).toLocaleString()} queries remaining
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2 text-sm pt-4 border-t border-border">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Hard enforcement</span>
-                <span className="font-medium">{quota.is_hard_enforced ? 'Enabled' : 'Disabled'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Warning threshold</span>
-                <span className="font-medium">{quota.warning_threshold_pct * 100}%</span>
-              </div>
+            <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-1000 ease-out"
+                style={{ width: `${Math.min(100, Math.max(0, queryUsagePct))}%` }}
+              />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Governance & Capacity Breakdown */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="bg-card border border-border rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Database className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Vector & Knowledge Storage</span>
+          </div>
+          <div className="text-2xl font-bold mt-1">
+            {settingsData?.settings?.limits?.max_storage_gb ?? 100} GB
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Tenant document index capacity</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Team Member Cap</span>
+          </div>
+          <div className="text-2xl font-bold mt-1">
+            {settingsData?.settings?.limits?.max_members ?? 50} Members
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Maximum active seats allocated</p>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Server className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Policy Enforcement</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <span className="text-sm font-semibold text-foreground">
+              {quota?.is_hard_enforced ? 'Hard Enforcement' : 'Soft Warning (Telemetry)'}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Automatic throttling on budget depletion</p>
         </div>
       </div>
     </div>

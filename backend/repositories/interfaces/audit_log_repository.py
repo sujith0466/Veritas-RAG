@@ -49,3 +49,17 @@ class IAuditLogRepository(ABC):
     ) -> Sequence[AuditLog]:
         """Fetch audit logs scoped to a specific workspace/tenant."""
         ...
+
+    @abstractmethod
+    async def search_logs(
+        self,
+        tenant_id: uuid.UUID,
+        query: str | None = None,
+        action: str | None = None,
+        start_date: Any = None,
+        end_date: Any = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> tuple[Sequence[AuditLog], int]:
+        """Search and filter audit logs with true count pagination."""
+        ...

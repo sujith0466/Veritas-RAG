@@ -12,6 +12,25 @@ export interface AuditLog {
   created_at: string
 }
 
+export interface AuditLogPagination {
+  page: number
+  size: number
+  total_elements: number
+  total_pages: number
+}
+
+export interface AuditLogResponse {
+  items: AuditLog[]
+  pagination: AuditLogPagination
+}
+
+export interface AuditLogFilters {
+  query?: string
+  action?: string
+  start_date?: string
+  end_date?: string
+}
+
 export interface PaginatedResponse<T> {
   data: T[]
   total: number
@@ -53,8 +72,17 @@ export interface WorkspaceSummary {
 
 export const adminService = {
   // F12.6 Audit Logs
-  getAuditLogs: async (page = 1, pageSize = 50): Promise<PaginatedResponse<AuditLog>> => {
-    return get<PaginatedResponse<AuditLog>>('/api/v1/audit-logs', { page, page_size: pageSize })
+  getAuditLogs: async (
+    page = 1,
+    pageSize = 50,
+    filters?: AuditLogFilters
+  ): Promise<AuditLogResponse> => {
+    const params: Record<string, any> = { page, page_size: pageSize }
+    if (filters?.query) params.query = filters.query
+    if (filters?.action) params.action = filters.action
+    if (filters?.start_date) params.start_date = filters.start_date
+    if (filters?.end_date) params.end_date = filters.end_date
+    return get<AuditLogResponse>('/api/v1/audit-logs', params)
   },
 
   // F12.5 Quota Management

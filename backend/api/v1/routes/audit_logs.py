@@ -1,12 +1,13 @@
-"""Audit Logs API Endpoints (F12.6)."""
-
+from datetime import datetime
+import math
 from typing import Annotated
+import uuid
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status, Request
+from fastapi import APIRouter, Depends, Query, Request, status
 
 from backend.api.v1.schemas.audit_log import AuditLogDTO
-from backend.api.v1.schemas.common import PaginatedResponse, ResponseMetadata
+from backend.api.v1.schemas.common import PaginatedResponse, PaginationMetadata, ResponseMetadata
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
 from backend.core.dependencies.database import get_audit_log_repository
@@ -29,25 +30,31 @@ async def list_audit_logs(
     repo: Annotated[IAuditLogRepository, Depends(get_audit_log_repository)],
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
+    query: str | None = Query(None, description="Search term across action, resource, or user"),
+    action: str | None = Query(None, description="Filter by action name"),
+    start_date: datetime | None = Query(None, description="Filter logs on or after timestamp"),
+    end_date: datetime | None = Query(None, description="Filter logs on or before timestamp"),
 ) -> PaginatedResponse[AuditLogDTO]:
-    """Retrieve audit logs for the authenticated user's workspace."""
-    # Ensure a tenant_id exists in the user context
+    """Retrieve audit logs for the authenticated user's workspace with true pagination and search."""
     tenant_id_str = auth.tenant_id
     if not tenant_id_str:
-        # Fallback or error if tenant_id is missing, but auth ensures it's present for workspace context
         raise ValueError("Tenant ID is required in the user context to fetch audit logs.")
 
     tenant_id = UUID(tenant_id_str)
     skip = (page - 1) * page_size
 
-    logs = await repo.get_by_tenant_id(tenant_id=tenant_id, skip=skip, limit=page_size)
-    # Note: total count requires a count query in repo, but for now we simulate it or add it later
-    # To keep it simple, we'll return total as -1 or implement a count query if needed
+    logs, total_count = await repo.search_logs(
+        tenant_id=tenant_id,
+        query=query,
+        action=action,
+        start_date=start_date,
+        end_date=end_date,
+        skip=skip,
+        limit=page_size,
+    )
 
     items = [AuditLogDTO.model_validate(log) for log in logs]
-
-    from backend.api.v1.schemas.common import PaginationMetadata
-    import uuid
+    total_pages = max(1, math.ceil(total_count / page_size)) if total_count > 0 else 1
     req_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
 
     return PaginatedResponse(
@@ -55,8 +62,8 @@ async def list_audit_logs(
         pagination=PaginationMetadata(
             page=page,
             size=page_size,
-            total_elements=len(items),
-            total_pages=1
+            total_elements=total_count,
+            total_pages=total_pages,
         ),
         metadata=ResponseMetadata(request_id=req_id),
     )
