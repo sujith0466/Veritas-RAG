@@ -72,7 +72,7 @@ describe('WS-A7: Route Guards & Onboarding Bridge', () => {
     useWorkspaceStore.setState({
       currentWorkspace: null,
       isResolvingWorkspace: false,
-      memberships: [],
+      workspaces: [],
       error: null,
     })
   })
@@ -433,7 +433,7 @@ describe('WS-A7: Route Guards & Onboarding Bridge', () => {
           <Routes>
             <Route path="/onboarding" element={<WorkspaceOnboardingPage />} />
             <Route path="/workspaces/new" element={<div data-testid="new-ws-dest">New Workspace Page</div>} />
-            <Route path="/invitations/accept" element={<div data-testid="accept-dest">Accept Page</div>} />
+            <Route path="/workspaces/join" element={<div data-testid="join-ws-dest">Join Workspace Page</div>} />
           </Routes>
         </MemoryRouter>
       )

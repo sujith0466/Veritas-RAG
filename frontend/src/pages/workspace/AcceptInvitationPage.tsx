@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { invitationService } from '@/services/invitationService';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { VerifyInvitationData } from '@/types/workspaceInvitation';
 import { ShieldCheck, AlertTriangle, ArrowRight, CheckCircle2, Building2, UserCheck, Loader2 } from 'lucide-react';
 
@@ -46,11 +47,13 @@ export const AcceptInvitationPage: React.FC = () => {
     try {
       setAccepting(true);
       setError(null);
-      await invitationService.acceptInvitation({ token });
+      const res = await invitationService.acceptInvitation({ token });
+      // Establish active workspace session context authoritatively
+      await useWorkspaceStore.getState().switchWorkspace(res.workspace_id);
       setSuccess(true);
       setTimeout(() => {
-        navigate(`/workspaces`);
-      }, 1500);
+        navigate('/dashboard', { replace: true });
+      }, 1200);
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||

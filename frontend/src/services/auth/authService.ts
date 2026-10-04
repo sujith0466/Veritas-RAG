@@ -62,6 +62,18 @@ export const authService = {
     })
   },
 
+  async createJoinIntent(payload: {
+    workspace_id?: string;
+    join_code?: string;
+    invitation_token?: string;
+  }): Promise<{ intent_id: string; expires_in_seconds: number }> {
+    const response = await post<{
+      success: boolean;
+      data: { intent_id: string; expires_in_seconds: number };
+    }>('/auth/join-intent', payload);
+    return response.data;
+  },
+
   async logout() {
     try {
       await post('/auth/logout')

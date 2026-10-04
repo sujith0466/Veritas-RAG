@@ -7,6 +7,8 @@ import type {
   SwitchWorkspaceResponse,
   CurrentWorkspaceResponse,
   UserWorkspacesListResponse,
+  JoinWorkspacePayload,
+  JoinWorkspaceResponse,
 } from '@/types';
 
 export interface Workspace {
@@ -52,6 +54,17 @@ class WorkspaceService {
   async lookupWorkspace(identifier: string): Promise<WorkspacePreviewResponse> {
     const response = await get<WorkspacePreviewResponse>(
       `/api/v1/workspaces/lookup?identifier=${encodeURIComponent(identifier)}`
+    );
+    return response;
+  }
+
+  /**
+   * Join an existing workspace (WS-A8)
+   */
+  async joinWorkspace(payload: JoinWorkspacePayload): Promise<JoinWorkspaceResponse> {
+    const response = await post<JoinWorkspaceResponse>(
+      '/api/v1/workspaces/join',
+      payload
     );
     return response;
   }

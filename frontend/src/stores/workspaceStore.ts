@@ -6,7 +6,7 @@ import { useMemberStore } from './memberStore';
 import { useFolderStore } from './folderStore';
 import { useKnowledgeHealthStore } from './knowledgeHealthStore';
 import { appQueryClient } from '../providers/QueryProvider';
-import type { SwitchWorkspaceResult } from '@/types';
+import type { SwitchWorkspaceResult, JoinWorkspacePayload, JoinWorkspaceResult } from '@/types';
 
 interface WorkspaceState {
   currentWorkspace: Workspace | null;
@@ -16,6 +16,7 @@ interface WorkspaceState {
 
   isResolvingWorkspace: boolean;
   createWorkspace: (name: string, description?: string) => Promise<Workspace>;
+  joinWorkspace: (payload: JoinWorkspacePayload) => Promise<JoinWorkspaceResult>;
   updateWorkspace: (id: string, expectedUpdatedAt: string, name?: string, description?: string) => Promise<Workspace>;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   clearError: () => void;
@@ -31,7 +32,7 @@ interface WorkspaceState {
 
 let latestSwitchSeq = 0;
 
-export const useWorkspaceStore = create<WorkspaceState>((set) => ({
+export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   currentWorkspace: null,
   workspaces: [],
   isLoading: false,
@@ -45,13 +46,39 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       set((state) => ({
         workspaces: [...state.workspaces, response.data],
         currentWorkspace: response.data,
-        isLoading: false
       }));
+      // Authoritatively establish session context as creator (OWNER)
+      try {
+        await get().switchWorkspace(response.data.id);
+      } catch (switchErr) {
+        console.warn('Auto-switch after workspace creation fallback:', switchErr);
+      }
+      set({ isLoading: false });
       return response.data;
     } catch (error: any) {
       set({ 
         error: error.response?.data?.detail || 'Failed to create workspace',
         isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  joinWorkspace: async (payload: JoinWorkspacePayload) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await workspaceService.joinWorkspace(payload);
+      // If membership was created actively, immediately rotate session to activate context
+      if (response.data.status === 'ACTIVE') {
+        await get().switchWorkspace(response.data.workspace_id);
+      }
+      set({ isLoading: false });
+      return response.data;
+    } catch (error: any) {
+      const detail = error.response?.data?.detail || 'Failed to join workspace';
+      set({
+        error: detail,
+        isLoading: false
       });
       throw error;
     }
@@ -170,7 +197,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         return response.data;
       }
 
-      const switchData = response.data;
+      const switchData = response?.data || response || {};
+      const wsId = switchData.workspace_id || (switchData as any).workspace?.id;
+      const wsName = switchData.workspace_name || (switchData as any).workspace?.name;
+      const rawRole = switchData.role || (switchData as any).workspace?.role || 'MEMBER';
+      const wsPublicId = switchData.workspace_public_id || (switchData as any).workspace?.public_id;
+      const wsSlug = switchData.workspace_slug || (switchData as any).workspace?.slug || '';
+      const accessToken = switchData.access_token || (switchData as any).workspace?.access_token || '';
 
       // 1. Update Auth Store with new token and updated user context
       const authStore = useAuthStore.getState();
@@ -178,12 +211,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
         authStore.setAuth(
           {
             ...authStore.user,
-            tenant_id: switchData.workspace_id,
-            workspace_id: switchData.workspace_id,
-            workspace_name: switchData.workspace_name,
-            role: switchData.role.toLowerCase() as any,
+            tenant_id: wsId,
+            workspace_id: wsId,
+            workspace_name: wsName,
+            role: String(rawRole).toLowerCase() as any,
           },
-          switchData.access_token
+          accessToken
         );
       }
 
@@ -200,10 +233,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
 
       // 3. Update currentWorkspace
       const updatedCurrent: Workspace = {
-        id: switchData.workspace_id,
-        public_id: switchData.workspace_public_id || undefined,
-        name: switchData.workspace_name,
-        slug: switchData.workspace_slug || '',
+        id: wsId,
+        public_id: wsPublicId || undefined,
+        name: wsName,
+        slug: wsSlug,
         status: 'ACTIVE',
         provisioning_status: 'READY',
         updated_at: new Date().toISOString(),

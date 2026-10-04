@@ -37,7 +37,7 @@ export interface WorkspacePreviewResponse {
  * Uses public Workspace ID or Slug (never internal Tenant UUID).
  */
 export interface JoinWorkspacePayload {
-  workspace_id: string;
+  workspace_id?: string | null;
   join_code?: string | null;
   invitation_token?: string | null;
 }

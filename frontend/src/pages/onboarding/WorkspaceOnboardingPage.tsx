@@ -234,10 +234,11 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
           <div
             onClick={() => {
               if (invitationTokenParam) {
-                navigate(`/invitations/accept?token=${encodeURIComponent(invitationTokenParam)}`)
+                navigate(`/workspaces/join?invitation_token=${encodeURIComponent(invitationTokenParam)}`)
+              } else if (joinCodeParam) {
+                navigate(`/workspaces/join?join_code=${encodeURIComponent(joinCodeParam)}`)
               } else {
-                // In WS-A8, opens join modal. For now, bridges to invitation accept or join endpoint
-                navigate('/invitations/accept')
+                navigate('/workspaces/join')
               }
             }}
             className="group cursor-pointer p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 transition-all duration-200 shadow-lg flex flex-col justify-between"

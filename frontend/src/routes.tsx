@@ -37,6 +37,7 @@ const ActivitySettings = lazyRetry(() => import('@/pages/settings').then(m => ({
 const AIChatPage = lazyRetry(() => import('@/pages/chat').then(m => ({ default: m.AIChatPage })), 'AIChatPage')
 const NotFoundPage = lazyRetry(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })), 'NotFoundPage')
 const CreateWorkspace = lazyRetry(() => import('@/pages/workspace/CreateWorkspace').then(m => ({ default: m.CreateWorkspace })), 'CreateWorkspace')
+const JoinWorkspacePage = lazyRetry(() => import('@/pages/workspace/JoinWorkspacePage').then(m => ({ default: m.JoinWorkspacePage })), 'JoinWorkspacePage')
 const EditWorkspace = lazyRetry(() => import('@/pages/workspace/EditWorkspace').then(m => ({ default: m.EditWorkspace })), 'EditWorkspace')
 const AcceptInvitationPage = lazyRetry(() => import('@/pages/workspace/AcceptInvitationPage').then(m => ({ default: m.AcceptInvitationPage })), 'AcceptInvitationPage')
 const WorkspaceMembersPage = lazyRetry(() => import('@/pages/workspace/WorkspaceMembersPage').then(m => ({ default: m.WorkspaceMembersPage })), 'WorkspaceMembersPage')
@@ -229,6 +230,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute requireWorkspace={false}>
             <CreateWorkspace />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/workspaces/join',
+        element: (
+          <ProtectedRoute requireWorkspace={false}>
+            <JoinWorkspacePage />
           </ProtectedRoute>
         ),
       },
