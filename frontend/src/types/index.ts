@@ -97,3 +97,19 @@ export type {
   RetrievalTraceDetailDTO,
   QueryExecutionTraceDTO,
 } from './dashboard'
+export type {
+  JoiningMode,
+  WorkspacePreviewData,
+  WorkspacePreviewResponse,
+  JoinWorkspacePayload,
+  JoinWorkspaceResult,
+  JoinWorkspaceResponse,
+  JoinCodeSettings,
+  JoinCodeSettingsPatchPayload,
+  JoinCodeGenerateResult,
+  JoinCodeGenerateResponse,
+  SwitchWorkspacePayload,
+  SwitchWorkspaceResult,
+  SwitchWorkspaceResponse,
+  OnboardingRegistrationPayload,
+} from './workspaceOnboarding'
