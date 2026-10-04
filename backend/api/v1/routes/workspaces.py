@@ -1,3 +1,4 @@
+import re
 from typing import Any
 import uuid
 
@@ -17,6 +18,12 @@ from backend.api.v1.schemas.workspace import (
     UpdateWorkspaceRequest,
     WorkspaceDataResponse,
     WorkspaceResponse,
+)
+from backend.api.v1.schemas.workspace_onboarding import (
+    JoiningMode,
+    TENANT_UUID_PATTERN,
+    WorkspacePreviewData,
+    WorkspacePreviewResponse,
 )
 from backend.api.v1.schemas.workspace_settings import (
     WorkspaceBrandingDataResponse,
@@ -39,9 +46,12 @@ from backend.core.dependencies.database import (
     get_db,
     get_workspace_management_service,
     get_workspace_provisioning_service,
+    get_workspace_repository,
     get_workspace_settings_service,
 )
 from backend.core.permissions.rbac import Role
+from backend.models.entities.workspace import WorkspaceStatus
+from backend.repositories.workspace import WorkspaceRepository
 from backend.services.workspace.management_service import (
     WorkspaceConflictError,
     WorkspaceInvalidStateError,
@@ -89,6 +99,7 @@ async def create_workspace(
             success=True,
             data=WorkspaceDataResponse(
                 id=workspace.id,
+                public_id=workspace.public_id,
                 name=workspace.name,
                 slug=workspace.slug,
                 description=workspace.description,
@@ -105,6 +116,60 @@ async def create_workspace(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while creating the workspace.",
         ) from e
+
+
+@router.get(
+    "/lookup",
+    response_model=WorkspacePreviewResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Resolve public workspace preview by Workspace ID or slug",
+)
+async def lookup_workspace(
+    identifier: str = Query(..., min_length=2, max_length=100, description="Public Workspace ID or slug"),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+) -> WorkspacePreviewResponse:
+    """Resolve a workspace public preview by public Workspace ID or slug.
+
+    SECURITY INVARIANTS:
+    1. Tenant UUID cannot be passed as an identifier for public lookup.
+    2. Response never exposes internal tenant UUID, quotas, secrets, or internal member lists.
+    """
+    clean_identifier = identifier.strip()
+
+    # Rejection of Tenant UUID (internal ID boundary protection)
+    if re.match(TENANT_UUID_PATTERN, clean_identifier):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant ID (UUID) cannot be used for public workspace lookup. Use the public Workspace ID or slug.",
+        )
+
+    # 1. Try public Workspace ID (uppercase)
+    workspace = await workspace_repo.get_by_public_id(clean_identifier.upper())
+
+    # 2. If not found, try slug (lowercase)
+    if not workspace:
+        workspace = await workspace_repo.get_by_slug(clean_identifier.lower())
+
+    if not workspace or workspace.status != WorkspaceStatus.ACTIVE.value:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found.",
+        )
+
+    return WorkspacePreviewResponse(
+        success=True,
+        message="Workspace preview retrieved successfully.",
+        data=WorkspacePreviewData(
+            workspace_id=workspace.public_id,
+            workspace_name=workspace.name,
+            workspace_slug=workspace.slug,
+            joining_mode=JoiningMode.JOIN_CODE,
+            requires_join_code=True,
+            open_join=False,
+            require_approval=False,
+            default_join_role="MEMBER",
+        ),
+    )
 
 
 @router.get(
@@ -139,6 +204,7 @@ async def get_workspace(
             success=True,
             data=WorkspaceDataResponse(
                 id=workspace.id,
+                public_id=workspace.public_id,
                 name=workspace.name,
                 slug=workspace.slug,
                 description=workspace.description,
@@ -203,6 +269,7 @@ async def update_workspace(
             success=True,
             data=WorkspaceDataResponse(
                 id=workspace.id,
+                public_id=workspace.public_id,
                 name=workspace.name,
                 slug=workspace.slug,
                 description=workspace.description,

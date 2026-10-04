@@ -13,6 +13,7 @@ from .common import (
 from .errors import ErrorCode, create_error_response
 from .registration import RegistrationRequest, RegistrationResponse
 from .workspace_onboarding import (
+    CROCKFORD_ALPHABET,
     INVITATION_TOKEN_PATTERN,
     JOIN_CODE_PATTERN,
     TENANT_UUID_PATTERN,
@@ -35,6 +36,7 @@ from .workspace_onboarding import (
 
 __all__ = [
     "AuthStatusResponse",
+    "CROCKFORD_ALPHABET",
     "DependencyHealth",
     "DetailedHealthResponse",
     "ErrorCode",

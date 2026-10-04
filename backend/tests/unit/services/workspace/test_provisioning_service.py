@@ -12,6 +12,7 @@ def mock_workspace_repo():
     repo = AsyncMock()
     # By default, no collision
     repo.exists_by_slug.return_value = False
+    repo.exists_by_public_id.return_value = False
     return repo
 
 
@@ -62,6 +63,8 @@ async def test_provision_workspace_success(service, mock_session, mock_workspace
     assert workspace.name == "Test Corp"
     assert workspace.status == WorkspaceStatus.ACTIVE.value
     assert workspace.provisioning_status == ProvisioningStatus.READY.value
+    assert workspace.public_id is not None
+    assert workspace.public_id.startswith("TESTCORP-")
 
     # Check DB session interactions
     assert mock_session.add.call_count == 4  # Workspace, Settings, Member, AuditLog

@@ -31,6 +31,7 @@ WORKSPACE_ID_PATTERN = r"^[A-Z0-9]{2,20}(?:-[A-Z0-9]{2,12})*$"
 WORKSPACE_SLUG_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 
 # Join Code: Display format 'VR-XXXXXX', 6 Crockford base32 characters (excluding 0, O, 1, I, L)
+CROCKFORD_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ"
 JOIN_CODE_PATTERN = r"^VR-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{6}$"
 
 # Invitation Token: Opaque high-entropy token (e.g. 'sec_inv_...' or base64url)

@@ -27,6 +27,22 @@ class WorkspaceRepository(BaseRepository[Workspace]):
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def exists_by_public_id(self, public_id: str) -> bool:
+        stmt = select(self.model_class.id).where(
+            self.model_class.public_id == public_id,
+            self.model_class.is_deleted == False
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first() is not None
+
+    async def get_by_public_id(self, public_id: str) -> Workspace | None:
+        stmt = select(self.model_class).where(
+            self.model_class.public_id == public_id,
+            self.model_class.is_deleted == False
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def update_provisioning_status(
         self, workspace_id: uuid.UUID, status: ProvisioningStatus
     ) -> Workspace | None:

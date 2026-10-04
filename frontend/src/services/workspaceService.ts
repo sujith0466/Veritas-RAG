@@ -1,7 +1,9 @@
-import { post, patch } from '@/api/wrapper';
+import { get, post, patch } from '@/api/wrapper';
+import type { WorkspacePreviewResponse } from '@/types';
 
 export interface Workspace {
   id: string;
+  public_id?: string;
   name: string;
   slug: string;
   status: string;
@@ -33,6 +35,16 @@ class WorkspaceService {
       name,
       description
     });
+    return response;
+  }
+
+  /**
+   * Resolve public workspace preview by Workspace ID or slug
+   */
+  async lookupWorkspace(identifier: string): Promise<WorkspacePreviewResponse> {
+    const response = await get<WorkspacePreviewResponse>(
+      `/api/v1/workspaces/lookup?identifier=${encodeURIComponent(identifier)}`
+    );
     return response;
   }
 

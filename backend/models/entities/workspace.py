@@ -32,6 +32,7 @@ class Workspace(BaseModel):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    public_id: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default=WorkspaceStatus.ACTIVE.value, nullable=False)
     provisioning_status: Mapped[str] = mapped_column(String(50), default=ProvisioningStatus.PENDING.value, nullable=False)

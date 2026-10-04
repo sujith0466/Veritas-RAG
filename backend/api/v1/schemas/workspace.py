@@ -116,6 +116,7 @@ class WorkspaceDataResponse(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
+    public_id: str | None = None
     description: str | None = None
     status: str
     provisioning_status: str

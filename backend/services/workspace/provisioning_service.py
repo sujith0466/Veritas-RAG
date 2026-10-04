@@ -11,6 +11,7 @@ from backend.models.entities.workspace_settings import WorkspaceSettings
 from backend.repositories.workspace import WorkspaceRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
 from backend.repositories.workspace_settings import WorkspaceSettingsRepository
+from backend.services.workspace.identity import WorkspaceIdGenerator
 
 
 class WorkspaceProvisioningService:
@@ -57,6 +58,11 @@ class WorkspaceProvisioningService:
         # 1. Generate unique deterministic slug
         slug = await self._generate_slug(name)
 
+        # 2. Generate unique public Workspace ID
+        public_id = await WorkspaceIdGenerator.generate_unique_public_id(
+            workspace_repo=self.workspace_repo,
+            name=name,
+        )
 
         # Generate the UUID proactively to use it in prefixes
         workspace_id = uuid.uuid4()
@@ -68,6 +74,7 @@ class WorkspaceProvisioningService:
             id=workspace_id,
             name=name,
             slug=slug,
+            public_id=public_id,
             description=description,
             status=WorkspaceStatus.ACTIVE.value,
             provisioning_status=ProvisioningStatus.PENDING.value,
