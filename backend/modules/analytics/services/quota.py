@@ -9,6 +9,7 @@ import structlog
 from backend.cache.client import get_redis_client
 from backend.database.engine import get_session_factory
 from backend.modules.analytics.models.tenant_quota import TenantQuotaORM
+from backend.modules.analytics.models.token_usage import TokenUsageORM
 from backend.modules.analytics.models.workspace_usage import WorkspaceUsage
 from backend.modules.analytics.repositories.usage_repository import UsageRepository
 from backend.modules.analytics.schemas.errors import QuotaExceededError
@@ -324,6 +325,83 @@ class QuotaGovernor:
                     pass
 
         return usage
+
+    async def record_token_usage(
+        self,
+        workspace_id: uuid.UUID,
+        tenant_id: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        correlation_id: str,
+        provider: str = "default",
+        model_name: str = "default",
+        total_cost_usd: float = 0.0,
+        user_id: uuid.UUID | None = None,
+        created_at: datetime.datetime | None = None,
+        session: AsyncSession | None = None,
+    ) -> tuple[TokenUsageORM, bool]:
+        """Record detailed token usage with correlation_id deduplication and durable counter updates."""
+        if session is not None:
+            repo = UsageRepository(session)
+            return await repo.record_token_usage(
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                correlation_id=correlation_id,
+                provider=provider,
+                model_name=model_name,
+                total_cost_usd=total_cost_usd,
+                user_id=user_id,
+                created_at=created_at,
+            )
+        else:
+            async with get_session_factory()() as local_session:
+                repo = UsageRepository(local_session)
+                return await repo.record_token_usage(
+                    workspace_id=workspace_id,
+                    tenant_id=tenant_id,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    correlation_id=correlation_id,
+                    provider=provider,
+                    model_name=model_name,
+                    total_cost_usd=total_cost_usd,
+                    user_id=user_id,
+                    created_at=created_at,
+                )
+
+    async def get_aggregated_usage(
+        self,
+        workspace_id: uuid.UUID,
+        period_start: datetime.date | None = None,
+        period_end: datetime.date | None = None,
+        session: AsyncSession | None = None,
+    ) -> dict:
+        """Fetch aggregated usage grouped by workspace and user for a billing period."""
+        if session is not None:
+            repo = UsageRepository(session)
+            return await repo.get_aggregated_usage(workspace_id, period_start, period_end)
+        else:
+            async with get_session_factory()() as local_session:
+                repo = UsageRepository(local_session)
+                return await repo.get_aggregated_usage(workspace_id, period_start, period_end)
+
+    async def reconcile_usage(
+        self,
+        workspace_id: uuid.UUID,
+        period_start: datetime.date | None = None,
+        sync: bool = False,
+        session: AsyncSession | None = None,
+    ) -> dict:
+        """Reconcile token usages with durable counters and report/correct drift."""
+        if session is not None:
+            repo = UsageRepository(session)
+            return await repo.reconcile_workspace_usage(workspace_id, period_start, sync)
+        else:
+            async with get_session_factory()() as local_session:
+                repo = UsageRepository(local_session)
+                return await repo.reconcile_workspace_usage(workspace_id, period_start, sync)
 
     # --- Backward compatibility methods ---
 
