@@ -10,9 +10,13 @@ import {
   Loader2,
   CheckCircle2,
   Gauge,
+  Edit3,
+  User,
+  Shield,
+  X,
 } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { adminService, TenantQuota, WorkspaceUsage } from '@/services/adminService'
+import { adminService, TenantQuota, WorkspaceUsage, WorkspaceUserQuota } from '@/services/adminService'
 import { workspaceSettingsService, WorkspaceSettingsData } from '@/services/workspaceSettingsService'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/utils/cn'
@@ -51,7 +55,14 @@ export function QuotaBillingPage() {
   const workspaceId = user?.workspace_id || user?.tenant_id || ''
 
   const userRole = String(user?.role || '').trim().toLowerCase()
-  const canEditLimits = ['owner', 'platform_admin'].includes(userRole)
+  const canEditLimits = ['owner', 'admin', 'platform_admin'].includes(userRole)
+
+  // Per-user quota state
+  const [userQuotas, setUserQuotas] = useState<WorkspaceUserQuota[]>([])
+  const [myQuota, setMyQuota] = useState<WorkspaceUserQuota | null>(null)
+  const [editingUserQuota, setEditingUserQuota] = useState<WorkspaceUserQuota | null>(null)
+  const [userQuotaBudget, setUserQuotaBudget] = useState<string>('')
+  const [savingUserQuota, setSavingUserQuota] = useState(false)
 
   const loadData = async () => {
     if (!workspaceId) {
@@ -109,10 +120,63 @@ export function QuotaBillingPage() {
         max_storage_gb: l.max_storage_gb ?? 100,
         max_members: l.max_members ?? 50,
       })
+
+      // 3. Fetch user quotas based on authority
+      if (canEditLimits) {
+        try {
+          const uQuotas = await adminService.getUserQuotas(workspaceId)
+          setUserQuotas(uQuotas)
+        } catch (uqErr) {
+          console.warn('Could not load user quotas', uqErr)
+        }
+      } else {
+        try {
+          const selfQuota = await adminService.getMyUserQuota(workspaceId)
+          setMyQuota(selfQuota)
+        } catch (sqErr) {
+          console.warn('Could not load self quota', sqErr)
+        }
+      }
     } catch (e) {
       console.error('Failed to load governance data', e)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleOpenUserQuotaModal = (uq: WorkspaceUserQuota) => {
+    setEditingUserQuota(uq)
+    setUserQuotaBudget(uq.monthly_token_budget ? String(uq.monthly_token_budget) : '')
+  }
+
+  const handleSaveUserQuota = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingUserQuota || !workspaceId) return
+
+    setSavingUserQuota(true)
+    try {
+      const val = userQuotaBudget.trim()
+      const num = val === '' || val === '0' ? null : parseInt(val, 10)
+      if (num !== null && (isNaN(num) || num < 0)) {
+        toast({ title: 'Validation Error', message: 'Budget must be a positive integer or empty for uncapped', type: 'error' })
+        setSavingUserQuota(false)
+        return
+      }
+
+      await adminService.updateUserQuota(workspaceId, editingUserQuota.user_id, {
+        monthly_token_budget: num,
+        is_hard_enforced: editingUserQuota.is_hard_enforced,
+        warning_threshold_pct: editingUserQuota.warning_threshold_pct,
+      })
+
+      toast({ title: 'Success', message: 'User token quota updated successfully', type: 'success' })
+      setEditingUserQuota(null)
+      await loadData()
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || err.message || 'Failed to update user quota'
+      toast({ title: 'Error', message: msg, type: 'error' })
+    } finally {
+      setSavingUserQuota(false)
     }
   }
 
@@ -548,6 +612,237 @@ export function QuotaBillingPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Team Member Token Quotas & Usage Breakdown */}
+      {canEditLimits && (
+        <Card className="p-6 border border-border/80 shadow-xs">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base text-foreground">Team Member Quotas & Attribution</h3>
+                <p className="text-xs text-muted-foreground">
+                  Individual token budgets and monthly consumption breakdown per workspace member
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {userQuotas.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground font-mono">
+              No active members found in this workspace.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border/60 text-muted-foreground font-semibold">
+                    <th className="pb-3 pl-1">Member</th>
+                    <th className="pb-3">Role</th>
+                    <th className="pb-3">Token Ceiling</th>
+                    <th className="pb-3">Consumption</th>
+                    <th className="pb-3">Usage %</th>
+                    <th className="pb-3 text-right pr-1">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {userQuotas.map((uq) => {
+                    const ceiling = uq.monthly_token_budget ?? uq.workspace_token_limit
+                    const isCustom = uq.monthly_token_budget !== null && uq.monthly_token_budget !== undefined
+                    const pct = Math.min(100, Math.round((uq.used_tokens / Math.max(1, ceiling)) * 100))
+                    return (
+                      <tr key={uq.user_id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-3 pl-1">
+                          <div className="font-medium text-foreground">
+                            {uq.user_display_name || uq.user_email || 'Member'}
+                          </div>
+                          {uq.user_email && uq.user_display_name && (
+                            <div className="text-2xs text-muted-foreground font-mono">{uq.user_email}</div>
+                          )}
+                        </td>
+                        <td className="py-3">
+                          <span className="inline-flex px-2 py-0.5 rounded text-2xs font-mono font-medium uppercase bg-muted text-foreground">
+                            {uq.member_role || 'MEMBER'}
+                          </span>
+                        </td>
+                        <td className="py-3 font-mono">
+                          {isCustom ? (
+                            <span className="font-semibold text-foreground">
+                              {uq.monthly_token_budget?.toLocaleString()} tokens
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground italic">Workspace Pool (Uncapped)</span>
+                          )}
+                        </td>
+                        <td className="py-3 font-mono">
+                          <span className="text-foreground">{uq.used_tokens.toLocaleString()}</span>
+                          <span className="text-muted-foreground text-2xs ml-1">({uq.used_queries} queries)</span>
+                        </td>
+                        <td className="py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={cn(
+                                  'h-full transition-all duration-500',
+                                  pct >= 90 ? 'bg-destructive' : pct >= 75 ? 'bg-amber-500' : 'bg-primary'
+                                )}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-2xs font-mono text-muted-foreground">{pct}%</span>
+                          </div>
+                        </td>
+                        <td className="py-3 text-right pr-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs px-2.5"
+                            onClick={() => handleOpenUserQuotaModal(uq)}
+                          >
+                            <Edit3 className="h-3 w-3 mr-1" />
+                            <span>Set Quota</span>
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Non-Admin Self Quota View for Member/Viewer */}
+      {!canEditLimits && myQuota && (
+        <Card className="p-6 border border-border/80 shadow-xs">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base text-foreground">My Personal Quota & Usage</h3>
+              <p className="text-xs text-muted-foreground">
+                Your individual token allowance for the current billing cycle
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-end justify-between">
+              <div>
+                <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
+                  {myQuota.used_tokens.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Tokens consumed ({myQuota.used_queries} queries)
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium font-mono">
+                  Ceiling:{' '}
+                  {myQuota.monthly_token_budget
+                    ? `${myQuota.monthly_token_budget.toLocaleString()} tokens`
+                    : `Workspace Pool (${(myQuota.workspace_token_limit / 1000000).toFixed(1)}M)`}
+                </div>
+                <div className="text-xs font-semibold text-emerald-500 font-mono">
+                  {myQuota.monthly_token_budget
+                    ? `${Math.max(0, myQuota.monthly_token_budget - myQuota.used_tokens).toLocaleString()} tokens remaining`
+                    : 'Governed by workspace pool ceiling'}
+                </div>
+              </div>
+            </div>
+
+            <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-1000 ease-out"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      (myQuota.used_tokens /
+                        Math.max(1, myQuota.monthly_token_budget ?? myQuota.workspace_token_limit)) *
+                        100
+                    )
+                  )}%`,
+                }}
+              />
+            </div>
+            <p className="text-2xs text-muted-foreground">
+              Note: Token allowances are managed by workspace administrators.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* User Quota Edit Modal */}
+      <AnimatePresence>
+        {editingUserQuota && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-sm text-foreground">Configure User Token Quota</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingUserQuota(null)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-1">
+                <div className="text-xs font-medium text-foreground">
+                  {editingUserQuota.user_display_name || 'Member'}
+                </div>
+                <div className="text-2xs font-mono text-muted-foreground">{editingUserQuota.user_email}</div>
+              </div>
+
+              <form onSubmit={handleSaveUserQuota} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="user_token_budget" className="text-xs font-semibold">
+                    Monthly Token Ceiling
+                  </Label>
+                  <Input
+                    id="user_token_budget"
+                    type="number"
+                    min="0"
+                    step="10000"
+                    placeholder="Leave empty or 0 for Workspace Pool"
+                    value={userQuotaBudget}
+                    onChange={(e) => setUserQuotaBudget(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                  <p className="text-2xs text-muted-foreground">
+                    Set a hard cap in tokens, or leave blank to inherit the workspace pool limit (
+                    {editingUserQuota.workspace_token_limit.toLocaleString()} tokens).
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditingUserQuota(null)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" disabled={savingUserQuota}>
+                    {savingUserQuota && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                    Save User Quota
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

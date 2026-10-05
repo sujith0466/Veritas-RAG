@@ -70,6 +70,27 @@ export interface WorkspaceSummary {
   total_queries: number
 }
 
+export interface WorkspaceUserQuota {
+  id?: string
+  workspace_id: string
+  user_id: string
+  monthly_token_budget: number | null
+  is_hard_enforced: boolean
+  warning_threshold_pct: number
+  user_email?: string
+  user_display_name?: string
+  member_role?: string
+  used_tokens: number
+  used_queries: number
+  workspace_token_limit: number
+}
+
+export interface WorkspaceUserQuotaUpdate {
+  monthly_token_budget: number | null
+  is_hard_enforced?: boolean
+  warning_threshold_pct?: number
+}
+
 export const adminService = {
   // F12.6 Audit Logs
   getAuditLogs: async (
@@ -99,8 +120,26 @@ export const adminService = {
     return get<WorkspaceUsage>(`/analytics/v1/workspace-usage/${workspaceId}`)
   },
 
+  // WS-B9: User-level Quotas and Usage
+  getUserQuotas: async (workspaceId: string): Promise<WorkspaceUserQuota[]> => {
+    return get<WorkspaceUserQuota[]>(`/analytics/v1/workspace-user-quotas/${workspaceId}`)
+  },
+
+  getMyUserQuota: async (workspaceId: string): Promise<WorkspaceUserQuota> => {
+    return get<WorkspaceUserQuota>(`/analytics/v1/workspace-user-quotas/${workspaceId}/me`)
+  },
+
+  updateUserQuota: async (
+    workspaceId: string,
+    userId: string,
+    payload: WorkspaceUserQuotaUpdate
+  ): Promise<WorkspaceUserQuota> => {
+    return put<WorkspaceUserQuota>(`/analytics/v1/workspace-user-quotas/${workspaceId}/${userId}`, payload)
+  },
+
   // F12.2 Platform Admin
   getGlobalWorkspaces: async (page = 1, pageSize = 50): Promise<PaginatedResponse<WorkspaceSummary>> => {
     return get<PaginatedResponse<WorkspaceSummary>>('/api/v1/platform-admin/workspaces', { page, page_size: pageSize })
   }
 }
+

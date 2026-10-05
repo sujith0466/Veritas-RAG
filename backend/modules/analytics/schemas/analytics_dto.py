@@ -414,3 +414,25 @@ class WorkspaceUsageDTO(BaseModel):
     remaining_budget_usd: float
     is_warning: bool
     is_exceeded: bool
+
+
+class WorkspaceUserQuotaDTO(BaseModel):
+    id: UUID | None = None
+    workspace_id: UUID
+    user_id: UUID
+    monthly_token_budget: int | None = None
+    is_hard_enforced: bool = True
+    warning_threshold_pct: float = 0.80
+    user_email: str | None = None
+    user_display_name: str | None = None
+    member_role: str | None = None
+    used_tokens: int = 0
+    used_queries: int = 0
+    workspace_token_limit: int = 10_000_000
+
+
+class WorkspaceUserQuotaUpdateDTO(BaseModel):
+    monthly_token_budget: int | None = Field(None, ge=0, le=1_000_000_000, description="Monthly token ceiling for the user. Set to null or 0 to inherit workspace limit.")
+    is_hard_enforced: bool = True
+    warning_threshold_pct: float = Field(0.80, ge=0.0, le=1.0)
+
