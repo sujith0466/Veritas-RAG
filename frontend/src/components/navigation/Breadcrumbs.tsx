@@ -46,7 +46,7 @@ export function Breadcrumbs() {
 
           return (
             <li key={path} className="flex items-center space-x-2">
-              <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" />
               {isLast ? (
                 <span className="font-medium text-foreground" aria-current="page">
                   {label}

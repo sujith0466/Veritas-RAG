@@ -14,10 +14,10 @@
     --foreground: 222 47% 11%;          /* #0f172a - slate-900 */
     --surface: 0 0% 100%;               /* #ffffff - white */
     --surface-elevated: 0 0% 100%;      /* #ffffff */
-    --border: 220 13% 91%;              /* #e5e7eb - gray-200 */
-    --border-subtle: 210 40% 96%;       /* #f1f5f9 - slate-100 */
-    --muted: 210 40% 96%;               /* #f1f5f9 - slate-100 */
-    --muted-foreground: 215 16% 47%;    /* #64748b - slate-500 */
+    --border: 220 13% 86%;              /* #d8dde3 - refined subtle border */
+    --border-subtle: 214 20% 92%;       /* #e5eaf0 - crisp subtle divider */
+    --muted: 210 25% 95%;               /* #eff3f7 - soft neutral muted surface */
+    --muted-foreground: 215 19% 35%;    /* #475569 - slate-600 (high-readability secondary) */
 
     /* ── Brand Accent: Deep Teal ── */
     --primary: 175 84% 26%;             /* #0f766e - teal-700 */

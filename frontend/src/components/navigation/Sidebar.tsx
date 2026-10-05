@@ -285,7 +285,7 @@ function ChatGroup({
 }) {
   return (
     <div data-chat-group={title}>
-      <div className="text-[10px] font-semibold text-muted-foreground/70 tracking-widest uppercase mb-1.5 px-2">
+      <div className="text-[10px] font-bold text-muted-foreground/90 tracking-widest uppercase mb-1.5 px-2">
         {title}
       </div>
       <div className="space-y-0.5">
