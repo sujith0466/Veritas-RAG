@@ -41,8 +41,15 @@ export function Header() {
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
-            <button className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors">
-              {resolvedMode === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+            <button
+              aria-label="Toggle color theme"
+              className="group inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent hover:border-border/60 text-muted-foreground hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent active:scale-95 transition-all duration-200"
+            >
+              {resolvedMode === 'dark' ? (
+                <Moon className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-12 motion-reduce:group-hover:rotate-0 text-muted-foreground group-hover:text-foreground" />
+              ) : (
+                <Sun className="h-4 w-4 transition-transform duration-300 group-hover:rotate-45 motion-reduce:group-hover:rotate-0 text-muted-foreground group-hover:text-foreground" />
+              )}
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>

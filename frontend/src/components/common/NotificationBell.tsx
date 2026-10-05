@@ -76,10 +76,16 @@ export function NotificationBell() {
 
   return (
     <div className="relative">
-      <Button variant="ghost" size="icon" onClick={toggleOpen} className="relative">
-        <Bell className="w-5 h-5 text-muted-foreground" />
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleOpen}
+        aria-label="Open notifications"
+        className="group relative h-9 w-9 rounded-lg border border-transparent hover:border-border/60 hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent active:scale-95"
+      >
+        <Bell className="w-4.5 h-4.5 transition-transform duration-200 group-hover:rotate-12 motion-reduce:group-hover:rotate-0" />
         {hasUnread && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-background"></span>
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-background transition-transform group-hover:scale-110 motion-reduce:group-hover:scale-100" />
         )}
       </Button>
 
