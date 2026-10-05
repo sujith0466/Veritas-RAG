@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ShieldCheck,
   Building2,
+  CheckCircle2,
 } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { cn } from '@/utils/cn'
@@ -76,8 +77,15 @@ export function AdminLayout() {
 
   const renderNavLinks = (onItemClick?: () => void) => (
     <nav className="space-y-1.5" aria-label="Admin Navigation">
-      <div className="px-3 pb-2 text-2xs font-mono font-semibold uppercase tracking-wider text-muted-foreground/70">
-        Control Plane
+      <div className="px-3 pb-2 text-2xs font-mono font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center justify-between">
+        <span>Control Plane</span>
+        <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-mono normal-case">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+          </span>
+          live
+        </span>
       </div>
       {navItems.map((item) => {
         const isActive = location.pathname.startsWith(item.href)
@@ -92,8 +100,8 @@ export function AdminLayout() {
               'group relative flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
               isActive
-                ? 'bg-primary/10 text-primary font-semibold shadow-xs'
-                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                ? 'bg-primary/10 text-primary font-semibold shadow-xs border border-primary/20'
+                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground border border-transparent'
             )}
           >
             {isActive && !shouldReduceMotion && (
@@ -107,13 +115,18 @@ export function AdminLayout() {
               <div
                 className={cn(
                   'p-1.5 rounded-md transition-colors',
-                  isActive ? 'bg-primary/15 text-primary' : 'bg-muted/50 text-muted-foreground group-hover:text-foreground'
+                  isActive
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-muted/50 text-muted-foreground group-hover:text-foreground group-hover:bg-muted'
                 )}
               >
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex flex-col text-left">
                 <span className="leading-tight">{item.name}</span>
+                <span className="text-[11px] text-muted-foreground/80 font-normal truncate max-w-[155px]">
+                  {item.description}
+                </span>
               </div>
             </div>
             {item.badge ? (
@@ -121,7 +134,7 @@ export function AdminLayout() {
                 {item.badge}
               </span>
             ) : isActive ? (
-              <ChevronRight className="h-3.5 w-3.5 text-primary/70" />
+              <ChevronRight className="h-3.5 w-3.5 text-primary/70 shrink-0" />
             ) : null}
           </Link>
         )
@@ -132,7 +145,7 @@ export function AdminLayout() {
   return (
     <div className="flex flex-col h-full bg-background text-foreground">
       {/* Mobile Top Navigation Bar */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card/60 backdrop-blur-md sticky top-0 z-20">
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card/75 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-2.5">
           <Link
             to="/dashboard"
@@ -197,7 +210,7 @@ export function AdminLayout() {
               </div>
 
               {/* Workspace Badge Mobile */}
-              <div className="p-3 mb-4 rounded-lg bg-muted/40 border border-border/50 space-y-1">
+              <div className="p-3 mb-4 rounded-lg bg-muted/40 border border-border/60 space-y-1">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Building2 className="h-3.5 w-3.5" />
                   <span className="font-medium truncate">{workspaceName}</span>
@@ -230,22 +243,24 @@ export function AdminLayout() {
       {/* Main Layout Container */}
       <div className="flex-1 flex overflow-hidden">
         {/* Desktop Persistent Sidebar */}
-        <aside className="w-68 flex-shrink-0 border-r border-border/70 bg-card/30 overflow-y-auto hidden md:flex flex-col justify-between">
+        <aside className="w-72 flex-shrink-0 border-r border-border/80 bg-card/40 backdrop-blur-md overflow-y-auto hidden md:flex flex-col justify-between">
           <div className="p-4 space-y-5">
             {/* Context Header Card */}
-            <div className="p-3.5 rounded-lg bg-card border border-border/80 shadow-xs space-y-2">
+            <div className="p-3.5 rounded-xl bg-card border border-border/90 shadow-xs space-y-2 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-xl pointer-events-none -mr-8 -mt-8" />
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground truncate max-w-[160px]">
                   <Building2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                   <span className="truncate">{workspaceName}</span>
                 </div>
-                <span className="text-2xs font-mono font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                <span className="text-2xs font-mono font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
                   {userRole}
                 </span>
               </div>
-              <p className="text-2xs text-muted-foreground leading-tight">
-                Authoritative Workspace Control Plane
-              </p>
+              <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                <span className="truncate">Authoritative Control Plane</span>
+              </div>
             </div>
 
             {/* Navigation links */}
@@ -253,10 +268,10 @@ export function AdminLayout() {
           </div>
 
           {/* Sidebar Footer Link */}
-          <div className="p-4 border-t border-border/50">
+          <div className="p-4 border-t border-border/60 bg-card/20">
             <Link
               to="/dashboard"
-              className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-md transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Back to Workspace</span>

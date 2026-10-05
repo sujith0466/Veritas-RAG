@@ -27,6 +27,15 @@ import { Card } from '@/components/common/Card'
 import { useToast } from '@/hooks/useToast'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 
+const PRESET_QUOTAS = [
+  { label: 'Uncapped', value: '' },
+  { label: '250K', value: '250000' },
+  { label: '500K', value: '500000' },
+  { label: '1M', value: '1000000' },
+  { label: '2M', value: '2000000' },
+  { label: '5M', value: '5000000' },
+]
+
 export function QuotaBillingPage() {
   const { toast } = useToast()
   const user = useAuthStore(s => s.user)
@@ -292,7 +301,7 @@ export function QuotaBillingPage() {
               variant={isEditingLimits ? 'outline' : 'default'}
               size="sm"
               onClick={() => setIsEditingLimits(!isEditingLimits)}
-              className="flex items-center gap-2 shadow-xs"
+              className="flex items-center gap-2 shadow-xs cursor-pointer"
             >
               <Settings2 className="h-4 w-4" />
               <span>{isEditingLimits ? 'Cancel Editing' : 'Adjust Quotas'}</span>
@@ -382,7 +391,7 @@ export function QuotaBillingPage() {
                 </Label>
                 <select
                   id="is_hard_enforced"
-                  className="w-full h-9 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-9 px-3 text-xs bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer font-mono"
                   value={limitForm.is_hard_enforced ? 'true' : 'false'}
                   onChange={e => setLimitForm(prev => ({ ...prev, is_hard_enforced: e.target.value === 'true' }))}
                 >
@@ -460,9 +469,9 @@ export function QuotaBillingPage() {
           animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
         >
-          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors">
+          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors bg-card relative overflow-hidden">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+              <div className="p-2.5 bg-primary/10 rounded-xl text-primary border border-primary/20">
                 <Zap className="h-5 w-5" />
               </div>
               <div>
@@ -492,18 +501,28 @@ export function QuotaBillingPage() {
                 </div>
               </div>
 
-              <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden">
+              <div className="h-3 w-full bg-muted/60 rounded-full overflow-hidden p-0.5 border border-border/40">
                 <div
                   className={cn(
-                    'h-full transition-all duration-1000 ease-out',
-                    isCritical ? 'bg-destructive' : isWarning ? 'bg-amber-500' : 'bg-primary'
+                    'h-full rounded-full transition-all duration-1000 ease-out',
+                    isCritical
+                      ? 'bg-gradient-to-r from-rose-500 to-red-600'
+                      : isWarning
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                      : 'bg-gradient-to-r from-primary to-blue-500'
                   )}
                   style={{ width: `${Math.min(100, Math.max(0, usagePct))}%` }}
                 />
               </div>
 
+              <div className="flex items-center justify-between text-2xs font-mono text-muted-foreground pt-1">
+                <span>0 tokens</span>
+                <span className="font-medium text-foreground">{usagePct.toFixed(1)}% utilized</span>
+                <span>{(effectiveTokenLimit / 1000000).toFixed(1)}M limit</span>
+              </div>
+
               {isCritical && (
-                <div className="p-3 bg-destructive/10 text-destructive text-xs rounded-md border border-destructive/20 flex gap-2">
+                <div className="p-3 bg-destructive/10 text-destructive text-xs rounded-lg border border-destructive/20 flex gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                   <p>Warning: Workspace inference token consumption has exceeded 95% of allocated capacity.</p>
                 </div>
@@ -518,9 +537,9 @@ export function QuotaBillingPage() {
           animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.05 }}
         >
-          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors">
+          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors bg-card relative overflow-hidden">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-indigo-500/10 rounded-lg text-indigo-400">
+              <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
                 <Activity className="h-5 w-5" />
               </div>
               <div>
@@ -545,11 +564,17 @@ export function QuotaBillingPage() {
                 </div>
               </div>
 
-              <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden">
+              <div className="h-3 w-full bg-muted/60 rounded-full overflow-hidden p-0.5 border border-border/40">
                 <div
-                  className="h-full bg-indigo-500 transition-all duration-1000 ease-out"
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000 ease-out"
                   style={{ width: `${Math.min(100, Math.max(0, queryUsagePct))}%` }}
                 />
+              </div>
+
+              <div className="flex items-center justify-between text-2xs font-mono text-muted-foreground pt-1">
+                <span>0 queries</span>
+                <span className="font-medium text-foreground">{queryUsagePct.toFixed(1)}% utilized</span>
+                <span>{effectiveQueryLimit.toLocaleString()} limit</span>
               </div>
             </div>
           </Card>
@@ -563,7 +588,7 @@ export function QuotaBillingPage() {
           animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.1 }}
         >
-          <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors">
+          <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors bg-card">
             <div className="flex items-center gap-2 mb-2">
               <Database className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-foreground">Vector & Knowledge Storage</span>
@@ -580,7 +605,7 @@ export function QuotaBillingPage() {
           animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.15 }}
         >
-          <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors">
+          <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors bg-card">
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-foreground">Team Member Cap</span>
@@ -597,7 +622,7 @@ export function QuotaBillingPage() {
           animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
           transition={{ duration: 0.25, delay: 0.2 }}
         >
-          <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors">
+          <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors bg-card">
             <div className="flex items-center gap-2 mb-2">
               <Server className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-foreground">Policy Enforcement</span>
@@ -615,10 +640,10 @@ export function QuotaBillingPage() {
 
       {/* Team Member Token Quotas & Usage Breakdown */}
       {canEditLimits && (
-        <Card className="p-6 border border-border/80 shadow-xs">
+        <Card className="p-6 border border-border/80 shadow-xs bg-card">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+              <div className="p-2.5 bg-primary/10 rounded-xl text-primary border border-primary/20">
                 <Users className="h-5 w-5" />
               </div>
               <div>
@@ -631,14 +656,14 @@ export function QuotaBillingPage() {
           </div>
 
           {userQuotas.length === 0 ? (
-            <div className="text-center py-6 text-xs text-muted-foreground font-mono">
+            <div className="text-center py-8 text-xs text-muted-foreground font-mono">
               No active members found in this workspace.
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-border/60 text-muted-foreground font-semibold">
+                  <tr className="border-b border-border/60 text-muted-foreground font-semibold font-mono uppercase text-2xs">
                     <th className="pb-3 pl-1">Member</th>
                     <th className="pb-3">Role</th>
                     <th className="pb-3">Token Ceiling</th>
@@ -654,7 +679,7 @@ export function QuotaBillingPage() {
                     const pct = Math.min(100, Math.round((uq.used_tokens / Math.max(1, ceiling)) * 100))
                     return (
                       <tr key={uq.user_id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 pl-1">
+                        <td className="py-3.5 pl-1">
                           <div className="font-medium text-foreground">
                             {uq.user_display_name || uq.user_email || 'Member'}
                           </div>
@@ -662,12 +687,12 @@ export function QuotaBillingPage() {
                             <div className="text-2xs text-muted-foreground font-mono">{uq.user_email}</div>
                           )}
                         </td>
-                        <td className="py-3">
-                          <span className="inline-flex px-2 py-0.5 rounded text-2xs font-mono font-medium uppercase bg-muted text-foreground">
+                        <td className="py-3.5">
+                          <span className="inline-flex px-2 py-0.5 rounded text-2xs font-mono font-medium uppercase bg-muted text-foreground border border-border/60">
                             {uq.member_role || 'MEMBER'}
                           </span>
                         </td>
-                        <td className="py-3 font-mono">
+                        <td className="py-3.5 font-mono">
                           {isCustom ? (
                             <span className="font-semibold text-foreground">
                               {uq.monthly_token_budget?.toLocaleString()} tokens
@@ -676,11 +701,11 @@ export function QuotaBillingPage() {
                             <span className="text-muted-foreground italic">Workspace Pool (Uncapped)</span>
                           )}
                         </td>
-                        <td className="py-3 font-mono">
+                        <td className="py-3.5 font-mono">
                           <span className="text-foreground">{uq.used_tokens.toLocaleString()}</span>
                           <span className="text-muted-foreground text-2xs ml-1">({uq.used_queries} queries)</span>
                         </td>
-                        <td className="py-3">
+                        <td className="py-3.5">
                           <div className="flex items-center gap-2">
                             <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
                               <div
@@ -694,11 +719,11 @@ export function QuotaBillingPage() {
                             <span className="text-2xs font-mono text-muted-foreground">{pct}%</span>
                           </div>
                         </td>
-                        <td className="py-3 text-right pr-1">
+                        <td className="py-3.5 text-right pr-1">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 text-xs px-2.5"
+                            className="h-7 text-xs px-2.5 cursor-pointer"
                             onClick={() => handleOpenUserQuotaModal(uq)}
                           >
                             <Edit3 className="h-3 w-3 mr-1" />
@@ -717,9 +742,9 @@ export function QuotaBillingPage() {
 
       {/* Non-Admin Self Quota View for Member/Viewer */}
       {!canEditLimits && myQuota && (
-        <Card className="p-6 border border-border/80 shadow-xs">
+        <Card className="p-6 border border-border/80 shadow-xs bg-card">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
+            <div className="p-2.5 bg-primary/10 rounded-xl text-primary border border-primary/20">
               <User className="h-5 w-5" />
             </div>
             <div>
@@ -782,12 +807,13 @@ export function QuotaBillingPage() {
         {editingUserQuota && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xs p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-card border border-border rounded-xl shadow-lg p-6 space-y-4"
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="w-full max-w-md bg-card border border-border rounded-xl shadow-xl p-6 space-y-4"
             >
-              <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center justify-between border-b border-border/80 pb-3">
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-primary" />
                   <h3 className="font-semibold text-sm text-foreground">Configure User Token Quota</h3>
@@ -795,14 +821,14 @@ export function QuotaBillingPage() {
                 <button
                   type="button"
                   onClick={() => setEditingUserQuota(null)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-foreground">
+              <div className="space-y-1 p-3 bg-muted/30 rounded-lg border border-border/60">
+                <div className="text-xs font-semibold text-foreground">
                   {editingUserQuota.user_display_name || 'Member'}
                 </div>
                 <div className="text-2xs font-mono text-muted-foreground">{editingUserQuota.user_email}</div>
@@ -823,13 +849,33 @@ export function QuotaBillingPage() {
                     onChange={(e) => setUserQuotaBudget(e.target.value)}
                     className="h-9 text-xs"
                   />
-                  <p className="text-2xs text-muted-foreground">
-                    Set a hard cap in tokens, or leave blank to inherit the workspace pool limit (
+                  
+                  {/* Presets */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {PRESET_QUOTAS.map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => setUserQuotaBudget(p.value)}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-2xs font-mono border transition-colors cursor-pointer',
+                          userQuotaBudget === p.value
+                            ? 'bg-primary/10 text-primary border-primary/30 font-semibold'
+                            : 'bg-muted/50 text-muted-foreground hover:text-foreground border-border/60'
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="text-2xs text-muted-foreground pt-1 leading-relaxed">
+                    Set an explicit individual ceiling, or leave empty to allow this user to draw freely from the total workspace pool (
                     {editingUserQuota.workspace_token_limit.toLocaleString()} tokens).
                   </p>
                 </div>
 
-                <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-border/80">
                   <Button type="button" variant="outline" size="sm" onClick={() => setEditingUserQuota(null)}>
                     Cancel
                   </Button>
@@ -846,3 +892,5 @@ export function QuotaBillingPage() {
     </div>
   )
 }
+
+export default QuotaBillingPage
