@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import datetime
 import uuid
 
@@ -15,8 +16,21 @@ from backend.modules.analytics.schemas.errors import QuotaExceededError
 logger = structlog.get_logger(__name__)
 
 
+@dataclass
+class HierarchicalQuotaCheckResult:
+    """Result of hierarchical quota verification (workspace and user level)."""
+
+    is_allowed: bool
+    blocked_by: str | None = None  # None, 'user_quota', 'workspace_quota'
+    user_used_tokens: int = 0
+    user_token_limit: int | None = None
+    workspace_used_tokens: int = 0
+    workspace_token_limit: int = 0
+    detail: str | None = None
+
+
 class QuotaGovernor:
-    """Manages workspace token quotas with PostgreSQL as durable source-of-truth and Redis cache."""
+    """Manages workspace and user token quotas with PostgreSQL as durable source-of-truth and Redis cache."""
 
     DEFAULT_TOKEN_LIMIT = 10_000_000
     DEFAULT_BUDGET_USD = 150.0
@@ -49,6 +63,44 @@ class QuotaGovernor:
                 repo = UsageRepository(local_session)
                 usage = await repo.get_current_period_usage(workspace_id, period_start)
                 used = usage.used_tokens if usage else 0
+
+        if redis:
+            try:
+                await redis.set(cache_key, used, ex=60)
+            except Exception:
+                pass
+
+        return used
+
+    async def get_user_durable_usage(
+        self,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID,
+        session: AsyncSession | None = None,
+        period_start: datetime.date | None = None,
+    ) -> int:
+        """Fetch current used tokens for a specific user from PostgreSQL (or Redis cache)."""
+        redis = get_redis_client()
+        cache_key = f"quota:usage:{workspace_id}:user:{user_id}"
+        if redis:
+            try:
+                cached_val = await redis.get(cache_key)
+                if cached_val is not None:
+                    return int(cached_val)
+            except Exception as e:
+                logger.warning("Redis user cache read failed: %s", e)
+
+        from backend.modules.analytics.repositories.user_quota_repository import UserQuotaRepository
+
+        if session is not None:
+            repo = UserQuotaRepository(session)
+            u_usage = await repo.get_user_usage(workspace_id, user_id, period_start)
+            used = u_usage.used_tokens if u_usage else 0
+        else:
+            async with get_session_factory()() as local_session:
+                repo = UserQuotaRepository(local_session)
+                u_usage = await repo.get_user_usage(workspace_id, user_id, period_start)
+                used = u_usage.used_tokens if u_usage else 0
 
         if redis:
             try:
@@ -146,15 +198,94 @@ class QuotaGovernor:
 
         return is_exceeded, used_tokens, limit, is_hard
 
+    async def check_hierarchical_quota(
+        self,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
+        requested_tokens: int = 0,
+        session: AsyncSession | None = None,
+    ) -> HierarchicalQuotaCheckResult:
+        """Evaluate hierarchical quota: Workspace Quota AND User Quota."""
+        # 1. Evaluate Workspace Quota
+        ws_quota = await self.get_quota_settings(workspace_id=workspace_id, session=session)
+        ws_used = await self.get_durable_usage(workspace_id, session)
+
+        if ws_quota.is_hard_enforced and (ws_used + requested_tokens > ws_quota.monthly_token_limit):
+            return HierarchicalQuotaCheckResult(
+                is_allowed=False,
+                blocked_by="workspace_quota",
+                user_used_tokens=0,
+                user_token_limit=None,
+                workspace_used_tokens=ws_used,
+                workspace_token_limit=ws_quota.monthly_token_limit,
+                detail=f"Workspace token budget exhausted ({ws_used}/{ws_quota.monthly_token_limit}).",
+            )
+
+        # 2. Evaluate User Quota if user_id is provided
+        user_used = 0
+        user_limit = None
+        if user_id is not None:
+            from backend.modules.analytics.repositories.user_quota_repository import UserQuotaRepository
+            if session is not None:
+                repo = UserQuotaRepository(session)
+                u_quota = await repo.get_user_quota(workspace_id, user_id)
+            else:
+                async with get_session_factory()() as local_session:
+                    repo = UserQuotaRepository(local_session)
+                    u_quota = await repo.get_user_quota(workspace_id, user_id)
+
+            if u_quota and u_quota.monthly_token_budget is not None:
+                user_limit = u_quota.monthly_token_budget
+                user_used = await self.get_user_durable_usage(workspace_id, user_id, session)
+                if u_quota.is_hard_enforced and (user_used + requested_tokens > user_limit):
+                    return HierarchicalQuotaCheckResult(
+                        is_allowed=False,
+                        blocked_by="user_quota",
+                        user_used_tokens=user_used,
+                        user_token_limit=user_limit,
+                        workspace_used_tokens=ws_used,
+                        workspace_token_limit=ws_quota.monthly_token_limit,
+                        detail=f"User monthly token budget exhausted ({user_used}/{user_limit}).",
+                    )
+
+        return HierarchicalQuotaCheckResult(
+            is_allowed=True,
+            blocked_by=None,
+            user_used_tokens=user_used,
+            user_token_limit=user_limit,
+            workspace_used_tokens=ws_used,
+            workspace_token_limit=ws_quota.monthly_token_limit,
+            detail=None,
+        )
+
+    async def enforce_hierarchical_quota(
+        self,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
+        requested_tokens: int = 0,
+        session: AsyncSession | None = None,
+    ) -> HierarchicalQuotaCheckResult:
+        """Enforces hierarchical quota, raising QuotaExceededError if blocked."""
+        result = await self.check_hierarchical_quota(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            requested_tokens=requested_tokens,
+            session=session,
+        )
+        if not result.is_allowed:
+            raise QuotaExceededError(result.detail or "Quota exceeded")
+        return result
+
     async def record_usage(
         self,
         workspace_id: uuid.UUID,
         tokens: int,
         queries: int = 1,
+        user_id: uuid.UUID | None = None,
         session: AsyncSession | None = None,
         period_start: datetime.date | None = None,
     ) -> WorkspaceUsage:
-        """Atomically record used tokens and query counts in PostgreSQL."""
+        """Atomically record used tokens and query counts in PostgreSQL for workspace and user."""
         if tokens < 0 or queries < 0:
             raise ValueError("Token and query increments must be non-negative.")
 
@@ -173,6 +304,24 @@ class QuotaGovernor:
                 await redis.set(cache_key, usage.used_tokens, ex=60)
             except Exception as e:
                 logger.warning("Failed updating Redis usage cache: %s", e)
+
+        # Track per-user usage attribution if user_id is provided
+        if user_id is not None:
+            from backend.modules.analytics.repositories.user_quota_repository import UserQuotaRepository
+            if session is not None:
+                u_repo = UserQuotaRepository(session)
+                u_res = await u_repo.increment_user_usage(workspace_id, user_id, tokens, queries, period_start)
+            else:
+                async with get_session_factory()() as local_session:
+                    u_repo = UserQuotaRepository(local_session)
+                    u_res = await u_repo.increment_user_usage(workspace_id, user_id, tokens, queries, period_start)
+
+            if redis:
+                try:
+                    u_cache_key = f"quota:usage:{workspace_id}:user:{user_id}"
+                    await redis.set(u_cache_key, u_res.used_tokens, ex=60)
+                except Exception:
+                    pass
 
         return usage
 
