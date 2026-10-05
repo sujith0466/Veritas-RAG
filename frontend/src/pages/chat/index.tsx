@@ -722,7 +722,7 @@ export function AIChatPage() {
                 onClick={() => scrollToBottom(false)}
                 aria-label="Scroll to bottom"
                 title="Scroll to bottom"
-                className="group flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-foreground bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl backdrop-saturate-200 border border-slate-900/[0.08] dark:border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_1px_0_rgba(255,255,255,0.15)] hover:border-primary/50 hover:bg-white dark:hover:bg-slate-800 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+                className="group flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-foreground bg-white/45 dark:bg-slate-950/40 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.12] shadow-sm hover:shadow-md hover:border-primary/50 hover:bg-white/60 dark:hover:bg-slate-900/50 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
               >
                 <ChevronDown className="h-4 w-4 text-primary group-hover:translate-y-0.5 motion-reduce:group-hover:translate-y-0 transition-transform" />
               </button>
@@ -758,15 +758,15 @@ export function AIChatPage() {
           <form
             onSubmit={handleSubmit}
             className={cn(
-              "group relative flex items-end rounded-2xl border bg-surface/85 hover:bg-surface/95 dark:bg-slate-950/70 dark:hover:bg-slate-950/80 backdrop-blur-xl transition-all duration-200 overflow-hidden shadow-xs hover:shadow-sm focus-within:shadow-md",
+              "group relative flex items-end rounded-2xl border bg-white/45 hover:bg-white/55 focus-within:bg-white/65 dark:bg-slate-950/40 dark:hover:bg-slate-950/50 dark:focus-within:bg-slate-950/60 backdrop-blur-md transition-all duration-200 overflow-hidden shadow-xs hover:shadow-sm focus-within:shadow-md",
               isListening
                 ? "border-emerald-500/50 dark:border-emerald-500/40 ring-2 ring-emerald-500/20 dark:ring-emerald-500/25 shadow-md"
-                : "border-border/80 hover:border-border dark:border-white/[0.12] dark:hover:border-white/[0.18] focus-within:border-primary/50 dark:focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 dark:focus-within:ring-primary/20"
+                : "border-black/[0.08] hover:border-black/[0.12] dark:border-white/[0.10] dark:hover:border-white/[0.16] focus-within:border-primary/50 dark:focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 dark:focus-within:ring-primary/20"
             )}
           >
             {/* Top Specular Glass Reflection Edge */}
             <div
-              className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/90 dark:via-white/25 to-transparent pointer-events-none"
+              className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/15 to-transparent pointer-events-none"
               aria-hidden="true"
             />
 

@@ -10,7 +10,7 @@
 @layer base {
   :root {
     /* ── Light Theme (Default - Enterprise Minimal) ── */
-    --background: 60 20% 98%;           /* #fafaf8 - warm white */
+    --background: 40 14% 96.5%;         /* #f8f7f4 - soft warm off-white canvas */
     --foreground: 222 47% 11%;          /* #0f172a - slate-900 */
     --surface: 0 0% 100%;               /* #ffffff - white */
     --surface-elevated: 0 0% 100%;      /* #ffffff */
