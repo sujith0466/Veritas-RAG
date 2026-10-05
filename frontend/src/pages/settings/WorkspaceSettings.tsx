@@ -44,6 +44,8 @@ export function WorkspaceSettings() {
   const [saving, setSaving] = useState(false)
   const [settingsData, setSettingsData] = useState<WorkspaceSettingsData | null>(null)
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string>('')
+  const [workspaceUpdatedAt, setWorkspaceUpdatedAt] = useState<string>('')
+  const [initialWorkspaceName, setInitialWorkspaceName] = useState<string>('')
 
   // Workspace Identity State
   const [publicId, setPublicId] = useState<string>('')
@@ -112,10 +114,32 @@ export function WorkspaceSettings() {
         // Fallback to user auth context name
       }
 
-      // 2. Resolve current workspace identity (public_id, slug, name)
+      // 2. Resolve current workspace identity (public_id, slug, name, updated_at)
+      let wsUpdatedAt = currentWorkspace?.updated_at || ''
       try {
         let curWs = currentWorkspace
-        if (!curWs || !curWs.public_id) {
+        if (workspaceId) {
+          try {
+            const wsDetail = await workspaceService.getWorkspace(workspaceId)
+            if (wsDetail?.data) {
+              const d = wsDetail.data
+              curWs = {
+                id: d.id,
+                public_id: d.public_id,
+                name: d.name,
+                slug: d.slug,
+                status: d.status,
+                provisioning_status: d.provisioning_status,
+                updated_at: d.updated_at,
+              }
+              wsUpdatedAt = d.updated_at || ''
+              useWorkspaceStore.getState().setCurrentWorkspace(curWs)
+            }
+          } catch {
+            // fallback
+          }
+        }
+        if (!wsUpdatedAt) {
           const res = await workspaceService.getCurrentWorkspace()
           const d = (res as any)?.data || res
           if (d && (d.public_id || d.workspace_id || d.id)) {
@@ -126,8 +150,9 @@ export function WorkspaceSettings() {
               slug: d.slug,
               status: d.status || 'ACTIVE',
               provisioning_status: 'READY',
-              updated_at: new Date().toISOString(),
+              updated_at: d.updated_at || curWs?.updated_at || new Date().toISOString(),
             }
+            wsUpdatedAt = d.updated_at || curWs.updated_at || ''
             useWorkspaceStore.getState().setCurrentWorkspace(curWs)
           }
         }
@@ -135,14 +160,20 @@ export function WorkspaceSettings() {
           setPublicId(curWs.public_id || '')
           setSlug(curWs.slug || '')
           if (curWs.name) currentWsName = curWs.name
+          if (curWs.updated_at && !wsUpdatedAt) wsUpdatedAt = curWs.updated_at
         }
       } catch (wsErr) {
         console.warn('Could not fetch current workspace summary', wsErr)
         if (currentWorkspace) {
           setPublicId(currentWorkspace.public_id || '')
           setSlug(currentWorkspace.slug || '')
+          if (currentWorkspace.name) currentWsName = currentWorkspace.name
+          if (currentWorkspace.updated_at && !wsUpdatedAt) wsUpdatedAt = currentWorkspace.updated_at
         }
       }
+
+      setWorkspaceUpdatedAt(wsUpdatedAt)
+      setInitialWorkspaceName(currentWsName)
 
       // 3. Fetch canonical settings from /api/v1/workspaces/{id}/settings
       if (workspaceId) {
@@ -347,16 +378,60 @@ export function WorkspaceSettings() {
   }
 
   const handleSave = async () => {
-    if (!formData.workspace_name.trim()) {
+    const trimmedWsName = formData.workspace_name.trim()
+    if (!trimmedWsName) {
       toast({ title: 'Error', message: 'Workspace Name is required', type: 'error' })
       return
     }
 
     setSaving(true)
     try {
+      let effectiveWsName = trimmedWsName
+
+      // 1. If workspace name changed and workspaceId is available, persist to workspace entity
+      if (workspaceId && trimmedWsName !== initialWorkspaceName) {
+        let lockTimestamp = workspaceUpdatedAt || currentWorkspace?.updated_at
+        if (!lockTimestamp) {
+          try {
+            const wsDetail = await workspaceService.getWorkspace(workspaceId)
+            if (wsDetail?.data?.updated_at) {
+              lockTimestamp = wsDetail.data.updated_at
+            }
+          } catch {
+            // fallback
+          }
+        }
+        if (lockTimestamp) {
+          try {
+            const updateRes = await workspaceService.updateWorkspace(
+              workspaceId,
+              lockTimestamp,
+              trimmedWsName
+            )
+            if (updateRes?.data) {
+              effectiveWsName = updateRes.data.name
+              setWorkspaceUpdatedAt(updateRes.data.updated_at)
+              setInitialWorkspaceName(updateRes.data.name)
+              useWorkspaceStore.getState().setCurrentWorkspace(updateRes.data)
+            }
+          } catch (wsErr: any) {
+            if (wsErr?.response?.status === 409 || wsErr?.status === 409) {
+              toast({
+                title: 'Conflict Detected',
+                message: 'Workspace was modified by another user. Reloading fresh settings...',
+                type: 'error',
+              })
+              await loadWorkspace()
+              return
+            }
+            throw wsErr
+          }
+        }
+      }
+
       const retentionDays = parseInt(formData.retention_policy, 10) || 90
 
-      // 1. Save canonical workspace settings if workspaceId exists
+      // 2. Save canonical workspace settings if workspaceId exists
       if (workspaceId && expectedUpdatedAt) {
         try {
           const res = await workspaceSettingsService.patchSettings(
@@ -386,11 +461,11 @@ export function WorkspaceSettings() {
         }
       }
 
-      // 2. Synchronize workspace name across profile
+      // 3. Synchronize workspace name across profile and auth store
       await userService.updateProfile({
         profile_data: {
           ...user?.profile_data,
-          workspace_name: formData.workspace_name,
+          workspace_name: effectiveWsName,
         },
       })
 
@@ -398,8 +473,8 @@ export function WorkspaceSettings() {
         setAuth(
           {
             ...user,
-            workspace_name: formData.workspace_name,
-            profile_data: { ...user.profile_data, workspace_name: formData.workspace_name },
+            workspace_name: effectiveWsName,
+            profile_data: { ...user.profile_data, workspace_name: effectiveWsName },
           },
           token
         )

@@ -300,6 +300,7 @@ async def get_current_workspace(
             role=membership.role,
             status=workspace.status,
             joined_at=membership.joined_at,
+            updated_at=workspace.updated_at,
         ),
     )
 

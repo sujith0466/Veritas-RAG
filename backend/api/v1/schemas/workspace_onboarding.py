@@ -372,6 +372,7 @@ class CurrentWorkspaceData(BaseModel):
     role: str = Field(..., description="Authoritative membership role in this workspace")
     status: str = Field(default="ACTIVE", description="Workspace lifecycle status")
     joined_at: datetime | None = Field(default=None, description="Timestamp when user joined workspace")
+    updated_at: datetime | None = Field(default=None, description="Workspace last updated timestamp")
 
 
 class CurrentWorkspaceResponse(BaseModel):

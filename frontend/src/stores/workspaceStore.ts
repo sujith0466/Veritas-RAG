@@ -279,7 +279,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           slug: d.slug,
           status: d.status,
           provisioning_status: 'READY',
-          updated_at: new Date().toISOString(),
+          updated_at: d.updated_at || new Date().toISOString(),
         };
         set({
           currentWorkspace: ws,

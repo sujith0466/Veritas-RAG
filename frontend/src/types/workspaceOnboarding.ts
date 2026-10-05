@@ -128,6 +128,7 @@ export interface CurrentWorkspaceData {
   role: string;
   status: string;
   joined_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface CurrentWorkspaceResponse {

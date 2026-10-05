@@ -49,6 +49,14 @@ class WorkspaceService {
   }
 
   /**
+   * Get workspace details by ID
+   */
+  async getWorkspace(id: string): Promise<WorkspaceResponse> {
+    const response = await get<WorkspaceResponse>(`/api/v1/workspaces/${id}`);
+    return response;
+  }
+
+  /**
    * Resolve public workspace preview by Workspace ID or slug
    */
   async lookupWorkspace(identifier: string): Promise<WorkspacePreviewResponse> {

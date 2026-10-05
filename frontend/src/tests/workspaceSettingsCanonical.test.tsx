@@ -4,7 +4,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { WorkspaceSettings } from '@/pages/settings/WorkspaceSettings'
 import { workspaceSettingsService } from '@/services/workspaceSettingsService'
 import { userService } from '@/services/userService'
+import { workspaceService } from '@/services/workspaceService'
 import { useAuthStore } from '@/stores/authStore'
+import { useWorkspaceStore } from '@/stores/workspaceStore'
 
 const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async () => {
@@ -156,5 +158,64 @@ describe('Canonical Workspace Settings & Optimistic Concurrency (ADMIN-02)', () 
       // Upon 409, getSettings should be called again to reload fresh data
       expect(workspaceSettingsService.getSettings).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('persists modified workspace name via workspaceService.updateWorkspace and syncs stores', async () => {
+    vi.spyOn(workspaceSettingsService, 'getSettings').mockResolvedValue(sampleSettingsResponse)
+    vi.spyOn(workspaceSettingsService, 'patchSettings').mockResolvedValue({
+      success: true,
+      data: sampleSettingsResponse.data,
+    })
+    const updateWorkspaceSpy = vi.spyOn(workspaceService, 'updateWorkspace').mockResolvedValue({
+      success: true,
+      data: {
+        id: 'ws-123',
+        name: 'New Acme Name',
+        slug: 'veritas-corp',
+        status: 'ACTIVE',
+        provisioning_status: 'READY',
+        updated_at: '2026-10-04T02:00:00Z',
+      },
+    })
+    vi.spyOn(workspaceService, 'getWorkspace').mockResolvedValue({
+      success: true,
+      data: {
+        id: 'ws-123',
+        name: 'Veritas Corp',
+        slug: 'veritas-corp',
+        status: 'ACTIVE',
+        provisioning_status: 'READY',
+        updated_at: '2026-10-04T01:00:00Z',
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <WorkspaceSettings />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Veritas Corp')).toBeInTheDocument()
+    })
+
+    // Edit workspace name
+    const nameInput = screen.getByLabelText(/Workspace Name/i)
+    fireEvent.change(nameInput, { target: { value: 'New Acme Name' } })
+
+    const saveBtn = screen.getByRole('button', { name: /Save Workspace Settings/i })
+    fireEvent.click(saveBtn)
+
+    await waitFor(() => {
+      expect(updateWorkspaceSpy).toHaveBeenCalledWith(
+        'ws-123',
+        '2026-10-04T01:00:00Z',
+        'New Acme Name'
+      )
+    })
+
+    // Verify authStore and workspaceStore synced
+    expect(useAuthStore.getState().user?.workspace_name).toBe('New Acme Name')
+    expect(useWorkspaceStore.getState().currentWorkspace?.name).toBe('New Acme Name')
   })
 })

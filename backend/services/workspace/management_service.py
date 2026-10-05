@@ -2,9 +2,11 @@ from datetime import UTC, datetime
 from typing import Any
 import uuid
 
+from sqlalchemy import or_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.entities.audit_log import AuditLog
+from backend.models.entities.user import User
 from backend.models.entities.workspace import Workspace, WorkspaceStatus
 from backend.repositories.workspace import WorkspaceRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
@@ -96,6 +98,16 @@ class WorkspaceManagementService:
         # 8. Apply Changes
         if "name" in changes:
             workspace.name = changes["name"]
+            await session.execute(
+                update(User)
+                .where(
+                    or_(
+                        User.tenant_id == str(workspace_id),
+                        User.id == user_id,
+                    )
+                )
+                .values(workspace_name=changes["name"])
+            )
         if "description" in changes:
             workspace.description = changes["description"]
 
