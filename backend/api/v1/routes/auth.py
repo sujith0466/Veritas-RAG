@@ -478,7 +478,7 @@ async def demo_switch_role(
     valid_roles = {"platform_admin", "owner", "admin", "member", "viewer"}
     if target_role not in valid_roles:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"Invalid target role '{payload.target_role}'. Valid roles: {sorted(list(valid_roles))}",
         )
 

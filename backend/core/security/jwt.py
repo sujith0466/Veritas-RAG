@@ -75,7 +75,10 @@ class JWTService:
         resolved_workspace_id = str(workspace_id) if workspace_id else None
         resolved_role = role
 
-        if session:
+        if resolved_role == "platform_admin":
+            resolved_workspace_id = None
+
+        if session and not (resolved_role and (resolved_workspace_id or resolved_role == "platform_admin")):
             from sqlalchemy import select
             from backend.models.entities.workspace import Workspace, WorkspaceStatus
             from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
@@ -104,7 +107,7 @@ class JWTService:
                         resolved_role = member_role
 
             # 2. If workspace_id was not passed, check user's saved active workspace context (user.tenant_id)
-            elif getattr(user, "tenant_id", None):
+            elif getattr(user, "tenant_id", None) and resolved_role != "platform_admin":
                 try:
                     saved_ws_uuid = uuid.UUID(str(user.tenant_id))
                 except (ValueError, TypeError):
@@ -131,7 +134,7 @@ class JWTService:
                             resolved_role = row[1]
 
             # 3. If still not resolved, query user's first active workspace and its role
-            if not resolved_workspace_id:
+            if not resolved_workspace_id and resolved_role != "platform_admin":
                 stmt = (
                     select(Workspace.id, WorkspaceMember.role)
                     .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
