@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/common/Tooltip'
 import { cn } from '@/utils/cn'
 
@@ -23,26 +24,31 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   className,
   activeClassName = 'text-primary bg-primary/10 border-primary/20',
 }) => {
+  const shouldReduceMotion = useReducedMotion()
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <motion.button
           type="button"
           onClick={onClick}
           disabled={disabled}
           aria-label={ariaLabel}
           aria-pressed={active}
+          whileHover={!disabled && !shouldReduceMotion ? { scale: 1.06 } : undefined}
+          whileTap={!disabled && !shouldReduceMotion ? { scale: 0.94 } : undefined}
+          transition={{ duration: 0.12 }}
           className={cn(
             'inline-flex items-center justify-center rounded-md p-1.5 transition-colors duration-150',
             'text-muted-foreground hover:text-foreground hover:bg-muted/60',
             'focus-visible:outline-none focus-visible:ring-1.5 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-            'disabled:pointer-events-none disabled:opacity-40',
+            'disabled:pointer-events-none disabled:opacity-40 min-h-[32px] min-w-[32px] sm:min-h-[28px] sm:min-w-[28px]',
             active && activeClassName,
             className
           )}
         >
           {icon}
-        </button>
+        </motion.button>
       </TooltipTrigger>
       <TooltipContent side="top" sideOffset={4}>
         <span>{tooltip}</span>

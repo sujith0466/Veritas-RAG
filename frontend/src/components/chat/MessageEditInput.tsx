@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { cn } from '@/utils/cn'
@@ -18,6 +19,7 @@ export const MessageEditInput: React.FC<MessageEditInputProps> = ({
   disabled = false,
   className,
 }) => {
+  const shouldReduceMotion = useReducedMotion()
   const [content, setContent] = useState(initialContent)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -71,7 +73,10 @@ export const MessageEditInput: React.FC<MessageEditInputProps> = ({
   }
 
   return (
-    <div
+    <motion.div
+      initial={!shouldReduceMotion ? { opacity: 0, y: 3, scale: 0.99 } : false}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.15 }}
       className={cn(
         'flex flex-col gap-2.5 w-full rounded-xl border border-border/80 bg-surface/95 dark:bg-slate-900/90 p-3 shadow-md backdrop-blur-sm',
         className
@@ -124,6 +129,6 @@ export const MessageEditInput: React.FC<MessageEditInputProps> = ({
           )}
         </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }
