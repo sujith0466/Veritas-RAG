@@ -196,18 +196,18 @@ export function Sidebar() {
           {!sidebarCollapsed ? (
             <button
               onClick={handleNewChat}
-              className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-foreground bg-primary/10 hover:bg-primary/20 transition-colors"
+              className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              <Plus className="h-4 w-4" />
-              <span className="font-medium">New Chat</span>
+              <Plus className="h-4 w-4 shrink-0 transition-colors" />
+              <span className="font-medium text-sm whitespace-nowrap overflow-hidden">New Chat</span>
             </button>
           ) : (
             <button
               onClick={handleNewChat}
-              className="w-full flex items-center justify-center rounded-lg px-2 py-2 text-foreground bg-primary/10 hover:bg-primary/20 transition-colors"
+              className="w-full flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
               title="New Chat"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 shrink-0 transition-colors" />
             </button>
           )}
 

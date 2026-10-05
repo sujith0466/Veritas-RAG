@@ -961,10 +961,10 @@ function ChatMessageBubble({
           ) : (
             <>
               <div className={cn(
-                "relative px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-sm leading-relaxed transition-all",
+                "relative text-sm leading-relaxed transition-all",
                 isUser
-                  ? "bg-primary text-primary-foreground rounded-tr-sm shadow-[0_2px_10px_rgba(15,118,110,0.25)] border border-primary-hover/20"
-                  : "bg-surface/90 dark:bg-slate-900/70 border border-border/80 dark:border-white/[0.08] rounded-tl-sm shadow-sm dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)] text-foreground"
+                  ? "px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl rounded-tr-sm bg-emerald-50/80 border border-emerald-200/80 text-foreground shadow-[0_1px_2px_rgba(16,185,129,0.06)] dark:bg-emerald-950/40 dark:border-emerald-800/40 dark:text-emerald-50 dark:shadow-none"
+                  : "px-1 py-1 sm:px-1.5 sm:py-1.5 bg-transparent border-0 shadow-none text-foreground"
               )}>
                 {isRetrieving ? (
                   <div className="flex items-center gap-2.5 py-1 text-muted-foreground text-xs font-medium" role="status" aria-live="polite">
@@ -979,7 +979,7 @@ function ChatMessageBubble({
                   <div className={cn(
                     "prose prose-sm max-w-none leading-relaxed",
                     isUser
-                      ? "text-primary-foreground prose-invert selection:bg-white/20 selection:text-white"
+                      ? "text-foreground dark:text-emerald-50 dark:prose-invert prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0"
                       : "dark:prose-invert text-foreground prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-headings:tracking-tight prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5"
                   )}>
                     <ReactMarkdown
@@ -1000,7 +1000,7 @@ function ChatMessageBubble({
                               {...props}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={isUser ? "underline underline-offset-2 font-medium" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
+                              className={isUser ? "underline underline-offset-2 font-medium text-emerald-800 dark:text-emerald-300 hover:opacity-80 transition-opacity" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
                             >
                               {children}
                             </a>
@@ -1017,7 +1017,7 @@ function ChatMessageBubble({
                               className={cn(
                                 "rounded font-mono text-[12px] font-medium px-1.5 py-0.5",
                                 isUser
-                                  ? "bg-black/20 text-primary-foreground"
+                                  ? "bg-emerald-500/10 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200 border border-emerald-500/20"
                                   : "bg-muted/80 text-primary dark:text-teal-300 border border-border/50"
                               )}
                               {...props}
