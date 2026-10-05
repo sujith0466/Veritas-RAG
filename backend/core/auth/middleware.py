@@ -62,6 +62,14 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
             # Construct the user context from the verified payload to UserContext
             effective_tenant_id = token_payload.workspace_id or token_payload.tenant_id
 
+            from backend.core.config import get_settings
+            app_settings = get_settings()
+            is_demo_eligible = bool(
+                app_settings.features.demo_role_switcher_enabled
+                and app_settings.features.demo_account_user_id
+                and str(token_payload.sub).strip().lower() == str(app_settings.features.demo_account_user_id).strip().lower()
+            )
+
             request.state.user_context = UserContext(
                 id=uuid.UUID(token_payload.sub),
                 email=token_payload.email or "",
@@ -69,6 +77,8 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
                 is_active=True,
                 tenant_id=effective_tenant_id,
                 workspace_name=None,
+                demo_role_switcher_enabled=is_demo_eligible,
+                demo_simulated=token_payload.demo_simulated,
             )
 
         except ExpiredTokenException:

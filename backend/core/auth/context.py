@@ -32,6 +32,10 @@ class TokenPayload(BaseModel):
         default_factory=dict,
         description="Optional raw claims or user metadata",
     )
+    demo_simulated: bool = Field(
+        default=False,
+        description="Whether the token represents a demo simulated session",
+    )
 
 
 class UserContext(BaseModel):
@@ -45,6 +49,14 @@ class UserContext(BaseModel):
     tenant_id: str | None = Field(default=None, description="Optional multi-tenant ID")
     workspace_name: str | None = Field(default=None, description="Optional workspace name")
     workspace_id: uuid.UUID | str | None = Field(default=None, description="Active workspace ID")
+    demo_role_switcher_enabled: bool = Field(
+        default=False,
+        description="Whether the user is authorized to use the demo role switcher",
+    )
+    demo_simulated: bool = Field(
+        default=False,
+        description="Whether the current session context is running in simulated demo role",
+    )
 
     def model_post_init(self, __context: Any) -> None:
         if self.workspace_id and not self.tenant_id:

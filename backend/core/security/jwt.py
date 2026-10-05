@@ -218,6 +218,7 @@ class JWTService:
                 aud=raw_claims.get("aud"),
                 iss=raw_claims.get("iss"),
                 metadata=raw_claims,
+                demo_simulated=bool(raw_claims.get("demo_simulated", False)),
             )
 
         except ExpiredSignatureError as e:

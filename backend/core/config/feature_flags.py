@@ -103,6 +103,23 @@ class FeatureFlagSettings(BaseSettings):
         description="Enable AI Policy Middleware for token/topic/PII enforcement (F8.9)",
     )
 
+    # Demo Role Switcher Configuration (Non-mutating developer demo capability)
+    demo_role_switcher_enabled: bool = Field(
+        default=False,
+        alias="DEMO_ROLE_SWITCHER_ENABLED",
+        description="Enable developer demo role switching for authorized demo account",
+    )
+    demo_account_user_id: str | None = Field(
+        default=None,
+        alias="DEMO_ACCOUNT_USER_ID",
+        description="Immutable internal UUID of the authorized demo operator account",
+    )
+    demo_allow_platform_admin_simulation: bool = Field(
+        default=False,
+        alias="DEMO_ALLOW_PLATFORM_ADMIN_SIMULATION",
+        description="Permit simulation of PLATFORM_ADMIN role for the demo account",
+    )
+
     model_config = {
         "populate_by_name": True,
         "env_file": (".env", ".env.local"),
