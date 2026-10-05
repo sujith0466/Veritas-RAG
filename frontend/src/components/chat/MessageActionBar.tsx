@@ -32,6 +32,12 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
         <motion.button
           type="button"
           onClick={onClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onClick(e as any)
+            }
+          }}
           disabled={disabled}
           aria-label={ariaLabel}
           aria-pressed={active}

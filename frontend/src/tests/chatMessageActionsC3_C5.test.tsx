@@ -147,7 +147,7 @@ describe('WS-C C3 & C5: MessageEditInput & ShareModal', () => {
       expect(screen.getByText('Private Deep Link')).toBeInTheDocument()
       expect(screen.getByText(/This link is private and accessible only by you in this workspace/i)).toBeInTheDocument()
 
-      const copyMarkdownBtn = screen.getByRole('button', { name: 'Copy' })
+      const copyMarkdownBtn = screen.getByRole('button', { name: /Copy formatted markdown/i })
       fireEvent.click(copyMarkdownBtn)
 
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Here is the shared answer.')

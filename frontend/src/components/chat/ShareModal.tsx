@@ -145,6 +145,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               size="sm"
               onClick={handleCopyMarkdown}
               className="text-xs h-7.5 px-2.5 gap-1.5 shrink-0"
+              aria-label="Copy formatted markdown"
             >
               {copiedMarkdown ? (
                 <>
@@ -206,6 +207,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   size="sm"
                   onClick={handleCopyLink}
                   className="text-xs h-7 px-2.5 gap-1.5"
+                  aria-label="Copy private link"
                 >
                   {copiedLink ? (
                     <>
