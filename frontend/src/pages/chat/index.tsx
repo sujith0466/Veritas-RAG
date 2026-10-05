@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Send, Mic, X, Check, Bot, User as UserIcon, Copy, ChevronRight, ChevronDown, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
+import { Send, Mic, X, Check, Bot, User as UserIcon, ChevronRight, ChevronDown, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import ReactMarkdown from 'react-markdown'
@@ -18,15 +18,29 @@ import { CitationBadge } from '@/components/chat/CitationBadge'
 import { CitationGrid } from '@/components/chat/CitationGrid'
 import { CodeBlock } from '@/components/chat/CodeBlock'
 import { VoiceVisualizer } from '@/components/chat/VoiceVisualizer'
+import { UserMessageActions } from '@/components/chat/UserMessageActions'
+import { AssistantMessageActions } from '@/components/chat/AssistantMessageActions'
+import { MessageEditInput } from '@/components/chat/MessageEditInput'
+import { ShareModal } from '@/components/chat/ShareModal'
 
 export function AIChatPage() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { activeSession, fetchSession, createSession, hasMoreMessages, loadMoreMessages } = useChatStore()
+  const {
+    activeSession,
+    fetchSession,
+    createSession,
+    hasMoreMessages,
+    loadMoreMessages,
+    rewindSession,
+    updateMessageFeedback,
+  } = useChatStore()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [shareMessage, setShareMessage] = useState<ChatMessage | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -505,6 +519,56 @@ export function AIChatPage() {
     focusComposer()
   }
 
+  const handleEditMessage = useCallback(async (messageId: string, newText: string) => {
+    if (isStreaming || !sessionId) return
+    try {
+      hasOptimisticContent.current = true
+      await rewindSession(sessionId, messageId)
+      setMessages(prev => {
+        const idx = prev.findIndex(m => m.id === messageId)
+        return idx !== -1 ? prev.slice(0, idx) : prev
+      })
+      setEditingMessageId(null)
+      await executeStream(sessionId, newText)
+    } catch (err: any) {
+      console.error('Failed to edit and rewind message', err)
+      toast({
+        title: 'Edit Failed',
+        message: err.message || 'Failed to update message',
+        type: 'error',
+      })
+    } finally {
+      hasOptimisticContent.current = false
+    }
+  }, [isStreaming, sessionId, rewindSession, toast])
+
+  const handleFeedbackMessage = useCallback(async (messageId: string, rating: 'like' | 'dislike' | null) => {
+    if (!sessionId) return
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m
+      const meta = { ...(m.metadata_json as any || {}) }
+      if (rating === null) {
+        delete meta.feedback
+        delete meta.feedback_at
+        delete meta.feedback_by
+      } else {
+        meta.feedback = rating
+        meta.feedback_at = new Date().toISOString()
+      }
+      return { ...m, metadata_json: meta }
+    }))
+
+    try {
+      await updateMessageFeedback(sessionId, messageId, rating)
+    } catch (err) {
+      console.error('Failed to update feedback', err)
+    }
+  }, [sessionId, updateMessageFeedback])
+
+  const handleShareMessage = useCallback((msg: ChatMessage) => {
+    setShareMessage(msg)
+  }, [])
+
   const handleStartVoice = useCallback(async () => {
     if (isStreaming) return
     originalInputRef.current = input
@@ -612,7 +676,18 @@ export function AIChatPage() {
           </div>
         ) : (
           messages.map((msg, i) => (
-            <ChatMessageBubble key={msg.id || i} message={msg} isStreaming={isStreaming && i === messages.length - 1} />
+            <ChatMessageBubble
+              key={msg.id || i}
+              message={msg}
+              isStreaming={isStreaming && i === messages.length - 1}
+              isEditing={editingMessageId === msg.id}
+              onStartEdit={() => setEditingMessageId(msg.id)}
+              onCancelEdit={() => setEditingMessageId(null)}
+              onSaveEdit={(newText) => handleEditMessage(msg.id, newText)}
+              onFeedback={(rating) => handleFeedbackMessage(msg.id, rating)}
+              onShare={() => handleShareMessage(msg)}
+              disabled={isStreaming}
+            />
           ))
         )}
         <div ref={messagesEndRef} />
@@ -796,19 +871,39 @@ export function AIChatPage() {
           </div>
         </div>
       </div>
+
+      <ShareModal
+        isOpen={!!shareMessage}
+        onClose={() => setShareMessage(null)}
+        message={shareMessage}
+        sessionId={sessionId || null}
+      />
     </div>
   )
 }
 
-function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMessage; isStreaming?: boolean }) {
+function ChatMessageBubble({
+  message,
+  isStreaming = false,
+  isEditing = false,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onFeedback,
+  onShare,
+  disabled = false,
+}: {
+  message: ChatMessage
+  isStreaming?: boolean
+  isEditing?: boolean
+  onStartEdit?: () => void
+  onCancelEdit?: () => void
+  onSaveEdit?: (newText: string) => Promise<void> | void
+  onFeedback?: (rating: 'like' | 'dislike' | null) => void
+  onShare?: () => void
+  disabled?: boolean
+}) {
   const isUser = message.role === 'user'
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message.message)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
 
   // F9.5 Interactive Citation Links Pre-processing
   let processedMessage = message.message || ''
@@ -833,7 +928,7 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
   const isRetrieving = !isUser && isStreaming && !processedMessage
 
   return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} mx-auto max-w-4xl`}>
+    <div className={`group flex w-full ${isUser ? 'justify-end' : 'justify-start'} mx-auto max-w-4xl`}>
       <div className={`flex gap-3 sm:gap-4 max-w-[88%] sm:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
 
         {/* Avatar */}
@@ -844,100 +939,124 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
         </div>
 
         {/* Content */}
-        <div className={`flex flex-col gap-2 ${isUser ? 'items-end' : 'items-start'} min-w-0 w-full`}>
-          <div className={cn(
-            "relative px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-sm leading-relaxed transition-all",
-            isUser
-              ? "bg-primary text-primary-foreground rounded-tr-sm shadow-[0_2px_10px_rgba(15,118,110,0.25)] border border-primary-hover/20"
-              : "bg-surface/90 dark:bg-slate-900/70 border border-border/80 dark:border-white/[0.08] rounded-tl-sm shadow-sm dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)] text-foreground"
-          )}>
-            {isRetrieving ? (
-              <div className="flex items-center gap-2.5 py-1 text-muted-foreground text-xs font-medium" role="status" aria-live="polite">
-                <div className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/80 animate-pulse [animation-delay:200ms]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse [animation-delay:400ms]" />
-                </div>
-                <span className="text-xs text-muted-foreground/90 font-medium tracking-tight">Searching knowledge base...</span>
-              </div>
-            ) : (
+        <div className={`flex flex-col gap-1.5 ${isUser ? 'items-end' : 'items-start'} min-w-0 w-full`}>
+          {isUser && isEditing ? (
+            <MessageEditInput
+              initialContent={message.message}
+              onSave={onSaveEdit!}
+              onCancel={onCancelEdit!}
+              disabled={disabled || isStreaming}
+              className="w-full min-w-[280px] sm:min-w-[400px]"
+            />
+          ) : (
+            <>
               <div className={cn(
-                "prose prose-sm max-w-none leading-relaxed",
+                "relative px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-sm leading-relaxed transition-all",
                 isUser
-                  ? "text-primary-foreground prose-invert selection:bg-white/20 selection:text-white"
-                  : "dark:prose-invert text-foreground prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-headings:tracking-tight prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5"
+                  ? "bg-primary text-primary-foreground rounded-tr-sm shadow-[0_2px_10px_rgba(15,118,110,0.25)] border border-primary-hover/20"
+                  : "bg-surface/90 dark:bg-slate-900/70 border border-border/80 dark:border-white/[0.08] rounded-tl-sm shadow-sm dark:shadow-[0_4px_24px_rgba(0,0,0,0.25)] text-foreground"
               )}>
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children, ...props }) => {
-                      if (href?.startsWith('#cite-')) {
-                        const citeIndex = parseInt(href.replace('#cite-', ''), 10)
-                        const citation = (message.citations as any[])?.find(c => c.citation_index === citeIndex)
-                        if (citation) {
-                          return <CitationBadge citation={citation} />
-                        }
-                        return <span>[{citeIndex}]</span>
-                      }
-                      return (
-                        <a
-                          href={href}
-                          {...props}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={isUser ? "underline underline-offset-2 font-medium" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
-                        >
-                          {children}
-                        </a>
-                      )
-                    },
-                    code: ({ inline, className, children, ...props }: any) => {
-                      const match = /language-(\w+)/.exec(className || '')
-                      const codeString = String(children).replace(/\n$/, '')
-                      if (!inline && (match || codeString.includes('\n'))) {
-                        return <CodeBlock language={match ? match[1] : undefined} value={codeString} />
-                      }
-                      return (
-                        <code
-                          className={cn(
-                            "rounded font-mono text-[12px] font-medium px-1.5 py-0.5",
-                            isUser
-                              ? "bg-black/20 text-primary-foreground"
-                              : "bg-muted/80 text-primary dark:text-teal-300 border border-border/50"
-                          )}
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      )
-                    },
-                    table: ({ children }) => (
-                      <div className="my-3 overflow-x-auto rounded-lg border border-border/60">
-                        <table className="min-w-full divide-y divide-border/60 text-xs">{children}</table>
-                      </div>
-                    ),
-                    thead: ({ children }) => <thead className="bg-muted/50 font-semibold text-foreground">{children}</thead>,
-                    th: ({ children }) => <th className="px-3 py-2 text-left font-semibold text-foreground">{children}</th>,
-                    td: ({ children }) => <td className="px-3 py-2 border-t border-border/40 text-foreground/90">{children}</td>,
-                    blockquote: ({ children }) => (
-                      <blockquote className="my-2.5 border-l-2 border-primary/70 pl-3.5 italic text-muted-foreground text-xs">
-                        {children}
-                      </blockquote>
-                    )
-                  }}
-                >
-                  {processedMessage}
-                </ReactMarkdown>
-                {isStreaming && !isUser && (
-                  <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/80 rounded-sm animate-pulse align-middle" aria-hidden="true" />
+                {isRetrieving ? (
+                  <div className="flex items-center gap-2.5 py-1 text-muted-foreground text-xs font-medium" role="status" aria-live="polite">
+                    <div className="flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/80 animate-pulse [animation-delay:200ms]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse [animation-delay:400ms]" />
+                    </div>
+                    <span className="text-xs text-muted-foreground/90 font-medium tracking-tight">Searching knowledge base...</span>
+                  </div>
+                ) : (
+                  <div className={cn(
+                    "prose prose-sm max-w-none leading-relaxed",
+                    isUser
+                      ? "text-primary-foreground prose-invert selection:bg-white/20 selection:text-white"
+                      : "dark:prose-invert text-foreground prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-headings:tracking-tight prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5"
+                  )}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ href, children, ...props }) => {
+                          if (href?.startsWith('#cite-')) {
+                            const citeIndex = parseInt(href.replace('#cite-', ''), 10)
+                            const citation = (message.citations as any[])?.find(c => c.citation_index === citeIndex)
+                            if (citation) {
+                              return <CitationBadge citation={citation} />
+                            }
+                            return <span>[{citeIndex}]</span>
+                          }
+                          return (
+                            <a
+                              href={href}
+                              {...props}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={isUser ? "underline underline-offset-2 font-medium" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
+                            >
+                              {children}
+                            </a>
+                          )
+                        },
+                        code: ({ inline, className, children, ...props }: any) => {
+                          const match = /language-(\w+)/.exec(className || '')
+                          const codeString = String(children).replace(/\n$/, '')
+                          if (!inline && (match || codeString.includes('\n'))) {
+                            return <CodeBlock language={match ? match[1] : undefined} value={codeString} />
+                          }
+                          return (
+                            <code
+                              className={cn(
+                                "rounded font-mono text-[12px] font-medium px-1.5 py-0.5",
+                                isUser
+                                  ? "bg-black/20 text-primary-foreground"
+                                  : "bg-muted/80 text-primary dark:text-teal-300 border border-border/50"
+                              )}
+                              {...props}
+                            >
+                              {children}
+                            </code>
+                          )
+                        },
+                        table: ({ children }) => (
+                          <div className="my-3 overflow-x-auto rounded-lg border border-border/60">
+                            <table className="min-w-full divide-y divide-border/60 text-xs">{children}</table>
+                          </div>
+                        ),
+                        thead: ({ children }) => <thead className="bg-muted/50 font-semibold text-foreground">{children}</thead>,
+                        th: ({ children }) => <th className="px-3 py-2 text-left font-semibold text-foreground">{children}</th>,
+                        td: ({ children }) => <td className="px-3 py-2 border-t border-border/40 text-foreground/90">{children}</td>,
+                        blockquote: ({ children }) => (
+                          <blockquote className="my-2.5 border-l-2 border-primary/70 pl-3.5 italic text-muted-foreground text-xs">
+                            {children}
+                          </blockquote>
+                        )
+                      }}
+                    >
+                      {processedMessage}
+                    </ReactMarkdown>
+                    {isStreaming && !isUser && (
+                      <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/80 rounded-sm animate-pulse align-middle" aria-hidden="true" />
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+
+              {/* User Message Action Bar (Icon-only: Edit, Copy) */}
+              {isUser && !isStreaming && onStartEdit && (
+                <div className="flex items-center justify-end mt-0.5">
+                  <UserMessageActions
+                    content={message.message}
+                    onEdit={onStartEdit}
+                    disabled={disabled || isStreaming}
+                    className="opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity"
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           {/* Metadata & Actions (Assistant only) */}
           {!isUser && !isStreaming && (message.reliability_score !== undefined || message.citations?.length || processedMessage) && (
-            <div className="flex items-center gap-2.5 px-1 pt-0.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 px-1 pt-0.5 w-full">
               {/* F9.4 Badge & Tooltip Rendering */}
               {message.reliability_score !== undefined && (
                 <TooltipProvider delayDuration={200}>
@@ -973,25 +1092,16 @@ function ChatMessageBubble({ message, isStreaming = false }: { message: ChatMess
                 </TooltipProvider>
               )}
 
+              {/* Assistant Action Bar (Icon-only: Copy, Like, Dislike, Share) */}
               {processedMessage && (
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  aria-label={copied ? "Answer copied" : "Copy answer"}
-                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md hover:bg-muted/60 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-3 w-3 text-emerald-500" />
-                      <span className="text-emerald-500">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3 w-3" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
+                <AssistantMessageActions
+                  content={processedMessage}
+                  feedback={(message.metadata_json as any)?.feedback || null}
+                  onFeedback={onFeedback}
+                  onShare={onShare}
+                  disabled={disabled || isStreaming}
+                  className="ml-auto"
+                />
               )}
             </div>
           )}

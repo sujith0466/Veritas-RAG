@@ -8,6 +8,15 @@ const notifyError = (title: string, message: string) => {
   setTimeout(() => removeNotification(id), 5000)
 }
 
+export interface ChatMessageMetadata {
+  feedback?: 'like' | 'dislike' | null
+  feedback_at?: string
+  feedback_by?: string
+  status?: string
+  error?: unknown
+  [key: string]: unknown
+}
+
 export interface ChatMessage {
   id: string
   session_id: string
@@ -15,7 +24,7 @@ export interface ChatMessage {
   message: string
   citations?: unknown[]
   reliability_score?: number
-  metadata_json?: unknown
+  metadata_json?: ChatMessageMetadata | null
   created_at: string
 }
 
@@ -47,6 +56,8 @@ interface ChatState {
   hasMoreMessages: boolean
   messageOffset: number
   loadMoreMessages: (id: string) => Promise<void>
+  rewindSession: (sessionId: string, messageId: string) => Promise<number>
+  updateMessageFeedback: (sessionId: string, messageId: string, rating: 'like' | 'dislike' | null) => Promise<void>
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -191,4 +202,100 @@ export const useChatStore = create<ChatState>((set) => ({
       messageOffset: 0,
       isLoading: false,
     }),
+
+  rewindSession: async (sessionId: string, messageId: string) => {
+    try {
+      const { data } = await api.post(`/chat/sessions/${sessionId}/messages/${messageId}/rewind`)
+      const deletedCount = data.data?.deleted_count ?? 0
+
+      // Truncate local activeSession messages up to messageId (exclusive)
+      set((state) => {
+        if (!state.activeSession || state.activeSession.id !== sessionId || !state.activeSession.messages) {
+          return state
+        }
+        const msgs = state.activeSession.messages
+        const targetIdx = msgs.findIndex((m) => m.id === messageId)
+        if (targetIdx === -1) return state
+
+        return {
+          activeSession: {
+            ...state.activeSession,
+            messages: msgs.slice(0, targetIdx)
+          }
+        }
+      })
+
+      return deletedCount
+    } catch (error) {
+      console.error('Failed to rewind session', error)
+      notifyError('Rewind Failed', (error as Error).message || 'Failed to rewind session')
+      throw error
+    }
+  },
+
+  updateMessageFeedback: async (sessionId: string, messageId: string, rating: 'like' | 'dislike' | null) => {
+    const state = useChatStore.getState()
+    const active = state.activeSession
+    let previousFeedback: 'like' | 'dislike' | null = null
+
+    // 1. Optimistic local update
+    if (active && active.id === sessionId && active.messages) {
+      const target = active.messages.find((m) => m.id === messageId)
+      if (target) {
+        previousFeedback = (target.metadata_json as ChatMessageMetadata)?.feedback || null
+      }
+
+      set((s) => {
+        if (!s.activeSession || s.activeSession.id !== sessionId || !s.activeSession.messages) return s
+        return {
+          activeSession: {
+            ...s.activeSession,
+            messages: s.activeSession.messages.map((m) => {
+              if (m.id !== messageId) return m
+              const meta: ChatMessageMetadata = { ...(m.metadata_json || {}) }
+              if (rating === null) {
+                delete meta.feedback
+                delete meta.feedback_at
+                delete meta.feedback_by
+              } else {
+                meta.feedback = rating
+                meta.feedback_at = new Date().toISOString()
+              }
+              return { ...m, metadata_json: meta }
+            })
+          }
+        }
+      })
+    }
+
+    // 2. Server persistence
+    try {
+      await api.put(`/chat/sessions/${sessionId}/messages/${messageId}/feedback`, { rating })
+    } catch (error) {
+      console.error('Failed to update feedback', error)
+      notifyError('Feedback Failed', 'Could not save feedback')
+      // Rollback optimistic update
+      set((s) => {
+        if (!s.activeSession || s.activeSession.id !== sessionId || !s.activeSession.messages) return s
+        return {
+          activeSession: {
+            ...s.activeSession,
+            messages: s.activeSession.messages.map((m) => {
+              if (m.id !== messageId) return m
+              const meta: ChatMessageMetadata = { ...(m.metadata_json || {}) }
+              if (previousFeedback === null) {
+                delete meta.feedback
+                delete meta.feedback_at
+                delete meta.feedback_by
+              } else {
+                meta.feedback = previousFeedback
+              }
+              return { ...m, metadata_json: meta }
+            })
+          }
+        }
+      })
+      throw error
+    }
+  },
 }))

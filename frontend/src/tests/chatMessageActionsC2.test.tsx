@@ -1,6 +1,5 @@
-import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { ActionButton, MessageActionBar } from '@/components/chat/MessageActionBar'
 import { UserMessageActions } from '@/components/chat/UserMessageActions'
 import { AssistantMessageActions } from '@/components/chat/AssistantMessageActions'
@@ -37,7 +36,7 @@ describe('WS-C C2: Message Action Bar & Action Components', () => {
 
   it('UserMessageActions renders Edit and Copy buttons as icons only', () => {
     const onEdit = vi.fn()
-    const { container } = render(
+    render(
       <UserMessageActions content="Hello world prompt" onEdit={onEdit} />
     )
 
