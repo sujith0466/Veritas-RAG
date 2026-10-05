@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Send, Mic, X, Check, Bot, User as UserIcon, ChevronRight, ChevronDown, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Send, Mic, X, Check, User as UserIcon, ChevronRight, ChevronDown, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -650,7 +650,7 @@ export function AIChatPage() {
         {messages.length === 0 ? (
           <div className="flex min-h-full flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8 py-8">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
-              <Bot className="h-8 w-8 text-primary" />
+              <Sparkles className="h-8 w-8 text-primary" />
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-medium text-foreground">How can I help you today?</h3>
@@ -722,16 +722,15 @@ export function AIChatPage() {
                 onClick={() => scrollToBottom(false)}
                 aria-label="Scroll to bottom"
                 title="Scroll to bottom"
-                className="group flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium text-foreground bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl backdrop-saturate-200 border border-slate-900/[0.08] dark:border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_1px_0_rgba(255,255,255,0.15)] hover:border-primary/50 hover:bg-white/90 dark:hover:bg-slate-800/90 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+                className="group flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-foreground bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl backdrop-saturate-200 border border-slate-900/[0.08] dark:border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.12),inset_0_1px_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_1px_0_rgba(255,255,255,0.15)] hover:border-primary/50 hover:bg-white dark:hover:bg-slate-800 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
               >
-                <ChevronDown className="h-3.5 w-3.5 text-primary group-hover:translate-y-0.5 transition-transform" />
-                <span>Scroll to bottom</span>
+                <ChevronDown className="h-4 w-4 text-primary group-hover:translate-y-0.5 motion-reduce:group-hover:translate-y-0 transition-transform" />
               </button>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div ref={composerContainerRef} className="w-full max-w-4xl pointer-events-auto relative">
+        <div ref={composerContainerRef} className="w-full max-w-3xl pointer-events-auto relative">
           <AnimatePresence>
             {isStreaming && (
               <motion.div
@@ -892,6 +891,31 @@ export function AIChatPage() {
   )
 }
 
+function AssistantIndicator({ isGenerating }: { isGenerating?: boolean }) {
+  const shouldReduceMotion = useReducedMotion()
+
+  if (isGenerating) {
+    return (
+      <div className="relative flex h-4 w-4 items-center justify-center" role="status" aria-label="Generating response">
+        {!shouldReduceMotion && (
+          <motion.span
+            className="absolute inset-0 rounded-full border border-primary/60 border-t-transparent"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+          />
+        )}
+        <motion.span
+          className="h-1.5 w-1.5 rounded-full bg-primary"
+          animate={shouldReduceMotion ? { opacity: [0.6, 1, 0.6] } : { scale: [0.85, 1.25, 0.85], opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
+    )
+  }
+
+  return <Sparkles className="h-3.5 w-3.5 text-primary/80" aria-hidden="true" />
+}
+
 function ChatMessageBubble({
   message,
   isStreaming = false,
@@ -944,7 +968,7 @@ function ChatMessageBubble({
         {/* Avatar */}
         <div className="shrink-0 mt-1">
           <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isUser ? 'bg-primary/15 text-primary border border-primary/20 ring-1 ring-primary/20' : 'bg-primary/10 text-primary border border-primary/20 ring-1 ring-primary/20'}`}>
-            {isUser ? <UserIcon className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+            {isUser ? <UserIcon className="h-4 w-4" /> : <AssistantIndicator isGenerating={isStreaming} />}
           </div>
         </div>
 
