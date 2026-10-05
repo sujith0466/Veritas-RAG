@@ -52,6 +52,28 @@ class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1)
     new_password: str = Field(min_length=8)
 
+class DemoRoleSwitchRequest(BaseModel):
+    """Request payload to switch demo role."""
+    target_role: str = Field(description="Target canonical role to simulate (platform_admin, owner, admin, member, viewer)")
+    workspace_id: str | None = Field(default=None, description="Optional target workspace ID context")
+
+class DemoRoleSwitchResponse(BaseModel):
+    """Response payload for demo role switch."""
+    access_token: str
+    token_type: str = "Bearer"
+    role: str
+    workspace_id: str | None = None
+    demo_simulated: bool = True
+
+class DemoRoleResetResponse(BaseModel):
+    """Response payload for resetting demo role to base authentic role."""
+    access_token: str
+    token_type: str = "Bearer"
+    role: str
+    workspace_id: str | None = None
+    demo_simulated: bool = False
+    message: str = "Reset to authentic database role successfully"
+
 __all__ = [
     "AuthStatusResponse",
     "Role",
@@ -63,4 +85,7 @@ __all__ = [
     "VerifyOTPRequest",
     "ResetPasswordOTPRequest",
     "ChangePasswordRequest",
+    "DemoRoleSwitchRequest",
+    "DemoRoleSwitchResponse",
+    "DemoRoleResetResponse",
 ]

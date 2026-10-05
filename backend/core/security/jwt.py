@@ -50,6 +50,8 @@ class JWTService:
         session: Any | None = None,
         workspace_id: str | uuid.UUID | None = None,
         role: str | None = None,
+        family_id: str | None = None,
+        demo_simulated: bool = False,
     ) -> tuple[str, str, str]:
         """Issue access and refresh tokens.
 
@@ -152,6 +154,8 @@ class JWTService:
         if not resolved_role:
             resolved_role = getattr(user, "role", "viewer")
 
+        resolved_family_id = family_id or str(uuid.uuid4())
+
         access_claims = {
             "sub": str(user.id),
             "iss": self.issuer,
@@ -163,15 +167,16 @@ class JWTService:
             "role": resolved_role,
             "email": getattr(user, "email", None),
             "workspace_id": resolved_workspace_id,
+            "family_id": resolved_family_id,
+            "demo_simulated": demo_simulated,
         }
 
         access_token = jwt.encode(access_claims, self.private_key, algorithm=self.algorithm)
 
         import secrets
         raw_refresh_token = secrets.token_urlsafe(64)
-        family_id = str(uuid.uuid4())
 
-        return access_token, raw_refresh_token, family_id
+        return access_token, raw_refresh_token, resolved_family_id
 
     async def verify_token(self, token: str) -> TokenPayload:
         """Decode and verify an Access token, checking the Redis blocklist."""
@@ -218,6 +223,7 @@ class JWTService:
                 aud=raw_claims.get("aud"),
                 iss=raw_claims.get("iss"),
                 metadata=raw_claims,
+                family_id=raw_claims.get("family_id"),
                 demo_simulated=bool(raw_claims.get("demo_simulated", False)),
             )
 

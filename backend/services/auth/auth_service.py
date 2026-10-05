@@ -172,8 +172,46 @@ class AuthService:
         if not user or not user.is_active:
             raise AuthenticationException("Account disabled")
 
+        # Check if user is in an active demo simulation session
+        from backend.core.config import get_settings
+        settings = get_settings()
+        simulated_role = None
+        simulated_ws = None
+        is_demo_eligible = bool(
+            settings.features.demo_role_switcher_enabled
+            and settings.features.demo_account_user_id
+            and str(user.id).strip().lower() == str(settings.features.demo_account_user_id).strip().lower()
+        )
+        if is_demo_eligible and self.jwt_service.redis:
+            # Check family-scoped simulation key first, fallback to user-scoped
+            sim_key = f"auth:demo_session:family:{session_entry.family_id}:simulated_role"
+            simulated_role = await self.jwt_service.redis.get(sim_key)
+            if not simulated_role:
+                sim_key_user = f"auth:demo_session:user:{user.id}:simulated_role"
+                simulated_role = await self.jwt_service.redis.get(sim_key_user)
+            if simulated_role:
+                sim_ws_key = f"auth:demo_session:family:{session_entry.family_id}:simulated_workspace_id"
+                simulated_ws = await self.jwt_service.redis.get(sim_ws_key)
+                if not simulated_ws:
+                    sim_ws_key_user = f"auth:demo_session:user:{user.id}:simulated_workspace_id"
+                    simulated_ws = await self.jwt_service.redis.get(sim_ws_key_user)
+
         # Issue new token pair
-        access_token, new_raw_refresh, _ = await self.jwt_service.issue_tokens(user, session=self.session)
+        if simulated_role:
+            access_token, new_raw_refresh, _ = await self.jwt_service.issue_tokens(
+                user,
+                session=self.session,
+                workspace_id=simulated_ws if simulated_ws != "none" else None,
+                role=simulated_role,
+                family_id=session_entry.family_id,
+                demo_simulated=True,
+            )
+        else:
+            access_token, new_raw_refresh, _ = await self.jwt_service.issue_tokens(
+                user,
+                session=self.session,
+                family_id=session_entry.family_id,
+            )
         # Note: We keep the same family_id from the original session
         new_hash = hashlib.sha256(new_raw_refresh.encode("utf-8")).hexdigest()
 

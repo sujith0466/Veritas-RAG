@@ -275,6 +275,12 @@ async def toggle_killswitch(
     management_service: FeatureFlagManagementService = Depends(get_feature_flag_management_service),
 ) -> FeatureFlagResponse:
     """Instantly engage or disengage emergency kill switch."""
+    if getattr(current_user, "demo_simulated", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Emergency killswitch operations are forbidden in demo simulation mode.",
+        )
+
     try:
         flag = await management_service.toggle_killswitch(
             session=session,

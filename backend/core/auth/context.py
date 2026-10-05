@@ -32,6 +32,10 @@ class TokenPayload(BaseModel):
         default_factory=dict,
         description="Optional raw claims or user metadata",
     )
+    family_id: str | None = Field(
+        default=None,
+        description="Session family identifier for refresh token tracking",
+    )
     demo_simulated: bool = Field(
         default=False,
         description="Whether the token represents a demo simulated session",

@@ -17,6 +17,9 @@ import structlog
 from backend.api.v1.schemas.auth import (
     AuthStatusResponse,
     ChangePasswordRequest,
+    DemoRoleResetResponse,
+    DemoRoleSwitchRequest,
+    DemoRoleSwitchResponse,
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
@@ -190,6 +193,22 @@ async def logout(
             user_id=user.id,
             raw_refresh_token=raw_refresh_token,
         )
+
+    # Clear any demo simulation state if this was a demo user
+    settings = get_settings()
+    if (
+        settings.features.demo_role_switcher_enabled
+        and settings.features.demo_account_user_id
+        and str(user.id).strip().lower() == str(settings.features.demo_account_user_id).strip().lower()
+    ):
+        redis = get_redis_client()
+        if redis:
+            family_id = getattr(getattr(request.state, "token_payload", None), "family_id", None)
+            if family_id:
+                await redis.delete(f"auth:demo_session:family:{family_id}:simulated_role")
+                await redis.delete(f"auth:demo_session:family:{family_id}:simulated_workspace_id")
+            await redis.delete(f"auth:demo_session:user:{user.id}:simulated_role")
+            await redis.delete(f"auth:demo_session:user:{user.id}:simulated_workspace_id")
 
     response.delete_cookie("refresh_token", path="/api/v1/auth/refresh")
 
@@ -418,6 +437,207 @@ async def refresh_token(
     return SuccessResponse(
         success=True,
         data=LoginResponse(access_token=access_token),
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/demo-switch-role",
+    response_model=SuccessResponse[DemoRoleSwitchResponse],
+    summary="Switch demo role simulation (Authorized Demo User Only)",
+    description="Simulates a target role for the designated demo operator without mutating persistent database records.",
+)
+async def demo_switch_role(
+    request: Request,
+    payload: DemoRoleSwitchRequest,
+    current_user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[DemoRoleSwitchResponse]:
+    """Dynamically switch simulated demo role for authorized demo user without DB mutations."""
+    settings = get_settings()
+    if not settings.features.demo_role_switcher_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Demo role switcher is disabled in this environment.",
+        )
+
+    if (
+        not settings.features.demo_account_user_id
+        or str(current_user.id).strip().lower() != str(settings.features.demo_account_user_id).strip().lower()
+    ):
+        logger.warning(
+            "Unauthorized demo role switch attempt",
+            actor_user_id=str(current_user.id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized: User is not authorized to use the demo role switcher.",
+        )
+
+    target_role = payload.target_role.strip().lower()
+    valid_roles = {"platform_admin", "owner", "admin", "member", "viewer"}
+    if target_role not in valid_roles:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid target role '{payload.target_role}'. Valid roles: {sorted(list(valid_roles))}",
+        )
+
+    # Tightened PLATFORM_ADMIN simulation safeguards
+    if target_role == "platform_admin":
+        if not settings.features.demo_allow_platform_admin_simulation:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="PLATFORM_ADMIN simulation is disabled in this environment.",
+            )
+        resolved_ws = None
+    else:
+        resolved_ws = payload.workspace_id or current_user.tenant_id or current_user.workspace_id
+
+    from backend.core.security.jwt import get_jwt_service
+    jwt_service = get_jwt_service()
+
+    token_payload = getattr(request.state, "token_payload", None)
+    current_jti = getattr(token_payload, "jti", None)
+    current_exp = getattr(token_payload, "exp", 0)
+    family_id = getattr(token_payload, "family_id", None) or str(uuid.uuid4())
+
+    # Revoke old access token
+    if current_jti and current_exp:
+        await jwt_service.revoke_token(current_jti, current_exp)
+
+    # Store simulation state in Redis with 3600s TTL
+    redis = get_redis_client()
+    if redis:
+        # Family-scoped key
+        if family_id:
+            await redis.set(f"auth:demo_session:family:{family_id}:simulated_role", target_role, ex=3600)
+            if resolved_ws:
+                await redis.set(f"auth:demo_session:family:{family_id}:simulated_workspace_id", str(resolved_ws), ex=3600)
+            else:
+                await redis.set(f"auth:demo_session:family:{family_id}:simulated_workspace_id", "none", ex=3600)
+
+        # User-scoped fallback key
+        await redis.set(f"auth:demo_session:user:{current_user.id}:simulated_role", target_role, ex=3600)
+        if resolved_ws:
+            await redis.set(f"auth:demo_session:user:{current_user.id}:simulated_workspace_id", str(resolved_ws), ex=3600)
+        else:
+            await redis.set(f"auth:demo_session:user:{current_user.id}:simulated_workspace_id", "none", ex=3600)
+
+    from backend.models.entities.user import User
+    user_entity = await db.get(User, current_user.id)
+    if not user_entity or not user_entity.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive.")
+
+    # Issue fresh simulated JWT
+    access_token, _, _ = await jwt_service.issue_tokens(
+        user=user_entity,
+        session=db,
+        workspace_id=resolved_ws,
+        role=target_role,
+        family_id=family_id,
+        demo_simulated=True,
+    )
+
+    logger.info(
+        "Demo role switched successfully",
+        actor_user_id=str(current_user.id),
+        simulated_role=target_role,
+        workspace_id=str(resolved_ws) if resolved_ws else None,
+    )
+
+    return SuccessResponse(
+        success=True,
+        data=DemoRoleSwitchResponse(
+            access_token=access_token,
+            role=target_role,
+            workspace_id=str(resolved_ws) if resolved_ws else None,
+            demo_simulated=True,
+        ),
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/demo-reset-role",
+    response_model=SuccessResponse[DemoRoleResetResponse],
+    summary="Reset demo role to authentic baseline (Authorized Demo User Only)",
+    description="Terminates active demo role simulation and restores the authentic database role and active workspace context.",
+)
+async def demo_reset_role(
+    request: Request,
+    current_user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[DemoRoleResetResponse]:
+    """Reset simulated demo role back to authentic database role."""
+    settings = get_settings()
+    if not settings.features.demo_role_switcher_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Demo role switcher is disabled in this environment.",
+        )
+
+    if (
+        not settings.features.demo_account_user_id
+        or str(current_user.id).strip().lower() != str(settings.features.demo_account_user_id).strip().lower()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized: User is not authorized to use the demo role switcher.",
+        )
+
+    from backend.core.security.jwt import get_jwt_service
+    jwt_service = get_jwt_service()
+
+    token_payload = getattr(request.state, "token_payload", None)
+    current_jti = getattr(token_payload, "jti", None)
+    current_exp = getattr(token_payload, "exp", 0)
+    family_id = getattr(token_payload, "family_id", None)
+
+    # Revoke old simulated token
+    if current_jti and current_exp:
+        await jwt_service.revoke_token(current_jti, current_exp)
+
+    # Clear Redis simulation state
+    redis = get_redis_client()
+    if redis:
+        if family_id:
+            await redis.delete(f"auth:demo_session:family:{family_id}:simulated_role")
+            await redis.delete(f"auth:demo_session:family:{family_id}:simulated_workspace_id")
+        await redis.delete(f"auth:demo_session:user:{current_user.id}:simulated_role")
+        await redis.delete(f"auth:demo_session:user:{current_user.id}:simulated_workspace_id")
+
+    from backend.models.entities.user import User
+    user_entity = await db.get(User, current_user.id)
+    if not user_entity or not user_entity.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive.")
+
+    # Issue authentic baseline token
+    access_token, _, resolved_family = await jwt_service.issue_tokens(
+        user=user_entity,
+        session=db,
+        family_id=family_id,
+        demo_simulated=False,
+    )
+
+    # Verify newly issued token to inspect resulting baseline role and workspace
+    new_payload = await jwt_service.verify_token(access_token)
+
+    logger.info(
+        "Demo role reset to baseline successfully",
+        actor_user_id=str(current_user.id),
+        base_role=new_payload.role,
+        workspace_id=new_payload.workspace_id,
+    )
+
+    return SuccessResponse(
+        success=True,
+        data=DemoRoleResetResponse(
+            access_token=access_token,
+            role=new_payload.role,
+            workspace_id=new_payload.workspace_id,
+            demo_simulated=False,
+            message="Reset to authentic database role successfully",
+        ),
         metadata=_build_metadata(request),
     )
 
