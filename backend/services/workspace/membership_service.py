@@ -143,17 +143,17 @@ class WorkspaceMembershipService:
         if actor_role not in [WorkspaceRole.OWNER.value, WorkspaceRole.ADMIN.value]:
             raise MembershipUnauthorizedError("Only OWNER or ADMIN can modify member roles.")
 
-        if actor_role == WorkspaceRole.ADMIN.value and new_role_upper == WorkspaceRole.OWNER.value:
-            raise MembershipUnauthorizedError("ADMIN cannot promote a member to OWNER.")
-
         # 3. Retrieve target member under pessimistic row lock
         member = await self.member_repo.get_by_id_for_update(member_id, workspace_id)
         if not member:
             raise MembershipNotFoundError("Member not found in this workspace.")
 
         # 3b. Prevent self-promotion or self-demotion
-        if actor.id == member.id:
+        if actor.id == member.id or actor.user_id == member.user_id:
             raise MembershipUnauthorizedError("You cannot modify your own role.")
+
+        if actor_role == WorkspaceRole.ADMIN.value and new_role_upper == WorkspaceRole.OWNER.value:
+            raise MembershipUnauthorizedError("ADMIN cannot promote a member to OWNER.")
 
         old_role = member.role.upper()
         if old_role == new_role_upper:
