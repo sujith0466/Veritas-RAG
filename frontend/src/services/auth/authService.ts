@@ -109,10 +109,39 @@ export const authService = {
 
     try {
       const response = await apiClient.get('/users/me')
-      return { ...authContext, ...response.data, role: authContext.role }
+      return {
+        ...authContext,
+        ...response.data,
+        role: authContext.role,
+        demo_role_switcher_enabled: authContext.demo_role_switcher_enabled,
+        demo_simulated: authContext.demo_simulated,
+      }
     } catch (error) {
       console.error('Failed to fetch extended user profile:', error)
       return authContext
     }
+  },
+
+  async switchDemoRole(targetRole: string, workspaceId?: string): Promise<{ access_token: string; role: string; workspace_id?: string; demo_simulated: boolean }> {
+    const response = await post<{
+      access_token: string
+      role: string
+      workspace_id?: string
+      demo_simulated: boolean
+    }>('/auth/demo-switch-role', {
+      target_role: targetRole,
+      workspace_id: workspaceId,
+    })
+    return response
+  },
+
+  async resetDemoRole(): Promise<{ access_token: string; role: string; workspace_id?: string; demo_simulated: boolean }> {
+    const response = await post<{
+      access_token: string
+      role: string
+      workspace_id?: string
+      demo_simulated: boolean
+    }>('/auth/demo-reset-role')
+    return response
   },
 }

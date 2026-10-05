@@ -7,6 +7,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import { Badge } from '../common/Badge'
 import { NotificationBell } from '../common/NotificationBell'
+import { DemoRoleSwitcher } from './DemoRoleSwitcher'
 
 export function Header() {
   const { toggleSidebar } = useUIStore()
@@ -35,6 +36,8 @@ export function Header() {
         )}
 
         <NotificationBell />
+
+        <DemoRoleSwitcher />
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>

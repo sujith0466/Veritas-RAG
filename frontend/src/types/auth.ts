@@ -19,6 +19,8 @@ export interface UserContext {
   profile_data?: Record<string, any>
   preferences?: Record<string, any>
   workspace_settings?: Record<string, any>
+  demo_role_switcher_enabled?: boolean
+  demo_simulated?: boolean
   created_at: string
   updated_at: string
 }
