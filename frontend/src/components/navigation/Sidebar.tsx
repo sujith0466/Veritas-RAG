@@ -28,7 +28,6 @@ import { useAuthStore } from '@/stores/authStore'
 import { useChatStore, ChatSession } from '@/stores/chatStore'
 import { cn } from '@/utils/cn'
 import { sidebarVariants, sidebarLabelVariants } from '@/motion'
-import { Badge } from '../common/Badge'
 
 interface NavItem {
   name: string
@@ -99,8 +98,6 @@ export function Sidebar() {
 
     return groups
   }, [sessions])
-
-  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'U'
 
   return (
     <motion.aside
@@ -238,28 +235,6 @@ export function Sidebar() {
               )}
             </div>
           )}
-        </div>
-      </div>
-
-      <div className="h-px bg-border/50 mx-3" />
-
-      <div className="p-3">
-        <div className={cn('flex items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-muted/60 transition-colors cursor-default', sidebarCollapsed && 'justify-center')}>
-          <div className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white shadow-sm ring-1 ring-white/10">
-            {initials}
-          </div>
-          <AnimatePresence initial={false}>
-            {!sidebarCollapsed && (
-              <motion.div variants={sidebarLabelVariants} initial="collapsed" animate="expanded" exit="collapsed" className="flex flex-col overflow-hidden min-w-0">
-                <span className="truncate text-xs font-medium text-foreground">
-                  {user?.full_name || user?.email?.split('@')[0] || 'User'}
-                </span>
-                <Badge variant="subtle" className="w-fit text-[9px] h-3.5 mt-0.5 px-1.5 uppercase tracking-wider">
-                  {user?.role || 'viewer'}
-                </Badge>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
     </motion.aside>

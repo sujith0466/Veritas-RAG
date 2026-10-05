@@ -78,7 +78,7 @@ export function AIChatPage() {
   const isScrolledUpRef = useRef(false)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
   const rafIdRef = useRef<number | null>(null)
-  const [composerHeight, setComposerHeight] = useState<number>(140)
+  const [composerHeight, setComposerHeight] = useState<number>(115)
   const composerContainerRef = useRef<HTMLDivElement>(null)
   const hasInitiallyAnchoredRef = useRef(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -209,12 +209,12 @@ export function AIChatPage() {
     }
   }, [messages, isStreaming, scheduleScrollToBottom])
 
-  // Controlled Textarea Auto-Resize (min 52px, max 160px)
+  // Controlled Textarea Auto-Resize (min 44px, max 160px)
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
       const scrollH = textareaRef.current.scrollHeight
-      const targetH = Math.min(Math.max(scrollH, 52), 160)
+      const targetH = Math.min(Math.max(scrollH, 44), 160)
       textareaRef.current.style.height = `${targetH}px`
     }
   }, [input])
@@ -706,7 +706,7 @@ export function AIChatPage() {
       </div>
 
       {/* Floating Liquid Glass Composer Layer */}
-      <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 z-20 pointer-events-none flex flex-col items-center justify-end">
+      <div className="absolute bottom-0 inset-x-0 p-2.5 sm:p-3 z-20 pointer-events-none flex flex-col items-center justify-end">
         {/* Floating Scroll to Bottom Affordance */}
         <AnimatePresence>
           {showScrollToBottom && (
@@ -779,14 +779,14 @@ export function AIChatPage() {
               placeholder={isListening ? "Listening... Speak now" : "Message Veritas RAG..."}
               aria-label="Message Veritas RAG"
               className={cn(
-                "w-full resize-none bg-transparent py-3.5 pl-4 sm:pl-5 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[52px] leading-relaxed text-foreground",
+                "w-full resize-none bg-transparent py-2.5 pl-4 sm:pl-5 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[44px] leading-relaxed text-foreground",
                 isListening ? "pr-28 sm:pr-32" : "pr-20 sm:pr-24"
               )}
               rows={1}
             />
 
             {/* Elevated Primary Action Dock */}
-            <div className="absolute right-2.5 bottom-2.5 flex items-center gap-1.5">
+            <div className="absolute right-2 bottom-1.5 flex items-center gap-1.5">
               <TooltipProvider delayDuration={200}>
                 {isListening ? (
                   <>
@@ -800,7 +800,7 @@ export function AIChatPage() {
                           onClick={handleCancelVoice}
                           aria-label="Cancel dictation"
                           title="Cancel dictation"
-                          className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.08] active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-destructive cursor-pointer"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.08] active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-destructive cursor-pointer"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -818,7 +818,7 @@ export function AIChatPage() {
                           onClick={handleStopVoice}
                           aria-label="Stop dictation and insert text"
                           title="Stop dictation and insert text"
-                          className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-600 dark:bg-emerald-500 text-white shadow-[0_2px_10px_rgba(16,185,129,0.4)] hover:bg-emerald-500 dark:hover:bg-emerald-400 active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 dark:bg-emerald-500 text-white shadow-[0_2px_10px_rgba(16,185,129,0.4)] hover:bg-emerald-500 dark:hover:bg-emerald-400 active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
                         >
                           <Check className="h-4 w-4 stroke-[2.5]" />
                         </button>
@@ -840,7 +840,7 @@ export function AIChatPage() {
                           aria-label="Dictate query"
                           title="Dictate query"
                           className={cn(
-                            "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                            "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
                             isStreaming
                               ? "text-muted-foreground/30 bg-transparent cursor-not-allowed"
                               : "text-muted-foreground hover:text-foreground hover:bg-muted/80 active:scale-95 cursor-pointer"
@@ -863,7 +863,7 @@ export function AIChatPage() {
                       aria-label="Send message"
                       title="Send message"
                       className={cn(
-                        "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
                         !input.trim() || isStreaming
                           ? "text-muted-foreground/30 bg-muted/40 dark:bg-white/[0.04] border border-transparent cursor-not-allowed"
                           : "bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover active:scale-95 cursor-pointer"

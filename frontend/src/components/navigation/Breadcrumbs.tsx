@@ -21,7 +21,7 @@ export function Breadcrumbs() {
   const location = useLocation()
   const paths = location.pathname.split('/').filter(Boolean)
 
-  if (paths.length === 0 || paths[0] === 'dashboard') return null
+  if (paths.length === 0 || paths[0] === 'dashboard' || paths[0] === 'chat') return null
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center text-sm text-muted-foreground">
