@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -49,3 +49,14 @@ class ChatRequestDTO(BaseModel):
     stream: bool = Field(default=True, description="Whether to stream the response")
     max_answer_tokens: int = Field(default=1024)
     workspace_id: uuid.UUID | None = Field(default=None, description="Optional workspace identifier")
+
+class ChatMessageFeedbackDTO(BaseModel):
+    rating: Literal["like", "dislike"] | None = Field(
+        default=None,
+        description="Rating to set, or null to clear existing feedback"
+    )
+
+class ChatMessageRewindResponseDTO(BaseModel):
+    session_id: str
+    rewound_message_id: str
+    deleted_count: int

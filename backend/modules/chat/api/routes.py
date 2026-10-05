@@ -10,6 +10,8 @@ from backend.core.dependencies.quota import enforce_workspace_quota
 from backend.modules.chat.api.dependencies import get_chat_orchestrator, get_chat_repository
 from backend.modules.chat.repositories.chat_repository import ChatRepository
 from backend.modules.chat.schemas.chat_dto import (
+    ChatMessageFeedbackDTO,
+    ChatMessageRewindResponseDTO,
     ChatRequestDTO,
     ChatSessionCreateDTO,
     ChatSessionDTO,
@@ -106,6 +108,50 @@ async def delete_session(
     user: UserContext = Depends(require_workspace())
 ):
     await repo.delete_session(session_id=session_id, tenant_id=user.tenant_id, user_id=str(user.id))
+
+@router.post("/sessions/{session_id}/messages/{message_id}/rewind", response_model=SuccessResponse[ChatMessageRewindResponseDTO])
+async def rewind_session(
+    session_id: str,
+    message_id: str,
+    request: Request,
+    repo: ChatRepository = Depends(get_chat_repository),
+    user: UserContext = Depends(require_workspace())
+):
+    deleted_count = await repo.rewind_session_from(
+        session_id=session_id,
+        target_message_id=message_id,
+        tenant_id=user.tenant_id,
+        user_id=str(user.id)
+    )
+    return SuccessResponse[ChatMessageRewindResponseDTO](
+        data=ChatMessageRewindResponseDTO(
+            session_id=session_id,
+            rewound_message_id=message_id,
+            deleted_count=deleted_count
+        ),
+        metadata=_build_metadata(request)
+    )
+
+@router.put("/sessions/{session_id}/messages/{message_id}/feedback", response_model=SuccessResponse[ChatMessageDTO])
+async def update_message_feedback(
+    session_id: str,
+    message_id: str,
+    dto: ChatMessageFeedbackDTO,
+    request: Request,
+    repo: ChatRepository = Depends(get_chat_repository),
+    user: UserContext = Depends(require_workspace())
+):
+    message = await repo.update_message_feedback(
+        session_id=session_id,
+        message_id=message_id,
+        tenant_id=user.tenant_id,
+        user_id=str(user.id),
+        rating=dto.rating
+    )
+    return SuccessResponse[ChatMessageDTO](
+        data=ChatMessageDTO.model_validate(message),
+        metadata=_build_metadata(request)
+    )
 
 @router.post("/sessions/{session_id}/stream")
 async def stream_chat(

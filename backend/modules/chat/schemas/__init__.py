@@ -1,6 +1,8 @@
 from .chat_dto import (
     ChatMessageCreateDTO,
     ChatMessageDTO,
+    ChatMessageFeedbackDTO,
+    ChatMessageRewindResponseDTO,
     ChatRequestDTO,
     ChatSessionCreateDTO,
     ChatSessionDTO,
@@ -9,6 +11,8 @@ from .chat_dto import (
 
 __all__ = [
     "ChatMessageDTO",
+    "ChatMessageFeedbackDTO",
+    "ChatMessageRewindResponseDTO",
     "ChatSessionDTO",
     "ChatSessionCreateDTO",
     "ChatSessionUpdateDTO",
