@@ -86,13 +86,22 @@ async def upload_document(
 
     from backend.modules.analytics.services.quota import QuotaGovernor
     governor = QuotaGovernor()
-    is_exceeded, _, _, _ = await governor.check_quota(workspace_id=ws_uuid, tenant_id=tenant_id, session=session)
-    if is_exceeded:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Workspace token quota exceeded",
-            headers={"Retry-After": "3600"},
-        )
+    if ws_uuid:
+        result = await governor.check_hierarchical_quota(workspace_id=ws_uuid, user_id=owner_id, session=session)
+        if not result.is_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=result.detail or "Token quota exceeded",
+                headers={"Retry-After": "3600"},
+            )
+    else:
+        is_exceeded, _, _, _ = await governor.check_quota(workspace_id=None, tenant_id=tenant_id, session=session)
+        if is_exceeded:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Workspace token quota exceeded",
+                headers={"Retry-After": "3600"},
+            )
 
     service = DocumentService()
 
@@ -148,13 +157,22 @@ async def ingest_url(
 
     from backend.modules.analytics.services.quota import QuotaGovernor
     governor = QuotaGovernor()
-    is_exceeded, _, _, _ = await governor.check_quota(workspace_id=ws_uuid, tenant_id=tenant_id, session=session)
-    if is_exceeded:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Workspace token quota exceeded",
-            headers={"Retry-After": "3600"},
-        )
+    if ws_uuid:
+        result = await governor.check_hierarchical_quota(workspace_id=ws_uuid, user_id=owner_id, session=session)
+        if not result.is_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=result.detail or "Token quota exceeded",
+                headers={"Retry-After": "3600"},
+            )
+    else:
+        is_exceeded, _, _, _ = await governor.check_quota(workspace_id=None, tenant_id=tenant_id, session=session)
+        if is_exceeded:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Workspace token quota exceeded",
+                headers={"Retry-After": "3600"},
+            )
 
     service = DocumentService()
     doc, version, job, is_existing = await service.ingest_url(

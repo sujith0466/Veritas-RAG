@@ -50,25 +50,36 @@ def enforce_workspace_quota(est_tokens: int = 0) -> Callable[..., Coroutine[Any,
 
         governor = QuotaGovernor()
         if target_ws_id is not None:
-            is_exceeded, used, limit, is_hard = await governor.check_quota(
+            result = await governor.check_hierarchical_quota(
                 workspace_id=target_ws_id,
-                tenant_id=current_user.tenant_id,
+                user_id=current_user.id,
+                requested_tokens=est_tokens,
                 session=session,
             )
+            if not result.is_allowed:
+                logger.warning(
+                    "Token quota exceeded for workspace %s, user %s. Blocked by: %s.",
+                    target_ws_id,
+                    current_user.id,
+                    result.blocked_by,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=result.detail or "Token quota exceeded",
+                    headers={"Retry-After": "3600"},
+                )
         else:
             # Fallback when only legacy tenant_id is available
             remaining = await governor.get_remaining_tokens(current_user.tenant_id or "default")
-            is_exceeded = (remaining <= 0)
-
-        if is_exceeded:
-            logger.warning(
-                "Workspace %s token quota exceeded. Blocking request with HTTP 429.",
-                target_ws_id or current_user.tenant_id,
-            )
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Workspace token quota exceeded",
-                headers={"Retry-After": "3600"},
-            )
+            if remaining <= 0:
+                logger.warning(
+                    "Tenant %s token quota exceeded. Blocking request with HTTP 429.",
+                    current_user.tenant_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Workspace token quota exceeded",
+                    headers={"Retry-After": "3600"},
+                )
 
     return _quota_guard

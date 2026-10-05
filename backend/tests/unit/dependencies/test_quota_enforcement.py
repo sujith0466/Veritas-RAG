@@ -10,6 +10,9 @@ from backend.core.permissions.rbac import Role
 from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
 
 
+from backend.modules.analytics.services.quota import HierarchicalQuotaCheckResult
+
+
 @pytest.mark.asyncio
 async def test_quota_guard_under_limit_passes():
     ws_id = uuid.uuid4()
@@ -21,17 +24,19 @@ async def test_quota_guard_under_limit_passes():
     with patch("backend.core.dependencies.quota.get_workspace_member_or_raise", new_callable=AsyncMock) as mock_auth, \
          patch("backend.core.dependencies.quota.QuotaGovernor") as mock_gov_cls:
         gov_instance = MagicMock()
-        gov_instance.check_quota = AsyncMock(return_value=(False, 500, 10000, True))
+        gov_instance.check_hierarchical_quota = AsyncMock(
+            return_value=HierarchicalQuotaCheckResult(is_allowed=True)
+        )
         mock_gov_cls.return_value = gov_instance
 
         # Should not raise
         await guard(workspace_id=ws_id, current_user=user, session=session)
         mock_auth.assert_called_once_with(ws_id, user, session)
-        gov_instance.check_quota.assert_called_once()
+        gov_instance.check_hierarchical_quota.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_quota_guard_at_limit_hard_enforced_raises_429():
+async def test_quota_guard_blocked_by_workspace_cap_raises_429():
     ws_id = uuid.uuid4()
     user = UserContext(id=uuid.uuid4(), email="user@example.com", role=Role.ADMIN.value, workspace_id=ws_id)
     session = AsyncMock()
@@ -41,21 +46,27 @@ async def test_quota_guard_at_limit_hard_enforced_raises_429():
     with patch("backend.core.dependencies.quota.get_workspace_member_or_raise", new_callable=AsyncMock), \
          patch("backend.core.dependencies.quota.QuotaGovernor") as mock_gov_cls:
         gov_instance = MagicMock()
-        gov_instance.check_quota = AsyncMock(return_value=(True, 10000, 10000, True))
+        gov_instance.check_hierarchical_quota = AsyncMock(
+            return_value=HierarchicalQuotaCheckResult(
+                is_allowed=False,
+                blocked_by="workspace_quota",
+                detail="Workspace monthly token budget exceeded (10000/10000).",
+            )
+        )
         mock_gov_cls.return_value = gov_instance
 
         with pytest.raises(HTTPException) as exc_info:
             await guard(workspace_id=ws_id, current_user=user, session=session)
 
         assert exc_info.value.status_code == 429
-        assert "Workspace token quota exceeded" in exc_info.value.detail
+        assert "Workspace monthly token budget exceeded" in exc_info.value.detail
         assert exc_info.value.headers.get("Retry-After") == "3600"
 
 
 @pytest.mark.asyncio
-async def test_quota_guard_at_limit_soft_enforced_passes():
+async def test_quota_guard_blocked_by_user_cap_raises_429():
     ws_id = uuid.uuid4()
-    user = UserContext(id=uuid.uuid4(), email="user@example.com", role=Role.ADMIN.value, workspace_id=ws_id)
+    user = UserContext(id=uuid.uuid4(), email="user@example.com", role=Role.MEMBER.value, workspace_id=ws_id)
     session = AsyncMock()
 
     guard = enforce_workspace_quota()
@@ -63,12 +74,21 @@ async def test_quota_guard_at_limit_soft_enforced_passes():
     with patch("backend.core.dependencies.quota.get_workspace_member_or_raise", new_callable=AsyncMock), \
          patch("backend.core.dependencies.quota.QuotaGovernor") as mock_gov_cls:
         gov_instance = MagicMock()
-        # is_exceeded is False because is_hard_enforced=False
-        gov_instance.check_quota = AsyncMock(return_value=(False, 12000, 10000, False))
+        gov_instance.check_hierarchical_quota = AsyncMock(
+            return_value=HierarchicalQuotaCheckResult(
+                is_allowed=False,
+                blocked_by="user_quota",
+                detail="User monthly token budget exceeded (500000/500000).",
+            )
+        )
         mock_gov_cls.return_value = gov_instance
 
-        # Should not raise because soft-enforced
-        await guard(workspace_id=ws_id, current_user=user, session=session)
+        with pytest.raises(HTTPException) as exc_info:
+            await guard(workspace_id=ws_id, current_user=user, session=session)
+
+        assert exc_info.value.status_code == 429
+        assert "User monthly token budget exceeded" in exc_info.value.detail
+        assert exc_info.value.headers.get("Retry-After") == "3600"
 
 
 @pytest.mark.asyncio

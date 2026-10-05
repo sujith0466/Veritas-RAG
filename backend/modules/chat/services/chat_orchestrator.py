@@ -553,7 +553,7 @@ class ChatOrchestrator:
                         record_query_metric(tenant_id, outcome, duration_seconds)
                         record_reliability_metric(reliability_score)
 
-                        # Epic-13 F13.2 Durable Usage Accounting
+                        # Epic-13 F13.2 Durable Usage Accounting & WS-B8/B10 Attribution
                         ws_uuid = workspace_id or tenant_uuid
                         if ws_uuid:
                             try:
@@ -561,10 +561,19 @@ class ChatOrchestrator:
                                 prompt_tok = max(1, len(query.split()) * 2)
                                 comp_tok = max(1, len(full_assistant_text.split()) * 2)
                                 governor = QuotaGovernor()
-                                await governor.record_usage(
+                                user_uuid = None
+                                if user_id:
+                                    try:
+                                        user_uuid = uuid.UUID(str(user_id))
+                                    except (ValueError, TypeError):
+                                        pass
+                                await governor.record_token_usage(
                                     workspace_id=ws_uuid,
-                                    tokens=prompt_tok + comp_tok,
-                                    queries=1,
+                                    tenant_id=str(tenant_id),
+                                    prompt_tokens=prompt_tok,
+                                    completion_tokens=comp_tok,
+                                    correlation_id=correlation_id,
+                                    user_id=user_uuid,
                                 )
                             except Exception as q_exc:
                                 logger.warning("Failed recording durable quota usage: %s", q_exc)
