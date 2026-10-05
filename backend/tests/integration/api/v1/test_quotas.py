@@ -33,6 +33,7 @@ async def setup_test_user(client: AsyncClient, role: str = "admin", prefix="quot
             id=ws_id,
             name=f"{prefix} Workspace",
             slug=f"{prefix}-ws-{uuid.uuid4().hex[:8]}",
+            public_id=f"{prefix.upper()}-PUB-{uuid.uuid4().hex[:6].upper()}",
             storage_prefix=f"workspaces/{ws_id}",
             qdrant_namespace=f"raguard_knowledge_{ws_id}",
             status=WorkspaceStatus.ACTIVE.value,
