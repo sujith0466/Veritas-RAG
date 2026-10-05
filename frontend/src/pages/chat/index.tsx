@@ -631,7 +631,7 @@ export function AIChatPage() {
   }
 
   return (
-    <div className="relative flex flex-1 min-h-0 flex-col bg-surface/90 backdrop-blur-xl shadow-sm rounded-xl border border-border/60 mx-2 my-2 sm:mx-4 sm:my-3 overflow-hidden">
+    <div className="relative flex flex-1 min-h-0 flex-col bg-background backdrop-blur-xl shadow-sm rounded-xl border border-border/60 mx-2 my-2 sm:mx-4 sm:my-3 overflow-hidden">
       <h1 className="sr-only">Enterprise AI Chat</h1>
 
       {/* Chat Messages Area (Full Canvas Scroll) */}
