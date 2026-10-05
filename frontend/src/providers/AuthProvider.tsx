@@ -68,13 +68,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth()
 
-    // F2.4: Listen to BroadcastChannel for cross-tab logout synchronization
+    // F2.4: Listen to BroadcastChannel for cross-tab logout and demo role synchronization
     const channel = new BroadcastChannel('auth_sync')
-    channel.onmessage = (event) => {
+    channel.onmessage = async (event) => {
       if (event.data?.type === 'LOGOUT') {
         if (mounted) {
           clearAuth()
           useWorkspaceStore.getState().resetWorkspaceResolution()
+        }
+      } else if (event.data?.type === 'DEMO_ROLE_SWITCHED' || event.data?.type === 'DEMO_ROLE_RESET') {
+        if (mounted) {
+          try {
+            // Silently refresh token and update profile across open tabs
+            const refreshedToken = await authService.refresh()
+            useAuthStore.setState({ token: refreshedToken })
+            const userContext = await authService.fetchBackendProfile()
+            if (userContext.tenant_id) {
+              await useWorkspaceStore.getState().fetchCurrentWorkspace()
+            } else {
+              useWorkspaceStore.getState().resetWorkspaceResolution()
+            }
+            if (mounted) {
+              setAuth(userContext, refreshedToken)
+            }
+          } catch (e) {
+            console.warn('Cross-tab demo sync failed:', e)
+          }
         }
       }
     }
