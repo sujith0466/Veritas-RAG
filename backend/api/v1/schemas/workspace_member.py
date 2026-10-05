@@ -49,6 +49,8 @@ class WorkspaceMemberUserData(BaseModel):
     id: uuid.UUID
     email: str
     username: str | None = None
+    display_name: str | None = None
+    avatar_url: str | None = None
     is_active: bool = True
 
 

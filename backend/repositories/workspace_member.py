@@ -155,13 +155,14 @@ class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
         if status:
             base_conditions.append(self.model_class.status == status.strip().upper())
 
-        # Search against User email and username
+        # Search against User email, username, and display_name
         search_filter = None
         if search and search.strip():
             s = f"%{search.strip().lower()}%"
             search_filter = or_(
                 func.lower(User.email).like(s),
                 func.lower(User.username).like(s),
+                func.coalesce(func.lower(User.display_name), "").like(s),
             )
 
         # Count total
