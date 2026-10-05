@@ -420,11 +420,21 @@ export function AIChatPage() {
           citations: accumulatedCitations.length > 0 ? accumulatedCitations : undefined,
           reliability_score: finalReliability
         }
+        useChatStore.setState(state => {
+          if (!state.activeSession || state.activeSession.id !== targetSessionId) return state
+          return {
+            activeSession: {
+              ...state.activeSession,
+              messages: newMsgs
+            }
+          }
+        })
         return newMsgs
       })
 
-      // Refresh sidebar list
+      // Refresh sidebar list and sync canonical session messages from backend
       useChatStore.getState().fetchSessions()
+      fetchSession(targetSessionId).catch(console.error)
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('Stream aborted by user')
