@@ -188,21 +188,25 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
 
     // One-Time Plaintext Reveal Modal must appear
     expect(await screen.findByText('Join Code Generated')).toBeInTheDocument()
-    expect(screen.getByText('VR-789ABC')).toBeInTheDocument()
+    expect(screen.getAllByText('VR-789ABC').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Strict One-Time Reveal')).toBeInTheDocument()
 
     // Click Dismiss ("I Have Copied This Code (Dismiss)")
     const dismissBtn = screen.getByRole('button', { name: /I Have Copied This Code/i })
     fireEvent.click(dismissBtn)
 
-    // Modal should close and plaintext should be removed from view
+    // Modal should close, but Active Join Credentials card remains visible in current admin view (Plan B)
     await waitFor(() => {
       expect(screen.queryByText('Join Code Generated')).not.toBeInTheDocument()
-      expect(screen.queryByText('VR-789ABC')).not.toBeInTheDocument()
     })
+    expect(screen.getByTestId('active-join-credentials-card')).toBeInTheDocument()
+    expect(screen.getByText('VR-789ABC')).toBeInTheDocument()
+    expect(screen.getByText(/workspaces\/join\?workspace_id=wrk_pub999xyz&join_code=VR-789ABC/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy join code' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copy join link' })).toBeInTheDocument()
   })
 
-  it('triggers confirmation dialog before regenerating an existing code (A9.11)', async () => {
+  it('triggers confirmation dialog before regenerating an existing code and replaces active credentials (A9.11, Plan B)', async () => {
     const regenerateSpy = vi.spyOn(workspaceService, 'regenerateJoinCode').mockResolvedValue({
       success: true,
       join_code: 'VR-REGEN9',
@@ -234,7 +238,19 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
 
     // Reveal modal with new code
     expect(await screen.findByText('Join Code Generated')).toBeInTheDocument()
+    expect(screen.getAllByText('VR-REGEN9').length).toBeGreaterThanOrEqual(1)
+
+    // Dismiss modal and verify new code is displayed in active credentials card
+    const dismissBtn = screen.getByRole('button', { name: /I Have Copied This Code/i })
+    fireEvent.click(dismissBtn)
+
+    await waitFor(() => {
+      expect(screen.queryByText('Join Code Generated')).not.toBeInTheDocument()
+    })
+    expect(screen.getByTestId('active-join-credentials-card')).toBeInTheDocument()
     expect(screen.getByText('VR-REGEN9')).toBeInTheDocument()
+    expect(screen.getByText(/workspaces\/join\?workspace_id=wrk_pub999xyz&join_code=VR-REGEN9/)).toBeInTheDocument()
+    expect(screen.queryByText('VR-789ABC')).not.toBeInTheDocument()
   })
 
   it('updates Join Code policy settings (enabled, role, max_uses) (A9.12)', async () => {

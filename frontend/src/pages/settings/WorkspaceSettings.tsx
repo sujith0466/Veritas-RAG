@@ -6,7 +6,7 @@ import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { useToast } from '@/hooks/useToast'
 import { userService } from '@/services/userService'
 import { workspaceSettingsService, WorkspaceSettingsData } from '@/services/workspaceSettingsService'
-import { workspaceService } from '@/services/workspaceService'
+import { workspaceService, buildWorkspaceJoinLink } from '@/services/workspaceService'
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import type { JoinCodeSettings, JoinCodeGenerateResponse } from '@/types'
@@ -29,6 +29,7 @@ import {
   Clock,
   X,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react'
 
 export function WorkspaceSettings() {
@@ -79,6 +80,17 @@ export function WorkspaceSettings() {
   // One-time Plaintext Reveal Modal State (Strictly ephemeral in-memory state)
   const [revealedCode, setRevealedCode] = useState<JoinCodeGenerateResponse | null>(null)
   const [copiedRevealedCode, setCopiedRevealedCode] = useState(false)
+  const [copiedRevealedLink, setCopiedRevealedLink] = useState(false)
+
+  // Plan B: Ephemeral active credentials state (held strictly in-memory during authorized admin session)
+  const [ephemeralCredentials, setEphemeralCredentials] = useState<{
+    join_code: string
+    join_link: string
+    expires_at?: string | null
+    default_role?: string
+  } | null>(null)
+  const [copiedActiveCode, setCopiedActiveCode] = useState(false)
+  const [copiedActiveLink, setCopiedActiveLink] = useState(false)
 
   // Regenerate Confirmation Modal State
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false)
@@ -266,9 +278,37 @@ export function WorkspaceSettings() {
     setTimeout(() => setCopiedRevealedCode(false), 2500)
   }
 
+  const handleCopyRevealedLink = () => {
+    const code = revealedCode?.join_code
+    if (!code) return
+    const wsIdentifier = publicId || slug || currentWorkspace?.public_id || currentWorkspace?.slug || workspaceId || ''
+    const link = buildWorkspaceJoinLink(wsIdentifier, code)
+    navigator.clipboard.writeText(link)
+    setCopiedRevealedLink(true)
+    toast({ title: 'Copied', message: 'Join Link copied to clipboard', type: 'info' })
+    setTimeout(() => setCopiedRevealedLink(false), 2500)
+  }
+
+  const handleCopyActiveCode = () => {
+    if (!ephemeralCredentials?.join_code) return
+    navigator.clipboard.writeText(ephemeralCredentials.join_code)
+    setCopiedActiveCode(true)
+    toast({ title: 'Copied', message: 'Join Code copied to clipboard', type: 'info' })
+    setTimeout(() => setCopiedActiveCode(false), 2500)
+  }
+
+  const handleCopyActiveLink = () => {
+    if (!ephemeralCredentials?.join_link) return
+    navigator.clipboard.writeText(ephemeralCredentials.join_link)
+    setCopiedActiveLink(true)
+    toast({ title: 'Copied', message: 'Join Link copied to clipboard', type: 'info' })
+    setTimeout(() => setCopiedActiveLink(false), 2500)
+  }
+
   const handleDismissRevealedCode = () => {
     setRevealedCode(null)
     setCopiedRevealedCode(false)
+    setCopiedRevealedLink(false)
   }
 
   const handleGenerateJoinCode = async (isRegen = false) => {
@@ -289,7 +329,18 @@ export function WorkspaceSettings() {
           })
 
       const data = (res as any)?.data || res
-      setRevealedCode(data)
+      if (data?.join_code) {
+        const wsIdentifier = publicId || slug || currentWorkspace?.public_id || currentWorkspace?.slug || workspaceId || ''
+        const link = buildWorkspaceJoinLink(wsIdentifier, data.join_code)
+        // Plan B: Immediate ephemeral update replacing any prior credentials
+        setEphemeralCredentials({
+          join_code: data.join_code,
+          join_link: link,
+          expires_at: data.expires_at,
+          default_role: data.default_role || generateOptions.default_role,
+        })
+        setRevealedCode(data)
+      }
       setIsRegenerateModalOpen(false)
       toast({
         title: isRegen ? 'Join Code Regenerated' : 'Join Code Generated',
@@ -532,24 +583,24 @@ export function WorkspaceSettings() {
               animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-lg bg-slate-900 border border-indigo-500/40 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 text-slate-100"
+              className="w-full max-w-lg bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 text-card-foreground"
             >
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center justify-between border-b border-border/80 pb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
                     <KeyRound className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 id="one-time-reveal-title" className="text-lg font-bold text-white tracking-tight">
+                    <h3 id="one-time-reveal-title" className="text-lg font-bold text-foreground tracking-tight">
                       Join Code Generated
                     </h3>
-                    <p className="text-xs text-slate-400">One-time plaintext secret reveal</p>
+                    <p className="text-xs text-muted-foreground">One-time plaintext secret reveal</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleDismissRevealedCode}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-lg transition-colors"
                   aria-label="Close modal"
                 >
                   <X className="h-5 w-5" />
@@ -557,35 +608,58 @@ export function WorkspaceSettings() {
               </div>
 
               {/* Plaintext Code Box */}
-              <div className="p-5 rounded-xl bg-slate-950 border border-indigo-500/50 flex flex-col items-center justify-center space-y-3 shadow-inner">
-                <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
+              <div className="p-5 rounded-xl bg-muted/40 border border-primary/30 flex flex-col items-center justify-center space-y-3 shadow-inner">
+                <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                   Active Plaintext Join Code
                 </span>
-                <span className="text-3xl sm:text-4xl font-extrabold tracking-widest text-indigo-400 font-mono select-all">
-                  {revealedCode.join_code}
-                </span>
-                <Button
-                  onClick={handleCopyRevealedCode}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center space-x-2 border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-200 mt-2"
-                >
-                  {copiedRevealedCode ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                  <span>{copiedRevealedCode ? 'Copied to Clipboard' : 'Copy Join Code'}</span>
-                </Button>
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl sm:text-4xl font-extrabold tracking-widest text-primary font-mono select-all">
+                    {revealedCode.join_code}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyRevealedCode}
+                    aria-label="Copy join code"
+                    title="Copy join code"
+                    className="p-2 rounded-lg bg-background hover:bg-muted border border-border text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                  >
+                    {copiedRevealedCode ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Join Link Box */}
+              <div className="p-4 rounded-xl bg-muted/40 border border-primary/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+                    Join Link
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyRevealedLink}
+                    aria-label="Copy join link"
+                    title="Copy join link"
+                    className="p-1.5 rounded-lg bg-background hover:bg-muted border border-border text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                  >
+                    {copiedRevealedLink ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+                <p className="text-xs font-mono text-foreground break-all select-all leading-relaxed">
+                  {buildWorkspaceJoinLink(publicId || slug || currentWorkspace?.public_id || currentWorkspace?.slug || workspaceId || '', revealedCode.join_code)}
+                </p>
               </div>
 
               {/* Strict Security Alert */}
-              <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800/60 flex items-start space-x-3 text-amber-200">
-                <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start space-x-3 text-amber-600 dark:text-amber-300">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-xs space-y-1">
-                  <span className="font-semibold text-amber-300 block">Strict One-Time Reveal</span>
-                  <p className="text-amber-200/90 leading-relaxed">
+                  <span className="font-semibold block text-amber-700 dark:text-amber-200">Strict One-Time Reveal</span>
+                  <p className="leading-relaxed opacity-90">
                     This Join Code will only be shown once. Copy and share it with your authorized team members now.
                     Veritas-RAG stores only a salted cryptographic hash and cannot retrieve this plaintext code once dismissed.
                   </p>
                   {revealedCode.expires_at && (
-                    <p className="text-2xs text-amber-300/80 font-mono pt-1">
+                    <p className="text-2xs font-mono pt-1 opacity-80">
                       Expires: {new Date(revealedCode.expires_at).toLocaleString()}
                     </p>
                   )}
@@ -595,7 +669,7 @@ export function WorkspaceSettings() {
               <div className="pt-2 flex justify-end">
                 <Button
                   onClick={handleDismissRevealedCode}
-                  className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-6 py-2.5 rounded-xl"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-6 py-2.5 rounded-xl shadow-xs"
                 >
                   I Have Copied This Code (Dismiss)
                 </Button>
@@ -863,6 +937,82 @@ export function WorkspaceSettings() {
                     {joinCodeSettings.default_role || 'MEMBER'}
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* Plan B: Active Join Credentials Card (Visible during current admin session after generate/regenerate) */}
+            {ephemeralCredentials && isAuthorizedAdmin && (
+              <div
+                data-testid="active-join-credentials-card"
+                className="p-4 sm:p-5 rounded-xl bg-primary/5 border border-primary/20 space-y-4 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-primary font-mono">
+                      Active Join Credentials
+                    </h4>
+                  </div>
+                  <span className="text-2xs font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    Ready to share
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Plaintext Join Code */}
+                  <div className="p-3.5 rounded-lg bg-background/80 border border-border/80 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+                        Join Code
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyActiveCode}
+                        aria-label="Copy join code"
+                        title="Copy join code"
+                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-transparent hover:border-border focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {copiedActiveCode ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-lg font-extrabold tracking-widest text-primary font-mono select-all">
+                      {ephemeralCredentials.join_code}
+                    </div>
+                  </div>
+
+                  {/* Join Link */}
+                  <div className="p-3.5 rounded-lg bg-background/80 border border-border/80 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+                        Join Link
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyActiveLink}
+                        aria-label="Copy join link"
+                        title="Copy join link"
+                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-transparent hover:border-border focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {copiedActiveLink ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-xs font-mono text-foreground break-all select-all leading-relaxed">
+                      {ephemeralCredentials.join_link}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-2xs text-muted-foreground leading-relaxed">
+                  Share this link or code with prospective members to join this workspace.
+                </p>
               </div>
             )}
 

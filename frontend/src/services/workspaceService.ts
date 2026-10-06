@@ -255,6 +255,16 @@ class WorkspaceService {
   }
 }
 
+/**
+ * Canonical helper to construct public workspace join link (Plan B)
+ */
+export function buildWorkspaceJoinLink(workspaceIdentifier: string, joinCode: string): string {
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+  const cleanId = encodeURIComponent((workspaceIdentifier || '').trim());
+  const cleanCode = encodeURIComponent((joinCode || '').trim().toUpperCase());
+  return `${origin}/workspaces/join?workspace_id=${cleanId}&join_code=${cleanCode}`;
+}
+
 export const workspaceService = new WorkspaceService();
 export default workspaceService;
 
