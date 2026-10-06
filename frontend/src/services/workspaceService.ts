@@ -9,6 +9,7 @@ import type {
   UserWorkspacesListResponse,
   JoinWorkspacePayload,
   JoinWorkspaceResponse,
+  WorkspaceJoinAccessResponse,
 } from '@/types';
 
 export interface Workspace {
@@ -250,6 +251,16 @@ class WorkspaceService {
   async getUserWorkspaces(): Promise<UserWorkspacesListResponse> {
     const response = await get<UserWorkspacesListResponse>(
       '/api/v1/workspaces/mine'
+    );
+    return response;
+  }
+
+  /**
+   * Get active join code and canonical join link for current workspace member (WS-D)
+   */
+  async getJoinAccess(workspaceId: string): Promise<WorkspaceJoinAccessResponse> {
+    const response = await get<WorkspaceJoinAccessResponse>(
+      `/api/v1/workspaces/${workspaceId}/join-code/access`
     );
     return response;
   }

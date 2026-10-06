@@ -239,6 +239,7 @@ class APISettings(BaseModel):
 class JoinCodeStoragePayload(BaseModel):
     is_enabled: bool = False
     code_hash: str | None = None
+    code_encrypted: str | None = None
     default_role: str = "MEMBER"
     require_approval: bool = False
     expires_at: str | None = None

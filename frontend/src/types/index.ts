@@ -116,4 +116,5 @@ export type {
   UserWorkspaceMembership,
   UserWorkspacesListResponse,
   OnboardingRegistrationPayload,
+  WorkspaceJoinAccessResponse,
 } from './workspaceOnboarding'

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Menu, Moon, Sun, Monitor, Pencil, Check } from 'lucide-react'
+import { Menu, Moon, Sun, Monitor, Pencil, Check, KeyRound } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Breadcrumbs } from './Breadcrumbs'
 import { UserMenu } from './UserMenu'
@@ -12,6 +12,7 @@ import { cn } from '@/utils/cn'
 import { Badge } from '../common/Badge'
 import { NotificationBell } from '../common/NotificationBell'
 import { DemoRoleSwitcher } from './DemoRoleSwitcher'
+import { JoinAccessDialog } from './JoinAccessDialog'
 
 function HeaderChatTitle() {
   const activeSession = useChatStore((s) => s.activeSession)
@@ -104,6 +105,7 @@ export function Header() {
   const { setMode, resolvedMode } = useTheme()
   const { isOnline } = useNetworkStatus()
   const isChat = location.pathname.startsWith('/chat')
+  const [isJoinAccessOpen, setIsJoinAccessOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md shrink-0">
@@ -133,6 +135,18 @@ export function Header() {
         <NotificationBell />
 
         <DemoRoleSwitcher />
+
+        <button
+          type="button"
+          onClick={() => setIsJoinAccessOpen(true)}
+          aria-label="Workspace Join Access"
+          title="Workspace Join Access"
+          className="group inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent hover:border-border/60 text-muted-foreground hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent active:scale-95 transition-all duration-200"
+        >
+          <KeyRound className="h-4 w-4 transition-transform duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100 text-muted-foreground group-hover:text-foreground" />
+        </button>
+
+        <JoinAccessDialog open={isJoinAccessOpen} onOpenChange={setIsJoinAccessOpen} />
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>

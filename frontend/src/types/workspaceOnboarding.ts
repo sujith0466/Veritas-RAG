@@ -80,6 +80,21 @@ export interface JoinCodeSettingsPatchPayload {
 }
 
 /**
+ * Server-authoritative read-only join access response for authenticated workspace members (WS-D).
+ */
+export interface WorkspaceJoinAccessResponse {
+  success: boolean;
+  workspace_id: string;
+  public_id?: string | null;
+  workspace_name: string;
+  has_active_code: boolean;
+  join_code?: string | null;
+  join_link?: string | null;
+  expires_at?: string | null;
+  default_role?: string;
+}
+
+/**
  * Ephemeral result returned strictly once upon Join Code generation or regeneration.
  */
 export interface JoinCodeGenerateResult {

@@ -298,6 +298,23 @@ class JoinCodeSettingsPatchRequest(BaseModel):
         return role_upper
 
 
+class WorkspaceJoinAccessResponse(BaseModel):
+    """Safe authenticated read payload for workspace joining information (WS-D).
+
+    Allows authorized workspace members (OWNER, ADMIN, MEMBER, VIEWER) to read
+    the active Join Code and canonical Join Link without administrative mutation privileges.
+    """
+    success: bool = True
+    workspace_id: uuid.UUID
+    public_id: str | None = None
+    workspace_name: str
+    has_active_code: bool = False
+    join_code: str | None = None
+    join_link: str | None = None
+    expires_at: datetime | None = None
+    default_role: str = "MEMBER"
+
+
 class JoinCodeGenerateResponse(BaseModel):
     """Ephemeral response returned strictly once upon join code generation/regeneration.
 

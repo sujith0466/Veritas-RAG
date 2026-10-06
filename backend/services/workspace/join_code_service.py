@@ -1,3 +1,4 @@
+import base64
 from datetime import UTC, datetime, timedelta
 import hashlib
 import hmac
@@ -8,6 +9,7 @@ from typing import Any
 import uuid
 
 import bcrypt
+from cryptography.fernet import Fernet
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -17,9 +19,12 @@ from backend.api.v1.schemas.workspace_onboarding import (
     JoinCodeGenerateResponse,
     JoinCodeSettingsPatchRequest,
     JoinCodeSettingsSchema,
+    WorkspaceJoinAccessResponse,
 )
+from backend.core.config import get_settings
 from backend.models.entities.audit_log import AuditLog
 from backend.models.entities.workspace import WorkspaceStatus
+from backend.models.entities.workspace_member import MemberStatus
 from backend.models.entities.workspace_settings import WorkspaceSettings
 from backend.models.entities.workspace_settings_history import WorkspaceSettingsHistory
 from backend.repositories.workspace import WorkspaceRepository
@@ -122,6 +127,34 @@ class JoinCodeService:
             return hmac.compare_digest(candidate_hash, stored_hash.lower())
 
         return False
+
+    @classmethod
+    def _get_cipher(cls) -> Fernet:
+        """Derives a deterministic Fernet cipher from the application secret key."""
+        try:
+            secret = get_settings().app.secret_key
+        except Exception:
+            secret = "raguard-default-dev-secret-key-32b"
+        key = base64.urlsafe_b64encode(hashlib.sha256(secret.encode("utf-8")).digest())
+        return Fernet(key)
+
+    @classmethod
+    def encrypt_join_code(cls, code: str) -> str:
+        """Encrypts join code using authenticated symmetric Fernet encryption for safe zero-plaintext DB storage."""
+        cipher = cls._get_cipher()
+        clean = code.strip().upper()
+        return cipher.encrypt(clean.encode("utf-8")).decode("utf-8")
+
+    @classmethod
+    def decrypt_join_code(cls, token: str | None) -> str | None:
+        """Decrypts join code token. Returns None if decryption fails or token is missing/malformed."""
+        if not token:
+            return None
+        try:
+            cipher = cls._get_cipher()
+            return cipher.decrypt(token.strip().encode("utf-8")).decode("utf-8")
+        except Exception:
+            return None
 
     # ── Authorization Guard ───────────────────────────────────────────────────
 
@@ -254,6 +287,7 @@ class JoinCodeService:
                 "enabled": join_code_config.get("is_enabled"),
                 "default_role": join_code_config.get("default_role"),
                 "require_approval": join_code_config.get("require_approval"),
+                "expires_at": join_code_config.get("expires_at"),
             },
             status="success",
         )
@@ -291,9 +325,10 @@ class JoinCodeService:
         if role_clean not in self.ALLOWED_ROLES:
             raise ValueError(f"Default role must be 'MEMBER' or 'VIEWER', got '{default_role}'.")
 
-        # 1. Cryptographically generate plaintext code and SHA-256 hash
+        # 1. Cryptographically generate plaintext code, verifier hash, and encrypted token
         plaintext_code = self.generate_plaintext_code()
         code_hash = self.hash_join_code(plaintext_code)
+        code_encrypted = self.encrypt_join_code(plaintext_code)
 
         # 2. Compute expiration
         now = datetime.now(UTC)
@@ -319,6 +354,7 @@ class JoinCodeService:
         new_join_config = {
             "is_enabled": True,
             "code_hash": code_hash,
+            "code_encrypted": code_encrypted,
             "default_role": existing_join_config.get("default_role", role_clean),
             "require_approval": existing_join_config.get("require_approval", require_approval),
             "expires_at": expires_at.isoformat() if expires_at else None,
@@ -485,3 +521,72 @@ class JoinCodeService:
                 workspace_id=str(workspace_id),
                 current_uses=jc["current_uses"],
             )
+
+    async def get_join_access(
+        self,
+        session: AsyncSession,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID,
+        is_platform_admin: bool = False,
+    ) -> WorkspaceJoinAccessResponse:
+        """Retrieves active Join Code and canonical Join Link for an authenticated workspace member (WS-D).
+
+        SECURITY INVARIANTS:
+        1. Explicitly checks workspace existence and ACTIVE status.
+        2. Strictly verifies caller has an ACTIVE, non-deleted membership in workspace_id (or platform admin).
+           Rejects non-members and cross-workspace attempts with WorkspaceUnauthorizedError (Tenant Isolation).
+        3. Returns current active code and canonical join link only if Join Code is enabled and unexpired.
+        4. If disabled or expired, returns has_active_code=False and join_code=None.
+        """
+        workspace = await self.workspace_repo.get_by_id(workspace_id)
+        if not workspace or workspace.status != WorkspaceStatus.ACTIVE.value:
+            raise WorkspaceNotFoundError("Workspace not found or inactive.")
+
+        if not is_platform_admin:
+            member = await self.member_repo.get_membership(workspace_id, user_id)
+            if not member or member.status != MemberStatus.ACTIVE.value or member.is_deleted:
+                raise WorkspaceUnauthorizedError("Access denied. Active workspace membership required.")
+
+        settings = await self.settings_repo.get_by_workspace_id(workspace_id)
+        config: dict[str, Any] = {}
+        if settings and settings.settings_json:
+            config = settings.settings_json.get("join_code", {})
+
+        is_enabled = bool(config.get("is_enabled", False))
+        code_hash = config.get("code_hash")
+        code_encrypted = config.get("code_encrypted")
+        expires_at_val = config.get("expires_at")
+        default_role = config.get("default_role", "MEMBER")
+
+        expires_at = datetime.fromisoformat(expires_at_val) if expires_at_val else None
+
+        # Check expiration
+        is_expired = False
+        if expires_at and datetime.now(UTC) >= expires_at:
+            is_expired = True
+
+        has_active_code = is_enabled and bool(code_hash) and not is_expired
+
+        decrypted_code: str | None = None
+        join_link: str | None = None
+
+        if has_active_code and code_encrypted:
+            decrypted_code = self.decrypt_join_code(code_encrypted)
+            if decrypted_code:
+                # Canonical join link using public_id or slug
+                identifier = workspace.public_id or workspace.slug or str(workspace_id)
+                clean_id = identifier.strip()
+                clean_code = decrypted_code.strip().upper()
+                join_link = f"/workspaces/join?workspace_id={clean_id}&join_code={clean_code}"
+
+        return WorkspaceJoinAccessResponse(
+            success=True,
+            workspace_id=workspace_id,
+            public_id=workspace.public_id,
+            workspace_name=workspace.name,
+            has_active_code=has_active_code and bool(decrypted_code),
+            join_code=decrypted_code if has_active_code else None,
+            join_link=join_link if has_active_code else None,
+            expires_at=expires_at,
+            default_role=default_role,
+        )

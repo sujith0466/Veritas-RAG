@@ -25,6 +25,7 @@ from backend.api.v1.schemas.workspace_onboarding import (
     JoinCodeGenerateResponse,
     JoinCodeSettingsPatchRequest,
     JoinCodeSettingsSchema,
+    WorkspaceJoinAccessResponse,
     JoiningMode,
     JoinWorkspaceData,
     JoinWorkspaceRequest,
@@ -1517,6 +1518,45 @@ async def get_join_code_settings(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while fetching join code settings.",
+        ) from e
+
+
+@router.get(
+    "/{workspace_id}/join-code/access",
+    response_model=WorkspaceJoinAccessResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get workspace join code access for authenticated members (Owner/Admin/Member/Viewer)",
+)
+async def get_join_code_access(
+    workspace_id: uuid.UUID,
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    join_code_service: JoinCodeService = Depends(get_join_code_service),
+) -> WorkspaceJoinAccessResponse:
+    """Retrieve active Join Code and link for workspace members (view/copy only, WS-D)."""
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required to access join code credentials.",
+        )
+    try:
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role in (Role.PLATFORM_ADMIN,)
+        return await join_code_service.get_join_access(
+            session=session,
+            workspace_id=workspace_id,
+            user_id=current_user.id,
+            is_platform_admin=is_platform_admin,
+        )
+    except WorkspaceNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except WorkspaceUnauthorizedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        logger.exception("Failed to get join code access")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while fetching join code access.",
         ) from e
 
 
