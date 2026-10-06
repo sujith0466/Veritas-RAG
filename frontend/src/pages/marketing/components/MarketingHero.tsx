@@ -10,6 +10,7 @@ interface MarketingHeroProps {
   badge: string
   title: React.ReactNode
   subtitle: string
+  showActions?: boolean
   primaryCtaText?: string
   secondaryCtaText?: string
   secondaryCtaLink?: string
@@ -40,6 +41,7 @@ export function MarketingHero({
   badge,
   title,
   subtitle,
+  showActions = false,
   primaryCtaText = 'Launch Workspace',
   secondaryCtaText,
   secondaryCtaLink,
@@ -99,27 +101,29 @@ export function MarketingHero({
               </p>
             </motion.div>
 
-            {/* Actions */}
-            <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-4 pt-2">
-              <MagneticButton
-                variant="primary"
-                onClick={handlePrimaryClick}
-                className="text-sm font-semibold h-11 px-7 rounded-full shadow-[0_0_20px_hsl(var(--primary)/0.25)] flex items-center space-x-2"
-              >
-                <span>{primaryCtaText}</span>
-                <ArrowRight className="w-4 h-4 ml-1.5" />
-              </MagneticButton>
-
-              {secondaryCtaText && (
-                <Button
-                  variant="outline"
-                  onClick={handleSecondaryClick}
-                  className="rounded-full px-6 h-11 border-border/80 text-foreground hover:bg-surface-elevated transition-colors"
+            {/* Actions (Only rendered if showActions is true) */}
+            {showActions && (
+              <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-4 pt-2">
+                <MagneticButton
+                  variant="primary"
+                  onClick={handlePrimaryClick}
+                  className="text-sm font-semibold h-11 px-7 rounded-full shadow-[0_0_20px_hsl(var(--primary)/0.25)] flex items-center space-x-2"
                 >
-                  {secondaryCtaText}
-                </Button>
-              )}
-            </motion.div>
+                  <span>{primaryCtaText}</span>
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </MagneticButton>
+
+                {secondaryCtaText && (
+                  <Button
+                    variant="outline"
+                    onClick={handleSecondaryClick}
+                    className="rounded-full px-6 h-11 border-border/80 text-foreground hover:bg-surface-elevated transition-colors"
+                  >
+                    {secondaryCtaText}
+                  </Button>
+                )}
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Right Column: Custom Visual Diagram / Product Abstraction */}
