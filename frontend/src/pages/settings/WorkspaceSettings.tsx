@@ -1054,6 +1054,30 @@ export function WorkspaceSettings() {
             {/* Admin Management Section */}
             {isAuthorizedAdmin ? (
               <div className="space-y-6">
+                {/* Active Code Expiration (WS-E) */}
+                {joinCodeSettings?.has_code && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="code_expiration" className="text-2xs font-semibold text-muted-foreground">
+                      Active Code Expiration
+                    </Label>
+                    <div className="max-w-xs">
+                      <select
+                        id="code_expiration"
+                        value={joinCodeForm.expires_in_days}
+                        onChange={e => setJoinCodeForm(prev => ({ ...prev, expires_in_days: e.target.value }))}
+                        className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                      >
+                        <option value="7">7 Days</option>
+                        <option value="30">30 Days</option>
+                        <option value="60">60 Days</option>
+                        <option value="90">90 Days</option>
+                        <option value="365">365 Days</option>
+                        <option value="0">Never</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
                 {/* Generation / Regeneration Trigger */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl bg-surface border border-border shadow-xs">
                   <div>
@@ -1102,7 +1126,7 @@ export function WorkspaceSettings() {
                       Join Policy Configuration
                     </h4>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {/* Enable/Disable Toggle */}
                       <div className="p-3.5 rounded-lg border border-border/60 bg-background/50 flex items-center justify-between">
                         <div>
@@ -1133,26 +1157,6 @@ export function WorkspaceSettings() {
                         >
                           <option value="MEMBER">MEMBER (Standard Access)</option>
                           <option value="VIEWER">VIEWER (Read-Only Access)</option>
-                        </select>
-                      </div>
-
-                      {/* Active Code Expiration (WS-E) */}
-                      <div className="space-y-1.5">
-                        <Label htmlFor="code_expiration" className="text-2xs font-semibold text-muted-foreground">
-                          Active Code Expiration
-                        </Label>
-                        <select
-                          id="code_expiration"
-                          value={joinCodeForm.expires_in_days}
-                          onChange={e => setJoinCodeForm(prev => ({ ...prev, expires_in_days: e.target.value }))}
-                          className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                          <option value="7">7 Days</option>
-                          <option value="30">30 Days</option>
-                          <option value="60">60 Days</option>
-                          <option value="90">90 Days</option>
-                          <option value="365">365 Days</option>
-                          <option value="0">Never</option>
                         </select>
                       </div>
 
