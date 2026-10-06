@@ -286,6 +286,12 @@ class JoinCodeSettingsPatchRequest(BaseModel):
     default_role: str | None = Field(default=None, description="Updated default role ('MEMBER', 'VIEWER')")
     require_approval: bool | None = Field(default=None, description="Require admin approval for entrants")
     max_uses: int | None = Field(default=None, ge=1, le=10000, description="Maximum number of allowable uses")
+    expires_in_days: int | None = Field(
+        default=None,
+        ge=0,
+        le=365,
+        description="Updated expiration duration in days (0 for Never, 7, 30, 60, 90, 365)",
+    )
 
     @field_validator("default_role")
     @classmethod
@@ -296,6 +302,13 @@ class JoinCodeSettingsPatchRequest(BaseModel):
         if role_upper not in {"MEMBER", "VIEWER"}:
             raise ValueError("Join code default role must be 'MEMBER' or 'VIEWER'.")
         return role_upper
+
+    @field_validator("expires_in_days")
+    @classmethod
+    def validate_expires_in_days(cls, v: int | None) -> int | None:
+        if v is not None and v not in {0, 7, 30, 60, 90, 365}:
+            raise ValueError("Expiration duration must be one of: 0 (Never), 7, 30, 60, 90, 365 days.")
+        return v
 
 
 class WorkspaceJoinAccessResponse(BaseModel):

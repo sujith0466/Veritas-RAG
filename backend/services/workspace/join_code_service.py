@@ -270,6 +270,12 @@ class JoinCodeService:
             join_code_config["require_approval"] = request.require_approval
         if request.max_uses is not None:
             join_code_config["max_uses"] = request.max_uses
+        if request.expires_in_days is not None:
+            if request.expires_in_days == 0:
+                join_code_config["expires_at"] = None
+            else:
+                now = datetime.now(UTC)
+                join_code_config["expires_at"] = (now + timedelta(days=request.expires_in_days)).isoformat()
 
         settings_dict["join_code"] = join_code_config
         settings.settings_json = settings_dict

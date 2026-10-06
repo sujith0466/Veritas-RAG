@@ -77,6 +77,7 @@ export interface JoinCodeSettingsPatchPayload {
   default_role?: 'MEMBER' | 'VIEWER';
   require_approval?: boolean;
   max_uses?: number | null;
+  expires_in_days?: number | null;
 }
 
 /**

@@ -288,6 +288,7 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
         default_role: 'VIEWER',
         require_approval: false,
         max_uses: 100,
+        expires_in_days: 30,
       })
     })
   })

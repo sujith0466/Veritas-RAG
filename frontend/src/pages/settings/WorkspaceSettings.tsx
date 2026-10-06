@@ -75,6 +75,7 @@ export function WorkspaceSettings() {
     default_role: 'MEMBER' as 'MEMBER' | 'VIEWER',
     require_approval: false,
     max_uses: '' as string,
+    expires_in_days: '30' as string,
   })
 
   // One-time Plaintext Reveal Modal State (Strictly ephemeral in-memory state)
@@ -233,11 +234,24 @@ export function WorkspaceSettings() {
       const res = await workspaceService.getJoinCodeSettings(workspaceId)
       const data = (res as any)?.data || res
       setJoinCodeSettings(data)
+      let expDaysStr = '30'
+      if (!data.expires_at) {
+        expDaysStr = '0'
+      } else {
+        const diffDays = Math.round((new Date(data.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        const validDays = [7, 30, 60, 90, 365]
+        const closest = validDays.reduce((prev, curr) =>
+          Math.abs(curr - diffDays) < Math.abs(prev - diffDays) ? curr : prev
+        )
+        expDaysStr = String(closest)
+      }
+
       setJoinCodeForm({
         enabled: Boolean(data.enabled),
         default_role: (data.default_role as 'MEMBER' | 'VIEWER') || 'MEMBER',
         require_approval: Boolean(data.require_approval),
         max_uses: data.max_uses ? String(data.max_uses) : '',
+        expires_in_days: expDaysStr,
       })
     } catch (err: any) {
       console.warn('Failed to load join code settings', err)
@@ -362,14 +376,19 @@ export function WorkspaceSettings() {
     try {
       setSavingJoinCode(true)
       const maxUsesVal = joinCodeForm.max_uses ? parseInt(joinCodeForm.max_uses, 10) : null
+      const expDaysVal = joinCodeForm.expires_in_days !== '' ? parseInt(joinCodeForm.expires_in_days, 10) : undefined
       const res = await workspaceService.patchJoinCodeSettings(workspaceId, {
         enabled: joinCodeForm.enabled,
         default_role: joinCodeForm.default_role,
         require_approval: joinCodeForm.require_approval,
         max_uses: maxUsesVal,
+        expires_in_days: expDaysVal,
       })
       const data = (res as any)?.data || res
       setJoinCodeSettings(data)
+      if (ephemeralCredentials) {
+        setEphemeralCredentials((prev) => (prev ? { ...prev, expires_at: data.expires_at } : null))
+      }
       toast({ title: 'Settings Saved', message: 'Join Code configuration updated successfully', type: 'success' })
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message || 'Failed to update join code settings'
@@ -1067,7 +1086,7 @@ export function WorkspaceSettings() {
                       Join Policy Configuration
                     </h4>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                       {/* Enable/Disable Toggle */}
                       <div className="p-3.5 rounded-lg border border-border/60 bg-background/50 flex items-center justify-between">
                         <div>
@@ -1098,6 +1117,26 @@ export function WorkspaceSettings() {
                         >
                           <option value="MEMBER">MEMBER (Standard Access)</option>
                           <option value="VIEWER">VIEWER (Read-Only Access)</option>
+                        </select>
+                      </div>
+
+                      {/* Active Code Expiration (WS-E) */}
+                      <div className="space-y-1.5">
+                        <Label htmlFor="code_expiration" className="text-2xs font-semibold text-muted-foreground">
+                          Active Code Expiration
+                        </Label>
+                        <select
+                          id="code_expiration"
+                          value={joinCodeForm.expires_in_days}
+                          onChange={e => setJoinCodeForm(prev => ({ ...prev, expires_in_days: e.target.value }))}
+                          className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                          <option value="7">7 Days</option>
+                          <option value="30">30 Days</option>
+                          <option value="60">60 Days</option>
+                          <option value="90">90 Days</option>
+                          <option value="365">365 Days</option>
+                          <option value="0">Never</option>
                         </select>
                       </div>
 
