@@ -8,13 +8,51 @@ import { Button, Input, Label } from '../common'
 import { Mail, Lock, Eye, EyeOff, Building, User, Hash } from 'lucide-react'
 import { PasswordStrength } from './PasswordStrength'
 import { GoogleAuthButton } from './GoogleAuthButton'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 
 // Add focus callback props for AI Assistant integration
 interface BaseFormProps {
   onSuccess: () => void
   onFocusChange?: (field: 'email' | 'password' | 'password_visible' | 'idle') => void
   onError?: () => void
+}
+
+// ---------------------------------------------------------
+// PASSWORD VISIBILITY TOGGLE (ANIMATED & ACCESSIBLE)
+// ---------------------------------------------------------
+
+interface PasswordVisibilityToggleProps {
+  isVisible: boolean
+  onToggle: () => void
+  ariaLabel: string
+}
+
+function PasswordVisibilityToggle({ isVisible, onToggle, ariaLabel }: PasswordVisibilityToggleProps) {
+  const shouldReduceMotion = useReducedMotion()
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={ariaLabel}
+      title={ariaLabel}
+      aria-pressed={isVisible}
+      className="p-1 rounded text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors inline-flex items-center justify-center cursor-pointer"
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={isVisible ? 'visible' : 'hidden'}
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8, rotate: isVisible ? -8 : 8 }}
+          animate={{ opacity: 1, scale: 1, rotate: 0 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.8, rotate: isVisible ? 8 : -8 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="inline-flex items-center justify-center"
+        >
+          {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+        </motion.span>
+      </AnimatePresence>
+    </button>
+  )
 }
 
 // ---------------------------------------------------------
@@ -95,13 +133,15 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
 
           leftIcon={<Lock className="h-4 w-4" />}
           rightIcon={
-            <button
-              type="button"
-              onClick={() => { setShowPassword(!showPassword); onFocusChange?.(!showPassword ? 'password_visible' : 'password'); }}
-              className="text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+            <PasswordVisibilityToggle
+              isVisible={showPassword}
+              onToggle={() => {
+                const next = !showPassword
+                setShowPassword(next)
+                onFocusChange?.(next ? 'password_visible' : 'password')
+              }}
+              ariaLabel={showPassword ? 'Hide password' : 'Show password'}
+            />
           }
           error={errors.password?.message}
           {...register('password')}
@@ -166,6 +206,7 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<z.infer<typeof adminRegisterSchema>>({
     resolver: zodResolver(adminRegisterSchema),
@@ -228,6 +269,17 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
             onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
 
             leftIcon={<Lock className="h-4 w-4" />}
+            rightIcon={
+              <PasswordVisibilityToggle
+                isVisible={showPassword}
+                onToggle={() => {
+                  const next = !showPassword
+                  setShowPassword(next)
+                  onFocusChange?.(next ? 'password_visible' : 'password')
+                }}
+                ariaLabel={showPassword ? 'Hide password' : 'Show password'}
+              />
+            }
             error={errors.password?.message}
             {...register('password')}
           />
@@ -236,14 +288,20 @@ export function AdminRegisterForm({ onSuccess, onFocusChange, onError }: BaseFor
           <Label htmlFor="confirmPassword">Confirm Password</Label>
           <Input
             id="confirmPassword"
-            type={showPassword ? "text" : "password"}
-            onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
+            type={showConfirmPassword ? "text" : "password"}
+            onFocus={() => onFocusChange?.(showConfirmPassword ? 'password_visible' : 'password')}
 
             leftIcon={<Lock className="h-4 w-4" />}
             rightIcon={
-              <button type="button" onClick={() => { setShowPassword(!showPassword); onFocusChange?.(!showPassword ? 'password_visible' : 'password'); }} className="text-muted-foreground hover:text-foreground">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <PasswordVisibilityToggle
+                isVisible={showConfirmPassword}
+                onToggle={() => {
+                  const next = !showConfirmPassword
+                  setShowConfirmPassword(next)
+                  onFocusChange?.(next ? 'password_visible' : 'password')
+                }}
+                ariaLabel={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+              />
             }
             error={errors.confirmPassword?.message}
             {...register('confirmPassword')}
@@ -274,6 +332,7 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<z.infer<typeof userRegisterSchema>>({
     resolver: zodResolver(userRegisterSchema),
@@ -329,6 +388,17 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
             onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
 
             leftIcon={<Lock className="h-4 w-4" />}
+            rightIcon={
+              <PasswordVisibilityToggle
+                isVisible={showPassword}
+                onToggle={() => {
+                  const next = !showPassword
+                  setShowPassword(next)
+                  onFocusChange?.(next ? 'password_visible' : 'password')
+                }}
+                ariaLabel={showPassword ? 'Hide password' : 'Show password'}
+              />
+            }
             error={errors.password?.message}
             {...register('password')}
           />
@@ -337,14 +407,20 @@ export function UserRegisterForm({ onSuccess, onFocusChange, onError }: BaseForm
           <Label htmlFor="confirmPassword">Confirm Password</Label>
           <Input
             id="confirmPassword"
-            type={showPassword ? "text" : "password"}
-            onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
+            type={showConfirmPassword ? "text" : "password"}
+            onFocus={() => onFocusChange?.(showConfirmPassword ? 'password_visible' : 'password')}
 
             leftIcon={<Lock className="h-4 w-4" />}
             rightIcon={
-              <button type="button" onClick={() => { setShowPassword(!showPassword); onFocusChange?.(!showPassword ? 'password_visible' : 'password'); }} className="text-muted-foreground hover:text-foreground">
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <PasswordVisibilityToggle
+                isVisible={showConfirmPassword}
+                onToggle={() => {
+                  const next = !showConfirmPassword
+                  setShowConfirmPassword(next)
+                  onFocusChange?.(next ? 'password_visible' : 'password')
+                }}
+                ariaLabel={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+              />
             }
             error={errors.confirmPassword?.message}
             {...register('confirmPassword')}
