@@ -573,7 +573,7 @@ export function WorkspaceSettings() {
       <AnimatePresence>
         {revealedCode && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 dark:bg-black/80 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="one-time-reveal-title"
@@ -583,11 +583,11 @@ export function WorkspaceSettings() {
               animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-lg bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 text-card-foreground"
+              className="w-full max-w-lg bg-surface border border-border rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 text-foreground"
             >
               <div className="flex items-center justify-between border-b border-border/80 pb-4">
                 <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary dark:text-teal-400">
                     <KeyRound className="h-5 w-5" />
                   </div>
                   <div>
@@ -608,12 +608,12 @@ export function WorkspaceSettings() {
               </div>
 
               {/* Plaintext Code Box */}
-              <div className="p-5 rounded-xl bg-muted/40 border border-primary/30 flex flex-col items-center justify-center space-y-3 shadow-inner">
+              <div className="p-5 rounded-xl bg-muted/40 dark:bg-background/90 border border-primary/30 dark:border-border flex flex-col items-center justify-center space-y-3 shadow-inner">
                 <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                   Active Plaintext Join Code
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-3xl sm:text-4xl font-extrabold tracking-widest text-primary font-mono select-all">
+                  <span className="text-3xl sm:text-4xl font-extrabold tracking-widest text-primary dark:text-teal-400 font-mono select-all">
                     {revealedCode.join_code}
                   </span>
                   <button
@@ -621,15 +621,15 @@ export function WorkspaceSettings() {
                     onClick={handleCopyRevealedCode}
                     aria-label="Copy join code"
                     title="Copy join code"
-                    className="p-2 rounded-lg bg-background hover:bg-muted border border-border text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="p-2 rounded-lg bg-background hover:bg-muted border border-border dark:bg-surface dark:hover:bg-muted dark:border-border text-foreground hover:text-primary dark:hover:text-teal-400 transition-colors focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
                   >
-                    {copiedRevealedCode ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                    {copiedRevealedCode ? <Check className="h-4 w-4 text-emerald-500 dark:text-emerald-400" /> : <Copy className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
               {/* Join Link Box */}
-              <div className="p-4 rounded-xl bg-muted/40 border border-primary/30 space-y-2">
+              <div className="p-4 rounded-xl bg-muted/40 dark:bg-background/90 border border-primary/30 dark:border-border space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                     Join Link
@@ -639,9 +639,9 @@ export function WorkspaceSettings() {
                     onClick={handleCopyRevealedLink}
                     aria-label="Copy join link"
                     title="Copy join link"
-                    className="p-1.5 rounded-lg bg-background hover:bg-muted border border-border text-foreground hover:text-primary transition-colors focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="p-1.5 rounded-lg bg-background hover:bg-muted border border-border dark:bg-surface dark:hover:bg-muted dark:border-border text-foreground hover:text-primary dark:hover:text-teal-400 transition-colors focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
                   >
-                    {copiedRevealedLink ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copiedRevealedLink ? <Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                   </button>
                 </div>
                 <p className="text-xs font-mono text-foreground break-all select-all leading-relaxed">
