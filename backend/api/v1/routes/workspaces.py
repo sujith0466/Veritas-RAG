@@ -520,13 +520,16 @@ async def update_workspace(
         )
 
     try:
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         workspace = await management_service.update_workspace(
             session=session,
             workspace_id=workspace_id,
             user_id=current_user.id,
             expected_updated_at=request.expected_updated_at,
             name=request.name,
-            description=request.description
+            description=request.description,
+            is_platform_admin=is_platform_admin,
         )
 
         return WorkspaceResponse(
@@ -970,7 +973,8 @@ async def get_workspace_settings(
 ) -> WorkspaceSettingsResponse:
     """Retrieve full validated workspace settings document."""
     try:
-        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         settings = await settings_service.get_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1011,9 +1015,14 @@ async def patch_workspace_settings(
     session: AsyncSession = Depends(get_db),
     settings_service: WorkspaceSettingsService = Depends(get_workspace_settings_service),
 ) -> WorkspaceSettingsResponse:
-    """Deep merge patch into workspace settings, validate schema, and bump version."""
+    user_role = Role.from_str(str(current_user.role))
+    if current_user.demo_simulated and user_role not in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace OWNER or ADMIN can modify settings.",
+        )
     try:
-        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         settings = await settings_service.patch_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1033,6 +1042,8 @@ async def patch_workspace_settings(
                 updated_at=settings.updated_at,
             ),
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except WorkspaceNotFoundError as e:
@@ -1062,9 +1073,14 @@ async def reset_workspace_settings(
     session: AsyncSession = Depends(get_db),
     settings_service: WorkspaceSettingsService = Depends(get_workspace_settings_service),
 ) -> WorkspaceSettingsResponse:
-    """Reset entire settings document or a specific category to defaults."""
+    user_role = Role.from_str(str(current_user.role))
+    if current_user.demo_simulated and user_role not in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace OWNER or ADMIN can modify settings.",
+        )
     try:
-        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         settings = await settings_service.reset_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1084,6 +1100,8 @@ async def reset_workspace_settings(
                 updated_at=settings.updated_at,
             ),
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except WorkspaceNotFoundError as e:
@@ -1114,7 +1132,8 @@ async def export_workspace_settings(
 ) -> WorkspaceSettingsResponse:
     """Export complete workspace configuration with metadata."""
     try:
-        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         settings = await settings_service.get_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1155,9 +1174,14 @@ async def import_workspace_settings(
     session: AsyncSession = Depends(get_db),
     settings_service: WorkspaceSettingsService = Depends(get_workspace_settings_service),
 ) -> dict[str, Any]:
-    """Import and validate settings configuration."""
+    user_role = Role.from_str(str(current_user.role))
+    if current_user.demo_simulated and user_role not in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace OWNER or ADMIN can import settings.",
+        )
     try:
-        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         result = await settings_service.import_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1168,6 +1192,8 @@ async def import_workspace_settings(
             is_platform_admin=is_platform_admin,
         )
         return {"success": True, "data": result}
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except WorkspaceNotFoundError as e:
@@ -1198,7 +1224,8 @@ async def get_workspace_settings_history(
 ) -> WorkspaceSettingsHistoryResponse:
     """Retrieve version history snapshots for workspace settings."""
     try:
-        is_platform_admin = Role.from_str(str(current_user.role)) in (Role.ADMIN, Role.PLATFORM_ADMIN)
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         history = await settings_service.get_history(
             workspace_id=workspace_id,
             user_id=current_user.id,
@@ -1467,8 +1494,14 @@ async def get_join_code_settings(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email verification required to access join code settings.",
         )
+    user_role = Role.from_str(str(current_user.role))
+    if current_user.demo_simulated and user_role not in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace OWNER or ADMIN can manage join code settings.",
+        )
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         return await join_code_service.get_join_code_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1506,8 +1539,14 @@ async def patch_join_code_settings(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email verification required to update join code settings.",
         )
+    user_role = Role.from_str(str(current_user.role))
+    if current_user.demo_simulated and user_role not in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace OWNER or ADMIN can manage join code settings.",
+        )
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         return await join_code_service.patch_join_code_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1551,8 +1590,14 @@ async def generate_join_code(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email verification required to generate join code.",
         )
+    user_role = Role.from_str(str(current_user.role))
+    if current_user.demo_simulated and user_role not in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace OWNER or ADMIN can manage join code settings.",
+        )
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         return await join_code_service.generate_new_join_code(
             session=session,
             workspace_id=workspace_id,
@@ -1598,8 +1643,14 @@ async def regenerate_join_code(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Email verification required to regenerate join code.",
         )
+    user_role = Role.from_str(str(current_user.role))
+    if current_user.demo_simulated and user_role not in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only workspace OWNER or ADMIN can manage join code settings.",
+        )
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
         return await join_code_service.generate_new_join_code(
             session=session,
             workspace_id=workspace_id,

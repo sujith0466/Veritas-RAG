@@ -96,7 +96,7 @@ export function WorkspaceSettings() {
 
   useEffect(() => {
     loadWorkspace()
-  }, [workspaceId])
+  }, [workspaceId, isAuthorizedAdmin])
 
   const loadWorkspace = async () => {
     try {
@@ -121,10 +121,10 @@ export function WorkspaceSettings() {
         if (workspaceId) {
           try {
             const wsDetail = await workspaceService.getWorkspace(workspaceId)
-            if (wsDetail?.data) {
-              const d = wsDetail.data
+            const d = (wsDetail as any)?.data || wsDetail
+            if (d && (d.id || d.name || d.workspace_id)) {
               curWs = {
-                id: d.id,
+                id: d.id || d.workspace_id,
                 public_id: d.public_id,
                 name: d.name,
                 slug: d.slug,
@@ -179,10 +179,11 @@ export function WorkspaceSettings() {
       if (workspaceId) {
         try {
           const res = await workspaceSettingsService.getSettings(workspaceId)
-          if (res?.data) {
-            setSettingsData(res.data)
-            setExpectedUpdatedAt(res.data.updated_at)
-            const retentionDays = res.data.settings?.general?.retention_days ?? 90
+          const data = (res as any)?.data || res
+          if (data && (data.settings || data.workspace_id)) {
+            setSettingsData(data)
+            setExpectedUpdatedAt(data.updated_at || '')
+            const retentionDays = data.settings?.general?.retention_days ?? 90
             setFormData({
               workspace_name: currentWsName,
               retention_policy: String(retentionDays),
@@ -394,8 +395,9 @@ export function WorkspaceSettings() {
         if (!lockTimestamp) {
           try {
             const wsDetail = await workspaceService.getWorkspace(workspaceId)
-            if (wsDetail?.data?.updated_at) {
-              lockTimestamp = wsDetail.data.updated_at
+            const d = (wsDetail as any)?.data || wsDetail
+            if (d?.updated_at) {
+              lockTimestamp = d.updated_at
             }
           } catch {
             // fallback
@@ -408,11 +410,12 @@ export function WorkspaceSettings() {
               lockTimestamp,
               trimmedWsName
             )
-            if (updateRes?.data) {
-              effectiveWsName = updateRes.data.name
-              setWorkspaceUpdatedAt(updateRes.data.updated_at)
-              setInitialWorkspaceName(updateRes.data.name)
-              useWorkspaceStore.getState().setCurrentWorkspace(updateRes.data)
+            const updateData = (updateRes as any)?.data || updateRes
+            if (updateData) {
+              effectiveWsName = updateData.name || trimmedWsName
+              setWorkspaceUpdatedAt(updateData.updated_at || '')
+              setInitialWorkspaceName(updateData.name || trimmedWsName)
+              useWorkspaceStore.getState().setCurrentWorkspace(updateData)
             }
           } catch (wsErr: any) {
             if (wsErr?.response?.status === 409 || wsErr?.status === 409) {
@@ -443,9 +446,10 @@ export function WorkspaceSettings() {
               },
             }
           )
-          if (res?.data) {
-            setSettingsData(res.data)
-            setExpectedUpdatedAt(res.data.updated_at)
+          const patchData = (res as any)?.data || res
+          if (patchData) {
+            setSettingsData(patchData)
+            setExpectedUpdatedAt(patchData.updated_at || '')
           }
         } catch (patchErr: any) {
           if (patchErr?.response?.status === 409 || patchErr?.status === 409) {
@@ -605,7 +609,7 @@ export function WorkspaceSettings() {
       <AnimatePresence>
         {isRegenerateModalOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 dark:bg-black/80 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="regenerate-modal-title"
@@ -614,37 +618,37 @@ export function WorkspaceSettings() {
               initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
               animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
               exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-slate-900 border border-red-500/40 rounded-2xl p-6 shadow-2xl space-y-5 text-slate-100"
+              className="w-full max-w-md bg-surface border border-border rounded-2xl p-6 shadow-2xl space-y-5 text-foreground"
             >
-              <div className="flex items-center space-x-3 border-b border-slate-800 pb-3">
-                <div className="h-10 w-10 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-400">
+              <div className="flex items-center space-x-3 border-b border-border pb-3">
+                <div className="h-10 w-10 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center text-danger">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 id="regenerate-modal-title" className="text-base font-bold text-white">
+                  <h3 id="regenerate-modal-title" className="text-base font-bold text-foreground">
                     Regenerate Join Code?
                   </h3>
-                  <p className="text-xs text-slate-400">Immediate invalidation of existing code</p>
+                  <p className="text-xs text-muted-foreground">Immediate invalidation of existing code</p>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Regenerating will immediately invalidate any previous Join Code. Any team member currently attempting to
                 join with the old code will be rejected. A new code will be generated and shown strictly once.
               </p>
 
               <div className="space-y-3 pt-1">
-                <Label className="text-2xs font-semibold text-slate-300">New Code Validity (Days)</Label>
+                <Label className="text-2xs font-semibold text-foreground">New Code Validity (Days)</Label>
                 <select
                   value={generateOptions.expires_in_days}
                   onChange={e => setGenerateOptions(prev => ({ ...prev, expires_in_days: parseInt(e.target.value, 10) }))}
-                  className="w-full flex h-9 items-center justify-between rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full flex h-9 items-center justify-between rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
                 >
-                  <option value="7">7 Days</option>
-                  <option value="30">30 Days (Default)</option>
-                  <option value="90">90 Days</option>
-                  <option value="365">1 Year (365 Days)</option>
-                  <option value="0">Never Expires</option>
+                  <option value="7" className="bg-surface text-foreground">7 Days</option>
+                  <option value="30" className="bg-surface text-foreground">30 Days (Default)</option>
+                  <option value="90" className="bg-surface text-foreground">90 Days</option>
+                  <option value="365" className="bg-surface text-foreground">1 Year (365 Days)</option>
+                  <option value="0" className="bg-surface text-foreground">Never Expires</option>
                 </select>
               </div>
 
@@ -660,7 +664,7 @@ export function WorkspaceSettings() {
                 <Button
                   onClick={() => handleGenerateJoinCode(true)}
                   disabled={generatingCode}
-                  className="bg-red-600 hover:bg-red-500 text-white text-xs flex items-center space-x-2"
+                  className="bg-danger hover:bg-danger/90 text-danger-foreground text-xs flex items-center space-x-2 shadow-xs transition-colors"
                 >
                   {generatingCode && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   <span>Confirm & Regenerate</span>
@@ -866,7 +870,7 @@ export function WorkspaceSettings() {
             {isAuthorizedAdmin ? (
               <div className="space-y-6">
                 {/* Generation / Regeneration Trigger */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl bg-slate-950/40 border border-border/60">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl bg-surface border border-border shadow-xs">
                   <div>
                     <h4 className="text-xs font-semibold text-foreground">
                       {joinCodeSettings?.has_code ? 'Regenerate Join Code' : 'Generate Initial Join Code'}
@@ -886,7 +890,7 @@ export function WorkspaceSettings() {
                         variant="outline"
                         size="sm"
                         disabled={generatingCode}
-                        className="flex items-center space-x-1.5 border-border/80 hover:bg-muted/40 text-xs shrink-0"
+                        className="flex items-center space-x-1.5 border-border hover:bg-muted text-foreground text-xs shrink-0 shadow-2xs transition-colors"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />
                         <span>Regenerate Code</span>

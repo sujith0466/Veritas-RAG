@@ -9,6 +9,7 @@ from backend.models.entities.workspace_member import WorkspaceMember
 from backend.services.workspace.management_service import (
     WorkspaceConflictError,
     WorkspaceManagementService,
+    WorkspaceNotFoundError,
     WorkspaceUnauthorizedError,
 )
 
@@ -108,6 +109,135 @@ async def test_update_workspace_unauthorized(service, mock_session, mock_workspa
             expected_updated_at=datetime.now(UTC),
             name="New Name"
         )
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_simulated_admin_succeeds(service, mock_session, mock_workspace_repo, mock_workspace_member_repo):
+    workspace_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    updated_at = datetime.now(UTC)
+
+    # Even if persistent DB membership is MEMBER, simulated ADMIN caller (is_platform_admin=True) succeeds
+    mock_member = WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role="MEMBER")
+    mock_workspace_member_repo.get_membership.return_value = mock_member
+
+    mock_workspace = Workspace(
+        id=workspace_id,
+        name="Old Name",
+        description="Old Desc",
+        status=WorkspaceStatus.ACTIVE.value,
+    )
+    mock_workspace.updated_at = updated_at
+    mock_workspace_repo.get_by_id.return_value = mock_workspace
+
+    workspace = await service.update_workspace(
+        session=mock_session,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        expected_updated_at=updated_at,
+        name="New Name",
+        is_platform_admin=True,
+    )
+
+    assert workspace.name == "New Name"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_effective_owner_succeeds(service, mock_session, mock_workspace_repo, mock_workspace_member_repo):
+    workspace_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    updated_at = datetime.now(UTC)
+
+    mock_member = WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role="OWNER")
+    mock_workspace_member_repo.get_membership.return_value = mock_member
+
+    mock_workspace = Workspace(
+        id=workspace_id,
+        name="Old Name",
+        description="Old Desc",
+        status=WorkspaceStatus.ACTIVE.value,
+    )
+    mock_workspace.updated_at = updated_at
+    mock_workspace_repo.get_by_id.return_value = mock_workspace
+
+    workspace = await service.update_workspace(
+        session=mock_session,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        expected_updated_at=updated_at,
+        name="New Name",
+        is_platform_admin=False,
+    )
+
+    assert workspace.name == "New Name"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_normal_member_forbidden(service, mock_session, mock_workspace_member_repo):
+    workspace_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    mock_member = WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role="MEMBER")
+    mock_workspace_member_repo.get_membership.return_value = mock_member
+
+    with pytest.raises(WorkspaceUnauthorizedError):
+        await service.update_workspace(
+            session=mock_session,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            expected_updated_at=datetime.now(UTC),
+            name="New Name",
+            is_platform_admin=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_non_member_forbidden(service, mock_session, mock_workspace_member_repo):
+    workspace_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    mock_workspace_member_repo.get_membership.return_value = None
+
+    with pytest.raises(WorkspaceNotFoundError):
+        await service.update_workspace(
+            session=mock_session,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            expected_updated_at=datetime.now(UTC),
+            name="New Name",
+            is_platform_admin=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_lowercase_admin_succeeds(service, mock_session, mock_workspace_repo, mock_workspace_member_repo):
+    workspace_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    updated_at = datetime.now(UTC)
+
+    # In PostgreSQL, role might be stored as "admin" lowercase
+    mock_member = WorkspaceMember(workspace_id=workspace_id, user_id=user_id, role="admin")
+    mock_workspace_member_repo.get_membership.return_value = mock_member
+
+    mock_workspace = Workspace(
+        id=workspace_id,
+        name="Old Name",
+        description="Old Desc",
+        status=WorkspaceStatus.ACTIVE.value,
+    )
+    mock_workspace.updated_at = updated_at
+    mock_workspace_repo.get_by_id.return_value = mock_workspace
+
+    workspace = await service.update_workspace(
+        session=mock_session,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        expected_updated_at=updated_at,
+        name="New Name",
+        is_platform_admin=False,
+    )
+
+    assert workspace.name == "New Name"
 
 
 @pytest.mark.asyncio

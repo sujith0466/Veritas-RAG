@@ -213,7 +213,8 @@ class WorkspaceSettingsService:
             member = await self.member_repo.get_membership(workspace_id, user_id)
             if not member:
                 raise WorkspaceNotFoundError("Workspace not found or access denied.")
-            if member.role not in ["OWNER", "ADMIN"]:
+            member_role = (member.role or "").strip().upper()
+            if member_role not in ["OWNER", "ADMIN"]:
                 raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can modify settings.")
 
         # 2. Get current settings with row lock
@@ -384,7 +385,8 @@ class WorkspaceSettingsService:
         # 1. Authorization check
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
-            if not member or member.role not in ["OWNER", "ADMIN"]:
+            member_role = (member.role or "").strip().upper() if member else ""
+            if not member or member_role not in ["OWNER", "ADMIN"]:
                 raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can import settings.")
 
         # 2. Deep merge with defaults or existing
@@ -509,7 +511,8 @@ class WorkspaceSettingsService:
         """Stage a draft branding configuration in Redis without affecting production."""
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
-            if not member or member.role not in ["OWNER", "ADMIN"]:
+            member_role = (member.role or "").strip().upper() if member else ""
+            if not member or member_role not in ["OWNER", "ADMIN"]:
                 raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can stage branding preview.")
 
         # Validate branding dictionary structure
@@ -602,7 +605,8 @@ class WorkspaceSettingsService:
         """Rollback branding configuration to a previous version from WorkspaceSettingsHistory."""
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
-            if not member or member.role not in ["OWNER", "ADMIN"]:
+            member_role = (member.role or "").strip().upper() if member else ""
+            if not member or member_role not in ["OWNER", "ADMIN"]:
                 raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can rollback branding.")
 
         history_records = await self.history_repo.list_by_workspace_id(workspace_id, limit=100)

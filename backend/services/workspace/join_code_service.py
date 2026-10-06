@@ -143,7 +143,8 @@ class JoinCodeService:
         if not member:
             raise WorkspaceNotFoundError("Workspace not found or access denied.")
 
-        if member.role not in ["OWNER", "ADMIN"]:
+        member_role = (member.role or "").strip().upper()
+        if member_role not in ["OWNER", "ADMIN"]:
             raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can manage join code settings.")
 
     # ── Redis Cache Invalidation ──────────────────────────────────────────────

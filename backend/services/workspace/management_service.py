@@ -45,16 +45,19 @@ class WorkspaceManagementService:
         expected_updated_at: datetime,
         name: str | None = None,
         description: str | None = None,
+        is_platform_admin: bool = False,
     ) -> Workspace:
         """Update workspace details with optimistic concurrency."""
 
         # 1. Check membership and authorization
-        member = await self.workspace_member_repo.get_membership(workspace_id, user_id)
-        if not member:
-            raise WorkspaceNotFoundError("Workspace not found or access denied.")
+        if not is_platform_admin:
+            member = await self.workspace_member_repo.get_membership(workspace_id, user_id)
+            if not member:
+                raise WorkspaceNotFoundError("Workspace not found or access denied.")
 
-        if member.role not in ["OWNER", "ADMIN"]:
-            raise WorkspaceUnauthorizedError("Only OWNER or ADMIN can update workspace settings.")
+            member_role = (member.role or "").strip().upper()
+            if member_role not in ["OWNER", "ADMIN"]:
+                raise WorkspaceUnauthorizedError("Only OWNER or ADMIN can update workspace settings.")
 
         # 2. Get Workspace
         workspace = await self.workspace_repo.get_by_id(workspace_id)
