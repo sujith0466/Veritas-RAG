@@ -60,7 +60,7 @@ describe('Canonical Workspace Settings & Optimistic Concurrency (ADMIN-02)', () 
     vi.spyOn(userService, 'updateProfile').mockResolvedValue({} as any)
   })
 
-  it('loads canonical settings and displays version and retention policy', async () => {
+  it('loads canonical settings and displays retention policy without raw version badge (FIX-03)', async () => {
     vi.spyOn(workspaceSettingsService, 'getSettings').mockResolvedValue(sampleSettingsResponse)
 
     render(
@@ -74,7 +74,7 @@ describe('Canonical Workspace Settings & Optimistic Concurrency (ADMIN-02)', () 
     })
 
     expect(await screen.findByDisplayValue('Veritas Corp')).toBeInTheDocument()
-    expect(screen.getByText(/Version 5/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Version 5/i)).not.toBeInTheDocument()
     expect(screen.getByDisplayValue('180 Days')).toBeInTheDocument()
     expect(screen.queryByLabelText(/Primary Data Region/i)).not.toBeInTheDocument()
   })

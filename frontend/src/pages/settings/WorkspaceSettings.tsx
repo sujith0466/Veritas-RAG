@@ -18,7 +18,6 @@ import {
   Calendar,
   Copy,
   Check,
-  ShieldCheck,
   AlertCircle,
   FileText,
   KeyRound,
@@ -601,14 +600,6 @@ export function WorkspaceSettings() {
         eyebrow="ADMINISTRATION / WORKSPACE"
         title="Workspace Configuration"
         description="Manage your enterprise workspace identity, public join codes, data compliance policies, and export pipelines."
-        badge={
-          settingsData ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-mono font-medium bg-primary/10 text-primary border border-primary/20">
-              <ShieldCheck className="h-3 w-3" />
-              Version {settingsData.version}
-            </span>
-          ) : undefined
-        }
       />
 
       {/* ONE-TIME REVEAL MODAL (WS-A9 Strict Invariant: Plaintext displayed once, never persisted) */}
@@ -754,14 +745,16 @@ export function WorkspaceSettings() {
               </p>
 
               <div className="space-y-3 pt-1">
-                <Label className="text-2xs font-semibold text-foreground">New Code Validity (Days)</Label>
+                <Label htmlFor="regen_expires_in_days" className="text-2xs font-semibold text-foreground">New Code Validity (Days)</Label>
                 <select
+                  id="regen_expires_in_days"
                   value={generateOptions.expires_in_days}
                   onChange={e => setGenerateOptions(prev => ({ ...prev, expires_in_days: parseInt(e.target.value, 10) }))}
                   className="w-full flex h-9 items-center justify-between rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
                 >
                   <option value="7" className="bg-surface text-foreground">7 Days</option>
                   <option value="30" className="bg-surface text-foreground">30 Days (Default)</option>
+                  <option value="60" className="bg-surface text-foreground">60 Days</option>
                   <option value="90" className="bg-surface text-foreground">90 Days</option>
                   <option value="365" className="bg-surface text-foreground">1 Year (365 Days)</option>
                   <option value="0" className="bg-surface text-foreground">Never Expires</option>
@@ -986,7 +979,7 @@ export function WorkspaceSettings() {
             {ephemeralCredentials && isAuthorizedAdmin && (
               <div
                 data-testid="active-join-credentials-card"
-                className="p-4 sm:p-5 rounded-xl bg-primary/5 border border-primary/20 space-y-4 transition-all"
+                className="p-4 sm:p-5 rounded-xl bg-primary/5 border border-primary/20 space-y-4 transition-all mb-6"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
