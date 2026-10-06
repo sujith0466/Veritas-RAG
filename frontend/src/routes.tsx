@@ -5,6 +5,29 @@ import { lazyRetry } from '@/utils/lazyRetry'
 import { AppProvider } from '@/providers/AppProvider'
 import { AuthLayout, DashboardLayout, LandingLayout, AdminLayout } from '@/components/layouts'
 const LandingPage = lazyRetry(() => import('@/pages/landing/LandingPage').then(m => ({ default: m.LandingPage })), 'LandingPage')
+
+// Marketing Pages
+const KnowledgeIntelligencePage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.KnowledgeIntelligencePage })), 'KnowledgeIntelligencePage')
+const HybridRetrievalPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.HybridRetrievalPage })), 'HybridRetrievalPage')
+const ReliabilityEnginePage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.ReliabilityEnginePage })), 'ReliabilityEnginePage')
+const EnterpriseSecurityPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.EnterpriseSecurityPage })), 'EnterpriseSecurityPage')
+
+const FinancialServicesPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.FinancialServicesPage })), 'FinancialServicesPage')
+const HealthcarePage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.HealthcarePage })), 'HealthcarePage')
+const LegalTechPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.LegalTechPage })), 'LegalTechPage')
+const CustomerSupportPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.CustomerSupportPage })), 'CustomerSupportPage')
+
+const DocumentationPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.DocumentationPage })), 'DocumentationPage')
+const ApiReferencePage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.ApiReferencePage })), 'ApiReferencePage')
+const BlogPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.BlogPage })), 'BlogPage')
+const CaseStudiesPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.CaseStudiesPage })), 'CaseStudiesPage')
+
+const AboutUsPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.AboutUsPage })), 'AboutUsPage')
+const CareersPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.CareersPage })), 'CareersPage')
+const ContactPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.ContactPage })), 'ContactPage')
+const PrivacyPolicyPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.PrivacyPolicyPage })), 'PrivacyPolicyPage')
+const TermsPage = lazyRetry(() => import('@/pages/marketing').then(m => ({ default: m.TermsPage })), 'TermsPage')
+
 const LoginPage = lazyRetry(() => import('@/pages/auth').then(m => ({ default: m.LoginPage })), 'LoginPage')
 const RegisterPage = lazyRetry(() => import('@/pages/auth').then(m => ({ default: m.RegisterPage })), 'RegisterPage')
 const VerifyPage = lazyRetry(() => import('@/pages/auth').then(m => ({ default: m.VerifyPage })), 'VerifyPage')
@@ -194,7 +217,30 @@ export const router = createBrowserRouter([
         path: '/',
         element: <LandingLayout />,
         children: [
-          { index: true, element: <LandingPage /> }
+          { index: true, element: <LandingPage /> },
+          // Platform
+          { path: 'platform/knowledge-intelligence', element: <KnowledgeIntelligencePage /> },
+          { path: 'platform/hybrid-retrieval', element: <HybridRetrievalPage /> },
+          { path: 'platform/reliability-engine', element: <ReliabilityEnginePage /> },
+          { path: 'platform/security', element: <EnterpriseSecurityPage /> },
+          // Solutions
+          { path: 'solutions/financial-services', element: <FinancialServicesPage /> },
+          { path: 'solutions/healthcare', element: <HealthcarePage /> },
+          { path: 'solutions/legal-tech', element: <LegalTechPage /> },
+          { path: 'solutions/customer-support', element: <CustomerSupportPage /> },
+          // Resources
+          { path: 'resources/documentation', element: <DocumentationPage /> },
+          { path: 'resources/api-reference', element: <ApiReferencePage /> },
+          { path: 'resources/blog', element: <BlogPage /> },
+          { path: 'resources/case-studies', element: <CaseStudiesPage /> },
+          // Company
+          { path: 'about', element: <AboutUsPage /> },
+          { path: 'careers', element: <CareersPage /> },
+          { path: 'contact', element: <ContactPage /> },
+          { path: 'privacy', element: <PrivacyPolicyPage /> },
+          // Direct legal aliases
+          { path: 'terms', element: <TermsPage /> },
+          { path: 'security', element: <EnterpriseSecurityPage /> },
         ]
       },
       {

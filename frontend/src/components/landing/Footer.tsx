@@ -8,37 +8,37 @@ export function Footer() {
     {
       title: 'Platform',
       links: [
-        { label: 'Knowledge Intelligence', href: '#' },
-        { label: 'Hybrid Retrieval', href: '#' },
-        { label: 'Reliability Engine', href: '#' },
-        { label: 'Enterprise Security', href: '#' },
+        { label: 'Knowledge Intelligence', href: '/platform/knowledge-intelligence' },
+        { label: 'Hybrid Retrieval', href: '/platform/hybrid-retrieval' },
+        { label: 'Reliability Engine', href: '/platform/reliability-engine' },
+        { label: 'Enterprise Security', href: '/platform/security' },
       ]
     },
     {
       title: 'Solutions',
       links: [
-        { label: 'Financial Services', href: '#' },
-        { label: 'Healthcare', href: '#' },
-        { label: 'Legal Tech', href: '#' },
-        { label: 'Customer Support', href: '#' },
+        { label: 'Financial Services', href: '/solutions/financial-services' },
+        { label: 'Healthcare', href: '/solutions/healthcare' },
+        { label: 'Legal Tech', href: '/solutions/legal-tech' },
+        { label: 'Customer Support', href: '/solutions/customer-support' },
       ]
     },
     {
       title: 'Resources',
       links: [
-        { label: 'Documentation', href: '#' },
-        { label: 'API Reference', href: '#' },
-        { label: 'Blog', href: '#' },
-        { label: 'Case Studies', href: '#' },
+        { label: 'Documentation', href: '/resources/documentation' },
+        { label: 'API Reference', href: '/resources/api-reference' },
+        { label: 'Blog', href: '/resources/blog' },
+        { label: 'Case Studies', href: '/resources/case-studies' },
       ]
     },
     {
       title: 'Company',
       links: [
-        { label: 'About Us', href: '#' },
-        { label: 'Careers', href: '#' },
-        { label: 'Contact', href: '#' },
-        { label: 'Privacy Policy', href: '#' },
+        { label: 'About Us', href: '/about' },
+        { label: 'Careers', href: '/careers' },
+        { label: 'Contact', href: '/contact' },
+        { label: 'Privacy Policy', href: '/privacy' },
       ]
     }
   ]
@@ -67,12 +67,12 @@ export function Footer() {
               <ul className="flex flex-col space-y-3">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <a
-                      href={link.href}
+                    <Link
+                      to={link.href}
                       className="text-sm text-muted-foreground hover:text-primary transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
                     >
                       {link.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -87,9 +87,9 @@ export function Footer() {
               © {new Date().getFullYear()} Veritas RAG, Inc. All rights reserved.
             </p>
             <div className="flex items-center space-x-6">
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Security</a>
+              <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</Link>
+              <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
+              <Link to="/security" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Security</Link>
             </div>
           </div>
         </FadeUp>

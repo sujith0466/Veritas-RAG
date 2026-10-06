@@ -139,14 +139,9 @@ export function Navbar() {
         {/* Actions */}
         <div className="hidden md:flex items-center space-x-4">
           {!isAuthenticated ? (
-            <>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/auth/login')} className="hover:bg-surface-elevated rounded-full px-5">
-                Sign In
-              </Button>
-              <MagneticButton variant="primary" onClick={handleLaunch} className="text-sm font-semibold h-10 px-6 rounded-full shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
-                Launch Workspace
-              </MagneticButton>
-            </>
+            <MagneticButton variant="primary" onClick={handleLaunch} className="text-sm font-semibold h-10 px-6 rounded-full shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
+              Launch Workspace
+            </MagneticButton>
           ) : (
             <UserMenu />
           )}
@@ -192,18 +187,12 @@ export function Navbar() {
               ))}
               <div className="h-px bg-border/50 my-2" />
 
-              {!isAuthenticated ? (
-                <Button variant="ghost" onClick={() => { setMobileMenuOpen(false); navigate('/auth/login'); }} className="justify-start">
-                  Sign In
-                </Button>
-              ) : (
+              {isAuthenticated ? (
                 <Button variant="ghost" onClick={() => { setMobileMenuOpen(false); logout(); }} className="justify-start text-danger hover:text-danger hover:bg-danger/10">
                   <LogOut className="w-4 h-4 mr-2" />
                   Log out
                 </Button>
-              )}
-
-              {!isAuthenticated && (
+              ) : (
                 <Button onClick={() => { setMobileMenuOpen(false); handleLaunch(); }} className="justify-start bg-primary text-primary-foreground">
                   Launch Workspace
                 </Button>
