@@ -79,7 +79,7 @@ describe('Canonical Workspace Settings & Optimistic Concurrency (ADMIN-02)', () 
     expect(screen.queryByLabelText(/Primary Data Region/i)).not.toBeInTheDocument()
   })
 
-  it('navigates to /admin/members when Manage Team button is clicked', async () => {
+  it('does not render redundant Team Members & Invitations section (FIX-03)', async () => {
     vi.spyOn(workspaceSettingsService, 'getSettings').mockResolvedValue(sampleSettingsResponse)
 
     render(
@@ -88,10 +88,12 @@ describe('Canonical Workspace Settings & Optimistic Concurrency (ADMIN-02)', () 
       </MemoryRouter>
     )
 
-    const manageBtn = await screen.findByRole('button', { name: /Manage Team/i })
-    fireEvent.click(manageBtn)
+    await waitFor(() => {
+      expect(workspaceSettingsService.getSettings).toHaveBeenCalledWith('ws-123')
+    })
 
-    expect(mockNavigate).toHaveBeenCalledWith('/admin/members')
+    expect(screen.queryByText(/Team Members & Invitations/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Manage Team & Invitations/i })).not.toBeInTheDocument()
   })
 
   it('saves settings with expected_updated_at concurrency lock', async () => {

@@ -98,6 +98,17 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
     vi.spyOn(workspaceSettingsService, 'getSettings').mockResolvedValue(mockSettingsResponse)
     vi.spyOn(workspaceService, 'getCurrentWorkspace').mockResolvedValue(mockCurrentWsResponse as any)
     vi.spyOn(workspaceService, 'getJoinCodeSettings').mockResolvedValue(mockJoinCodeSettingsActive as any)
+    vi.spyOn(workspaceService, 'getJoinAccess').mockResolvedValue({
+      success: true,
+      workspace_id: 'ws-uuid-999',
+      public_id: 'wrk_pub999xyz',
+      workspace_name: 'Acme Research Corp',
+      has_active_code: true,
+      join_code: 'VR-ACTIVE1',
+      join_link: 'http://localhost/workspaces/join?workspace_id=wrk_pub999xyz&join_code=VR-ACTIVE1',
+      expires_at: '2026-11-01T00:00:00Z',
+      default_role: 'MEMBER',
+    } as any)
   })
 
   it('renders Workspace Identity card with Public Workspace ID and diagnostic UUID (A9.1-A9.3)', async () => {
@@ -125,7 +136,7 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
     expect(copyPublicIdBtn).toBeInTheDocument()
   })
 
-  it('renders Active Join Code status, preview and metrics for OWNER/ADMIN (A9.5-A9.7)', async () => {
+  it('renders Active Join Code status, preview and metrics for OWNER/ADMIN (A9.5-A9.7, FIX-01, FIX-02)', async () => {
     render(
       <MemoryRouter>
         <WorkspaceSettings />
@@ -144,6 +155,13 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
 
     // Verify Regenerate button is visible for existing code
     expect(screen.getByRole('button', { name: /Regenerate Code/i })).toBeInTheDocument()
+
+    // FIX-01: Active credentials displayed on initial load without requiring regeneration
+    expect(await screen.findByText('VR-ACTIVE1')).toBeInTheDocument()
+    expect(screen.getByTestId('active-join-credentials-card')).toBeInTheDocument()
+
+    // FIX-02: Expiration formatted strictly as DD/MM/YYYY
+    expect(screen.getByText('01/11/2026')).toBeInTheDocument()
   })
 
   it('allows generating a new Join Code and shows one-time plaintext modal (A9.8-A9.10)', async () => {

@@ -10,6 +10,7 @@ import {
 import { workspaceService, buildWorkspaceJoinLink } from '@/services/workspaceService'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useAuthStore } from '@/stores/authStore'
+import { formatDateDDMMYYYY } from '@/utils/formatters'
 import type { WorkspaceJoinAccessResponse } from '@/types'
 
 interface JoinAccessDialogProps {
@@ -186,7 +187,7 @@ export function JoinAccessDialog({ open, onOpenChange }: JoinAccessDialogProps) 
                   <>
                     Expires:{' '}
                     <span className="font-semibold text-foreground font-mono">
-                      {new Date(data.expires_at).toLocaleDateString()}
+                      {formatDateDDMMYYYY(data.expires_at)}
                     </span>
                   </>
                 ) : (

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Card, Input, Label, Button } from '@/components/common'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
@@ -10,10 +9,10 @@ import { workspaceService, buildWorkspaceJoinLink } from '@/services/workspaceSe
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import type { JoinCodeSettings, JoinCodeGenerateResponse } from '@/types'
+import { formatDateDDMMYYYY } from '@/utils/formatters'
 import {
   Briefcase,
   Database,
-  Users,
   Loader2,
   Download,
   Calendar,
@@ -28,12 +27,10 @@ import {
   CheckCircle2,
   Clock,
   X,
-  ExternalLink,
   Sparkles,
 } from 'lucide-react'
 
 export function WorkspaceSettings() {
-  const navigate = useNavigate()
   const { toast } = useToast()
   const user = useAuthStore(s => s.user)
   const setAuth = useAuthStore(s => s.setAuth)
@@ -227,7 +224,7 @@ export function WorkspaceSettings() {
     }
   }
 
-  const loadJoinCodeSettings = async () => {
+  const loadJoinCodeSettings = async (preserveExistingEphemeral = false) => {
     if (!workspaceId) return
     try {
       setLoadingJoinCode(true)
@@ -253,6 +250,32 @@ export function WorkspaceSettings() {
         max_uses: data.max_uses ? String(data.max_uses) : '',
         expires_in_days: expDaysStr,
       })
+
+      // FIX-01: Load active join credentials on initial mount / refresh / login if active code exists
+      if (data.has_code && !preserveExistingEphemeral) {
+        try {
+          const accessRes = await workspaceService.getJoinAccess(workspaceId)
+          const accessData = (accessRes as any)?.data || accessRes
+          if (accessData?.join_code && accessData.has_active_code !== false) {
+            const wsIdentifier = accessData.public_id || publicId || slug || currentWorkspace?.public_id || currentWorkspace?.slug || workspaceId || ''
+            const fullLink = accessData.join_link && accessData.join_link.startsWith('http')
+              ? accessData.join_link
+              : buildWorkspaceJoinLink(wsIdentifier, accessData.join_code)
+            setEphemeralCredentials({
+              join_code: accessData.join_code,
+              join_link: fullLink,
+              expires_at: accessData.expires_at,
+              default_role: accessData.default_role || data.default_role || 'MEMBER',
+            })
+          } else {
+            setEphemeralCredentials(null)
+          }
+        } catch (accessErr) {
+          console.warn('Failed to load active join access credentials', accessErr)
+        }
+      } else if (!data.has_code) {
+        setEphemeralCredentials(null)
+      }
     } catch (err: any) {
       console.warn('Failed to load join code settings', err)
     } finally {
@@ -361,7 +384,7 @@ export function WorkspaceSettings() {
         message: 'A new Join Code was generated. Store it safely now; it will only be revealed once.',
         type: 'success',
       })
-      await loadJoinCodeSettings()
+      await loadJoinCodeSettings(true)
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message || 'Failed to generate join code'
       toast({ title: 'Error', message: msg, type: 'error' })
@@ -679,7 +702,7 @@ export function WorkspaceSettings() {
                   </p>
                   {revealedCode.expires_at && (
                     <p className="text-2xs font-mono pt-1 opacity-80">
-                      Expires: {new Date(revealedCode.expires_at).toLocaleString()}
+                      Expires: {formatDateDDMMYYYY(revealedCode.expires_at)}
                     </p>
                   )}
                 </div>
@@ -938,7 +961,7 @@ export function WorkspaceSettings() {
                 <div>
                   <span className="text-muted-foreground text-2xs uppercase tracking-wider block font-mono">Expiration</span>
                   <span className="font-semibold text-foreground mt-0.5 block">
-                    {joinCodeSettings.expires_at ? new Date(joinCodeSettings.expires_at).toLocaleDateString() : 'Never expires'}
+                    {joinCodeSettings.expires_at ? formatDateDDMMYYYY(joinCodeSettings.expires_at) : 'Never expires'}
                   </span>
                 </div>
                 <div>
@@ -1317,52 +1340,6 @@ export function WorkspaceSettings() {
                   </Button>
                 </div>
               </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* 4. TEAM MEMBERS & ACCESS NAVIGATION CARD (WS-A9.4) */}
-        <motion.div
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
-          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.15 }}
-        >
-          <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-primary/10 rounded-lg text-primary">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground text-base">Team Members & Invitations</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Invite new colleagues, manage pending invitations, and assign granular RBAC roles.
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/admin/members')}
-                className="flex items-center gap-2"
-              >
-                <span>Manage Team & Invitations</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            <div className="rounded-lg p-4 bg-muted/20 border border-border/50 text-xs text-muted-foreground leading-relaxed flex items-center justify-between">
-              <span>
-                Active workspace memberships, email invitations, and role assignments are administered in the dedicated Members portal.
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/admin/members')}
-                className="text-xs text-primary hover:text-primary/80 shrink-0"
-              >
-                Go to Members &rarr;
-              </Button>
             </div>
           </Card>
         </motion.div>

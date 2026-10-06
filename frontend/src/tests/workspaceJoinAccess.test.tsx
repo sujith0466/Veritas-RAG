@@ -80,6 +80,7 @@ describe('Workstream D: Member / Viewer Join Access', () => {
       expect(accessSpy).toHaveBeenCalledWith('ws-uuid-111')
       expect(screen.getByText('VR-ABC123')).toBeInTheDocument()
       expect(screen.getByText(/workspaces\/join\?workspace_id=wrk_pub111abc&join_code=VR-ABC123/)).toBeInTheDocument()
+      expect(screen.getByText('01/12/2026')).toBeInTheDocument()
     })
 
     expect(screen.getByText('Workspace Joining')).toBeInTheDocument()
@@ -153,14 +154,72 @@ describe('Workstream D: Member / Viewer Join Access', () => {
     })
   })
 
-  it('WS-D: Header contains subtle Workspace Join Access button opening dialog', async () => {
+  it('WS-D / FIX-04: Header contains Workspace Join Access button for MEMBER/VIEWER, hidden for ADMIN/OWNER', async () => {
+    // 1. Visible for MEMBER
+    useAuthStore.setState({
+      user: {
+        id: 'usr-member-1',
+        role: 'MEMBER' as any,
+      } as any,
+    })
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('button', { name: 'Workspace Join Access' })).toBeInTheDocument()
+    unmount()
+
+    // 2. Visible for VIEWER
+    useAuthStore.setState({
+      user: {
+        id: 'usr-viewer-1',
+        role: 'VIEWER' as any,
+      } as any,
+    })
+
+    const { unmount: unmountViewer } = render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('button', { name: 'Workspace Join Access' })).toBeInTheDocument()
+    unmountViewer()
+
+    // 3. Hidden for ADMIN
+    useAuthStore.setState({
+      user: {
+        id: 'usr-admin-1',
+        role: 'ADMIN' as any,
+      } as any,
+    })
+
+    const { unmount: unmountAdmin } = render(
+      <MemoryRouter>
+        <Header />
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByRole('button', { name: 'Workspace Join Access' })).not.toBeInTheDocument()
+    unmountAdmin()
+
+    // 4. Hidden for OWNER
+    useAuthStore.setState({
+      user: {
+        id: 'usr-owner-1',
+        role: 'OWNER' as any,
+      } as any,
+    })
+
     render(
       <MemoryRouter>
         <Header />
       </MemoryRouter>
     )
 
-    const joinBtn = screen.getByRole('button', { name: 'Workspace Join Access' })
-    expect(joinBtn).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Workspace Join Access' })).not.toBeInTheDocument()
   })
 })
