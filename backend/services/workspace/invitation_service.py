@@ -359,9 +359,10 @@ class WorkspaceInvitationService:
 
         # 10. Asynchronously dispatch invitation email (Failure Policy: Never rollback DB commit)
         try:
+            inviter_user = await self.user_repo.get_by_id(actor_id)
             inviter_name = None
-            if existing_user:
-                inviter_name = existing_user.username or existing_user.email
+            if inviter_user:
+                inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
             await self.email_provider.send_invitation_email(
                 to_email=email_normalized,
                 raw_token=raw_token,
@@ -482,11 +483,16 @@ class WorkspaceInvitationService:
 
         # 10. Async email dispatch
         try:
+            inviter_user = await self.user_repo.get_by_id(actor_id)
+            inviter_name = None
+            if inviter_user:
+                inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
             await self.email_provider.send_invitation_email(
                 to_email=invitation.email,
                 raw_token=raw_token,
                 workspace_name=workspace.name,
                 role=invitation.role,
+                inviter_name=inviter_name,
                 custom_message=custom_message,
                 expires_at=expires_at.isoformat(),
             )

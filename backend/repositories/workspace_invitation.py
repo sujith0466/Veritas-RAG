@@ -112,11 +112,13 @@ class WorkspaceInvitationRepository(BaseRepository[WorkspaceInvitation]):
     async def get_pending_by_workspace_and_email(
         self, workspace_id: uuid.UUID, email: str
     ) -> WorkspaceInvitation | None:
-        """Check for existing pending invitation for a normalized email in a workspace."""
+        """Check for existing pending active invitation for a normalized email in a workspace."""
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         stmt = select(self.model_class).where(
             self.model_class.workspace_id == workspace_id,
             func.lower(self.model_class.email) == email.strip().lower(),
             self.model_class.status == InvitationStatus.PENDING.value,
+            self.model_class.expires_at > now_utc,
             self.model_class.is_deleted == False,
         )
         result = await self.session.execute(stmt)
@@ -129,13 +131,16 @@ class WorkspaceInvitationRepository(BaseRepository[WorkspaceInvitation]):
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[WorkspaceInvitation], int]:
-        """Paginated list of invitations for a workspace with total count."""
+        """Paginated list of invitations for a workspace with total count and query-time expiration filtering."""
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         base_filters = [
             self.model_class.workspace_id == workspace_id,
             self.model_class.is_deleted == False,
         ]
         if status:
             base_filters.append(self.model_class.status == status)
+            if status.upper() == InvitationStatus.PENDING.value:
+                base_filters.append(self.model_class.expires_at > now_utc)
 
         # Count total
         count_stmt = select(func.count(self.model_class.id)).where(*base_filters)
@@ -160,10 +165,12 @@ class WorkspaceInvitationRepository(BaseRepository[WorkspaceInvitation]):
         return items, total
 
     async def count_pending_in_workspace(self, workspace_id: uuid.UUID) -> int:
-        """Count total active pending invitations in a workspace."""
+        """Count total active, non-expired pending invitations in a workspace."""
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
         stmt = select(func.count(self.model_class.id)).where(
             self.model_class.workspace_id == workspace_id,
             self.model_class.status == InvitationStatus.PENDING.value,
+            self.model_class.expires_at > now_utc,
             self.model_class.is_deleted == False,
         )
         result = await self.session.execute(stmt)
