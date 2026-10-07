@@ -34,6 +34,18 @@ def send_email_task(self, tenant_id_str: str | None, subject: str, to_addresses:
     return asyncio.run(_async_send_email(self, tenant_id, subject, to_addresses, html_content, text_content))
 
 
+def _build_mime_message(from_addr: str, to_addrs: list[str] | str, subject: str, html_content: str, text_content: str = "") -> EmailMessage:
+    """Constructs RFC 2822 compliant multipart/alternative MIME message."""
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = from_addr
+    msg["To"] = ", ".join(to_addrs) if isinstance(to_addrs, list) else to_addrs
+    msg.set_content(text_content or "")
+    if html_content:
+        msg.add_alternative(html_content, subtype="html")
+    return msg
+
+
 async def _async_send_email(task, tenant_id: uuid.UUID | None, subject: str, to_addresses: list[str], html_content: str, text_content: str):
     logger.info(f"Attempting email delivery to {to_addresses} for tenant {tenant_id}")
 
@@ -52,13 +64,8 @@ async def _async_send_email(task, tenant_id: uuid.UUID | None, subject: str, to_
         await session.refresh(log)
 
     settings = get_settings()
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = settings.smtp.from_email or "noreply@raguard.ai"
-    msg["To"] = ", ".join(to_addresses)
-    msg.set_content(text_content or "")
-    if html_content:
-        msg.add_alternative(html_content, subtype="html")
+    from_addr = settings.smtp.from_email or "noreply@raguard.ai"
+    msg = _build_mime_message(from_addr, to_addresses, subject, html_content, text_content)
 
     provider = SMTPEmailProvider()
     transient_exc: Exception | None = None

@@ -210,6 +210,7 @@ class WorkspaceInvitationService:
         email_provider: EmailProvider,
         event_dispatcher: EventDispatcher | None = None,
         rate_limiter: InvitationRateLimiter | None = None,
+        user_repo: Any | None = None,
     ):
         self.invitation_repo = invitation_repo
         self.member_repo = member_repo
@@ -218,6 +219,7 @@ class WorkspaceInvitationService:
         self.email_provider = email_provider
         self.event_dispatcher = event_dispatcher
         self.rate_limiter = rate_limiter or _rate_limiter
+        self.user_repo = user_repo
 
     async def _resolve_ttl_days(self, workspace_id: uuid.UUID) -> int:
         """Fetch configured invitation TTL from WorkspaceSettings, clamped [1, 30], defaulting to 7."""
@@ -359,10 +361,15 @@ class WorkspaceInvitationService:
 
         # 10. Asynchronously dispatch invitation email (Failure Policy: Never rollback DB commit)
         try:
-            inviter_user = await self.user_repo.get_by_id(actor_id)
             inviter_name = None
-            if inviter_user:
-                inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
+            if self.user_repo:
+                inviter_user = await self.user_repo.get_by_id(actor_id)
+                if inviter_user:
+                    inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
+            elif session:
+                inviter_user = await session.get(User, actor_id)
+                if inviter_user:
+                    inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
             await self.email_provider.send_invitation_email(
                 to_email=email_normalized,
                 raw_token=raw_token,
@@ -483,10 +490,15 @@ class WorkspaceInvitationService:
 
         # 10. Async email dispatch
         try:
-            inviter_user = await self.user_repo.get_by_id(actor_id)
             inviter_name = None
-            if inviter_user:
-                inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
+            if self.user_repo:
+                inviter_user = await self.user_repo.get_by_id(actor_id)
+                if inviter_user:
+                    inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
+            elif session:
+                inviter_user = await session.get(User, actor_id)
+                if inviter_user:
+                    inviter_name = inviter_user.display_name or inviter_user.username or inviter_user.email
             await self.email_provider.send_invitation_email(
                 to_email=invitation.email,
                 raw_token=raw_token,

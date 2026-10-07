@@ -217,7 +217,7 @@ class AccessRequestService:
         # 4. Handle request type semantics
         if req.request_type == AccessRequestType.ROLE_ELEVATION.value:
             # Revalidate member row under row lock
-            member = await self.member_repo.get_by_id_for_update(req.user_id, workspace_id)
+            member = await self.member_repo.get_membership_for_update(workspace_id, req.user_id)
             if not member:
                 raise AccessRequestConflictError("Target user is no longer a member of this workspace.")
             if member.status != MemberStatus.ACTIVE.value:
