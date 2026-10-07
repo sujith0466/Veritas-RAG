@@ -218,13 +218,14 @@ class ChatRepository:
         await self.session.refresh(message)
         return message
 
-    async def stream_workspace_messages(self, tenant_id: str, start_date=None, end_date=None):
-        from sqlalchemy import text
+    async def stream_workspace_messages(self, tenant_ids: list[str] | str, start_date=None, end_date=None):
+        if isinstance(tenant_ids, str):
+            tenant_ids = [tenant_ids]
 
         stmt = (
             select(ChatMessage, ChatSession.user_id, ChatSession.title)
             .join(ChatSession, ChatMessage.session_id == ChatSession.id)
-            .where(ChatSession.tenant_id == tenant_id)
+            .where(ChatSession.tenant_id.in_(tenant_ids))
             .order_by(ChatMessage.created_at.asc())
         )
 

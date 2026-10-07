@@ -449,7 +449,13 @@ export function WorkspaceSettings() {
         if (res.status === 403) {
           throw new Error('Insufficient permissions to export workspace data.')
         }
-        throw new Error('Export failed')
+        const errJson = await res.json().catch(() => null)
+        const errorMsg =
+          errJson?.error?.message ||
+          errJson?.detail ||
+          (typeof errJson?.message === 'string' ? errJson.message : null) ||
+          'Export failed'
+        throw new Error(errorMsg)
       }
 
       const blob = await res.blob()

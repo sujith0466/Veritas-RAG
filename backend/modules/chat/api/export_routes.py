@@ -11,9 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
-from backend.core.dependencies.database import get_db, get_workspace_member_repository
+from backend.core.dependencies.database import (
+    get_db,
+    get_workspace_member_repository,
+    get_workspace_repository,
+)
 from backend.models.entities.workspace_member import WorkspaceMember, WorkspaceRole
 from backend.modules.chat.repositories.chat_repository import ChatRepository
+from backend.repositories.workspace import WorkspaceRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/chat", tags=["AI Chat Export"])
@@ -66,6 +71,7 @@ async def export_chat_history(
     end_date: datetime | None = Query(None, description="End date for filtering"),
     user: UserContext = Depends(get_current_user),
     member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
     repo: ChatRepository = Depends(get_chat_repository_with_db),
 ):
     """Export workspace chat history as JSON or CSV.
@@ -114,12 +120,15 @@ async def export_chat_history(
             return f"'{val_str}"
         return val_str
 
-    ws_id_str = str(workspace_id)
+    tenant_ids = [str(workspace_id)]
+    ws = await workspace_repo.get_by_id(workspace_id)
+    if ws and ws.slug and ws.slug not in tenant_ids:
+        tenant_ids.append(ws.slug)
 
     async def generate_json() -> AsyncGenerator[str, None]:
         yield "[\n"
         first = True
-        async for row in repo.stream_workspace_messages(ws_id_str, start_date, end_date):
+        async for row in repo.stream_workspace_messages(tenant_ids, start_date, end_date):
             message, user_id, session_title = row
             if not first:
                 yield ",\n"
@@ -137,7 +146,7 @@ async def export_chat_history(
                 "reliability_score": message.reliability_score,
                 "metadata": message.metadata_json,
             }
-            yield json.dumps(data)
+            yield json.dumps(data, default=str)
         yield "\n]"
 
     async def generate_csv() -> AsyncGenerator[str, None]:
@@ -152,7 +161,7 @@ async def export_chat_history(
         output.seek(0)
         output.truncate(0)
 
-        async for row in repo.stream_workspace_messages(ws_id_str, start_date, end_date):
+        async for row in repo.stream_workspace_messages(tenant_ids, start_date, end_date):
             message, user_id, session_title = row
             writer.writerow([
                 message.session_id,

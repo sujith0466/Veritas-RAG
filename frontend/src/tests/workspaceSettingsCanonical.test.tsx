@@ -118,7 +118,7 @@ describe('Canonical Workspace Settings & Optimistic Concurrency (ADMIN-02)', () 
     })
 
     // Change retention to 365 Days
-    const select = screen.getByLabelText(/Log Retention Policy/i)
+    const select = screen.getByLabelText(/Data Lifecycle & Retention Policy/i)
     fireEvent.change(select, { target: { value: '365' } })
 
     const saveBtn = screen.getByRole('button', { name: /Save Workspace Settings/i })
