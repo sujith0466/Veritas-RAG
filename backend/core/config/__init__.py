@@ -69,6 +69,10 @@ class Settings:
     def is_production(self) -> bool:
         return self.app.is_production
 
+    @property
+    def frontend_url(self) -> str | None:
+        return self.app.frontend_url
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

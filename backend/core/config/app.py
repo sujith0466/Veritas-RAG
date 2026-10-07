@@ -12,6 +12,7 @@ class AppSettings(BaseSettings):
     environment: str = Field(default="development", alias="ENVIRONMENT")
     debug: bool = Field(default=False, alias="APP_DEBUG")
     secret_key: str = Field(alias="APP_SECRET_KEY")
+    frontend_url: str | None = Field(default=None, alias="FRONTEND_URL")
 
     # QA / Onboarding Default Credentials
     qa_email: str = Field(default="qa@raguard.ai", alias="QA_EMAIL")

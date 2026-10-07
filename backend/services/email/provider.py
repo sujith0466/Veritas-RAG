@@ -14,6 +14,11 @@ from backend.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
+class EmailConfigurationError(RuntimeError):
+    """Raised when email settings (SMTP or FRONTEND_URL) are unconfigured or invalid."""
+    pass
+
+
 class EmailProvider(ABC):
     """Base interface for all email dispatchers."""
 
@@ -41,6 +46,7 @@ class EmailProvider(ABC):
         """Send a workspace invitation email with versioned acceptance link."""
         pass
 
+
 class SMTPEmailProvider(EmailProvider):
     """SMTP-based email provider using aiosmtplib."""
 
@@ -49,7 +55,35 @@ class SMTPEmailProvider(EmailProvider):
         if not self.settings.is_configured:
             logger.warning("SMTP is not fully configured. Emails will fail if dispatched.")
 
+    async def send_message(self, message: EmailMessage) -> bool:
+        """Dispatches an email message using real aiosmtplib. Fails closed if SMTP is unconfigured."""
+        if not self.settings.is_configured:
+            logger.error("SMTP provider invoked but SMTP is not configured in settings")
+            raise EmailConfigurationError("SMTP settings are not configured. Cannot dispatch email.")
+
+        password = self.settings.password.get_secret_value() if self.settings.password else None
+        username = self.settings.user or None
+        use_tls = (self.settings.tls_mode.lower() == "tls")
+        start_tls = (self.settings.tls_mode.lower() == "starttls")
+
+        await aiosmtplib.send(
+            message,
+            hostname=self.settings.host,
+            port=self.settings.port,
+            username=username,
+            password=password,
+            use_tls=use_tls,
+            start_tls=start_tls,
+            timeout=self.settings.timeout or 15.0,
+        )
+        return True
+
     async def _send_email(self, to_email: EmailStr, subject: str, body: str) -> bool:
+        """Validates configuration and enqueues Celery task. Fails closed if SMTP unconfigured."""
+        if not self.settings.is_configured:
+            logger.error("Attempted to enqueue email with unconfigured SMTP", recipient=to_email)
+            raise EmailConfigurationError("SMTP settings are not configured. Cannot enqueue email.")
+
         from backend.tasks.emails import send_email_task
 
         try:
@@ -65,7 +99,7 @@ class SMTPEmailProvider(EmailProvider):
             return True
         except Exception as e:
             logger.error("Failed to enqueue email task", error=str(e), exc_info=True)
-            return False
+            raise
 
     async def send_verification_email(self, to_email: EmailStr, raw_token: str) -> bool:
         """Sends verification email via SMTP."""
@@ -89,7 +123,12 @@ class SMTPEmailProvider(EmailProvider):
         custom_message: str | None = None,
         expires_at: str | None = None,
     ) -> bool:
-        """Sends workspace invitation email via SMTP."""
+        """Sends workspace invitation email via SMTP with validated absolute acceptance link."""
+        frontend_url = get_settings().frontend_url
+        if not frontend_url or not frontend_url.startswith(("http://", "https://")):
+            logger.error("Invalid or missing FRONTEND_URL in settings", frontend_url=frontend_url)
+            raise EmailConfigurationError("FRONTEND_URL is not configured or invalid. Cannot generate invitation link.")
+
         subject = f"You have been invited to join {workspace_name}"
         inviter_text = f"{inviter_name} has" if inviter_name else "You have been"
 
@@ -97,7 +136,8 @@ class SMTPEmailProvider(EmailProvider):
         if custom_message:
             body += f"Message: {custom_message}\n\n"
 
-        acceptance_link = f"/api/v1/invitations/accept?token={raw_token}"
+        base_url = frontend_url.rstrip("/")
+        acceptance_link = f"{base_url}/invitations/accept?token={raw_token}"
         body += f"To accept, use this link: {acceptance_link}\n\n"
 
         if expires_at:

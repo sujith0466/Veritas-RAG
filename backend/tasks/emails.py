@@ -10,8 +10,11 @@ import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
+from email.message import EmailMessage
+
+from backend.core.config import get_settings
 from backend.database.engine import get_session_factory
-from backend.services.email.provider import SMTPEmailProvider, EmailMessage
+from backend.services.email.provider import SMTPEmailProvider, EmailConfigurationError
 from backend.models.entities.notification_delivery_log import NotificationDeliveryLog
 
 logger = get_task_logger(__name__)
@@ -21,15 +24,14 @@ logger = get_task_logger(__name__)
     bind=True,
     max_retries=5,
     default_retry_delay=60, # 1 minute base backoff
-    autoretry_for=(Exception,),
     queue="default"
 )
 def send_email_task(self, tenant_id_str: str | None, subject: str, to_addresses: list[str], html_content: str, text_content: str = ""):
-    """Delivers email asynchronously and records delivery state in DB."""
+    """Delivers email asynchronously and records delivery state in DB with deterministic single retry."""
     tenant_id = uuid.UUID(tenant_id_str) if tenant_id_str else None
 
-    # Synchronously run the async logic
-    asyncio.run(_async_send_email(self, tenant_id, subject, to_addresses, html_content, text_content))
+    # Synchronously run the async logic with isolated loop per task
+    return asyncio.run(_async_send_email(self, tenant_id, subject, to_addresses, html_content, text_content))
 
 
 async def _async_send_email(task, tenant_id: uuid.UUID | None, subject: str, to_addresses: list[str], html_content: str, text_content: str):
@@ -49,21 +51,32 @@ async def _async_send_email(task, tenant_id: uuid.UUID | None, subject: str, to_
         await session.commit()
         await session.refresh(log)
 
+    settings = get_settings()
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = settings.smtp.from_email or "noreply@raguard.ai"
+    msg["To"] = ", ".join(to_addresses)
+    msg.set_content(text_content or "")
+    if html_content:
+        msg.add_alternative(html_content, subtype="html")
+
     provider = SMTPEmailProvider()
-    msg = EmailMessage(
-        subject=subject,
-        to_addresses=to_addresses,
-        html_content=html_content,
-        text_content=text_content
-    )
+    transient_exc: Exception | None = None
+    countdown: int = 60 * (2 ** task.request.retries)
 
     try:
         await provider.send_message(msg)
         status = "SUCCESS"
         error_msg = None
-    except Exception as e:
+    except EmailConfigurationError as ce:
+        status = "FAILED_PERMANENT"
+        error_msg = str(ce)
+        logger.error(f"Permanent email configuration failure for {to_addresses}: {ce}")
+    except Exception as te:
         status = "FAILED_TRANSIENT"
-        error_msg = str(e)
+        error_msg = str(te)
+        transient_exc = te
+        logger.warning(f"Transient email failure for {to_addresses} (attempt {task.request.retries + 1}): {te}")
 
     # Update delivery log
     async with get_session_factory()() as session:
@@ -72,8 +85,8 @@ async def _async_send_email(task, tenant_id: uuid.UUID | None, subject: str, to_
             log_obj.status = status
             log_obj.error_message = error_msg
             if status == "FAILED_TRANSIENT":
-                log_obj.next_retry_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=60 * (2 ** task.request.retries))
+                log_obj.next_retry_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=countdown)
             await session.commit()
 
-    if status == "FAILED_TRANSIENT":
-        raise Exception(error_msg)
+    if status == "FAILED_TRANSIENT" and transient_exc:
+        raise task.retry(exc=transient_exc, countdown=countdown, max_retries=5)
