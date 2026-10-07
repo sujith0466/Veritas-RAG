@@ -44,7 +44,7 @@ services:
       dockerfile: Dockerfile
       target: runtime
     image: veritas-rag:1.0.0
-    command: celery -A backend.tasks.celery_app worker -l info -Q ingestion,embeddings,retrieval,default
+    command: celery -A backend.tasks.celery_app worker -l info -Q ingestion,embeddings,retrieval,default,retention
     env_file:
       - .env
     environment:
@@ -69,6 +69,33 @@ services:
         reservations:
           cpus: "0.1"
           memory: "256M"
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: veritas-rag:1.0.0
+    command: celery -A backend.tasks.celery_app beat -l info --schedule=/app/data/celerybeat-schedule
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: "256M"
+        reservations:
+          cpus: "0.05"
+          memory: "64M"
 
   frontend:
     build:
