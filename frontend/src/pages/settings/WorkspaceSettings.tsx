@@ -1222,7 +1222,7 @@ export function WorkspaceSettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-border/60">
               <div className="space-y-2">
                 <Label htmlFor="retention_policy" className="text-xs font-semibold">
-                  Log Retention Policy
+                  Data Lifecycle & Retention Policy
                 </Label>
                 <select
                   id="retention_policy"
@@ -1236,7 +1236,7 @@ export function WorkspaceSettings() {
                   <option value="180">180 Days</option>
                   <option value="365">1 Year (365 Days)</option>
                 </select>
-                <p className="text-2xs text-muted-foreground">Audit logs and query telemetry will be archived after this duration.</p>
+                <p className="text-2xs text-muted-foreground">Knowledge documents, vector embeddings, and chat interactions will be permanently deleted after this duration. System audit logs remain preserved immutably (WORM compliant).</p>
               </div>
 
               {settingsData && (

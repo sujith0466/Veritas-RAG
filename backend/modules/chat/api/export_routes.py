@@ -1,9 +1,9 @@
 import csv
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, time
 from io import StringIO
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
@@ -45,7 +45,8 @@ async def _verify_workspace_access(
             detail="Access denied: You are not a member of this workspace.",
         )
 
-    if membership.role not in allowed_roles:
+    member_role = (membership.role or "").strip().upper()
+    if member_role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: Only workspace owners and admins can export chat history.",
@@ -80,6 +81,27 @@ async def export_chat_history(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported export format. Use 'json' or 'csv'.",
         )
+
+    # Normalize start_date: ensure timezone-aware UTC if naive
+    if start_date:
+        if start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=UTC)
+
+    # Normalize end_date: ensure timezone-aware UTC and complete calendar day inclusion (23:59:59.999999)
+    if end_date:
+        if end_date.tzinfo is None:
+            end_date = end_date.replace(tzinfo=UTC)
+        if end_date.time() == time(0, 0, 0):
+            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    def _sanitize_csv_cell(value: Any) -> Any:
+        """Neutralize spreadsheet formula injection characters (CWE-1236)."""
+        if value is None:
+            return ""
+        val_str = str(value)
+        if val_str and val_str[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return f"'{val_str}"
+        return val_str
 
     ws_id_str = str(workspace_id)
 
@@ -123,11 +145,11 @@ async def export_chat_history(
             message, user_id, session_title = row
             writer.writerow([
                 message.session_id,
-                session_title,
+                _sanitize_csv_cell(session_title),
                 user_id,
                 message.id,
                 message.role,
-                message.message,
+                _sanitize_csv_cell(message.message),
                 message.created_at.isoformat() if message.created_at else "",
                 json.dumps(message.citations) if message.citations else "",
                 message.reliability_score if message.reliability_score is not None else "",
