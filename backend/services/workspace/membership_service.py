@@ -243,6 +243,10 @@ class WorkspaceMembershipService:
         if member.status == MemberStatus.SUSPENDED.value:
             return member
 
+        # 3b. Prevent self-suspension
+        if actor.id == member.id or actor.user_id == member.user_id:
+            raise MembershipUnauthorizedError("You cannot suspend your own account.")
+
         if actor_role == WorkspaceRole.ADMIN.value and member.role.upper() == WorkspaceRole.OWNER.value:
             raise MembershipUnauthorizedError("ADMIN cannot suspend an OWNER.")
 
