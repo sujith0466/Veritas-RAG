@@ -5,6 +5,7 @@ import { WorkspaceMembersPage } from '@/pages/workspace/WorkspaceMembersPage'
 import { useMemberStore } from '@/stores/memberStore'
 import { useAuthStore } from '@/stores/authStore'
 import { invitationService } from '@/services/invitationService'
+import { accessRequestService } from '@/services/accessRequestService'
 
 describe('WS-B12: Workspace Members & Role Hierarchy Modern UX', () => {
   const mockWorkspaceId = 'ws-test-b12-members'
@@ -97,6 +98,22 @@ describe('WS-B12: Workspace Members & Role Hierarchy Modern UX', () => {
       items: mockInvitations as any,
       pagination: { page: 1, size: 50, total_elements: 1, total_pages: 1 },
     } as any)
+
+    vi.spyOn(accessRequestService, 'listRequests').mockResolvedValue({
+      items: [],
+      pagination: { page: 1, size: 50, total_elements: 0, total_pages: 0 },
+    } as any)
+  })
+
+  it('does not render active seats badge beside Members & Access heading', async () => {
+    render(
+      <BrowserRouter>
+        <WorkspaceMembersPage />
+      </BrowserRouter>
+    )
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Members & Access' })).toBeInTheDocument()
+    expect(screen.queryByText(/Active Seat/i)).not.toBeInTheDocument()
   })
 
   it('renders members list with clear distinction between Owner and other roles', async () => {
@@ -113,6 +130,32 @@ describe('WS-B12: Workspace Members & Role Hierarchy Modern UX', () => {
     // Owner protection is visually distinguished
     expect(screen.getByText('Protected')).toBeInTheDocument()
     expect(screen.getByText('OWNER')).toBeInTheDocument()
+  })
+
+  it('prioritizes current user as first row in members table with YOU badge', async () => {
+    // Set current user as analyst (3rd member in mockMembers array)
+    useAuthStore.setState({
+      user: {
+        id: 'u-member-3',
+        email: 'analyst@veritas.rag',
+        role: 'MEMBER',
+        workspace_id: mockWorkspaceId,
+      } as any,
+      status: 'AUTHENTICATED',
+    })
+
+    render(
+      <BrowserRouter>
+        <WorkspaceMembersPage />
+      </BrowserRouter>
+    )
+
+    const rows = screen.getAllByRole('row')
+    // row 0 is header row, row 1 must be the current user (Data Analyst)
+    expect(rows[1]).toHaveTextContent('Data Analyst')
+    expect(rows[1]).toHaveTextContent('YOU')
+    expect(rows[2]).toHaveTextContent('Lead Architect')
+    expect(rows[3]).toHaveTextContent('Operations Admin')
   })
 
   it('toggles canonical role hierarchy guide panel', async () => {
@@ -157,10 +200,10 @@ describe('WS-B12: Workspace Members & Role Hierarchy Modern UX', () => {
 
     // In-app modal should appear
     expect(await screen.findByText('Confirm Member Removal')).toBeInTheDocument()
-    expect(screen.getByText(/Warning: Removal terminates all permissions/i)).toBeInTheDocument()
+    expect(screen.getByText('Target Member:')).toBeInTheDocument()
 
     // Click confirm button
-    const confirmBtn = screen.getByRole('button', { name: 'Confirm Removal' })
+    const confirmBtn = screen.getByRole('button', { name: 'Confirm' })
     fireEvent.click(confirmBtn)
 
     await waitFor(() => {

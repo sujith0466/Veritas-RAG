@@ -159,6 +159,26 @@ export const WorkspaceMembersPage: React.FC = () => {
   const isCurrentUserOwner = String(user?.role || '').trim().toUpperCase() === 'OWNER'
   const isCurrentUserAdmin = ['OWNER', 'ADMIN'].includes(String(user?.role || '').trim().toUpperCase())
 
+  // Prioritize currently authenticated user at top of active members list
+  const sortedMembers = useMemo(() => {
+    if (!members || members.length === 0) return []
+    if (!user) return members
+
+    return [...members].sort((a, b) => {
+      const isA = Boolean(
+        (user.id && (a.user_id === user.id || a.id === user.id || a.user?.id === user.id)) ||
+        (user.email && a.user?.email && a.user.email.toLowerCase() === user.email.toLowerCase())
+      )
+      const isB = Boolean(
+        (user.id && (b.user_id === user.id || b.id === user.id || b.user?.id === user.id)) ||
+        (user.email && b.user?.email && b.user.email.toLowerCase() === user.email.toLowerCase())
+      )
+      if (isA && !isB) return -1
+      if (!isA && isB) return 1
+      return 0
+    })
+  }, [members, user])
+
   // Authoritative Join Credentials Fetcher
   const loadJoinCredentials = useCallback(async () => {
     if (!workspaceId) return
@@ -407,12 +427,6 @@ export const WorkspaceMembersPage: React.FC = () => {
         eyebrow="ADMINISTRATION / TEAM"
         title="Members & Access"
         description="Administer workspace team members, invitations, granular role assignments, and authentication boundaries."
-        badge={
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-mono font-medium bg-primary/10 text-primary border border-primary/20">
-            <Users className="h-3 w-3" />
-            {total} Active Seat{total !== 1 ? 's' : ''}
-          </span>
-        }
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -713,14 +727,14 @@ export const WorkspaceMembersPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  members.map(member => {
+                  sortedMembers.map(member => {
                     const isOwner = member.role === 'OWNER'
                     const isSuspended = member.status === 'SUSPENDED'
                     const displayName = member.user?.display_name || member.user?.username || ''
                     const email = member.user?.email || member.user_id
                     const isCurrentUser = Boolean(
-                      member.user_id === user?.id ||
-                      (user?.email && member.user?.email === user?.email)
+                      (user?.id && (member.user_id === user.id || member.id === user.id || member.user?.id === user.id)) ||
+                      (user?.email && member.user?.email && member.user.email.toLowerCase() === user.email.toLowerCase())
                     )
 
                     return (
