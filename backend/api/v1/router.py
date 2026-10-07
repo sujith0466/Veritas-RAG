@@ -34,11 +34,13 @@ from .routes.workspace_invitations import (
     invitations_router
 )
 from .routes.workspace_members import workspace_members_router
+from .routes.workspace_access_requests import workspace_access_requests_router
 
 api_v1_router.include_router(workspaces_router)
 api_v1_router.include_router(workspace_invitations_router)
 api_v1_router.include_router(invitations_router)
 api_v1_router.include_router(workspace_members_router)
+api_v1_router.include_router(workspace_access_requests_router)
 
 from .routes.workspace_webhooks import router as workspace_webhooks_router
 api_v1_router.include_router(workspace_webhooks_router)

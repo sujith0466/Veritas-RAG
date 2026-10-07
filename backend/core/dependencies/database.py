@@ -245,3 +245,20 @@ async def get_feature_flag_management_service(
 ) -> FeatureFlagManagementService:
     return FeatureFlagManagementService(flag_repo, rule_repo, history_repo, workspace_repo, member_repo)
 
+
+from backend.repositories.workspace_access_request import WorkspaceAccessRequestRepository
+from backend.services.workspace.access_request_service import AccessRequestService
+
+
+async def get_workspace_access_request_repository(session: AsyncSession = Depends(get_db)) -> WorkspaceAccessRequestRepository:
+    return WorkspaceAccessRequestRepository(session)
+
+
+async def get_access_request_service(
+    access_repo: WorkspaceAccessRequestRepository = Depends(get_workspace_access_request_repository),
+    member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+    workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
+) -> AccessRequestService:
+    return AccessRequestService(access_repo, member_repo, workspace_repo)
+
+

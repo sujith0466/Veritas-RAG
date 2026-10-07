@@ -256,6 +256,71 @@ class WorkspaceJoiningService:
         if not is_valid:
             raise WorkspaceJoinCodeInvalidError(err_reason or "Invalid join code.")
 
+        # Check workspace join code policy for require_approval
+        ws_settings = await self.settings_repo.get_by_workspace_id(ws.id)
+        if ws_settings and getattr(ws_settings, "join_code_require_approval", False):
+            from backend.models.entities.workspace_access_request import (
+                AccessRequestStatus,
+                AccessRequestType,
+                WorkspaceAccessRequest,
+            )
+            from backend.repositories.workspace_access_request import WorkspaceAccessRequestRepository
+
+            access_repo = WorkspaceAccessRequestRepository(session)
+            pending_req = await access_repo.get_active_pending(
+                ws.id, user_id, AccessRequestType.JOIN_APPROVAL.value
+            )
+            if pending_req:
+                raise WorkspaceMembershipConflictError(
+                    "Your join request is currently pending administrator approval."
+                )
+
+            join_req = WorkspaceAccessRequest(
+                workspace_id=ws.id,
+                user_id=user_id,
+                request_type=AccessRequestType.JOIN_APPROVAL.value,
+                current_role=None,
+                requested_role=default_role,
+                status=AccessRequestStatus.PENDING.value,
+                reason="Joined via Join Code (requires administrator approval)",
+            )
+            session.add(join_req)
+            await session.flush()
+
+            # Record audit log
+            audit_log = AuditLog(
+                tenant_id=ws.id,
+                action="workspace.access_request.created",
+                user_id=user_id,
+                resource_type="WORKSPACE_ACCESS_REQUEST",
+                resource_id=str(join_req.id),
+                details={
+                    "workspace_id": str(ws.id),
+                    "request_type": "JOIN_APPROVAL",
+                    "role": default_role,
+                    "joining_mode": "JOIN_CODE",
+                },
+                status="success",
+            )
+            session.add(audit_log)
+            await session.flush()
+            await session.commit()
+
+            logger.info(
+                "User submitted join approval request via Join Code",
+                workspace_id=str(ws.id),
+                user_id=str(user_id),
+                role=default_role,
+            )
+
+            return JoinWorkspaceData(
+                workspace_id=ws.id,
+                workspace_name=ws.name,
+                role=default_role,
+                status="PENDING_APPROVAL",
+                member_id=uuid.uuid4(),
+            )
+
         if existing:
             existing.status = MemberStatus.ACTIVE.value
             existing.role = default_role

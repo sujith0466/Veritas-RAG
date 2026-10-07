@@ -14,7 +14,11 @@ from .workspace_invitation import InvitationStatus, WorkspaceInvitation
 from .workspace_member import WorkspaceMember
 from .workspace_settings import WorkspaceSettings
 from .notification_delivery_log import NotificationDeliveryLog
-from .workspace_webhook import WorkspaceWebhook
+from .workspace_access_request import (
+    AccessRequestStatus,
+    AccessRequestType,
+    WorkspaceAccessRequest,
+)
 
 __all__ = [
     "AuditLog",
@@ -35,6 +39,9 @@ __all__ = [
     "FeatureFlagHistory",
     "WorkspaceInvitation",
     "InvitationStatus",
+    "WorkspaceAccessRequest",
+    "AccessRequestStatus",
+    "AccessRequestType",
     "Folder",
     "NotificationDeliveryLog",
     "WorkspaceWebhook",
