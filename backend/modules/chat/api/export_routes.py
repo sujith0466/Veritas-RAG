@@ -33,6 +33,11 @@ async def _verify_workspace_access(
 
     Raises HTTP 403 if not permitted.
     """
+    from backend.core.permissions.rbac import Role
+    user_role = Role.from_str(str(user.role))
+    if user_role == Role.PLATFORM_ADMIN or getattr(user, "is_platform_admin", False):
+        return
+
     membership: WorkspaceMember | None = await member_repo.get_membership(
         workspace_id=workspace_id,
         user_id=user.id,
@@ -93,6 +98,12 @@ async def export_chat_history(
             end_date = end_date.replace(tzinfo=UTC)
         if end_date.time() == time(0, 0, 0):
             end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date range: start_date cannot be later than end_date.",
+        )
 
     def _sanitize_csv_cell(value: Any) -> Any:
         """Neutralize spreadsheet formula injection characters (CWE-1236)."""

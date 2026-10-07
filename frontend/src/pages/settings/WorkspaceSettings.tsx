@@ -426,6 +426,15 @@ export function WorkspaceSettings() {
       return
     }
 
+    if (exportStartDate && exportEndDate && exportStartDate > exportEndDate) {
+      toast({
+        title: 'Validation Error',
+        message: 'Start date cannot be later than end date.',
+        type: 'error',
+      })
+      return
+    }
+
     setExporting(true)
     try {
       const query = new URLSearchParams({ format: exportFormat })
@@ -527,7 +536,17 @@ export function WorkspaceSettings() {
       const retentionDays = parseInt(formData.retention_policy, 10) || 90
 
       // 2. Save canonical workspace settings if workspaceId exists
-      if (workspaceId && expectedUpdatedAt) {
+      if (workspaceId) {
+        if (!expectedUpdatedAt) {
+          toast({
+            title: 'Settings Lock Error',
+            message: 'Concurrency lock token is missing. Please reload the page before modifying settings.',
+            type: 'error',
+          })
+          setSaving(false)
+          return
+        }
+
         try {
           const res = await workspaceSettingsService.patchSettings(
             workspaceId,
