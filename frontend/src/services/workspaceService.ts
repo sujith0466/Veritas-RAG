@@ -264,6 +264,10 @@ class WorkspaceService {
     );
     return response;
   }
+
+  async getJoinCodeAccess(workspaceId: string): Promise<WorkspaceJoinAccessResponse> {
+    return this.getJoinAccess(workspaceId);
+  }
 }
 
 /**
