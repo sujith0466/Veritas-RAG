@@ -469,3 +469,239 @@ class PasswordResetService:
 
         await self._execute_password_reset(user, new_password, action="password.changed")
         logger.info("Authenticated password change completed", user_id=str(user_id))
+
+    # ─── Authenticated Security-Code Password Change (F2.10) ──────────────────────
+
+    async def request_security_code(self, user_id: uuid.UUID) -> None:
+        """Generates a 6-digit numeric security code and dispatches it to the user's email.
+
+        Enforces cooldown (60s) and velocity limits (max 3 per 15 min) in Redis on user_id.
+        """
+        user = await self.user_repo.get_by_id(user_id)
+        if not user or not user.is_active or user.is_deleted:
+            raise AuthenticationException("User account is inactive or not found")
+
+        # Rate limiting in Redis
+        if self.redis:
+            cooldown_key = f"auth:change_pwd:cooldown:{user.id}"
+            if await self.redis.get(cooldown_key):
+                logger.warning("Security code requested too frequently", user_id=str(user.id))
+                raise HTTPException(
+                    status_code=429,
+                    detail="Please wait before requesting another security code.",
+                )
+
+            velocity_key = f"auth:change_pwd:requests:{user.id}"
+            req_count = await self.redis.get(velocity_key)
+            if req_count and int(req_count) >= 3:
+                logger.warning("Security code velocity limit exceeded", user_id=str(user.id))
+                raise HTTPException(
+                    status_code=429,
+                    detail="Too many security code requests. Please try again later.",
+                )
+
+            await self.redis.set(cooldown_key, "1", ex=60)
+            await self.redis.incr(velocity_key)
+            if not req_count:
+                await self.redis.expire(velocity_key, 900)
+
+        # Invalidate existing active OTPs for this user with channel AUTH_CHANGE_PASSWORD
+        stmt_invalidate = (
+            update(PasswordRecoveryOTP)
+            .where(
+                PasswordRecoveryOTP.user_id == user.id,
+                PasswordRecoveryOTP.channel == "AUTH_CHANGE_PASSWORD",
+                PasswordRecoveryOTP.is_invalidated.is_(False),
+                PasswordRecoveryOTP.is_used.is_(False),
+            )
+            .values(is_invalidated=True)
+        )
+        await self.session.execute(stmt_invalidate)
+
+        # Generate 6-digit CSPRNG code
+        raw_code = "".join(secrets.choice("0123456789") for _ in range(6))
+        code_hash = hashlib.sha256(raw_code.encode("utf-8")).hexdigest()
+
+        now = datetime.datetime.now(datetime.UTC)
+        otp_entry = PasswordRecoveryOTP(
+            user_id=user.id,
+            otp_hash=code_hash,
+            channel="AUTH_CHANGE_PASSWORD",
+            requested_at=now,
+            expires_at=now + datetime.timedelta(minutes=10),
+            attempts=0,
+            is_used=False,
+            is_invalidated=False,
+        )
+        self.session.add(otp_entry)
+
+        # Record AuditLog
+        tenant_uuid = None
+        if user.tenant_id:
+            try:
+                tenant_uuid = uuid.UUID(str(user.tenant_id))
+            except (ValueError, TypeError):
+                tenant_uuid = None
+
+        audit = AuditLog(
+            tenant_id=tenant_uuid,
+            action="security_code.requested",
+            user_id=user.id,
+            resource_type="user",
+            resource_id=str(user.id),
+            details={"masked_email": _mask_email(user.email), "channel": "EMAIL"},
+            status="success",
+        )
+        self.session.add(audit)
+        await self.session.commit()
+
+        email_provider = get_email_provider()
+        await email_provider.send_security_code_email(user.email, raw_code)
+        logger.info("Password change security code dispatched", user_id=str(user.id))
+
+    async def verify_security_code(self, user_id: uuid.UUID, raw_code: str) -> str:
+        """Verifies the 6-digit security code and issues a single-use change token.
+
+        Returns:
+            The raw 256-bit URL-safe change_token valid for 15 minutes.
+        """
+        user = await self.user_repo.get_by_id(user_id)
+        if not user or not user.is_active or user.is_deleted:
+            raise AuthenticationException("User account is inactive or not found")
+
+        stmt = (
+            select(PasswordRecoveryOTP)
+            .where(
+                PasswordRecoveryOTP.user_id == user.id,
+                PasswordRecoveryOTP.channel == "AUTH_CHANGE_PASSWORD",
+                PasswordRecoveryOTP.is_used.is_(False),
+                PasswordRecoveryOTP.is_invalidated.is_(False),
+            )
+            .order_by(PasswordRecoveryOTP.requested_at.desc())
+        )
+        res = await self.session.execute(stmt)
+        otp_entry = res.scalars().first()
+
+        if not otp_entry:
+            raise AuthenticationException("Invalid or expired security code")
+
+        now = datetime.datetime.now(datetime.UTC)
+        if now > otp_entry.expires_at.replace(tzinfo=datetime.UTC):
+            otp_entry.is_invalidated = True
+            self.session.add(
+                AuditLog(
+                    user_id=user.id,
+                    action="security_code.verification_failed",
+                    resource_type="user",
+                    resource_id=str(user.id),
+                    details={"reason": "expired", "attempts": otp_entry.attempts},
+                    status="failure",
+                )
+            )
+            await self.session.commit()
+            logger.warning("Security code expired", user_id=str(user.id))
+            raise AuthenticationException("Invalid or expired security code")
+
+        otp_entry.attempts += 1
+
+        if otp_entry.attempts > 5:
+            otp_entry.is_invalidated = True
+            self.session.add(
+                AuditLog(
+                    user_id=user.id,
+                    action="security_code.verification_failed",
+                    resource_type="user",
+                    resource_id=str(user.id),
+                    details={"reason": "max_attempts_exceeded", "attempts": otp_entry.attempts},
+                    status="failure",
+                )
+            )
+            await self.session.commit()
+            logger.warning("Too many security code attempts", user_id=str(user.id))
+            raise HTTPException(
+                status_code=429,
+                detail="Too many failed attempts. Code has been invalidated.",
+            )
+
+        incoming_hash = hashlib.sha256(raw_code.encode("utf-8")).hexdigest()
+        if not secrets.compare_digest(incoming_hash, otp_entry.otp_hash):
+            self.session.add(
+                AuditLog(
+                    user_id=user.id,
+                    action="security_code.verification_failed",
+                    resource_type="user",
+                    resource_id=str(user.id),
+                    details={"reason": "hash_mismatch", "attempts": otp_entry.attempts},
+                    status="failure",
+                )
+            )
+            await self.session.commit()
+            logger.warning("Invalid security code attempt", user_id=str(user.id))
+            raise AuthenticationException("Invalid or expired security code")
+
+        # Code valid
+        otp_entry.verified_at = now
+        otp_entry.is_used = True
+
+        raw_change_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_change_token.encode("utf-8")).hexdigest()
+
+        # Store in Redis with 15-minute TTL
+        if self.redis:
+            await self.redis.set(f"auth:change_pwd_token:{token_hash}", str(user.id), ex=900)
+
+        # Also store in DB for resilient lookup
+        user.password_reset_token_hash = token_hash
+        user.password_reset_token_expires_at = now + datetime.timedelta(minutes=15)
+
+        self.session.add(
+            AuditLog(
+                user_id=user.id,
+                action="security_code.verified",
+                resource_type="user",
+                resource_id=str(user.id),
+                details={"channel": "EMAIL"},
+                status="success",
+            )
+        )
+        await self.session.commit()
+
+        logger.info("Security code verified and change token issued", user_id=str(user.id))
+        return raw_change_token
+
+    async def complete_password_change(
+        self, user_id: uuid.UUID, change_token: str, new_password: str
+    ) -> None:
+        """Validates change_token and updates password for authenticated user."""
+        user = await self.user_repo.get_by_id(user_id)
+        if not user or not user.is_active or user.is_deleted:
+            raise AuthenticationException("Invalid, expired, or previously consumed credential")
+
+        token_hash = hashlib.sha256(change_token.encode("utf-8")).hexdigest()
+
+        token_valid = False
+        if self.redis:
+            redis_key = f"auth:change_pwd_token:{token_hash}"
+            stored_user_id = await self.redis.get(redis_key)
+            if stored_user_id and stored_user_id == str(user.id):
+                token_valid = True
+                await self.redis.delete(redis_key)
+
+        if not token_valid:
+            if (
+                user.password_reset_token_hash
+                and secrets.compare_digest(token_hash, user.password_reset_token_hash)
+                and user.password_reset_token_expires_at
+                and datetime.datetime.now(datetime.UTC) <= user.password_reset_token_expires_at.replace(tzinfo=datetime.UTC)
+            ):
+                token_valid = True
+
+        if not token_valid:
+            raise AuthenticationException("Invalid, expired, or previously consumed credential")
+
+        # Clear token fields in DB
+        user.password_reset_token_hash = None
+        user.password_reset_token_expires_at = None
+
+        await self._execute_password_reset(user, new_password, action="password.changed")
+        logger.info("Password change completed successfully via change token", user_id=str(user.id))

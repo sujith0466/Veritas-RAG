@@ -16,7 +16,10 @@ import structlog
 
 from backend.api.v1.schemas.auth import (
     AuthStatusResponse,
+    ChangePasswordCompleteRequest,
     ChangePasswordRequest,
+    ChangePasswordVerifyCodeRequest,
+    ChangePasswordVerifyCodeResponse,
     DemoRoleResetResponse,
     DemoRoleSwitchRequest,
     DemoRoleSwitchResponse,
@@ -407,6 +410,78 @@ async def change_password(
     return SuccessResponse(
         success=True,
         data={"message": "Password updated successfully. Please log in again."},
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/change-password/request-code",
+    response_model=SuccessResponse[dict],
+    summary="Request security code for password change",
+    description="Dispatches a 6-digit verification code to the authenticated user's email address.",
+)
+async def request_change_password_code(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict]:
+    """Request 6-digit security code sent to registered email for password change."""
+    service = PasswordResetService(db)
+    await service.request_security_code(user.id)
+    return SuccessResponse(
+        success=True,
+        data={"message": "Security verification code sent to your registered email address."},
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/change-password/verify-code",
+    response_model=SuccessResponse[ChangePasswordVerifyCodeResponse],
+    summary="Verify security code for password change",
+    description="Verifies the 6-digit security code and returns an ephemeral change token.",
+)
+async def verify_change_password_code(
+    request: Request,
+    payload: ChangePasswordVerifyCodeRequest,
+    user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[ChangePasswordVerifyCodeResponse]:
+    """Verify 6-digit security code and obtain ephemeral change token."""
+    service = PasswordResetService(db)
+    change_token = await service.verify_security_code(user.id, payload.code)
+    return SuccessResponse(
+        success=True,
+        data=ChangePasswordVerifyCodeResponse(change_token=change_token, expires_in_seconds=900),
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/change-password/complete",
+    response_model=SuccessResponse[dict],
+    summary="Complete password change with security token",
+    description="Updates password using the ephemeral change token and revokes active sessions and tokens.",
+)
+async def complete_change_password(
+    request: Request,
+    payload: ChangePasswordCompleteRequest,
+    user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict]:
+    """Complete password change using verified change token."""
+    service = PasswordResetService(db)
+    await service.complete_password_change(user.id, payload.change_token, payload.new_password)
+
+    from backend.core.security.jwt import get_jwt_service
+    jwt_service = get_jwt_service()
+    payload_ctx = getattr(request.state, "token_payload", None)
+    if payload_ctx and payload_ctx.jti:
+        await jwt_service.revoke_token(payload_ctx.jti, payload_ctx.exp)
+
+    return SuccessResponse(
+        success=True,
+        data={"message": "Password changed successfully. Please log in again."},
         metadata=_build_metadata(request),
     )
 

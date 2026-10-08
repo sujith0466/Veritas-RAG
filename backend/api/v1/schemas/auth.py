@@ -63,6 +63,20 @@ class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1)
     new_password: str = Field(min_length=8)
 
+class ChangePasswordVerifyCodeRequest(BaseModel):
+    """Payload to verify 6-digit security code for authenticated password change."""
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+class ChangePasswordVerifyCodeResponse(BaseModel):
+    """Response returned upon successful security code verification."""
+    change_token: str
+    expires_in_seconds: int = 900
+
+class ChangePasswordCompleteRequest(BaseModel):
+    """Payload to complete authenticated password change using change_token."""
+    change_token: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
+
 class DemoRoleSwitchRequest(BaseModel):
     """Request payload to switch demo role."""
     target_role: str = Field(description="Target canonical role to simulate (platform_admin, owner, admin, member, viewer)")
@@ -98,6 +112,9 @@ __all__ = [
     "PasswordResetCompleteRequest",
     "ResetPasswordOTPRequest",
     "ChangePasswordRequest",
+    "ChangePasswordVerifyCodeRequest",
+    "ChangePasswordVerifyCodeResponse",
+    "ChangePasswordCompleteRequest",
     "DemoRoleSwitchRequest",
     "DemoRoleSwitchResponse",
     "DemoRoleResetResponse",
