@@ -41,6 +41,17 @@ class VerifyOTPRequest(BaseModel):
     email: str
     otp: str = Field(min_length=6, max_length=6)
 
+class PasswordResetVerifyResponse(BaseModel):
+    """Password reset OTP verification response payload."""
+    reset_token: str
+    expires_in_seconds: int = 900
+
+class PasswordResetCompleteRequest(BaseModel):
+    """Password reset completion payload."""
+    email: str
+    reset_token: str
+    new_password: str = Field(min_length=8)
+
 class ResetPasswordOTPRequest(BaseModel):
     """Reset password via OTP request payload."""
     email: str
@@ -83,6 +94,8 @@ __all__ = [
     "ForgotPasswordRequest",
     "ResetPasswordRequest",
     "VerifyOTPRequest",
+    "PasswordResetVerifyResponse",
+    "PasswordResetCompleteRequest",
     "ResetPasswordOTPRequest",
     "ChangePasswordRequest",
     "DemoRoleSwitchRequest",

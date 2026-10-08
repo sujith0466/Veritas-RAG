@@ -23,6 +23,8 @@ from backend.api.v1.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
+    PasswordResetCompleteRequest,
+    PasswordResetVerifyResponse,
     ResetPasswordOTPRequest,
     ResetPasswordRequest,
     UserContext,
@@ -264,23 +266,51 @@ async def reset_password(
 
 
 @router.post(
+    "/password-reset/request",
+    response_model=SuccessResponse[dict],
+    summary="Request recovery code for password reset",
+    dependencies=[Depends(RateLimit("password-reset-request", 5, 3600))],
+)
+@router.post(
     "/password/otp/request",
     response_model=SuccessResponse[dict],
-    summary="Request OTP for password reset",
-    dependencies=[Depends(RateLimit("password-otp-request", 3, 3600))],
+    summary="Request OTP for password reset (alias)",
+    dependencies=[Depends(RateLimit("password-otp-request", 5, 3600))],
 )
-async def request_password_otp(
+async def request_password_reset_code(
     request: Request,
     payload: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
-    """Request a password reset OTP via email."""
+    """Request a password recovery code dispatched via email."""
     service = PasswordResetService(db)
-    await service.request_otp(payload.email)
+    await service.request_recovery_code(payload.email)
 
     return SuccessResponse(
         success=True,
-        data={"message": "If that email exists, an OTP has been sent."},
+        data={"message": "If an account matches this email, a 6-digit verification code has been dispatched."},
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/password-reset/verify",
+    response_model=SuccessResponse[PasswordResetVerifyResponse],
+    summary="Verify recovery code and issue ephemeral reset token",
+    dependencies=[Depends(RateLimit("password-reset-verify", 5, 300))],
+)
+async def verify_password_reset_code(
+    request: Request,
+    payload: VerifyOTPRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[PasswordResetVerifyResponse]:
+    """Verify 6-digit recovery code and return one-time 256-bit CSPRNG reset token."""
+    service = PasswordResetService(db)
+    reset_token = await service.verify_recovery_code(payload.email, payload.otp)
+
+    return SuccessResponse(
+        success=True,
+        data=PasswordResetVerifyResponse(reset_token=reset_token, expires_in_seconds=900),
         metadata=_build_metadata(request),
     )
 
@@ -288,21 +318,43 @@ async def request_password_otp(
 @router.post(
     "/password/otp/verify",
     response_model=SuccessResponse[dict],
-    summary="Verify OTP",
+    summary="Verify OTP (legacy alias)",
     dependencies=[Depends(RateLimit("password-otp-verify", 5, 300))],
 )
-async def verify_password_otp(
+async def verify_password_otp_legacy(
     request: Request,
     payload: VerifyOTPRequest,
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
-    """Verify an OTP."""
+    """Legacy OTP verification endpoint."""
     service = PasswordResetService(db)
-    await service.verify_otp(payload.email, payload.otp)
+    reset_token = await service.verify_recovery_code(payload.email, payload.otp)
 
     return SuccessResponse(
         success=True,
-        data={"message": "OTP verified successfully."},
+        data={"message": "OTP verified successfully.", "reset_token": reset_token},
+        metadata=_build_metadata(request),
+    )
+
+
+@router.post(
+    "/password-reset/complete",
+    response_model=SuccessResponse[dict],
+    summary="Complete password reset using reset token",
+    dependencies=[Depends(RateLimit("password-reset-complete", 5, 300))],
+)
+async def complete_password_reset(
+    request: Request,
+    payload: PasswordResetCompleteRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict]:
+    """Complete password reset using verified ephemeral reset token."""
+    service = PasswordResetService(db)
+    await service.complete_password_reset(payload.email, payload.reset_token, payload.new_password)
+
+    return SuccessResponse(
+        success=True,
+        data={"message": "Password successfully reset. You can now log in with your new password."},
         metadata=_build_metadata(request),
     )
 
@@ -310,14 +362,14 @@ async def verify_password_otp(
 @router.post(
     "/password/otp/reset",
     response_model=SuccessResponse[dict],
-    summary="Reset password via OTP",
+    summary="Reset password via OTP (legacy alias)",
 )
-async def reset_password_with_otp(
+async def reset_password_with_otp_legacy(
     request: Request,
     payload: ResetPasswordOTPRequest,
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
-    """Reset password using an OTP."""
+    """Reset password directly using OTP (legacy alias)."""
     service = PasswordResetService(db)
     await service.reset_password_with_otp(payload.email, payload.otp, payload.new_password)
 
@@ -326,6 +378,7 @@ async def reset_password_with_otp(
         data={"message": "Password successfully reset. You can now log in."},
         metadata=_build_metadata(request),
     )
+
 
 
 @router.post(
