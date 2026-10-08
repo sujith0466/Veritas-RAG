@@ -258,8 +258,15 @@ async def reset_password(
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Reset password using a token."""
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    caller_context = {
+        "user_agent": user_agent,
+        "ip_address": ip_address,
+        "path": "PASSWORD_RESET_TOKEN",
+    }
     service = PasswordResetService(db)
-    await service.reset_password(payload.token, payload.new_password)
+    await service.reset_password(payload.token, payload.new_password, caller_context=caller_context)
 
     return SuccessResponse(
         success=True,
@@ -352,8 +359,17 @@ async def complete_password_reset(
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Complete password reset using verified ephemeral reset token."""
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    caller_context = {
+        "user_agent": user_agent,
+        "ip_address": ip_address,
+        "path": "PASSWORD_RESET_RECOVERY",
+    }
     service = PasswordResetService(db)
-    await service.complete_password_reset(payload.email, payload.reset_token, payload.new_password)
+    await service.complete_password_reset(
+        payload.email, payload.reset_token, payload.new_password, caller_context=caller_context
+    )
 
     return SuccessResponse(
         success=True,
@@ -373,8 +389,17 @@ async def reset_password_with_otp_legacy(
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
     """Reset password directly using OTP (legacy alias)."""
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    caller_context = {
+        "user_agent": user_agent,
+        "ip_address": ip_address,
+        "path": "PASSWORD_RESET_OTP",
+    }
     service = PasswordResetService(db)
-    await service.reset_password_with_otp(payload.email, payload.otp, payload.new_password)
+    await service.reset_password_with_otp(
+        payload.email, payload.otp, payload.new_password, caller_context=caller_context
+    )
 
     return SuccessResponse(
         success=True,

@@ -258,7 +258,12 @@ class PasswordResetService:
         email_provider = get_email_provider()
         await email_provider.send_password_reset_email(email_normalized, raw_token)
 
-    async def reset_password(self, raw_token: str, new_password: str) -> None:
+    async def reset_password(
+        self,
+        raw_token: str,
+        new_password: str,
+        caller_context: dict | None = None,
+    ) -> None:
         """Validates token and updates the user's password."""
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
@@ -290,7 +295,14 @@ class PasswordResetService:
         user.password_reset_token_hash = None
         user.password_reset_token_expires_at = None
 
-        await self._execute_password_reset(user, new_password)
+        context = dict(caller_context or {})
+        context.setdefault("path", "PASSWORD_RESET_TOKEN")
+        await self._execute_password_reset(
+            user,
+            new_password,
+            action="password_reset.completed",
+            caller_context=context,
+        )
 
     # ─── F2.9 OTP Flow ─────────────────────────────────────────────────────────────
 
@@ -513,7 +525,11 @@ class PasswordResetService:
         await self.verify_recovery_code(email, raw_otp)
 
     async def complete_password_reset(
-        self, email: str, reset_token: str, new_password: str
+        self,
+        email: str,
+        reset_token: str,
+        new_password: str,
+        caller_context: dict | None = None,
     ) -> None:
         """Validates the 256-bit CSPRNG reset token and completes password reset."""
         email_normalized = email.lower().strip()
@@ -545,15 +561,26 @@ class PasswordResetService:
         if otp_entry:
             otp_entry.is_used = True
 
-        await self._execute_password_reset(user, new_password, action="password_reset.completed")
+        context = dict(caller_context or {})
+        context.setdefault("path", "PASSWORD_RESET_RECOVERY")
+        await self._execute_password_reset(
+            user,
+            new_password,
+            action="password_reset.completed",
+            caller_context=context,
+        )
         logger.info("Password reset completed successfully via reset token", user_id=str(user.id))
 
     async def reset_password_with_otp(
-        self, email: str, raw_otp: str, new_password: str
+        self,
+        email: str,
+        raw_otp: str,
+        new_password: str,
+        caller_context: dict | None = None,
     ) -> None:
         """Legacy direct OTP reset method. Verifies OTP, obtains reset token, and completes reset."""
         reset_token = await self.verify_recovery_code(email, raw_otp)
-        await self.complete_password_reset(email, reset_token, new_password)
+        await self.complete_password_reset(email, reset_token, new_password, caller_context=caller_context)
 
     # ─── Authenticated Password Change ────────────────────────────────────────────
 
