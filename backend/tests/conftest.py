@@ -1,29 +1,32 @@
-import socket
 import pytest
-from backend.cache.client import get_redis_client
+import redis
+from backend.core.config import get_settings
 
 
-def _is_redis_open() -> bool:
+def _get_sync_redis() -> redis.Redis | None:
     try:
-        with socket.create_connection(("127.0.0.1", 6379), timeout=0.05):
-            return True
+        settings = get_settings()
+        url = settings.redis.test_url if settings.is_testing else settings.redis.url
+        r = redis.Redis.from_url(url, socket_timeout=0.2)
+        if r.ping():
+            return r
     except Exception:
-        return False
+        pass
+    return None
 
 
 @pytest.fixture(autouse=True)
 def reset_rate_limits():
     """Ensure deterministic rate-limit state across tests without modifying production limits."""
-    if not _is_redis_open():
-        yield
-        return
-
-    import asyncio
-    try:
-        from backend.cache.client import get_redis_client
-        redis = get_redis_client()
-        if redis:
-            asyncio.run(redis.flushdb())
-    except Exception:
-        pass
+    r = _get_sync_redis()
+    if r is not None:
+        try:
+            r.flushdb()
+        except Exception:
+            pass
     yield
+    if r is not None:
+        try:
+            r.flushdb()
+        except Exception:
+            pass
