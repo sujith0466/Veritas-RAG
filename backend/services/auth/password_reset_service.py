@@ -10,7 +10,11 @@ import hashlib
 import secrets
 import uuid
 
-from fastapi import HTTPException
+import html
+import time
+
+from fastapi import HTTPException, status
+import jwt
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
@@ -50,29 +54,95 @@ class PasswordResetService:
         self.redis = get_redis_client()
 
     async def _execute_password_reset(
-        self, user: User, new_password: str, action: str = "password_reset.completed"
-    ) -> None:
-        """Internal shared method to update password, revoke sessions, and invalidate workspace access tokens."""
+        self,
+        user: User,
+        new_password: str,
+        action: str = "password_reset.completed",
+        caller_family_id: str | None = None,
+        caller_context: dict | None = None,
+    ) -> tuple[str, str]:
+        """Internal shared authoritative core to update password, rotate/revoke sessions, and invalidate workspace access tokens."""
+        now = datetime.datetime.now(datetime.UTC)
         user.hashed_password = get_password_hash(new_password)
-        user.password_changed_at = datetime.datetime.now(datetime.UTC)
+        user.password_changed_at = now
 
-        # 1. Invalidate sessions in PostgreSQL (F2.5 Requirement)
-        stmt_revoke = (
-            update(UserSession)
-            .where(UserSession.user_id == user.id, UserSession.is_revoked.is_(False))
-            .values(is_revoked=True)
-        )
-        await self.session.execute(stmt_revoke)
+        # Clear reset tokens
+        user.password_reset_token_hash = None
+        user.password_reset_token_expires_at = None
 
-        # 2. Query user's active workspaces
+        new_access_token: str | None = None
+        new_raw_refresh: str | None = None
+
+        # Session handling: Session Policy B if caller_family_id or authenticated context provided
+        if caller_family_id is not None:
+            # 1. Terminate other device sessions in PostgreSQL
+            stmt_revoke_others = (
+                update(UserSession)
+                .where(
+                    UserSession.user_id == user.id,
+                    UserSession.family_id != caller_family_id,
+                    UserSession.is_revoked.is_(False),
+                )
+                .values(is_revoked=True)
+            )
+            await self.session.execute(stmt_revoke_others)
+
+            # 2. Rotate current caller session in PostgreSQL
+            stmt_rotate_current = (
+                update(UserSession)
+                .where(
+                    UserSession.user_id == user.id,
+                    UserSession.family_id == caller_family_id,
+                    UserSession.is_revoked.is_(False),
+                )
+                .values(is_revoked=True, rotated_at=now)
+            )
+            await self.session.execute(stmt_rotate_current)
+
+            # 3. Issue fresh tokens preserving family_id
+            from backend.core.security.jwt import get_jwt_service
+            jwt_service = get_jwt_service()
+            new_access_token, new_raw_refresh, resolved_family_id = await jwt_service.issue_tokens(
+                user=user,
+                session=self.session,
+                family_id=caller_family_id,
+            )
+
+            # 4. Create new active UserSession record with standard 7-day lifetime
+            new_hash = hashlib.sha256(new_raw_refresh.encode("utf-8")).hexdigest()
+            new_expires_at = now + datetime.timedelta(days=7)
+            new_session_entry = UserSession(
+                user_id=user.id,
+                refresh_token_hash=new_hash,
+                family_id=resolved_family_id,
+                expires_at=new_expires_at,
+                is_revoked=False,
+                last_used_at=now,
+                user_agent=(caller_context or {}).get("user_agent"),
+                ip_address=(caller_context or {}).get("ip_address"),
+                device=(caller_context or {}).get("device"),
+            )
+            self.session.add(new_session_entry)
+        else:
+            # Unauthenticated flow: Revoke all active sessions
+            stmt_revoke_all = (
+                update(UserSession)
+                .where(UserSession.user_id == user.id, UserSession.is_revoked.is_(False))
+                .values(is_revoked=True)
+            )
+            await self.session.execute(stmt_revoke_all)
+
+        # Query user active workspaces for multi-workspace invalidation
         stmt_members = select(WorkspaceMember.workspace_id).where(
             WorkspaceMember.user_id == user.id,
             WorkspaceMember.is_deleted.is_(False),
         )
         res = await self.session.execute(stmt_members)
-        workspace_ids = res.scalars().all()
+        workspace_ids = set(str(ws) for ws in res.scalars().all())
+        if getattr(user, "tenant_id", None):
+            workspace_ids.add(str(user.tenant_id))
 
-        # 3. Insert audit log
+        # Append immutable AuditLog
         tenant_uuid = None
         if user.tenant_id:
             try:
@@ -86,23 +156,81 @@ class PasswordResetService:
             user_id=user.id,
             resource_type="user",
             resource_id=str(user.id),
-            details={"revoked_workspaces_count": len(workspace_ids)},
+            details={
+                "path": (caller_context or {}).get("path", "AUTH_PASSWORD_CHANGE"),
+                "sessions_revoked": True,
+                "revoked_workspaces_count": len(workspace_ids),
+            },
             status="success",
         )
         self.session.add(audit)
+
+        # ATOMIC POSTGRESQL COMMIT
         await self.session.commit()
 
-        # 4. Invalidate workspace access tokens in Redis
-        try:
-            from backend.core.security.jwt import get_jwt_service
+        # PHASE 2: POST-COMMIT SIDE EFFECTS (Only executed after successful PostgreSQL commit)
+        if self.redis:
+            # Token invalidation invariant: new_access_token.iat == Redis invalid_before
+            if new_access_token:
+                try:
+                    unverified_claims = jwt.decode(new_access_token, options={"verify_signature": False})
+                    new_token_iat = int(unverified_claims.get("iat", 0))
+                except Exception:
+                    new_token_iat = int(time.time())
+                invalid_before_val = str(new_token_iat)
+            else:
+                invalid_before_val = str(int(time.time()))
 
-            jwt_service = get_jwt_service()
             for ws_id in workspace_ids:
-                await jwt_service.revoke_user_workspace_tokens(str(user.id), str(ws_id))
-        except Exception as exc:
-            logger.warning("Failed to revoke workspace tokens in Redis", user_id=str(user.id), error=str(exc))
+                try:
+                    key = f"auth:user:{user.id}:workspace:{ws_id}:invalid_before"
+                    await self.redis.set(key, invalid_before_val, ex=15 * 60)
+                except Exception as exc:
+                    logger.warning("Failed to set workspace invalid_before in Redis", ws_id=ws_id, error=str(exc))
 
-        logger.info("Password reset and session revocation executed", user_id=str(user.id))
+            # Invalidate old access token JTI if present
+            old_jti = (caller_context or {}).get("current_jti")
+            old_exp = (caller_context or {}).get("current_exp", 0)
+            if old_jti and old_exp:
+                try:
+                    from backend.core.security.jwt import get_jwt_service
+                    jwt_service = get_jwt_service()
+                    await jwt_service.revoke_token(old_jti, old_exp)
+                except Exception as exc:
+                    logger.warning("Failed to revoke old access token JTI", jti=old_jti, error=str(exc))
+
+            # Delete change token if Path B
+            change_token_hash = (caller_context or {}).get("change_token_hash")
+            if change_token_hash:
+                try:
+                    await self.redis.delete(f"auth:change_pwd_token:{change_token_hash}")
+                except Exception:
+                    pass
+
+        # Dispatch confirmation email post-commit (non-blocking failsafe)
+        if user.email:
+            raw_ip = (caller_context or {}).get("ip_address")
+            raw_ua = (caller_context or {}).get("user_agent")
+            safe_ip = html.escape(str(raw_ip)) if raw_ip else None
+            safe_ua = html.escape(str(raw_ua)) if raw_ua else None
+
+            try:
+                email_provider = get_email_provider()
+                await email_provider.send_password_changed_notification_email(
+                    to_email=user.email,
+                    event_time=now,
+                    ip_address=safe_ip,
+                    user_agent=safe_ua,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to dispatch password changed confirmation email post-commit",
+                    user_id=str(user.id),
+                    error=str(exc),
+                )
+
+        logger.info("Authoritative password change executed successfully", user_id=str(user.id))
+        return (new_access_token or "", new_raw_refresh or "")
 
     async def generate_and_send_reset_token(self, email: str) -> None:
         """Generates a secure token and dispatches the reset email."""
@@ -430,23 +558,45 @@ class PasswordResetService:
     # ─── Authenticated Password Change ────────────────────────────────────────────
 
     async def change_password(
-        self, user_id: uuid.UUID, current_password: str, new_password: str
-    ) -> None:
-        """Deprecated: Direct password change without security-code verification is disabled.
+        self,
+        user_id: uuid.UUID,
+        current_password: str,
+        new_password: str,
+        caller_family_id: str | None = None,
+        caller_context: dict | None = None,
+    ) -> tuple[str, str]:
+        """Authenticated password change with current password verification (Path A).
 
-        All authenticated password changes require email security-code verification.
-
-        Raises:
-            AuthenticationException: Always, because direct password change via current_password is disabled.
+        Verifies current password, enforces password reuse policy, updates password,
+        and executes Session Policy B rotation.
         """
-        logger.warning(
-            "Legacy change password attempt blocked",
-            user_id=str(user_id),
-            reason="endpoint_deprecated_security_code_required",
-        )
-        raise AuthenticationException(
-            "Direct password change with current password is deprecated and disabled. "
-            "Please use the email security-code verification flow."
+        user = await self.user_repo.get_by_id(user_id)
+        if not user or not user.is_active or user.is_deleted:
+            raise AuthenticationException("User account is inactive or not found")
+
+        if not user.hashed_password:
+            raise AuthenticationException("Account has no local password configured. Please use SSO.")
+
+        from backend.core.security.password import verify_password
+        if not verify_password(current_password, user.hashed_password):
+            logger.warning("Invalid current password attempt", user_id=str(user.id))
+            raise AuthenticationException("Incorrect current password.")
+
+        if verify_password(new_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password cannot be the same as current password.",
+            )
+
+        context = dict(caller_context or {})
+        context["path"] = "CURRENT_PASSWORD"
+
+        return await self._execute_password_reset(
+            user=user,
+            new_password=new_password,
+            action="password.changed",
+            caller_family_id=caller_family_id or str(uuid.uuid4()),
+            caller_context=context,
         )
 
     # ─── Authenticated Security-Code Password Change (F2.10) ──────────────────────
@@ -649,9 +799,14 @@ class PasswordResetService:
         return raw_change_token
 
     async def complete_password_change(
-        self, user_id: uuid.UUID, change_token: str, new_password: str
-    ) -> None:
-        """Validates change_token and updates password for authenticated user."""
+        self,
+        user_id: uuid.UUID,
+        change_token: str,
+        new_password: str,
+        caller_family_id: str | None = None,
+        caller_context: dict | None = None,
+    ) -> tuple[str, str]:
+        """Validates change_token and updates password for authenticated user (Path B)."""
         user = await self.user_repo.get_by_id(user_id)
         if not user or not user.is_active or user.is_deleted:
             raise AuthenticationException("Invalid, expired, or previously consumed credential")
@@ -682,5 +837,22 @@ class PasswordResetService:
         user.password_reset_token_hash = None
         user.password_reset_token_expires_at = None
 
-        await self._execute_password_reset(user, new_password, action="password.changed")
-        logger.info("Password change completed successfully via change token", user_id=str(user.id))
+        from backend.core.security.password import verify_password
+        if user.hashed_password and isinstance(user.hashed_password, str):
+            if verify_password(new_password, user.hashed_password):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="New password cannot be the same as current password.",
+                )
+
+        context = dict(caller_context or {})
+        context["path"] = "SECURITY_CODE"
+        context["change_token_hash"] = token_hash
+
+        return await self._execute_password_reset(
+            user=user,
+            new_password=new_password,
+            action="password.changed",
+            caller_family_id=caller_family_id or str(uuid.uuid4()),
+            caller_context=context,
+        )

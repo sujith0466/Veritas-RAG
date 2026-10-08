@@ -242,15 +242,26 @@ async def test_gate_g16_rate_limiting():
 
 @pytest.mark.asyncio
 async def test_gate_g11_password_lifecycle():
-    """G11: Legacy current-password password change is rejected (410 Gone) and cannot modify credentials."""
+    """G11: Path A password change verifies current password, updates credentials, and enforces Session Policy B."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         email = f"pwd_life_{uuid.uuid4().hex[:8]}@example.com"
         user_info = await register_and_login(client, email)
         token = user_info["access_token"]
         refresh_token = user_info["refresh_token"]
 
-        # Attempt legacy password change with current_password + new_password
-        res = await client.post(
+        # 1. Incorrect current password must fail with HTTP 401
+        res_fail = await client.post(
+            "/api/v1/auth/change-password",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "current_password": "WrongCurrentPassword123!",
+                "new_password": "NewSecurePassword456!",
+            },
+        )
+        assert res_fail.status_code == 401
+
+        # 2. Correct current password succeeds with HTTP 200 and Session Policy B tokens
+        res_success = await client.post(
             "/api/v1/auth/change-password",
             headers={"Authorization": f"Bearer {token}"},
             json={
@@ -258,23 +269,45 @@ async def test_gate_g11_password_lifecycle():
                 "new_password": "NewSecurePassword456!",
             },
         )
-        # Must be rejected with HTTP 410 Gone
-        assert res.status_code == 410
-        assert "deprecated and disabled" in res.text
+        assert res_success.status_code == 200
+        data = res_success.json()["data"]
+        new_token = data.get("access_token")
+        assert new_token is not None
+        assert new_token != token
 
-        # Old password must still authenticate because password was not changed
+        # 3. Old access token is revoked in Redis
+        old_me = await client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert old_me.status_code == 401
+
+        # 4. New access token works
+        new_me = await client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {new_token}"},
+        )
+        assert new_me.status_code == 200
+
+        # 5. Old refresh token is revoked
+        if refresh_token:
+            client.cookies.set("refresh_token", refresh_token)
+            old_refresh = await client.post("/api/v1/auth/refresh")
+            assert old_refresh.status_code in [400, 401]
+
+        # 6. Old password fails
         login_orig = await client.post(
             "/api/v1/auth/login",
             json={"email": email, "password": "Password123!"},
         )
-        assert login_orig.status_code == 200
+        assert login_orig.status_code in [400, 401]
 
-        # Attempted new password must fail
-        login_fail = await client.post(
+        # 7. New password succeeds
+        login_new = await client.post(
             "/api/v1/auth/login",
             json={"email": email, "password": "NewSecurePassword456!"},
         )
-        assert login_fail.status_code in [400, 401]
+        assert login_new.status_code == 200
 
 
 @pytest.mark.asyncio

@@ -386,29 +386,62 @@ async def reset_password_with_otp_legacy(
 
 @router.post(
     "/change-password",
-    status_code=status.HTTP_410_GONE,
-    summary="Deprecated password change route",
-    description="Direct password change via current_password has been deprecated and disabled. Password changes require email security-code verification via /api/v1/auth/change-password/request-code.",
-    deprecated=True,
+    response_model=SuccessResponse[dict],
+    summary="Change password with current password (Path A)",
+    description="Authenticates current password, updates to new password, rotates current session, and revokes other sessions.",
+    dependencies=[Depends(RateLimit("change-password", 5, 300))],
 )
 async def change_password(
     request: Request,
-    payload: dict | None = Body(default=None),
+    response: Response,
+    payload: ChangePasswordRequest,
     user: UserContext = Depends(get_current_user),
-) -> None:
-    """Explicitly reject legacy current-password password changes.
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[dict]:
+    """Authenticated password change with current password verification (Path A)."""
+    token_payload = getattr(request.state, "token_payload", None)
+    current_jti = getattr(token_payload, "jti", None)
+    current_exp = getattr(token_payload, "exp", 0)
+    family_id = getattr(token_payload, "family_id", None)
 
-    All authenticated password changes require email security-code verification.
-    """
-    raise HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail=(
-            "Direct password change with current password is deprecated and disabled. "
-            "Please use the email security-code verification flow: "
-            "POST /api/v1/auth/change-password/request-code -> "
-            "POST /api/v1/auth/change-password/verify-code -> "
-            "POST /api/v1/auth/change-password/complete."
-        ),
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+
+    caller_context = {
+        "current_jti": current_jti,
+        "current_exp": current_exp,
+        "user_agent": user_agent,
+        "ip_address": ip_address,
+    }
+
+    service = PasswordResetService(db)
+    access_token, raw_refresh_token = await service.change_password(
+        user_id=user.id,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+        caller_family_id=family_id,
+        caller_context=caller_context,
+    )
+
+    # Set HTTP-only refresh token cookie for session continuity
+    settings = get_settings()
+    response.set_cookie(
+        key="refresh_token",
+        value=raw_refresh_token,
+        max_age=7 * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.app.environment == "production",
+        samesite="strict",
+        path="/api/v1/auth/refresh",
+    )
+
+    return SuccessResponse(
+        success=True,
+        data={
+            "message": "Password changed successfully.",
+            "access_token": access_token,
+        },
+        metadata=_build_metadata(request),
     )
 
 
@@ -458,28 +491,60 @@ async def verify_change_password_code(
 @router.post(
     "/change-password/complete",
     response_model=SuccessResponse[dict],
-    summary="Complete password change with security token",
-    description="Updates password using the ephemeral change token and revokes active sessions and tokens.",
+    summary="Complete password change with security token (Path B)",
+    description="Updates password using the verified change token, rotates current session, and revokes other sessions.",
+    dependencies=[Depends(RateLimit("change-password-complete", 5, 300))],
 )
 async def complete_change_password(
     request: Request,
+    response: Response,
     payload: ChangePasswordCompleteRequest,
     user: UserContext = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SuccessResponse[dict]:
-    """Complete password change using verified change token."""
-    service = PasswordResetService(db)
-    await service.complete_password_change(user.id, payload.change_token, payload.new_password)
+    """Complete password change using verified change token (Path B)."""
+    token_payload = getattr(request.state, "token_payload", None)
+    current_jti = getattr(token_payload, "jti", None)
+    current_exp = getattr(token_payload, "exp", 0)
+    family_id = getattr(token_payload, "family_id", None)
 
-    from backend.core.security.jwt import get_jwt_service
-    jwt_service = get_jwt_service()
-    payload_ctx = getattr(request.state, "token_payload", None)
-    if payload_ctx and payload_ctx.jti:
-        await jwt_service.revoke_token(payload_ctx.jti, payload_ctx.exp)
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+
+    caller_context = {
+        "current_jti": current_jti,
+        "current_exp": current_exp,
+        "user_agent": user_agent,
+        "ip_address": ip_address,
+    }
+
+    service = PasswordResetService(db)
+    access_token, raw_refresh_token = await service.complete_password_change(
+        user_id=user.id,
+        change_token=payload.change_token,
+        new_password=payload.new_password,
+        caller_family_id=family_id,
+        caller_context=caller_context,
+    )
+
+    # Set HTTP-only refresh token cookie for session continuity
+    settings = get_settings()
+    response.set_cookie(
+        key="refresh_token",
+        value=raw_refresh_token,
+        max_age=7 * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.app.environment == "production",
+        samesite="strict",
+        path="/api/v1/auth/refresh",
+    )
 
     return SuccessResponse(
         success=True,
-        data={"message": "Password changed successfully. Please log in again."},
+        data={
+            "message": "Password changed successfully.",
+            "access_token": access_token,
+        },
         metadata=_build_metadata(request),
     )
 

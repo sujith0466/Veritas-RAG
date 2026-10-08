@@ -213,17 +213,26 @@ async def test_complete_password_change_invalid_token_fails():
 
 
 @pytest.mark.asyncio
-async def test_legacy_change_password_method_permanently_disabled():
-    """Verify legacy change_password method raises AuthenticationException and performs no mutation."""
+async def test_path_a_change_password_invalid_current_password_fails():
+    """Verify Path A change_password rejects invalid current password and performs no mutation."""
     user_id = uuid.uuid4()
+    mock_user = MagicMock(spec=User)
+    mock_user.id = user_id
+    mock_user.is_active = True
+    mock_user.is_deleted = False
+    from backend.core.security.password import get_password_hash
+    mock_user.hashed_password = get_password_hash("ActualCurrentPassword123!")
+
     mock_session = AsyncMock()
     service = PasswordResetService(session=mock_session)
+    service.user_repo = MagicMock()
+    service.user_repo.get_by_id = AsyncMock(return_value=mock_user)
     service._execute_password_reset = AsyncMock()
 
     with pytest.raises(AuthenticationException) as exc:
-        await service.change_password(user_id, "OldPassword123!", "NewPassword456!")
+        await service.change_password(user_id, "WrongPassword123!", "NewPassword456!")
 
-    assert "deprecated and disabled" in str(exc.value)
+    assert "Incorrect current password" in str(exc.value)
     assert service._execute_password_reset.call_count == 0
     assert mock_session.commit.call_count == 0
 
