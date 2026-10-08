@@ -1,7 +1,10 @@
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+
+import re
+from urllib.parse import urlparse
 
 class ProfileDataSchema(BaseModel):
     bio: str | None = Field(default=None, max_length=1000)
@@ -15,6 +18,19 @@ class ProfileDataSchema(BaseModel):
     workspace_name: str | None = Field(default=None, max_length=255)
 
     model_config = {"extra": "ignore"}
+
+    @field_validator("website")
+    @classmethod
+    def validate_website(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        parsed = urlparse(v)
+        if parsed.scheme.lower() not in ("http", "https") or not parsed.netloc:
+            raise ValueError("Website must be a valid HTTP or HTTPS URL")
+        return v
 
 
 class AISettingsSchema(BaseModel):
@@ -40,7 +56,7 @@ class WorkspaceSettingsSchema(BaseModel):
 
 
 class UserProfileUpdate(BaseModel):
-    username: str | None = Field(default=None, max_length=150)
+    username: str | None = Field(default=None, max_length=30)
     display_name: str | None = Field(default=None, max_length=255)
     timezone: str | None = Field(default=None, max_length=50)
     language: str | None = Field(default=None, max_length=20)
@@ -50,6 +66,18 @@ class UserProfileUpdate(BaseModel):
     profile_data: ProfileDataSchema | None = None
 
     model_config = {"extra": "ignore"}
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            return None
+        if not re.match(r"^[a-zA-Z0-9_-]{3,30}$", v):
+            raise ValueError("Username must be between 3 and 30 characters and contain only letters, numbers, underscores, or hyphens")
+        return v
 
 
 class UserPreferencesUpdate(BaseModel):

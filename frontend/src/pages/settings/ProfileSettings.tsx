@@ -15,6 +15,7 @@ export function ProfileSettings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [version, setVersion] = useState<number | undefined>(undefined)
 
   const [formData, setFormData] = useState({
     username: '',
@@ -48,6 +49,7 @@ export function ProfileSettings() {
         timezone: data.profile_data?.timezone || '',
         location: data.profile_data?.location || '',
       })
+      setVersion(data.version)
       setAvatarPreview(getAssetUrl(data.avatar_url) || null)
     } catch (error) {
       toast({ title: 'Error', message: 'Failed to load profile data', type: 'error' })
@@ -61,18 +63,53 @@ export function ProfileSettings() {
   }
 
   const handleSave = async () => {
+    if (formData.username && !formData.username.trim().match(/^[a-zA-Z0-9_-]{3,30}$/)) {
+      toast({
+        title: 'Validation Error',
+        message: 'Username must be between 3 and 30 characters and contain only letters, numbers, underscores, or hyphens',
+        type: 'error',
+      })
+      return
+    }
+
+    if (formData.website && formData.website.trim()) {
+      const url = formData.website.trim()
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        toast({
+          title: 'Validation Error',
+          message: 'Website must be a valid URL starting with http:// or https://',
+          type: 'error',
+        })
+        return
+      }
+    }
+
     setSaving(true)
     try {
       const { username, ...profile_data } = formData
-      const { data } = await userService.updateProfile({ username, profile_data })
+      const { data } = await userService.updateProfile({ username, profile_data }, version)
+      setVersion(data.version)
 
       // Update global store user context if needed
       if (user && token) {
         setAuth({ ...user, ...data }, token)
       }
       toast({ title: 'Success', message: 'Profile updated successfully', type: 'success' })
-    } catch (error) {
-      toast({ title: 'Error', message: 'Failed to update profile', type: 'error' })
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail
+      if (error?.response?.status === 409) {
+        toast({
+          title: 'Conflict',
+          message: typeof detail === 'string' ? detail : 'Profile was modified in another session. Please reload and try again.',
+          type: 'error',
+        })
+      } else {
+        toast({
+          title: 'Error',
+          message: typeof detail === 'string' ? detail : 'Failed to update profile',
+          type: 'error',
+        })
+      }
     } finally {
       setSaving(false)
     }
@@ -110,8 +147,8 @@ export function ProfileSettings() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <SectionHeader
-        title="Public Profile"
-        description="This information will be displayed publicly so be careful what you share."
+        title="Profile Settings"
+        description="Manage your account profile information and identity settings."
       />
 
       <div className="flex gap-8 items-start">
@@ -144,7 +181,7 @@ export function ProfileSettings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="designation">Role / Designation</Label>
+                <Label htmlFor="designation">Job Title / Designation</Label>
                 <Input id="designation" name="designation" value={formData.designation} onChange={handleChange} placeholder="Software Engineer" />
               </div>
 

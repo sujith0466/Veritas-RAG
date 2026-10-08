@@ -169,8 +169,7 @@ async def upload_avatar(
     object_key = f"avatars/{current_user.id}/{uuid.uuid4().hex}.{ext}"
     await storage.save_stream(file.file, object_key)
 
-    url = await storage.get_uri(object_key)
-    user.avatar_url = url
+    user.avatar_url = f"/api/v1/storage/{object_key}"
 
     await db.commit()
     await db.refresh(user)
