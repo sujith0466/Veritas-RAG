@@ -79,7 +79,7 @@ async def test_auth_full_lifecycle():
         )
         assert replay_res.status_code == 401
 
-        # 7. Password change -> success
+        # 7. Password change
         # Login again since token family might be compromised or we just want fresh token
         login_res2 = await client.post("/api/v1/auth/login", json={
             "email": user_email,
@@ -89,7 +89,9 @@ async def test_auth_full_lifecycle():
         access_token_3 = login_res2.json()["data"]["access_token"]
 
         new_password = "NewPassword123!"
-        pw_change_res = await client.post(
+
+        # 7a. Legacy current-password bypass is rejected with 410 Gone
+        legacy_attempt = await client.post(
             "/api/v1/auth/change-password",
             json={
                 "current_password": password,
@@ -97,7 +99,42 @@ async def test_auth_full_lifecycle():
             },
             headers={"Authorization": f"Bearer {access_token_3}"}
         )
-        assert pw_change_res.status_code == 200
+        assert legacy_attempt.status_code == 410
+
+        # 7b. Authorized security-code flow
+        from unittest.mock import AsyncMock, patch
+        with patch("backend.services.auth.password_reset_service.get_email_provider") as mock_email_fn:
+            mock_provider = AsyncMock()
+            mock_provider.send_security_code_email = AsyncMock(return_value=True)
+            mock_email_fn.return_value = mock_provider
+
+            # Request code
+            req_code = await client.post(
+                "/api/v1/auth/change-password/request-code",
+                headers={"Authorization": f"Bearer {access_token_3}"}
+            )
+            assert req_code.status_code == 200
+            _, raw_code = mock_provider.send_security_code_email.call_args[0]
+
+            # Verify code -> change_token
+            verify_res = await client.post(
+                "/api/v1/auth/change-password/verify-code",
+                json={"code": raw_code},
+                headers={"Authorization": f"Bearer {access_token_3}"}
+            )
+            assert verify_res.status_code == 200
+            change_token = verify_res.json()["data"]["change_token"]
+
+            # Complete password change
+            pw_change_res = await client.post(
+                "/api/v1/auth/change-password/complete",
+                json={
+                    "change_token": change_token,
+                    "new_password": new_password
+                },
+                headers={"Authorization": f"Bearer {access_token_3}"}
+            )
+            assert pw_change_res.status_code == 200
 
         # 8. Old token after global revocation -> rejected
         old_token_res = await client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token_3}"})

@@ -69,6 +69,7 @@ async def register_and_login(client: AsyncClient, email: str, role: str = "membe
     return {
         "access_token": data["access_token"],
         "refresh_token": refresh_tok,
+        "email": email,
     }
 
 
@@ -241,13 +242,14 @@ async def test_gate_g16_rate_limiting():
 
 @pytest.mark.asyncio
 async def test_gate_g11_password_lifecycle():
-    """G11: Password change updates hash and revokes existing sessions."""
+    """G11: Legacy current-password password change is rejected (410 Gone) and cannot modify credentials."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        user_info = await register_and_login(client, f"pwd_life_{uuid.uuid4().hex[:8]}@example.com")
+        email = f"pwd_life_{uuid.uuid4().hex[:8]}@example.com"
+        user_info = await register_and_login(client, email)
         token = user_info["access_token"]
         refresh_token = user_info["refresh_token"]
 
-        # Change password
+        # Attempt legacy password change with current_password + new_password
         res = await client.post(
             "/api/v1/auth/change-password",
             headers={"Authorization": f"Bearer {token}"},
@@ -256,25 +258,39 @@ async def test_gate_g11_password_lifecycle():
                 "new_password": "NewSecurePassword456!",
             },
         )
-        assert res.status_code == 200
+        # Must be rejected with HTTP 410 Gone
+        assert res.status_code == 410
+        assert "deprecated and disabled" in res.text
 
-        # Old refresh token should now fail
-        if refresh_token:
-            client.cookies.set("refresh_token", refresh_token)
-            refresh_res = await client.post("/api/v1/auth/refresh")
-            assert refresh_res.status_code in [400, 401]
+        # Old password must still authenticate because password was not changed
+        login_orig = await client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": "Password123!"},
+        )
+        assert login_orig.status_code == 200
+
+        # Attempted new password must fail
+        login_fail = await client.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": "NewSecurePassword456!"},
+        )
+        assert login_fail.status_code in [400, 401]
 
 
 @pytest.mark.asyncio
 async def test_gate_g11b_security_code_password_lifecycle():
-    """G11b: Authenticated security-code password change lifecycle and session revocation."""
+    """G11b: Authenticated security-code password change lifecycle, single-use guards, and isolation."""
     from unittest.mock import AsyncMock, patch
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        email = f"pwd_sec_code_{uuid.uuid4().hex[:8]}@example.com"
-        user_info = await register_and_login(client, email)
-        token = user_info["access_token"]
-        refresh_token = user_info["refresh_token"]
+        # Register user A and unrelated user B
+        email_a = f"pwd_sec_a_{uuid.uuid4().hex[:8]}@example.com"
+        user_a = await register_and_login(client, email_a)
+        token_a = user_a["access_token"]
+        refresh_token_a = user_a["refresh_token"]
+
+        email_b = f"pwd_sec_b_{uuid.uuid4().hex[:8]}@example.com"
+        user_b = await register_and_login(client, email_b)
 
         with patch("backend.services.auth.password_reset_service.get_email_provider") as mock_email_fn:
             mock_provider = AsyncMock()
@@ -284,7 +300,7 @@ async def test_gate_g11b_security_code_password_lifecycle():
             # Step 1: Request code
             req_res = await client.post(
                 "/api/v1/auth/change-password/request-code",
-                headers={"Authorization": f"Bearer {token}"},
+                headers={"Authorization": f"Bearer {token_a}"},
             )
             assert req_res.status_code == 200
             assert mock_provider.send_security_code_email.call_count == 1
@@ -293,17 +309,25 @@ async def test_gate_g11b_security_code_password_lifecycle():
             # Step 2: Verify code -> get change_token
             verify_res = await client.post(
                 "/api/v1/auth/change-password/verify-code",
-                headers={"Authorization": f"Bearer {token}"},
+                headers={"Authorization": f"Bearer {token_a}"},
                 json={"code": raw_code},
             )
             assert verify_res.status_code == 200
             change_token = verify_res.json()["data"]["change_token"]
             assert change_token
 
+            # Step 2b: Code is single-use - replay verify must fail
+            replay_verify = await client.post(
+                "/api/v1/auth/change-password/verify-code",
+                headers={"Authorization": f"Bearer {token_a}"},
+                json={"code": raw_code},
+            )
+            assert replay_verify.status_code in [400, 401, 404]
+
             # Step 3: Complete password change
             complete_res = await client.post(
                 "/api/v1/auth/change-password/complete",
-                headers={"Authorization": f"Bearer {token}"},
+                headers={"Authorization": f"Bearer {token_a}"},
                 json={
                     "change_token": change_token,
                     "new_password": "NewSecuredPassword789!",
@@ -311,18 +335,50 @@ async def test_gate_g11b_security_code_password_lifecycle():
             )
             assert complete_res.status_code == 200
 
-            # Step 4: Verify old session & refresh token are revoked
-            if refresh_token:
-                client.cookies.set("refresh_token", refresh_token)
+            # Step 3b: change_token is single-use - replay complete must fail
+            replay_complete = await client.post(
+                "/api/v1/auth/change-password/complete",
+                headers={"Authorization": f"Bearer {token_a}"},
+                json={
+                    "change_token": change_token,
+                    "new_password": "AnotherPassword999!",
+                },
+            )
+            assert replay_complete.status_code in [400, 401]
+
+            # Step 4: Verify old session & refresh token are revoked for User A
+            if refresh_token_a:
+                client.cookies.set("refresh_token", refresh_token_a)
                 refresh_res = await client.post("/api/v1/auth/refresh")
                 assert refresh_res.status_code in [400, 401]
 
-            # Verify login with new password succeeds
+            # Verify old access token cannot access /auth/me
+            old_me = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token_a}"},
+            )
+            assert old_me.status_code == 401
+
+            # Step 5: Verify login with new password succeeds for User A
             login_res = await client.post(
                 "/api/v1/auth/login",
-                json={"email": email, "password": "NewSecuredPassword789!"},
+                json={"email": email_a, "password": "NewSecuredPassword789!"},
             )
             assert login_res.status_code == 200
+
+            # Step 6: Verify old password fails for User A
+            old_login_res = await client.post(
+                "/api/v1/auth/login",
+                json={"email": email_a, "password": "Password123!"},
+            )
+            assert old_login_res.status_code in [400, 401]
+
+            # Step 7: Unrelated User B remains completely unaffected
+            login_b = await client.post(
+                "/api/v1/auth/login",
+                json={"email": email_b, "password": "Password123!"},
+            )
+            assert login_b.status_code == 200
 
 
 @pytest.mark.asyncio

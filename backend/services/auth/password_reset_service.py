@@ -432,43 +432,22 @@ class PasswordResetService:
     async def change_password(
         self, user_id: uuid.UUID, current_password: str, new_password: str
     ) -> None:
-        """Change password for an authenticated user.
+        """Deprecated: Direct password change without security-code verification is disabled.
 
-        Verifies the current password before updating. Revokes all active sessions
-        and refresh token families, requiring a fresh login.
-
-        Args:
-            user_id: The authenticated user's UUID.
-            current_password: The user's existing password for verification.
-            new_password: The desired new password.
+        All authenticated password changes require email security-code verification.
 
         Raises:
-            AuthenticationException: If current password is wrong or user not found.
+            AuthenticationException: Always, because direct password change via current_password is disabled.
         """
-        from backend.core.security.password import verify_password
-
-        stmt = select(User).where(User.id == user_id, User.is_deleted.is_(False))
-        result = await self.session.execute(stmt)
-        user = result.scalar_one_or_none()
-
-        if not user or not user.hashed_password:
-            logger.warning(
-                "Change password failed",
-                reason="user_not_found_or_no_password",
-                user_id=str(user_id),
-            )
-            raise AuthenticationException("Current password is incorrect")
-
-        if not verify_password(current_password, user.hashed_password):
-            logger.warning(
-                "Change password failed",
-                reason="incorrect_current_password",
-                user_id=str(user_id),
-            )
-            raise AuthenticationException("Current password is incorrect")
-
-        await self._execute_password_reset(user, new_password, action="password.changed")
-        logger.info("Authenticated password change completed", user_id=str(user_id))
+        logger.warning(
+            "Legacy change password attempt blocked",
+            user_id=str(user_id),
+            reason="endpoint_deprecated_security_code_required",
+        )
+        raise AuthenticationException(
+            "Direct password change with current password is deprecated and disabled. "
+            "Please use the email security-code verification flow."
+        )
 
     # ─── Authenticated Security-Code Password Change (F2.10) ──────────────────────
 

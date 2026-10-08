@@ -9,7 +9,7 @@ import json
 import secrets
 import uuid
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
@@ -386,31 +386,29 @@ async def reset_password_with_otp_legacy(
 
 @router.post(
     "/change-password",
-    response_model=SuccessResponse[dict],
-    summary="Change password (authenticated)",
-    description="Verifies the current password then updates to the new password, revoking all active sessions.",
+    status_code=status.HTTP_410_GONE,
+    summary="Deprecated password change route",
+    description="Direct password change via current_password has been deprecated and disabled. Password changes require email security-code verification via /api/v1/auth/change-password/request-code.",
+    deprecated=True,
 )
 async def change_password(
     request: Request,
-    payload: ChangePasswordRequest,
+    payload: dict | None = Body(default=None),
     user: UserContext = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> SuccessResponse[dict]:
-    """Authenticated password change — requires valid JWT and current password."""
-    service = PasswordResetService(db)
-    await service.change_password(user.id, payload.current_password, payload.new_password)
+) -> None:
+    """Explicitly reject legacy current-password password changes.
 
-    # Revoke the access token used to make this request
-    from backend.core.security.jwt import get_jwt_service
-    jwt_service = get_jwt_service()
-    payload_ctx = getattr(request.state, "token_payload", None)
-    if payload_ctx and payload_ctx.jti:
-        await jwt_service.revoke_token(payload_ctx.jti, payload_ctx.exp)
-
-    return SuccessResponse(
-        success=True,
-        data={"message": "Password updated successfully. Please log in again."},
-        metadata=_build_metadata(request),
+    All authenticated password changes require email security-code verification.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "Direct password change with current password is deprecated and disabled. "
+            "Please use the email security-code verification flow: "
+            "POST /api/v1/auth/change-password/request-code -> "
+            "POST /api/v1/auth/change-password/verify-code -> "
+            "POST /api/v1/auth/change-password/complete."
+        ),
     )
 
 

@@ -210,3 +210,85 @@ async def test_complete_password_change_invalid_token_fails():
 
     with pytest.raises(AuthenticationException):
         await service.complete_password_change(user_id, "invalid-token", "NewPassword123!")
+
+
+@pytest.mark.asyncio
+async def test_legacy_change_password_method_permanently_disabled():
+    """Verify legacy change_password method raises AuthenticationException and performs no mutation."""
+    user_id = uuid.uuid4()
+    mock_session = AsyncMock()
+    service = PasswordResetService(session=mock_session)
+    service._execute_password_reset = AsyncMock()
+
+    with pytest.raises(AuthenticationException) as exc:
+        await service.change_password(user_id, "OldPassword123!", "NewPassword456!")
+
+    assert "deprecated and disabled" in str(exc.value)
+    assert service._execute_password_reset.call_count == 0
+    assert mock_session.commit.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_verify_security_code_single_use():
+    """Verify previously used security code cannot be re-verified."""
+    user_id = uuid.uuid4()
+    mock_user = MagicMock(spec=User)
+    mock_user.id = user_id
+    mock_user.is_active = True
+    mock_user.is_deleted = False
+
+    raw_code = "112233"
+    code_hash = hashlib.sha256(raw_code.encode("utf-8")).hexdigest()
+
+    # OTP already used
+    mock_otp = MagicMock(spec=PasswordRecoveryOTP)
+    mock_otp.user_id = user_id
+    mock_otp.channel = "AUTH_CHANGE_PASSWORD"
+    mock_otp.otp_hash = code_hash
+    mock_otp.expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=10)
+    mock_otp.attempts = 0
+    mock_otp.is_used = True
+    mock_otp.is_invalidated = False
+
+    mock_session = AsyncMock()
+    # Query filters out is_used=True, returning None
+    mock_result = MagicMock()
+    mock_result.scalars = MagicMock(return_value=MagicMock(first=MagicMock(return_value=None)))
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    service = PasswordResetService(session=mock_session)
+    service.user_repo = MagicMock()
+    service.user_repo.get_by_id = AsyncMock(return_value=mock_user)
+
+    with pytest.raises(AuthenticationException) as exc:
+        await service.verify_security_code(user_id, raw_code)
+
+    assert "Invalid or expired security code" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_security_code_unrelated_user_isolation():
+    """Verify security code issued for User A cannot be verified for User B."""
+    user_a = uuid.uuid4()
+    user_b = uuid.uuid4()
+
+    mock_user_b = MagicMock(spec=User)
+    mock_user_b.id = user_b
+    mock_user_b.is_active = True
+    mock_user_b.is_deleted = False
+
+    mock_session = AsyncMock()
+    # Query for User B finds no OTP record
+    mock_result = MagicMock()
+    mock_result.scalars = MagicMock(return_value=MagicMock(first=MagicMock(return_value=None)))
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    service = PasswordResetService(session=mock_session)
+    service.user_repo = MagicMock()
+    service.user_repo.get_by_id = AsyncMock(return_value=mock_user_b)
+
+    with pytest.raises(AuthenticationException) as exc:
+        await service.verify_security_code(user_b, "123456")
+
+    assert "Invalid or expired security code" in str(exc.value)
+

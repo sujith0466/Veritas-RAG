@@ -72,13 +72,6 @@ export const authService = {
     return await this.completePasswordReset(email, reset_token, newPassword)
   },
 
-  async changePassword(currentPassword: string, newPassword: string) {
-    await post('/auth/change-password', {
-      current_password: currentPassword,
-      new_password: newPassword,
-    })
-  },
-
   async requestChangePasswordCode(): Promise<{ message: string }> {
     const response = await post<{ success: boolean; data: { message: string } }>(
       '/auth/change-password/request-code'
