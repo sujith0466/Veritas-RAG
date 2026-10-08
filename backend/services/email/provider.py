@@ -46,6 +46,11 @@ class EmailProvider(ABC):
         """Send a workspace invitation email with versioned acceptance link."""
         pass
 
+    @abstractmethod
+    async def send_otp_email(self, to_email: EmailStr, raw_otp: str) -> bool:
+        """Send a password recovery 6-digit OTP verification email."""
+        pass
+
 
 class SMTPEmailProvider(EmailProvider):
     """SMTP-based email provider using aiosmtplib."""
@@ -78,7 +83,7 @@ class SMTPEmailProvider(EmailProvider):
         )
         return True
 
-    async def _send_email(self, to_email: EmailStr, subject: str, body: str) -> bool:
+    async def _send_email(self, to_email: EmailStr, subject: str, body: str, html_body: str | None = None) -> bool:
         """Validates configuration and enqueues Celery task. Fails closed if SMTP unconfigured."""
         if not self.settings.is_configured:
             logger.error("Attempted to enqueue email with unconfigured SMTP", recipient=to_email)
@@ -93,7 +98,7 @@ class SMTPEmailProvider(EmailProvider):
                 tenant_id_str=None, # Extracted from context in a real multi-tenant app, or None for Auth
                 subject=subject,
                 to_addresses=[to_email],
-                html_content=body,
+                html_content=html_body or body,
                 text_content=body
             )
             return True
@@ -112,6 +117,32 @@ class SMTPEmailProvider(EmailProvider):
         subject = "Password Reset Request"
         body = f"You requested a password reset. Use this token:\n\n{raw_token}\n\nIf you did not request this, ignore this email."
         return await self._send_email(to_email, subject, body)
+
+    async def send_otp_email(self, to_email: EmailStr, raw_otp: str) -> bool:
+        """Sends a 6-digit password recovery verification code via SMTP."""
+        subject = "Your Veritas-RAG Verification Code"
+        text_body = (
+            f"Hello,\n\n"
+            f"We received a request to reset your Veritas-RAG password.\n"
+            f"Your 6-digit verification code is:\n\n"
+            f"[ {raw_otp} ]\n\n"
+            f"This code will expire in 10 minutes.\n\n"
+            f"If you did not request a password reset, please ignore this email. "
+            f"Your password will remain unchanged.\n\n"
+            f"The Veritas-RAG Security Team"
+        )
+        html_body = (
+            f"<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;\">"
+            f"<h2 style=\"color: #0f172a; margin-top: 0;\">Veritas-RAG Password Recovery</h2>"
+            f"<p style=\"color: #475569; font-size: 14px;\">We received a request to reset your Veritas-RAG account password. Use the verification code below to proceed:</p>"
+            f"<div style=\"text-align: center; margin: 28px 0; padding: 16px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;\">"
+            f"<span style=\"font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #0284c7;\">{raw_otp}</span>"
+            f"</div>"
+            f"<p style=\"color: #64748b; font-size: 13px;\">This code is valid for <strong>10 minutes</strong> and can only be used once.</p>"
+            f"<p style=\"color: #94a3b8; font-size: 12px; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 12px;\">If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>"
+            f"</div>"
+        )
+        return await self._send_email(to_email, subject, text_body, html_body=html_body)
 
     async def send_invitation_email(
         self,
@@ -187,6 +218,9 @@ class MockEmailProvider(EmailProvider):
 
     async def send_password_reset_email(self, to_email: EmailStr, raw_token: str) -> bool:
         return self._record_email("password_reset", to_email, raw_token)
+
+    async def send_otp_email(self, to_email: EmailStr, raw_otp: str) -> bool:
+        return self._record_email("password_recovery_otp", to_email, raw_otp)
 
     async def send_invitation_email(
         self,
