@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link, useInRouterContext } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -65,6 +66,23 @@ const loginSchema = z.object({
 })
 type LoginFormData = z.infer<typeof loginSchema>
 
+function ForgotPasswordLink() {
+  const inRouter = useInRouterContext()
+  const className = "text-xs font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
+  if (inRouter) {
+    return (
+      <Link to="/auth/forgot-password" className={className}>
+        Forgot Password?
+      </Link>
+    )
+  }
+  return (
+    <a href="/auth/forgot-password" className={className}>
+      Forgot Password?
+    </a>
+  )
+}
+
 export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormProps & { role: 'admin' | 'viewer' }) {
   const { login } = useAuth()
   const { toast } = useToast()
@@ -118,12 +136,7 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Password</Label>
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
-          >
-            Forgot Password?
-          </button>
+          <ForgotPasswordLink />
         </div>
         <Input
           id="password"

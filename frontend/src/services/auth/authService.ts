@@ -36,23 +36,40 @@ export const authService = {
   },
 
   async forgotPassword(email: string) {
-    await post('/auth/forgot-password', { email })
+    await post('/auth/password-reset/request', { email })
   },
 
   async resetPassword(token: string, newPassword: string) {
     await post('/auth/reset-password', { token, new_password: newPassword })
   },
 
+  async requestRecoveryCode(email: string): Promise<{ message: string }> {
+    return await post<{ message: string }>('/auth/password-reset/request', { email })
+  },
+
+  async verifyRecoveryCode(email: string, otp: string): Promise<{ reset_token: string; expires_in_seconds: number }> {
+    return await post<{ reset_token: string; expires_in_seconds: number }>('/auth/password-reset/verify', { email, otp })
+  },
+
+  async completePasswordReset(email: string, resetToken: string, newPassword: string): Promise<{ message: string }> {
+    return await post<{ message: string }>('/auth/password-reset/complete', {
+      email,
+      reset_token: resetToken,
+      new_password: newPassword,
+    })
+  },
+
   async requestOTP(email: string) {
-    await post('/auth/password/otp/request', { email })
+    return await this.requestRecoveryCode(email)
   },
 
   async verifyOTP(email: string, otp: string) {
-    await post('/auth/password/otp/verify', { email, otp })
+    return await this.verifyRecoveryCode(email, otp)
   },
 
   async resetPasswordOTP(email: string, otp: string, newPassword: string) {
-    await post('/auth/password/otp/reset', { email, otp, new_password: newPassword })
+    const { reset_token } = await this.verifyRecoveryCode(email, otp)
+    return await this.completePasswordReset(email, reset_token, newPassword)
   },
 
   async changePassword(currentPassword: string, newPassword: string) {
