@@ -51,6 +51,11 @@ class EmailProvider(ABC):
         """Send a password recovery 6-digit OTP verification email."""
         pass
 
+    @abstractmethod
+    async def send_security_code_email(self, to_email: EmailStr, raw_code: str) -> bool:
+        """Send an authenticated password change 6-digit security code email."""
+        pass
+
 
 class SMTPEmailProvider(EmailProvider):
     """SMTP-based email provider using aiosmtplib."""
@@ -144,6 +149,32 @@ class SMTPEmailProvider(EmailProvider):
         )
         return await self._send_email(to_email, subject, text_body, html_body=html_body)
 
+    async def send_security_code_email(self, to_email: EmailStr, raw_code: str) -> bool:
+        """Sends a 6-digit password change security code via SMTP."""
+        subject = "Your Veritas-RAG Security Code"
+        text_body = (
+            f"Hello,\n\n"
+            f"We received a request to change your Veritas-RAG account password from Security Settings.\n"
+            f"Your 6-digit security verification code is:\n\n"
+            f"[ {raw_code} ]\n\n"
+            f"This code will expire in 10 minutes.\n\n"
+            f"If you did not initiate this change, your account may be compromised. "
+            f"Please contact your workspace administrator immediately.\n\n"
+            f"The Veritas-RAG Security Team"
+        )
+        html_body = (
+            f"<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;\">"
+            f"<h2 style=\"color: #0f172a; margin-top: 0;\">Veritas-RAG Password Change</h2>"
+            f"<p style=\"color: #475569; font-size: 14px;\">We received a request to change your Veritas-RAG account password. Use the security verification code below to authorize this change:</p>"
+            f"<div style=\"text-align: center; margin: 28px 0; padding: 16px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;\">"
+            f"<span style=\"font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #0284c7;\">{raw_code}</span>"
+            f"</div>"
+            f"<p style=\"color: #64748b; font-size: 13px;\">This code is valid for <strong>10 minutes</strong> and can only be used once.</p>"
+            f"<p style=\"color: #ef4444; font-size: 12px; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 12px;\">If you did not initiate this change, please contact your workspace administrator immediately.</p>"
+            f"</div>"
+        )
+        return await self._send_email(to_email, subject, text_body, html_body=html_body)
+
     async def send_invitation_email(
         self,
         to_email: EmailStr,
@@ -221,6 +252,9 @@ class MockEmailProvider(EmailProvider):
 
     async def send_otp_email(self, to_email: EmailStr, raw_otp: str) -> bool:
         return self._record_email("password_recovery_otp", to_email, raw_otp)
+
+    async def send_security_code_email(self, to_email: EmailStr, raw_code: str) -> bool:
+        return self._record_email("change_password_security_code", to_email, raw_code)
 
     async def send_invitation_email(
         self,
