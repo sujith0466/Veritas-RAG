@@ -6,6 +6,7 @@ Handles user profile updates, optimistic locking, and event emission (F4.7).
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm.exc import StaleDataError
 import structlog
 
@@ -80,7 +81,7 @@ class UserProfileService:
 
         # Nested profile_data
         if update_data.profile_data is not None:
-            current_data = user.profile_data or {}
+            current_data = dict(user.profile_data) if user.profile_data else {}
             new_data = update_data.profile_data.model_dump(exclude_unset=True)
             if new_data:
                 for k, v in new_data.items():
@@ -90,6 +91,7 @@ class UserProfileService:
                             changed_fields.append("profile_data")
                 if "profile_data" in changed_fields:
                     user.profile_data = current_data
+                    flag_modified(user, "profile_data")
 
         if not changed_fields:
             return user
