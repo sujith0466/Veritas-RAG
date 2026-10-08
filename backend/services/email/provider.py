@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 import asyncio
+import datetime
 from email.message import EmailMessage
 import os
 import tempfile
@@ -54,6 +55,17 @@ class EmailProvider(ABC):
     @abstractmethod
     async def send_security_code_email(self, to_email: EmailStr, raw_code: str) -> bool:
         """Send an authenticated password change 6-digit security code email."""
+        pass
+
+    @abstractmethod
+    async def send_password_changed_notification_email(
+        self,
+        to_email: EmailStr,
+        event_time: datetime.datetime | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> bool:
+        """Send a security advisory notification email confirming that the password has been changed."""
         pass
 
 
@@ -175,6 +187,68 @@ class SMTPEmailProvider(EmailProvider):
         )
         return await self._send_email(to_email, subject, text_body, html_body=html_body)
 
+    async def send_password_changed_notification_email(
+        self,
+        to_email: EmailStr,
+        event_time: datetime.datetime | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> bool:
+        """Sends a security advisory notification email confirming password change via SMTP."""
+        now = event_time or datetime.datetime.now(datetime.UTC)
+        formatted_time = now.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        context_lines = []
+        context_html_items = []
+        if ip_address:
+            context_lines.append(f"IP Address: {ip_address}")
+            context_html_items.append(f"<li><strong>IP Address:</strong> {ip_address}</li>")
+        if user_agent:
+            context_lines.append(f"Device / Browser: {user_agent}")
+            context_html_items.append(f"<li><strong>Device / Browser:</strong> {user_agent}</li>")
+
+        context_text = ""
+        if context_lines:
+            context_text = "Security details for this event:\n" + "\n".join(context_lines) + "\n\n"
+
+        context_html = ""
+        if context_html_items:
+            context_html = (
+                '<div style="margin: 16px 0; padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">'
+                '<p style="color: #475569; font-size: 13px; font-weight: 600; margin: 0 0 8px 0;">Security details:</p>'
+                '<ul style="color: #64748b; font-size: 13px; margin: 0; padding-left: 20px;">'
+                + "".join(context_html_items)
+                + '</ul></div>'
+            )
+
+        subject = "Security Alert: Your Veritas-RAG Password Has Been Changed"
+        text_body = (
+            f"Hello,\n\n"
+            f"This is a security alert to confirm that the password for your Veritas-RAG account ({to_email}) "
+            f"was successfully changed on {formatted_time}.\n\n"
+            f"{context_text}"
+            f"If you made this change, no further action is required. Your account credentials have been updated securely.\n\n"
+            f"IMPORTANT: If you did NOT change your password, your account may be compromised. "
+            f"Please contact your workspace administrator immediately or initiate an account recovery.\n\n"
+            f"The Veritas-RAG Security Team"
+        )
+        html_body = (
+            f'<div style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">'
+            f'<h2 style="color: #0f172a; margin-top: 0;">Security Alert: Password Changed</h2>'
+            f'<p style="color: #475569; font-size: 14px; line-height: 1.5;">This email confirms that the password for your Veritas-RAG account (<strong>{to_email}</strong>) was successfully changed on <strong>{formatted_time}</strong>.</p>'
+            f'{context_html}'
+            f'<div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px 16px; margin: 20px 0;">'
+            f'<p style="color: #166534; font-size: 13px; margin: 0; font-weight: 500;">If you made this change, no further action is required.</p>'
+            f'</div>'
+            f'<div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 12px 16px; margin: 20px 0;">'
+            f'<p style="color: #991b1b; font-size: 13px; margin: 0; font-weight: 600;">If you did NOT change your password:</p>'
+            f'<p style="color: #b91c1c; font-size: 12px; margin: 4px 0 0 0; line-height: 1.4;">Your account may be compromised. Please contact your workspace administrator immediately or initiate an account recovery.</p>'
+            f'</div>'
+            f'<p style="color: #94a3b8; font-size: 12px; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 12px;">This is an automated security notification from Veritas-RAG. Please do not reply to this email.</p>'
+            f'</div>'
+        )
+        return await self._send_email(to_email, subject, text_body, html_body=html_body)
+
     async def send_invitation_email(
         self,
         to_email: EmailStr,
@@ -274,6 +348,72 @@ class MockEmailProvider(EmailProvider):
             "expires_at": expires_at
         }
         return self._record_email("invitation", to_email, raw_token, details)
+
+    async def send_password_changed_notification_email(
+        self,
+        to_email: EmailStr,
+        event_time: datetime.datetime | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> bool:
+        now = event_time or datetime.datetime.now(datetime.UTC)
+        formatted_time = now.strftime("%Y-%m-%d %H:%M:%S UTC")
+        details = {
+            "event_time": formatted_time,
+            "subject": "Security Alert: Your Veritas-RAG Password Has Been Changed",
+        }
+        if ip_address:
+            details["ip_address"] = ip_address
+        if user_agent:
+            details["user_agent"] = user_agent
+        return self._record_email("password_changed_notification", to_email, "", details)
+
+
+class ConsoleEmailProvider(EmailProvider):
+    """Console/stdout-based email provider for local development."""
+
+    def __init__(self) -> None:
+        pass
+
+    async def send_verification_email(self, to_email: EmailStr, raw_token: str) -> bool:
+        logger.info("Console email: verification", to=to_email)
+        return True
+
+    async def send_password_reset_email(self, to_email: EmailStr, raw_token: str) -> bool:
+        logger.info("Console email: password reset", to=to_email)
+        return True
+
+    async def send_otp_email(self, to_email: EmailStr, raw_otp: str) -> bool:
+        logger.info("Console email: recovery OTP", to=to_email)
+        return True
+
+    async def send_security_code_email(self, to_email: EmailStr, raw_code: str) -> bool:
+        logger.info("Console email: security code", to=to_email)
+        return True
+
+    async def send_password_changed_notification_email(
+        self,
+        to_email: EmailStr,
+        event_time: datetime.datetime | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> bool:
+        now = event_time or datetime.datetime.now(datetime.UTC)
+        logger.info("Console email: password changed notification", to=to_email, event_time=str(now))
+        return True
+
+    async def send_invitation_email(
+        self,
+        to_email: EmailStr,
+        raw_token: str,
+        workspace_name: str,
+        role: str,
+        inviter_name: str | None = None,
+        custom_message: str | None = None,
+        expires_at: str | None = None,
+    ) -> bool:
+        logger.info("Console email: invitation", to=to_email, workspace=workspace_name, role=role)
+        return True
 
 def get_email_provider() -> EmailProvider:
     """Factory to retrieve the active email provider."""
