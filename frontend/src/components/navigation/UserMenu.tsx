@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Link, useNavigate } from 'react-router-dom'
-import { LogOut, User as UserIcon, Settings, LayoutDashboard } from 'lucide-react'
+import { LogOut, Settings, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { getAssetUrl } from '@/api/client'
 
@@ -47,13 +47,6 @@ export function UserMenu() {
 
           <DropdownMenu.Item className="flex cursor-default select-none items-center rounded-sm text-sm outline-none hover:bg-muted focus:bg-muted" asChild>
             <Link to="/settings/profile" className="flex items-center px-2 py-1.5 w-full">
-              <UserIcon className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </Link>
-          </DropdownMenu.Item>
-
-          <DropdownMenu.Item className="flex cursor-default select-none items-center rounded-sm text-sm outline-none hover:bg-muted focus:bg-muted" asChild>
-            <Link to="/settings" className="flex items-center px-2 py-1.5 w-full">
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </Link>
