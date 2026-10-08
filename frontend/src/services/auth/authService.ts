@@ -79,6 +79,32 @@ export const authService = {
     })
   },
 
+  async requestChangePasswordCode(): Promise<{ message: string }> {
+    const response = await post<{ success: boolean; data: { message: string } }>(
+      '/auth/change-password/request-code'
+    )
+    return response.data
+  },
+
+  async verifyChangePasswordCode(code: string): Promise<{ change_token: string; expires_in_seconds: number }> {
+    const response = await post<{
+      success: boolean
+      data: { change_token: string; expires_in_seconds: number }
+    }>('/auth/change-password/verify-code', { code })
+    return response.data
+  },
+
+  async completeChangePassword(changeToken: string, newPassword: string): Promise<{ message: string }> {
+    const response = await post<{ success: boolean; data: { message: string } }>(
+      '/auth/change-password/complete',
+      {
+        change_token: changeToken,
+        new_password: newPassword,
+      }
+    )
+    return response.data
+  },
+
   async createJoinIntent(payload: {
     workspace_id?: string;
     join_code?: string;
