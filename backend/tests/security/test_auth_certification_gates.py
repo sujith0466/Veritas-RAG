@@ -266,6 +266,66 @@ async def test_gate_g11_password_lifecycle():
 
 
 @pytest.mark.asyncio
+async def test_gate_g11b_security_code_password_lifecycle():
+    """G11b: Authenticated security-code password change lifecycle and session revocation."""
+    from unittest.mock import AsyncMock, patch
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        email = f"pwd_sec_code_{uuid.uuid4().hex[:8]}@example.com"
+        user_info = await register_and_login(client, email)
+        token = user_info["access_token"]
+        refresh_token = user_info["refresh_token"]
+
+        with patch("backend.services.auth.password_reset_service.get_email_provider") as mock_email_fn:
+            mock_provider = AsyncMock()
+            mock_provider.send_security_code_email = AsyncMock(return_value=True)
+            mock_email_fn.return_value = mock_provider
+
+            # Step 1: Request code
+            req_res = await client.post(
+                "/api/v1/auth/change-password/request-code",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert req_res.status_code == 200
+            assert mock_provider.send_security_code_email.call_count == 1
+            _, raw_code = mock_provider.send_security_code_email.call_args[0]
+
+            # Step 2: Verify code -> get change_token
+            verify_res = await client.post(
+                "/api/v1/auth/change-password/verify-code",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"code": raw_code},
+            )
+            assert verify_res.status_code == 200
+            change_token = verify_res.json()["data"]["change_token"]
+            assert change_token
+
+            # Step 3: Complete password change
+            complete_res = await client.post(
+                "/api/v1/auth/change-password/complete",
+                headers={"Authorization": f"Bearer {token}"},
+                json={
+                    "change_token": change_token,
+                    "new_password": "NewSecuredPassword789!",
+                },
+            )
+            assert complete_res.status_code == 200
+
+            # Step 4: Verify old session & refresh token are revoked
+            if refresh_token:
+                client.cookies.set("refresh_token", refresh_token)
+                refresh_res = await client.post("/api/v1/auth/refresh")
+                assert refresh_res.status_code in [400, 401]
+
+            # Verify login with new password succeeds
+            login_res = await client.post(
+                "/api/v1/auth/login",
+                json={"email": email, "password": "NewSecuredPassword789!"},
+            )
+            assert login_res.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_gate_g12_email_verification():
     """G12: Email verification token lifecycle."""
     from backend.services.auth.email_verification_service import EmailVerificationService
