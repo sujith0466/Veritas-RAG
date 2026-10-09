@@ -34,10 +34,15 @@ from backend.core.exceptions.auth import AuthenticationException
 app = create_app()
 
 
+def make_synthetic_test_password(label: str = "Pwd") -> str:
+    """Generate an ephemeral synthetic test password meeting policy without hardcoded literals."""
+    return f"Synth_{label}_{uuid.uuid4().hex[:10]}!Aa9"
+
+
 async def create_test_user():
     session_factory = get_session_factory()
     unique_email = f"concurrency_{uuid.uuid4().hex[:8]}@example.com"
-    initial_password = "InitialPassword123!"
+    initial_password = make_synthetic_test_password("Init")
     user_id = uuid.uuid4()
     workspace_id = uuid.uuid4()
     rand_hex = uuid.uuid4().hex[:6]
@@ -208,8 +213,8 @@ async def test_path_b_simultaneous_race_rejection():
             access_token, change_token = await get_authenticated_path_b_token(client, user)
             headers = {"Authorization": f"Bearer {access_token}"}
 
-            new_password_a = "WinningPassword123!"
-            new_password_b = "LosingPassword123!"
+            new_password_a = make_synthetic_test_password("WinA")
+            new_password_b = make_synthetic_test_password("LoseB")
 
             # Dispatch two simultaneous requests with zero delay
             res1, res2 = await asyncio.gather(
@@ -266,11 +271,15 @@ async def test_path_b_sequential_replay_rejection():
             access_token, change_token = await get_authenticated_path_b_token(client, user)
             headers = {"Authorization": f"Bearer {access_token}"}
 
+            valid_pwd = make_synthetic_test_password("PathBValid")
+            replay_pwd_1 = make_synthetic_test_password("PathBReplay1")
+            replay_pwd_2 = make_synthetic_test_password("PathBReplay2")
+
             # Attempt 1: Valid change succeeds
             res1 = await client.post(
                 "/api/v1/auth/change-password/complete",
                 headers=headers,
-                json={"change_token": change_token, "new_password": "NewPathBPassword123!"},
+                json={"change_token": change_token, "new_password": valid_pwd},
             )
             assert res1.status_code == 200
             new_access_token = res1.json()["data"]["access_token"]
@@ -280,7 +289,7 @@ async def test_path_b_sequential_replay_rejection():
             res2 = await client.post(
                 "/api/v1/auth/change-password/complete",
                 headers=new_headers,
-                json={"change_token": change_token, "new_password": "AnotherPassword123!"},
+                json={"change_token": change_token, "new_password": replay_pwd_1},
             )
             assert res2.status_code == 401
             assert "Invalid, expired, or previously consumed credential" in res2.text
@@ -289,7 +298,7 @@ async def test_path_b_sequential_replay_rejection():
             res3 = await client.post(
                 "/api/v1/auth/change-password/complete",
                 headers=headers,
-                json={"change_token": change_token, "new_password": "YetAnotherPassword123!"},
+                json={"change_token": change_token, "new_password": replay_pwd_2},
             )
             assert res3.status_code == 401
             assert "revoked" in res3.text.lower()
@@ -329,11 +338,14 @@ async def test_path_b_precommit_validation_rollback_and_retention():
                 assert u is not None
                 assert u.password_reset_token_hash == token_hash, "Token should be preserved in DB after 400 rollback"
 
+            valid_pwd = make_synthetic_test_password("PathBLegit")
+            replay_pwd = make_synthetic_test_password("PathBReplay")
+
             # Request 2: Retry with a valid new password using the SAME change_token -> 200 OK
             res2 = await client.post(
                 "/api/v1/auth/change-password/complete",
                 headers=headers,
-                json={"change_token": change_token, "new_password": "LegitimateNewPassword123!"},
+                json={"change_token": change_token, "new_password": valid_pwd},
             )
             assert res2.status_code == 200
             assert "Password changed successfully" in res2.json()["data"]["message"]
@@ -342,7 +354,7 @@ async def test_path_b_precommit_validation_rollback_and_retention():
             res3 = await client.post(
                 "/api/v1/auth/change-password/complete",
                 headers=headers,
-                json={"change_token": change_token, "new_password": "YetAnotherPassword123!"},
+                json={"change_token": change_token, "new_password": replay_pwd},
             )
             assert res3.status_code == 401
     finally:
@@ -360,7 +372,8 @@ async def test_path_b_ambiguous_commit_server_committed_handling():
 
     raw_token = "ambiguous-test-token-xyz-123"
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-    new_password = "CommittedNewPassword123!"
+    new_password = make_synthetic_test_password("PathBCommit")
+    retry_password = make_synthetic_test_password("PathBRetry")
 
     # Simulate token in DB
     async with session_factory() as session:
@@ -387,7 +400,7 @@ async def test_path_b_ambiguous_commit_server_committed_handling():
         async with session_factory() as session:
             service = PasswordResetService(session)
             with pytest.raises(Exception) as exc:
-                await service.complete_password_change(user["id"], raw_token, "RetryPassword123!")
+                await service.complete_password_change(user["id"], raw_token, retry_password)
             assert "Invalid, expired, or previously consumed credential" in str(exc.value)
 
         # User logs in with new password successfully
@@ -413,7 +426,7 @@ async def test_path_b_ambiguous_commit_server_aborted_handling():
 
     raw_token = "ambiguous-aborted-token-xyz-456"
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-    new_password = "AbortedRetryPassword123!"
+    new_password = make_synthetic_test_password("PathBAbort")
 
     # Simulate token in DB
     async with session_factory() as session:
@@ -479,9 +492,12 @@ async def test_path_b_redis_outage_resilience():
             service1.redis = None
             service2.redis = None
 
+            pwd_a = make_synthetic_test_password("PathBOutageWin")
+            pwd_b = make_synthetic_test_password("PathBOutageLose")
+
             results = await asyncio.gather(
-                service1.complete_password_change(user["id"], raw_token, "WinningPwd123!"),
-                service2.complete_password_change(user["id"], raw_token, "LosingPwd123!"),
+                service1.complete_password_change(user["id"], raw_token, pwd_a),
+                service2.complete_password_change(user["id"], raw_token, pwd_b),
                 return_exceptions=True,
             )
 
@@ -507,6 +523,8 @@ async def test_path_b_post_commit_email_failsafe_isolation():
             access_token, change_token = await get_authenticated_path_b_token(client, user)
             headers = {"Authorization": f"Bearer {access_token}"}
 
+            new_password = make_synthetic_test_password("PathBEmailSafe")
+
             mock_provider = AsyncMock()
             mock_provider.send_password_changed_notification_email = AsyncMock(side_effect=RuntimeError("SMTP Timeout"))
 
@@ -514,7 +532,7 @@ async def test_path_b_post_commit_email_failsafe_isolation():
                 res = await client.post(
                     "/api/v1/auth/change-password/complete",
                     headers=headers,
-                    json={"change_token": change_token, "new_password": "EmailFailSafePassword123!"},
+                    json={"change_token": change_token, "new_password": new_password},
                 )
                 assert res.status_code == 200, res.text
                 assert "Password changed successfully" in res.json()["data"]["message"]
@@ -524,7 +542,7 @@ async def test_path_b_post_commit_email_failsafe_isolation():
             async with session_factory() as session:
                 repo = UserRepository(session)
                 u = await repo.get_by_id(user["id"])
-                assert verify_password("EmailFailSafePassword123!", u.hashed_password)
+                assert verify_password(new_password, u.hashed_password)
     finally:
         await cleanup_test_user(user["id"], user["workspace_id"])
 
@@ -582,8 +600,8 @@ async def test_forgot_password_simultaneous_race_rejection():
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             reset_token = await get_forgot_password_reset_token(client, user["email"])
 
-            new_password_a = "WinningResetPassword123!"
-            new_password_b = "LosingResetPassword123!"
+            new_password_a = make_synthetic_test_password("FPWinA")
+            new_password_b = make_synthetic_test_password("FPLoseB")
 
             res1, res2 = await asyncio.gather(
                 client.post(
@@ -622,15 +640,18 @@ async def test_forgot_password_sequential_replay_rejection():
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             reset_token = await get_forgot_password_reset_token(client, user["email"])
 
+            reset_password = make_synthetic_test_password("FPReset")
+            replay_password = make_synthetic_test_password("FPReplay")
+
             res1 = await client.post(
                 "/api/v1/auth/password-reset/complete",
-                json={"email": user["email"], "reset_token": reset_token, "new_password": "BrandNewResetPwd123!"},
+                json={"email": user["email"], "reset_token": reset_token, "new_password": reset_password},
             )
             assert res1.status_code == 200
 
             res2 = await client.post(
                 "/api/v1/auth/password-reset/complete",
-                json={"email": user["email"], "reset_token": reset_token, "new_password": "ReplayResetPwd123!"},
+                json={"email": user["email"], "reset_token": reset_token, "new_password": replay_password},
             )
             assert res2.status_code == 401
     finally:
@@ -653,10 +674,12 @@ async def test_forgot_password_post_commit_email_failsafe_isolation():
             mock_provider = AsyncMock()
             mock_provider.send_password_changed_notification_email = AsyncMock(side_effect=RuntimeError("SMTP Server Down"))
 
+            new_password = make_synthetic_test_password("FPEmailSafe")
+
             with patch("backend.services.auth.password_reset_service.get_email_provider", return_value=mock_provider):
                 res = await client.post(
                     "/api/v1/auth/password-reset/complete",
-                    json={"email": user["email"], "reset_token": reset_token, "new_password": "PostCommitEmailPwd123!"},
+                    json={"email": user["email"], "reset_token": reset_token, "new_password": new_password},
                 )
                 assert res.status_code == 200, res.text
 
@@ -664,7 +687,7 @@ async def test_forgot_password_post_commit_email_failsafe_isolation():
             async with session_factory() as session:
                 repo = UserRepository(session)
                 u = await repo.get_by_id(user["id"])
-                assert verify_password("PostCommitEmailPwd123!", u.hashed_password)
+                assert verify_password(new_password, u.hashed_password)
     finally:
         await cleanup_test_user(user["id"], user["workspace_id"])
 
@@ -690,12 +713,16 @@ async def test_forgot_password_precommit_validation_rollback_and_retention():
         await session.commit()
 
     try:
+        failed_pwd = make_synthetic_test_password("FPFail")
+        success_pwd = make_synthetic_test_password("FPSuccess")
+        replay_pwd = make_synthetic_test_password("FPReplay")
+
         # Request 1: Pre-commit failure during password hashing / execution
         async with session_factory() as session:
             service = PasswordResetService(session)
             with patch("backend.services.auth.password_reset_service.get_password_hash", side_effect=RuntimeError("Hashing engine failure")):
                 with pytest.raises(RuntimeError):
-                    await service.complete_password_reset(user["email"], raw_token, "NewValidPassword123!")
+                    await service.complete_password_reset(user["email"], raw_token, failed_pwd)
 
         # Independent DB inspection: Token is still preserved in DB because of rollback
         async with session_factory() as session:
@@ -706,20 +733,20 @@ async def test_forgot_password_precommit_validation_rollback_and_retention():
         # Request 2: Retry succeeds with the same reset token
         async with session_factory() as session:
             service = PasswordResetService(session)
-            await service.complete_password_reset(user["email"], raw_token, "SuccessfullyResetPassword123!")
+            await service.complete_password_reset(user["email"], raw_token, success_pwd)
 
         # Independent DB inspection: Token consumed, password updated
         async with session_factory() as session:
             repo = UserRepository(session)
             u = await repo.get_by_id(user["id"])
             assert u.password_reset_token_hash is None
-            assert verify_password("SuccessfullyResetPassword123!", u.hashed_password)
+            assert verify_password(success_pwd, u.hashed_password)
 
         # Request 3: Subsequent attempt with same token fails with AuthenticationException (401)
         async with session_factory() as session:
             service = PasswordResetService(session)
             with pytest.raises(AuthenticationException):
-                await service.complete_password_reset(user["email"], raw_token, "AnotherPassword123!")
+                await service.complete_password_reset(user["email"], raw_token, replay_pwd)
     finally:
         await cleanup_test_user(user["id"], user["workspace_id"])
 
@@ -735,7 +762,8 @@ async def test_forgot_password_ambiguous_commit_server_committed_handling():
 
     raw_token = "fp-ambiguous-committed-xyz-789"
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-    new_password = "FPCommittedPassword123!"
+    new_password = make_synthetic_test_password("FPCommit")
+    retry_pwd = make_synthetic_test_password("FPRetry")
 
     # Simulate token in DB
     async with session_factory() as session:
@@ -762,7 +790,7 @@ async def test_forgot_password_ambiguous_commit_server_committed_handling():
         async with session_factory() as session:
             service = PasswordResetService(session)
             with pytest.raises(AuthenticationException):
-                await service.complete_password_reset(user["email"], raw_token, "FPRetryPassword123!")
+                await service.complete_password_reset(user["email"], raw_token, retry_pwd)
 
         # User logs in with new password successfully
         transport = ASGITransport(app=app)
@@ -787,7 +815,7 @@ async def test_forgot_password_ambiguous_commit_server_aborted_handling():
 
     raw_token = "fp-ambiguous-aborted-xyz-987"
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
-    new_password = "FPAbortedRetryPassword123!"
+    new_password = make_synthetic_test_password("FPAbort")
 
     # Simulate token in DB
     async with session_factory() as session:
@@ -851,9 +879,12 @@ async def test_forgot_password_redis_outage_resilience():
             service1.redis = None
             service2.redis = None
 
+            pwd_a = make_synthetic_test_password("FPOutageWin")
+            pwd_b = make_synthetic_test_password("FPOutageLose")
+
             results = await asyncio.gather(
-                service1.complete_password_reset(user["email"], raw_token, "WinningFPPwd123!"),
-                service2.complete_password_reset(user["email"], raw_token, "LosingFPPwd123!"),
+                service1.complete_password_reset(user["email"], raw_token, pwd_a),
+                service2.complete_password_reset(user["email"], raw_token, pwd_b),
                 return_exceptions=True,
             )
 
