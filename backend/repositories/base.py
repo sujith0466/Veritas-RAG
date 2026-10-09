@@ -25,12 +25,14 @@ class BaseRepository(Generic[ModelType]):
         self.session = session
         self.model_class = model_class
 
-    async def get_by_id(self, entity_id: uuid.UUID) -> ModelType | None:
-        """Fetch a single active (non-deleted) entity by its UUID."""
+    async def get_by_id(self, entity_id: uuid.UUID, for_update: bool = False) -> ModelType | None:
+        """Fetch a single active (non-deleted) entity by its UUID, optionally acquiring an exclusive row lock."""
         stmt = select(self.model_class).where(
             self.model_class.id == entity_id,
             self.model_class.is_deleted.is_(False),
         )
+        if for_update:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

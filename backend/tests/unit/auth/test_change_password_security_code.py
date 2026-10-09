@@ -169,6 +169,8 @@ async def test_complete_password_change_success():
 
     raw_token = "valid-ephemeral-change-token-12345"
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    mock_user.password_reset_token_hash = token_hash
+    mock_user.password_reset_token_expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=15)
 
     mock_session = AsyncMock()
     mock_redis = AsyncMock()
@@ -185,7 +187,8 @@ async def test_complete_password_change_success():
     await service.complete_password_change(user_id, raw_token, "BrandNewPassword123!")
 
     assert service._execute_password_reset.call_count == 1
-    assert mock_redis.delete.call_count == 1
+    call_kwargs = service._execute_password_reset.call_args.kwargs
+    assert call_kwargs["caller_context"]["change_token_hash"] == token_hash
 
 
 @pytest.mark.asyncio

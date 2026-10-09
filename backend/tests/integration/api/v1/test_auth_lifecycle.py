@@ -90,16 +90,16 @@ async def test_auth_full_lifecycle():
 
         new_password = "NewPassword123!"
 
-        # 7a. Legacy current-password bypass is rejected with 410 Gone
-        legacy_attempt = await client.post(
+        # 7a. Path A: Incorrect current password is rejected with 401 Unauthorized
+        invalid_pwd_attempt = await client.post(
             "/api/v1/auth/change-password",
             json={
-                "current_password": password,
+                "current_password": "WrongPassword999!",
                 "new_password": new_password
             },
             headers={"Authorization": f"Bearer {access_token_3}"}
         )
-        assert legacy_attempt.status_code == 410
+        assert invalid_pwd_attempt.status_code == 401
 
         # 7b. Authorized security-code flow
         from unittest.mock import AsyncMock, patch

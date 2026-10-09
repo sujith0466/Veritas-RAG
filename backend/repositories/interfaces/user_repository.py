@@ -15,8 +15,8 @@ class IUserRepository(ABC):
     """Abstract interface for user repository operations."""
 
     @abstractmethod
-    async def get_by_id(self, entity_id: uuid.UUID) -> User | None:
-        """Fetch a user by primary key ID."""
+    async def get_by_id(self, entity_id: uuid.UUID, for_update: bool = False) -> User | None:
+        """Fetch a user by primary key ID, optionally acquiring an exclusive row lock."""
         ...
 
     @abstractmethod
@@ -40,8 +40,8 @@ class IUserRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> User | None:
-        """Fetch an active user by their email address."""
+    async def get_by_email(self, email: str, for_update: bool = False) -> User | None:
+        """Fetch an active user by their email address, optionally acquiring an exclusive row lock."""
         pass
 
     @abstractmethod

@@ -533,43 +533,54 @@ class PasswordResetService:
     ) -> None:
         """Validates the 256-bit CSPRNG reset token and completes password reset."""
         email_normalized = email.lower().strip()
-        user = await self.user_repo.get_by_email(email_normalized)
+        try:
+            user = await self.user_repo.get_by_email(email_normalized, for_update=True)
 
-        if not user or not user.is_active or user.is_deleted:
-            raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
+            if not user or not user.is_active or user.is_deleted:
+                raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
 
-        if not user.password_reset_token_hash or not user.password_reset_token_expires_at:
-            raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
+            if not user.password_reset_token_hash or not user.password_reset_token_expires_at:
+                raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
 
-        now = datetime.datetime.now(datetime.UTC)
-        if now > user.password_reset_token_expires_at.replace(tzinfo=datetime.UTC):
+            now = datetime.datetime.now(datetime.UTC)
+            if now > user.password_reset_token_expires_at.replace(tzinfo=datetime.UTC):
+                user.password_reset_token_hash = None
+                user.password_reset_token_expires_at = None
+                await self.session.commit()
+                raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
+
+            incoming_token_hash = hashlib.sha256(reset_token.encode("utf-8")).hexdigest()
+            if not secrets.compare_digest(incoming_token_hash, user.password_reset_token_hash):
+                raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
+
+            # Clear token fields in DB under lock
             user.password_reset_token_hash = None
             user.password_reset_token_expires_at = None
-            await self.session.commit()
-            raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
 
-        incoming_token_hash = hashlib.sha256(reset_token.encode("utf-8")).hexdigest()
-        if not secrets.compare_digest(incoming_token_hash, user.password_reset_token_hash):
-            raise AuthenticationException("Invalid, expired, or previously consumed reset credential")
+            # Mark OTP as used if present
+            otp_entry = await self._get_active_otp(user.id)
+            if otp_entry:
+                otp_entry.is_used = True
 
-        # Clear token fields
-        user.password_reset_token_hash = None
-        user.password_reset_token_expires_at = None
-
-        # Mark OTP as used if present
-        otp_entry = await self._get_active_otp(user.id)
-        if otp_entry:
-            otp_entry.is_used = True
-
-        context = dict(caller_context or {})
-        context.setdefault("path", "PASSWORD_RESET_RECOVERY")
-        await self._execute_password_reset(
-            user,
-            new_password,
-            action="password_reset.completed",
-            caller_context=context,
-        )
-        logger.info("Password reset completed successfully via reset token", user_id=str(user.id))
+            context = dict(caller_context or {})
+            context.setdefault("path", "PASSWORD_RESET_RECOVERY")
+            await self._execute_password_reset(
+                user,
+                new_password,
+                action="password_reset.completed",
+                caller_context=context,
+            )
+            logger.info("Password reset completed successfully via reset token", user_id=str(user.id))
+        except Exception as original_exc:
+            try:
+                await self.session.rollback()
+            except Exception as rollback_exc:
+                logger.warning(
+                    "Rollback attempt failed following database transaction error",
+                    rollback_error=str(rollback_exc),
+                    original_error=str(original_exc),
+                )
+            raise
 
     async def reset_password_with_otp(
         self,
@@ -834,52 +845,65 @@ class PasswordResetService:
         caller_context: dict | None = None,
     ) -> tuple[str, str]:
         """Validates change_token and updates password for authenticated user (Path B)."""
-        user = await self.user_repo.get_by_id(user_id)
-        if not user or not user.is_active or user.is_deleted:
-            raise AuthenticationException("Invalid, expired, or previously consumed credential")
+        try:
+            user = await self.user_repo.get_by_id(user_id, for_update=True)
+            if not user or not user.is_active or user.is_deleted:
+                raise AuthenticationException("Invalid, expired, or previously consumed credential")
 
-        token_hash = hashlib.sha256(change_token.encode("utf-8")).hexdigest()
+            token_hash = hashlib.sha256(change_token.encode("utf-8")).hexdigest()
 
-        token_valid = False
-        if self.redis:
-            redis_key = f"auth:change_pwd_token:{token_hash}"
-            stored_user_id = await self.redis.get(redis_key)
-            if stored_user_id and stored_user_id == str(user.id):
-                token_valid = True
-                await self.redis.delete(redis_key)
-
-        if not token_valid:
+            # Authoritative single-use validation under PostgreSQL row lock
+            now = datetime.datetime.now(datetime.UTC)
             if (
-                user.password_reset_token_hash
-                and secrets.compare_digest(token_hash, user.password_reset_token_hash)
-                and user.password_reset_token_expires_at
-                and datetime.datetime.now(datetime.UTC) <= user.password_reset_token_expires_at.replace(tzinfo=datetime.UTC)
+                not user.password_reset_token_hash
+                or not secrets.compare_digest(token_hash, user.password_reset_token_hash)
+                or not user.password_reset_token_expires_at
+                or now > user.password_reset_token_expires_at.replace(tzinfo=datetime.UTC)
             ):
-                token_valid = True
+                raise AuthenticationException("Invalid, expired, or previously consumed credential")
 
-        if not token_valid:
-            raise AuthenticationException("Invalid, expired, or previously consumed credential")
+            # Redis consistency check (accelerator tier)
+            if self.redis:
+                redis_key = f"auth:change_pwd_token:{token_hash}"
+                try:
+                    stored_user_id = await self.redis.get(redis_key)
+                    if stored_user_id and stored_user_id != str(user.id):
+                        raise AuthenticationException("Invalid, expired, or previously consumed credential")
+                except AuthenticationException:
+                    raise
+                except Exception as redis_exc:
+                    logger.warning("Redis lookup error for change token", error=str(redis_exc))
 
-        # Clear token fields in DB
-        user.password_reset_token_hash = None
-        user.password_reset_token_expires_at = None
+            from backend.core.security.password import verify_password
+            if user.hashed_password and isinstance(user.hashed_password, str):
+                if verify_password(new_password, user.hashed_password):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="New password cannot be the same as current password.",
+                    )
 
-        from backend.core.security.password import verify_password
-        if user.hashed_password and isinstance(user.hashed_password, str):
-            if verify_password(new_password, user.hashed_password):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="New password cannot be the same as current password.",
+            # Clear token fields in DB under lock
+            user.password_reset_token_hash = None
+            user.password_reset_token_expires_at = None
+
+            context = dict(caller_context or {})
+            context["path"] = "SECURITY_CODE"
+            context["change_token_hash"] = token_hash
+
+            return await self._execute_password_reset(
+                user=user,
+                new_password=new_password,
+                action="password.changed",
+                caller_family_id=caller_family_id or str(uuid.uuid4()),
+                caller_context=context,
+            )
+        except Exception as original_exc:
+            try:
+                await self.session.rollback()
+            except Exception as rollback_exc:
+                logger.warning(
+                    "Rollback attempt failed following database transaction error",
+                    rollback_error=str(rollback_exc),
+                    original_error=str(original_exc),
                 )
-
-        context = dict(caller_context or {})
-        context["path"] = "SECURITY_CODE"
-        context["change_token_hash"] = token_hash
-
-        return await self._execute_password_reset(
-            user=user,
-            new_password=new_password,
-            action="password.changed",
-            caller_family_id=caller_family_id or str(uuid.uuid4()),
-            caller_context=context,
-        )
+            raise

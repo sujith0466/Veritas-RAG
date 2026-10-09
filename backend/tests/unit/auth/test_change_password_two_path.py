@@ -259,6 +259,8 @@ async def test_path_b_change_token_single_use(mock_user, mock_session):
 
     raw_token = "single-use-change-token-xyz-12345"
     token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    mock_user.password_reset_token_hash = token_hash
+    mock_user.password_reset_token_expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=15)
 
     # Redis has token on first attempt
     mock_redis.get = AsyncMock(return_value=str(mock_user.id))

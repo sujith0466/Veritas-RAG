@@ -17,12 +17,14 @@ class UserRepository(BaseRepository[User], IUserRepository):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, User)
 
-    async def get_by_email(self, email: str) -> User | None:
-        """Fetch an active user by their email address."""
+    async def get_by_email(self, email: str, for_update: bool = False) -> User | None:
+        """Fetch an active user by their email address, optionally acquiring an exclusive row lock."""
         stmt = select(User).where(
             User.email == email,
             User.is_deleted.is_(False),
         )
+        if for_update:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
