@@ -72,30 +72,30 @@ export const authService = {
     return await this.completePasswordReset(email, reset_token, newPassword)
   },
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string; access_token?: string }> {
+    const res = await post<any>('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
+    return res?.data ?? res
+  },
+
   async requestChangePasswordCode(): Promise<{ message: string }> {
-    const response = await post<{ success: boolean; data: { message: string } }>(
-      '/auth/change-password/request-code'
-    )
-    return response.data
+    const res = await post<any>('/auth/change-password/request-code')
+    return res?.data ?? res
   },
 
   async verifyChangePasswordCode(code: string): Promise<{ change_token: string; expires_in_seconds: number }> {
-    const response = await post<{
-      success: boolean
-      data: { change_token: string; expires_in_seconds: number }
-    }>('/auth/change-password/verify-code', { code })
-    return response.data
+    const res = await post<any>('/auth/change-password/verify-code', { code })
+    return res?.data ?? res
   },
 
-  async completeChangePassword(changeToken: string, newPassword: string): Promise<{ message: string }> {
-    const response = await post<{ success: boolean; data: { message: string } }>(
-      '/auth/change-password/complete',
-      {
-        change_token: changeToken,
-        new_password: newPassword,
-      }
-    )
-    return response.data
+  async completeChangePassword(changeToken: string, newPassword: string): Promise<{ message: string; access_token?: string }> {
+    const res = await post<any>('/auth/change-password/complete', {
+      change_token: changeToken,
+      new_password: newPassword,
+    })
+    return res?.data ?? res
   },
 
   async createJoinIntent(payload: {

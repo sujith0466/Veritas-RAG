@@ -11,6 +11,7 @@ interface AuthStoreState {
 interface AuthStoreActions {
   setStatus: (status: AuthStatus) => void
   setAuth: (user: UserContext, token: string) => void
+  setToken: (token: string) => void
   clearAuth: () => void
   setErrorAuth: (token: string, error: AuthError) => void
   updateUser: (user: Partial<UserContext>) => void
@@ -29,6 +30,9 @@ export const useAuthStore = create<AuthStoreState & AuthStoreActions>()((set) =>
 
   setAuth: (user, token) =>
     set({ status: 'AUTHENTICATED', user, token, error: undefined }),
+
+  setToken: (token) =>
+    set({ token, status: 'AUTHENTICATED', error: undefined }),
 
   clearAuth: () =>
     set({ ...initialState, status: 'UNAUTHENTICATED' }),
