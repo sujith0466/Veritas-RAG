@@ -87,6 +87,7 @@ playwright/.cache/
 .hypothesis/
 .tox/
 nosetests.xml
+backend/tests/integration/api/v1/test_concurrent_password_change.py
 
 # ------------------------------------------------------------------------------
 # Logs, Databases, Dumps & Runtime Caches
