@@ -421,6 +421,7 @@ class PasswordResetService:
                 PasswordRecoveryOTP.is_invalidated.is_(False),
             )
             .order_by(PasswordRecoveryOTP.requested_at.desc())
+            .with_for_update()
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()
@@ -497,6 +498,7 @@ class PasswordResetService:
 
         # Code is valid
         otp_entry.verified_at = now
+        otp_entry.is_used = True
 
         # Generate ephemeral 256-bit CSPRNG reset token
         raw_reset_token = secrets.token_urlsafe(32)

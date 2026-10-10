@@ -141,8 +141,12 @@ class AuthService:
 
         incoming_hash = hashlib.sha256(raw_refresh_token.encode("utf-8")).hexdigest()
 
-        # Find the session
-        stmt = select(UserSession).where(UserSession.refresh_token_hash == incoming_hash)
+        # Find the session with row-level lock to prevent concurrent duplicate rotation
+        stmt = (
+            select(UserSession)
+            .where(UserSession.refresh_token_hash == incoming_hash)
+            .with_for_update()
+        )
         result = await self.session.execute(stmt)
         session_entry = result.scalar_one_or_none()
 
