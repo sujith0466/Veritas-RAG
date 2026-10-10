@@ -98,11 +98,29 @@ apiClient.interceptors.response.use(
       return Promise.reject(apiError)
     }
 
-    // Network / timeout error
+    // Response returned without structured JSON error envelope (e.g. Nginx 502/503/504 HTML, 401 basic, timeout)
+    const status = error.response ? error.response.status : 0
+    let code = 'NETWORK_ERROR'
+    let message = error.message || 'Network error'
+
+    if (status === 502) {
+      code = 'GATEWAY_ERROR'
+      message = 'Bad Gateway: Backend server is starting up or temporarily unreachable'
+    } else if (status === 503) {
+      code = 'SERVICE_UNAVAILABLE'
+      message = 'Service Unavailable: Backend is temporarily overloaded'
+    } else if (status === 504) {
+      code = 'GATEWAY_TIMEOUT'
+      message = 'Gateway Timeout: Upstream server took too long to respond'
+    } else if (status === 401) {
+      code = 'UNAUTHORIZED'
+      message = 'Authentication required'
+    }
+
     const networkError = new ApiError(
-      error.message || 'Network error',
-      'NETWORK_ERROR',
-      0,
+      message,
+      code,
+      status,
       'unknown',
     )
     return Promise.reject(networkError)

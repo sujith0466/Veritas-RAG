@@ -4,6 +4,8 @@ import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { authService } from '@/services/auth/authService'
 
+import { ApiError } from '@/types'
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setStatus, setAuth, clearAuth, setErrorAuth, token } = useAuthStore()
   const initialMount = useRef(true)
@@ -30,8 +32,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             currentToken = await authService.refresh()
             // Temporarily store token for apiClient interceptor
             useAuthStore.setState({ token: currentToken })
-          } catch (e) {
-            if (mounted) clearAuth()
+          } catch (e: any) {
+            if (!mounted) return
+
+            // Server authoritatively rejected session (cookie missing, expired, revoked)
+            if (e instanceof ApiError && e.status === 401) {
+              clearAuth()
+              return
+            }
+
+            // Server is offline, starting up (502/503), timeout, or network disconnect
+            // Retain recoverability: enter BACKEND_UNAVAILABLE rather than clearing credentials!
+            useWorkspaceStore.getState().resetWorkspaceResolution()
+            setErrorAuth('', {
+              code: 'BACKEND_UNAVAILABLE',
+              message: e instanceof ApiError && e.isGatewayError()
+                ? 'Backend services are currently initializing. Reconnecting...'
+                : 'Unable to connect to the server. Checking connection...',
+              retryable: true,
+              timestamp: Date.now(),
+            })
             return
           }
         }
@@ -75,6 +95,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           clearAuth()
           useWorkspaceStore.getState().resetWorkspaceResolution()
+        }
+      } else if (event.data?.type === 'TOKEN_REFRESHED' && event.data?.token) {
+        if (mounted) {
+          try {
+            // Adopt token refreshed by another tab and sync profile
+            useAuthStore.setState({ token: event.data.token })
+            const userContext = await authService.fetchBackendProfile()
+            if (userContext.tenant_id) {
+              await useWorkspaceStore.getState().fetchCurrentWorkspace()
+            } else {
+              useWorkspaceStore.getState().resetWorkspaceResolution()
+            }
+            if (mounted) {
+              setAuth(userContext, event.data.token)
+            }
+          } catch (e) {
+            console.warn('Cross-tab token refresh sync failed:', e)
+          }
         }
       } else if (event.data?.type === 'DEMO_ROLE_SWITCHED' || event.data?.type === 'DEMO_ROLE_RESET') {
         if (mounted) {

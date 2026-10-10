@@ -10,29 +10,44 @@ export function BackendUnavailableBanner() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const { token, setAuth, error } = useAuthStore()
 
-  // Auto-retry polling every 15 seconds
+  // Auto-retry polling with backoff (capped at 15s)
   useEffect(() => {
     const interval = setInterval(() => {
       handleRetry()
-    }, 15000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [token])
 
   const handleRetry = async () => {
-    if (isRetrying || !token) return
+    if (isRetrying) return
     setIsRetrying(true)
     setErrorMsg(null)
 
     try {
-      // fetchBackendProfile will retry 3 times internally
+      let activeToken = token
+      if (!activeToken) {
+        // Cold-boot session restore: refresh access token first
+        activeToken = await authService.refresh()
+        useAuthStore.setState({ token: activeToken })
+      }
+
+      // Synchronize backend profile
       const userContext = await authService.fetchBackendProfile()
-      // If it succeeds, setAuth will clear the error state and transition to AUTHENTICATED
-      setAuth(userContext, token)
-    } catch (err: unknown) {
-      setErrorMsg('Still unable to connect to the server. Will keep trying.')
+      setAuth(userContext, activeToken)
+    } catch (err: any) {
+      if (err?.status === 401) {
+        // Server definitively rejected token (revoked or expired)
+        useAuthStore.getState().clearAuth()
+        return
+      }
+      setErrorMsg('Still unable to connect to the server. Will keep trying in the background.')
     } finally {
       setIsRetrying(false)
     }
+  }
+
+  const handleManualLogin = () => {
+    useAuthStore.getState().clearAuth()
   }
 
   return (
@@ -55,19 +70,28 @@ export function BackendUnavailableBanner() {
           </div>
         )}
 
-        <Button
-          variant="default"
-          size="lg"
-          onClick={handleRetry}
-          isLoading={isRetrying}
-          className="mt-8"
-        >
-          <RefreshCw className={`h-5 w-5 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
-          {isRetrying ? 'Connecting...' : 'Try Again Now'}
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center gap-3 mt-6">
+          <Button
+            variant="default"
+            size="lg"
+            onClick={handleRetry}
+            isLoading={isRetrying}
+          >
+            <RefreshCw className={`h-5 w-5 mr-2 ${isRetrying ? 'animate-spin' : ''}`} />
+            {isRetrying ? 'Connecting...' : 'Try Again Now'}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleManualLogin}
+          >
+            Sign in with Password
+          </Button>
+        </div>
 
         <p className="text-xs text-muted-foreground">
-          Auto-retrying in the background. You don't need to log in again.
+          Auto-retrying in the background. You don't need to log in again if your session is active.
         </p>
       </div>
     </PageTransition>

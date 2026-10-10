@@ -14,7 +14,9 @@ export function Navbar() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string>('')
 
-  const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
+  const status = useAuthStore((s) => s.status)
+  const isAuthenticated = status === 'AUTHENTICATED'
+  const isResolvingAuth = status === 'LOADING'
   const logout = useAuthStore((s) => s.clearAuth)
 
   const navigate = useNavigate()
@@ -138,7 +140,9 @@ export function Navbar() {
 
         {/* Actions */}
         <div className="hidden md:flex items-center space-x-4">
-          {!isAuthenticated ? (
+          {isResolvingAuth ? (
+            <div className="h-10 w-36 rounded-full bg-surface-elevated/50 animate-pulse border border-border/40" />
+          ) : !isAuthenticated ? (
             <MagneticButton variant="primary" onClick={handleLaunch} className="text-sm font-semibold h-10 px-6 rounded-full shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
               Launch Workspace
             </MagneticButton>

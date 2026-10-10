@@ -58,6 +58,10 @@ export class ApiError extends Error {
     return this.status === 0 || this.status >= 500
   }
 
+  isGatewayError(): boolean {
+    return this.status === 502 || this.status === 503 || this.status === 504
+  }
+
   isValidationError(): boolean {
     return this.status === 400 || this.status === 422
   }

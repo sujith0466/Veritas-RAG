@@ -4,6 +4,8 @@ import { get, post } from '@/api/wrapper'
 import type { UserContext } from '@/types'
 import type { LoginFormData, RegisterFormData } from '@/utils/validators'
 
+let inFlightRefreshPromise: Promise<string> | null = null
+
 export const authService = {
   async login(data: LoginFormData) {
     const response = await post<{ access_token: string }>('/auth/login', {
@@ -123,10 +125,64 @@ export const authService = {
     channel.close()
   },
 
-  async refresh() {
+  async refresh(): Promise<string> {
+    // 1. Check in-memory single-flight promise (Tier 1: intra-tab dedup)
+    if (inFlightRefreshPromise) {
+      return inFlightRefreshPromise
+    }
+
+    // 2. Check if Web Locks API is available (Tier 2: cross-tab coordination)
+    if (typeof navigator !== 'undefined' && navigator.locks && navigator.locks.request) {
+      inFlightRefreshPromise = new Promise<string>((resolve, reject) => {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+        navigator.locks.request(
+          'veritas_auth_refresh',
+          { signal: controller.signal },
+          async () => {
+            clearTimeout(timeoutId)
+            try {
+              const res = await this._executeRawRefresh()
+              resolve(res)
+            } catch (err) {
+              reject(err)
+            }
+          }
+        ).catch((err) => {
+          clearTimeout(timeoutId)
+          // Lock acquisition aborted or timed out — fail safely rather than executing concurrent unsafe rotation
+          reject(err)
+        })
+      }).finally(() => {
+        inFlightRefreshPromise = null
+      })
+
+      return inFlightRefreshPromise
+    }
+
+    // 3. Fallback for environments without Web Locks: memoized in-memory execution
+    inFlightRefreshPromise = this._executeRawRefresh().finally(() => {
+      inFlightRefreshPromise = null
+    })
+    return inFlightRefreshPromise
+  },
+
+  async _executeRawRefresh(): Promise<string> {
     // The refresh_token is sent automatically via httpOnly cookies
     const response = await post<{ access_token: string }>('/auth/refresh')
-    return response.access_token
+    const token = response.access_token
+
+    // Broadcast newly refreshed token to other listening tabs so they can synchronize without re-rotating
+    try {
+      const channel = new BroadcastChannel('auth_sync')
+      channel.postMessage({ type: 'TOKEN_REFRESHED', token })
+      channel.close()
+    } catch {
+      // Ignore broadcast errors in non-browser/test environments
+    }
+
+    return token
   },
 
   async fetchBackendProfile(): Promise<UserContext> {
