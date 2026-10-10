@@ -229,6 +229,31 @@ class PasswordResetService:
                     error=str(exc),
                 )
 
+        # Dispatch in-app security notification post-commit
+        if user.tenant_id:
+            try:
+                from backend.services.notification.notification_service import NotificationService
+                from backend.models.entities.notification import NotificationCategory, NotificationSeverity
+
+                notif_svc = NotificationService(self.session)
+                title = "Password Changed" if action == "password_change.completed" else "Password Reset Completed"
+                msg = "Your account password was updated successfully. Other active sessions were signed out."
+                await notif_svc.create_and_publish(
+                    tenant_id=user.tenant_id,
+                    user_id=user.id,
+                    title=title,
+                    message=msg,
+                    category=NotificationCategory.SECURITY.value,
+                    severity=NotificationSeverity.WARNING.value,
+                    action_url="/settings/security",
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to emit in-app security notification on password update",
+                    user_id=str(user.id),
+                    error=str(exc),
+                )
+
         logger.info("Authoritative password change executed successfully", user_id=str(user.id))
         return (new_access_token or "", new_raw_refresh or "")
 

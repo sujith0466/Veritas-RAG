@@ -98,13 +98,8 @@ class EventDispatcher:
 
                 settings = get_settings()
                 channel_name = f"workspace:{tenant_id}:notifications"
-                # We can't easily persist a single redis connection in the dispatcher without lifecycle management,
-                # so we instantiate one briefly or use a global one. For simplicity in this publish method, we connect briefly.
-                # In production, a singleton Redis pool should be used.
                 redis_client = aioredis.from_url(settings.redis.redis_url)
-                # Since publish is called in an async context, we must await it.
-                # Wait, this is an async function, but we don't want to block publish.
-                # asyncio.create_task is safe here.
+
                 async def _publish():
                     try:
                         await redis_client.publish(channel_name, json.dumps({
@@ -118,6 +113,53 @@ class EventDispatcher:
                 asyncio.create_task(_publish())
             except Exception as e:
                 logger.error("Failed to publish to Redis Pub/Sub", error=str(e))
+
+            # Persist In-App Notification in DB for durable inbox/history
+            async def _persist_notification_record():
+                try:
+                    import uuid
+                    from backend.core.database.session import async_session_factory
+                    from backend.services.notification.notification_service import NotificationService
+                    from backend.models.entities.notification import NotificationCategory, NotificationSeverity
+
+                    tenant_uuid = uuid.UUID(str(tenant_id)) if not isinstance(tenant_id, uuid.UUID) else tenant_id
+                    user_id_raw = getattr(event, "user_id", event_dict.get("user_id"))
+                    user_uuid = None
+                    if user_id_raw:
+                        try:
+                            user_uuid = uuid.UUID(str(user_id_raw))
+                        except Exception:
+                            user_uuid = None
+
+                    category = NotificationCategory.SYSTEM.value
+                    if "document" in event_type_name.lower():
+                        category = NotificationCategory.DOCUMENT.value
+                    elif "security" in event_type_name.lower() or "auth" in event_type_name.lower():
+                        category = NotificationCategory.SECURITY.value
+                    elif "workspace" in event_type_name.lower() or "member" in event_type_name.lower():
+                        category = NotificationCategory.WORKSPACE.value
+
+                    title = event_type_name.replace("_", " ").title()
+                    message = f"Event {event_type_name} recorded for workspace."
+                    if "document" in event_type_name.lower():
+                        doc_title = event_dict.get("title") or event_dict.get("document_id") or "Document"
+                        message = f"Document processing update: {doc_title}"
+
+                    async with async_session_factory() as session:
+                        service = NotificationService(session)
+                        await service.create_and_publish(
+                            tenant_id=tenant_uuid,
+                            user_id=user_uuid,
+                            category=category,
+                            severity=NotificationSeverity.INFO.value,
+                            title=title,
+                            message=message,
+                            payload_json=event_dict,
+                        )
+                except Exception as ex:
+                    logger.warning("Failed to persist domain event as in-app notification", error=str(ex))
+
+            asyncio.create_task(_persist_notification_record())
 
         if not handlers:
             logger.debug(

@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, status
 from pydantic import ValidationError
@@ -96,3 +96,117 @@ async def websocket_notifications(
         await pubsub.unsubscribe(channel_name)
         await pubsub.close()
         await redis_client.aclose()
+
+
+# --- REST Endpoints for Notification Center & Navbar Bell ---
+
+from backend.api.v1.schemas.notifications import (
+    NotificationActionResponse,
+    NotificationDTO,
+    NotificationListResponse,
+    UnreadCountResponse,
+)
+from backend.core.auth.context import UserContext
+from backend.core.dependencies.auth import get_current_user
+from backend.services.notification.notification_service import NotificationService
+import uuid
+
+
+def _to_uuid(val: Any) -> uuid.UUID:
+    if isinstance(val, uuid.UUID):
+        return val
+    try:
+        return uuid.UUID(str(val))
+    except (ValueError, TypeError):
+        return uuid.UUID("00000000-0000-0000-0000-000000000000")
+
+
+@router.get("", response_model=NotificationListResponse)
+async def list_notifications(
+    category: Optional[str] = Query(None, description="Filter by category (SYSTEM, SECURITY, DOCUMENT, WORKSPACE)"),
+    unread_only: bool = Query(False, description="Filter to only unread notifications"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> NotificationListResponse:
+    """Retrieve paginated in-app notifications for the authenticated user and workspace."""
+    service = NotificationService(session)
+    return await service.list_notifications(
+        tenant_id=_to_uuid(current_user.tenant_id),
+        user_id=current_user.id,
+        category=category,
+        unread_only=unread_only,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/unread-count", response_model=UnreadCountResponse)
+async def get_unread_count(
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> UnreadCountResponse:
+    """Retrieve accurate unread notification count for badge hydration."""
+    service = NotificationService(session)
+    return await service.get_unread_count(
+        tenant_id=_to_uuid(current_user.tenant_id),
+        user_id=current_user.id,
+    )
+
+
+@router.patch("/{notification_id}/read", response_model=NotificationDTO)
+async def mark_notification_as_read(
+    notification_id: uuid.UUID,
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> NotificationDTO:
+    """Mark a single notification as read."""
+    service = NotificationService(session)
+    result = await service.mark_as_read(
+        notification_id=notification_id,
+        tenant_id=_to_uuid(current_user.tenant_id),
+        user_id=current_user.id,
+    )
+    if not result:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found or access denied",
+        )
+    return result
+
+
+@router.post("/read-all", response_model=NotificationActionResponse)
+async def mark_all_as_read(
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> NotificationActionResponse:
+    """Mark all active notifications for the user as read."""
+    service = NotificationService(session)
+    return await service.mark_all_as_read(
+        tenant_id=_to_uuid(current_user.tenant_id),
+        user_id=current_user.id,
+    )
+
+
+@router.delete("/{notification_id}", response_model=NotificationActionResponse)
+async def dismiss_notification(
+    notification_id: uuid.UUID,
+    current_user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> NotificationActionResponse:
+    """Dismiss (soft delete) a notification."""
+    service = NotificationService(session)
+    result = await service.dismiss_notification(
+        notification_id=notification_id,
+        tenant_id=_to_uuid(current_user.tenant_id),
+        user_id=current_user.id,
+    )
+    if not result.success:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result.message,
+        )
+    return result
