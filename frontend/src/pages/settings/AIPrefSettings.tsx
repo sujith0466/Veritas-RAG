@@ -5,11 +5,9 @@ import {
   MessageSquare,
   Loader2,
   Sparkles,
-  Zap,
   Info,
   RotateCcw,
   CheckCircle2,
-  AlertCircle,
 } from 'lucide-react'
 import { Card, Label, Button, SectionHeader } from '@/components/common'
 import { useToast } from '@/hooks/useToast'

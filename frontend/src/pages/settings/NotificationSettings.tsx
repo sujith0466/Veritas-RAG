@@ -50,7 +50,6 @@ export function NotificationSettings() {
   const {
     notifications,
     unreadCount,
-    total,
     loading: loadingNotifications,
     fetchNotifications,
     markAsRead,
