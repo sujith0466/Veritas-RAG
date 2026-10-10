@@ -413,7 +413,7 @@ async def switch_workspace(
             value=raw_refresh,
             max_age=7 * 24 * 60 * 60,
             httponly=True,
-            secure=settings.app.environment == "production",
+            secure=settings.security.cookie_secure,
             samesite="strict",
             path="/api/v1/auth/refresh",
         )

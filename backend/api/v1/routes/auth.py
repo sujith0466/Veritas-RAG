@@ -161,7 +161,7 @@ async def login(
         value=raw_refresh_token,
         max_age=7 * 24 * 60 * 60,
         httponly=True,
-        secure=settings.app.environment == "production",
+        secure=settings.security.cookie_secure,
         samesite="strict",
         path="/api/v1/auth/refresh"
     )
@@ -455,7 +455,7 @@ async def change_password(
         value=raw_refresh_token,
         max_age=7 * 24 * 60 * 60,
         httponly=True,
-        secure=settings.app.environment == "production",
+        secure=settings.security.cookie_secure,
         samesite="strict",
         path="/api/v1/auth/refresh",
     )
@@ -559,7 +559,7 @@ async def complete_change_password(
         value=raw_refresh_token,
         max_age=7 * 24 * 60 * 60,
         httponly=True,
-        secure=settings.app.environment == "production",
+        secure=settings.security.cookie_secure,
         samesite="strict",
         path="/api/v1/auth/refresh",
     )
@@ -645,7 +645,7 @@ async def refresh_token(
         value=new_raw_refresh,
         max_age=7 * 24 * 60 * 60,
         httponly=True,
-        secure=settings.app.environment == "production",
+        secure=settings.security.cookie_secure,
         samesite="strict",
         path="/api/v1/auth/refresh"
     )
@@ -1079,7 +1079,7 @@ async def sso_callback(
             value=raw_refresh_token,
             max_age=7 * 24 * 60 * 60,
             httponly=True,
-            secure=settings.app.environment == "production",
+            secure=settings.security.cookie_secure,
             samesite="strict",
             path="/api/v1/auth/refresh"
         )

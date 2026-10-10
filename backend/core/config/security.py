@@ -34,6 +34,9 @@ class SecuritySettings(BaseSettings):
         default=52_428_800, alias="MAX_UPLOAD_SIZE_BYTES"
     )  # 50MB
 
+    # Cookie security policy (None = dynamic by ENVIRONMENT; True/False overrides)
+    cookie_secure_override: bool | None = Field(default=None, alias="COOKIE_SECURE")
+
     model_config = {
         "populate_by_name": True,
         "env_file": (".env", ".env.local"),
@@ -57,3 +60,10 @@ class SecuritySettings(BaseSettings):
         if not self.allowed_hosts_str:
             return []
         return [h.strip() for h in self.allowed_hosts_str.split(",") if h.strip()]
+
+    @property
+    def cookie_secure(self) -> bool:
+        if self.cookie_secure_override is not None:
+            return self.cookie_secure_override
+        env = os.getenv("ENVIRONMENT", "development").lower()
+        return env in ("production", "staging")
