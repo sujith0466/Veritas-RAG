@@ -86,12 +86,19 @@ class StreamingGroundedGenerationService:
         if self.llm_provider and hasattr(self.llm_provider, "stream"):
             full_text = ""
             chunk_idx = 0
-            seen_markers_local = set()
             try:
                 from backend.ai.interfaces.llm_provider import LLMRequest
+
+                # Compose system instruction: prepend custom prompt if configured
+                combined_instruction = evidence_block
+                custom_prompt = getattr(request.guardrail_config, "custom_system_prompt", None)
+                if custom_prompt and custom_prompt.strip():
+                    combined_instruction = f"{custom_prompt.strip()}\n\n---\n{evidence_block}"
+
                 llm_req = LLMRequest(
                     prompt=request.query,
-                    system_instruction=evidence_block,
+                    system_instruction=combined_instruction,
+                    temperature=request.temperature,
                     tenant_id=str(request.tenant_id),
                     workspace_id=str(getattr(request, "workspace_id", request.tenant_id)),
                     conversation_history=getattr(request, "conversation_history", None),

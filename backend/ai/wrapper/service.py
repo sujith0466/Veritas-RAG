@@ -206,13 +206,20 @@ class AIWrapperService:
                 payload={}
             )
 
+            from backend.modules.generation.schemas.generation_dto import PromptGuardrailConfigDTO
+            guardrail_cfg = PromptGuardrailConfigDTO(
+                custom_system_prompt=request.custom_system_prompt
+            )
+
             gen_request = GenerationRequestDTOv2(
                 query=request.query,
                 evidence_chunks=evidence_chunks,
                 correlation_id=correlation_id,
                 tenant_id=str(request.tenant_id),
                 conversation_history=request.conversation_history or [],
-                stream=True
+                stream=True,
+                temperature=request.temperature if request.temperature is not None else 0.1,
+                guardrail_config=guardrail_cfg,
             )
 
             # Map legacy chunks to new wrapper chunks

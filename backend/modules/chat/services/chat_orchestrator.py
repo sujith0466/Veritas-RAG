@@ -336,6 +336,20 @@ class ChatOrchestrator:
                 SSE_ACTIVE_STREAMS.dec()
                 return
 
+        # 1.6 Fetch user AI preferences (temperature, custom prompt, default model)
+        user_ai_prefs = {}
+        try:
+            from backend.models.entities.user import User
+            async with session_maker() as session:
+                user_res = await session.execute(
+                    select(User.preferences).where(User.id == uuid.UUID(user_id)).limit(1)
+                )
+                user_prefs_record = user_res.scalar_one_or_none()
+                if user_prefs_record and isinstance(user_prefs_record, dict):
+                    user_ai_prefs = user_prefs_record.get("ai") or {}
+        except Exception as pref_err:
+            logger.warning("Could not read user AI preferences; defaulting", error=str(pref_err))
+
         # 2. Delegate to AIWrapperService
         req = AIWrapperRequest(
             session_id=uuid.UUID(session_id) if '-' in session_id else None,
@@ -343,7 +357,10 @@ class ChatOrchestrator:
             tenant_id=tenant_uuid,
             query=query,
             conversation_history=conversation_history,
-            stream=True
+            stream=True,
+            model=user_ai_prefs.get("default_model"),
+            temperature=user_ai_prefs.get("temperature"),
+            custom_system_prompt=user_ai_prefs.get("system_prompt"),
         )
 
         full_assistant_text = ""

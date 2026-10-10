@@ -25,6 +25,9 @@ class AIWrapperRequest(BaseModel):
     guardrail_config: dict[str, Any] = {}
     stream: bool = True
     max_answer_tokens: int = 1024
+    model: str | None = None
+    temperature: float | None = None
+    custom_system_prompt: str | None = None
 
 
 class AIWrapperResponse(BaseModel):
