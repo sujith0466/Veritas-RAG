@@ -14,6 +14,7 @@ from .workspace_invitation import InvitationStatus, WorkspaceInvitation
 from .workspace_member import WorkspaceMember
 from .workspace_settings import WorkspaceSettings
 from .notification_delivery_log import NotificationDeliveryLog
+from .notification import Notification, NotificationCategory, NotificationSeverity
 from .workspace_access_request import (
     AccessRequestStatus,
     AccessRequestType,
@@ -44,5 +45,8 @@ __all__ = [
     "AccessRequestType",
     "Folder",
     "NotificationDeliveryLog",
+    "Notification",
+    "NotificationCategory",
+    "NotificationSeverity",
     "WorkspaceWebhook",
 ]

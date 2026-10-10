@@ -41,8 +41,17 @@ class AISettingsSchema(BaseModel):
     model_config = {"extra": "ignore"}
 
 
+class NotificationPreferencesSchema(BaseModel):
+    email_alerts: bool | None = True
+    security_alerts: bool | None = True
+    weekly_reports: bool | None = False
+
+    model_config = {"extra": "ignore"}
+
+
 class UserPreferencesSchema(BaseModel):
     ai: AISettingsSchema | None = None
+    notifications: NotificationPreferencesSchema | None = None
 
     model_config = {"extra": "ignore"}
 
