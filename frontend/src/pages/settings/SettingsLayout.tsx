@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
-  User, Shield, Palette, Bell, Brain,
+  User, Shield, Bell, Brain,
   Briefcase, Lock, Webhook
 } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -8,7 +8,6 @@ import { cn } from '@/utils/cn'
 const settingsNav = [
   { name: 'Profile', href: '/settings/profile', icon: User },
   { name: 'Security', href: '/settings/security', icon: Shield },
-  { name: 'Appearance', href: '/settings/appearance', icon: Palette },
   { name: 'Notifications', href: '/settings/notifications', icon: Bell },
   { name: 'AI Preferences', href: '/settings/ai', icon: Brain },
   { name: 'Workspace', href: '/settings/workspace', icon: Briefcase },

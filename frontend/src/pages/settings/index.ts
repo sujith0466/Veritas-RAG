@@ -1,6 +1,5 @@
 export * from './SettingsLayout'
 export * from './ProfileSettings'
-export * from './AppearanceSettings'
 export * from './SecuritySettings'
 export * from './NotificationSettings'
 export * from './AIPrefSettings'

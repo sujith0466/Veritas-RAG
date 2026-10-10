@@ -47,7 +47,6 @@ const WorkspaceAnalyticsPage = lazyRetry(() => import('@/pages/analytics/Workspa
 
 const SettingsLayout = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.SettingsLayout })), 'SettingsLayout')
 const ProfileSettings = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.ProfileSettings })), 'ProfileSettings')
-const AppearanceSettings = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.AppearanceSettings })), 'AppearanceSettings')
 const SecuritySettings = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.SecuritySettings })), 'SecuritySettings')
 const NotificationSettings = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.NotificationSettings })), 'NotificationSettings')
 const AIPrefSettings = lazyRetry(() => import('@/pages/settings').then(m => ({ default: m.AIPrefSettings })), 'AIPrefSettings')
@@ -328,7 +327,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <Navigate to="profile" replace /> },
                   { path: 'profile', element: <ProfileSettings /> },
                   { path: 'security', element: <SecuritySettings /> },
-                  { path: 'appearance', element: <AppearanceSettings /> },
+                  { path: 'appearance', element: <Navigate to="profile" replace /> },
                   { path: 'notifications', element: <NotificationSettings /> },
                   { path: 'ai', element: <AIPrefSettings /> },
                   { path: 'workspace', element: <WorkspaceSettings /> },
