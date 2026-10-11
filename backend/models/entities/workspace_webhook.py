@@ -22,6 +22,10 @@ class WorkspaceWebhook(TenantAwareBaseModel):
         String(255),
         nullable=False,
     )
+    encrypted_secret: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
