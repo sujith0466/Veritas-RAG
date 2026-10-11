@@ -206,6 +206,12 @@ class JWTService:
                     logger.warning("Revoked token usage", jti=jti)
                     raise InvalidTokenException("Token has been revoked")
 
+                # Check user-level session invalidation (Deactivation / Full Revocation)
+                user_invalid_before = await self.redis.get(f"auth:user:{sub}:invalid_before")
+                if user_invalid_before and int(raw_claims.get("iat", 0)) < int(user_invalid_before):
+                    logger.warning("Revoked token usage (user deactivation)", sub=sub)
+                    raise InvalidTokenException("Token revoked due to account status change")
+
                 # Check workspace-level session invalidation (F4.5, F4.6)
                 if workspace_id:
                     invalid_before = await self.redis.get(f"auth:user:{sub}:workspace:{workspace_id}:invalid_before")
@@ -264,6 +270,17 @@ class JWTService:
         # After 15 mins, any old token is naturally expired anyway.
         await self.redis.set(key, str(now), ex=15 * 60)
         logger.info("Workspace tokens revoked", user_id=user_id, workspace_id=workspace_id, invalid_before=now)
+
+    async def revoke_user_tokens(self, user_id: str) -> None:
+        """Revokes all active tokens for a user across all workspaces."""
+        if not self.redis:
+            return
+
+        now = int(time.time())
+        key = f"auth:user:{user_id}:invalid_before"
+        # 15 minutes TTL because access tokens live for 15 mins.
+        await self.redis.set(key, str(now), ex=15 * 60)
+        logger.info("All user tokens revoked", user_id=user_id, invalid_before=now)
 
 def get_jwt_service() -> JWTService:
     """Return an instance of the JWTService."""

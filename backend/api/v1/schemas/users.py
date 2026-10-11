@@ -123,3 +123,13 @@ class UserResponse(BaseModel):
     workspace_settings: dict[str, Any] | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserDeactivateRequest(BaseModel):
+    password: str | None = Field(default=None, description="Current password for re-authentication")
+    confirmation_text: str = Field(..., description="Must be exactly 'DELETE' to confirm")
+
+
+class UserDeactivateResponse(BaseModel):
+    status: str
+    message: str

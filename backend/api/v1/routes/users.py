@@ -7,6 +7,8 @@ from backend.api.v1.schemas.users import (
     UserProfileUpdate,
     UserResponse,
     UserWorkspaceUpdate,
+    UserDeactivateRequest,
+    UserDeactivateResponse,
 )
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
@@ -186,3 +188,59 @@ async def upload_avatar(
         "workspace_settings": user.workspace_settings or {},
     }
     return user_dict
+
+
+@router.post("/me/export")
+async def export_my_data(
+    current_user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generates and downloads a clean, server-side data archive of the user's data."""
+    from backend.services.user_export import DataExportService
+    import uuid
+
+    user_uuid = uuid.UUID(str(current_user.id))
+    export_service = DataExportService(db)
+    try:
+        data = await export_service.generate_user_export(user_uuid)
+        return data
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to compile user export data")
+
+
+@router.post("/me/deactivate")
+async def deactivate_my_account(
+    request: "UserDeactivateRequest",
+    current_user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deactivates the user's personal account after password re-authentication and sole-owner checks."""
+    from backend.services.user_lifecycle import (
+        UserLifecycleService,
+        ReauthenticationFailedException,
+        SoleWorkspaceOwnerConflictException,
+        LifecycleException,
+    )
+    import uuid
+
+    user_uuid = uuid.UUID(str(current_user.id))
+    lifecycle_service = UserLifecycleService(db)
+
+    try:
+        await lifecycle_service.deactivate_user_account(
+            user_id=user_uuid,
+            password=request.password,
+            confirmation_text=request.confirmation_text,
+        )
+        return {
+            "status": "DEACTIVATED",
+            "message": "Your account has been deactivated and all active sessions have been invalidated.",
+        }
+    except ReauthenticationFailedException as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    except SoleWorkspaceOwnerConflictException as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except LifecycleException as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
