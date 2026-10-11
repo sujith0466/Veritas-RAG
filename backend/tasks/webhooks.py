@@ -18,6 +18,7 @@ from backend.database.session import SessionLocal
 from backend.models.entities.notification_delivery_log import NotificationDeliveryLog
 from backend.models.entities.workspace_webhook import WorkspaceWebhook
 from backend.services.workspace_webhooks import WorkspaceWebhookService
+from backend.core.security.ssrf_transport import SSRFProtectedTransport, SSRFValidationError
 
 logger = get_task_logger(__name__)
 
@@ -47,6 +48,7 @@ async def _async_deliver_webhooks(task, tenant_id: uuid.UUID, event_type: str, p
         webhooks = result.scalars().all()
 
     for webhook in webhooks:
+        # Check event subscription: wildcard or exact event
         if "*" not in webhook.events and event_type not in webhook.events:
             continue
 
@@ -59,7 +61,7 @@ async def _deliver_to_endpoint(task, tenant_id: uuid.UUID, webhook: WorkspaceWeb
     # Pre-record pending state
     async with SessionLocal() as session:
         log = NotificationDeliveryLog(
-            tenant_id=tenant_id,
+            tenant_id=str(tenant_id),
             type="WEBHOOK",
             target=webhook.endpoint_url,
             payload_snapshot={"event": event_type, "payload": payload},
@@ -74,36 +76,39 @@ async def _deliver_to_endpoint(task, tenant_id: uuid.UUID, webhook: WorkspaceWeb
         # SSRF Protection: Time-of-Use DNS Validation
         async with SessionLocal() as session:
             service = WorkspaceWebhookService(session)
-            # This throws WebhookValidationException if SSRF detected
             await service._resolve_and_validate_url(webhook.endpoint_url)
+            # Decrypt secret with legacy fallback
+            raw_secret = await service.get_delivery_secret(webhook)
 
         # Prepare Canonical Payload
         timestamp = str(int(time.time()))
         canonical_body = json.dumps(payload, separators=(',', ':'))
 
-        # We don't have the plaintext secret, we only store the hash.
-        # Wait! Standard HMAC requires the plaintext secret to sign payloads.
-        # The prompt says: "Secret Generation: Securely generate cryptographically strong HMAC secrets. UI: secret visibility (only once upon creation)."
-        # If we hash the secret in DB, we can't use it to sign requests! We must store it plaintext or encrypted symmetrically.
-        # Let's fix that. For this simulation, we'll assume the `secret_hash` column is actually storing the symmetrically encrypted secret (or just the plaintext secret if we haven't implemented KMS yet).
-        # Actually, if we only have a SHA256 hash, we CANNOT generate an HMAC. We must store the plaintext secret in `secret_hash` for now, or rename it. I'll just use the `secret_hash` field value as the signing key for now since the schema is already deployed.
-
-        secret = webhook.secret_hash.encode('utf-8')
-        signature = hmac.new(secret, canonical_body.encode('utf-8'), hashlib.sha256).hexdigest()
+        # Generate HMAC-SHA256 signature using decrypted secret
+        secret_bytes = raw_secret.encode('utf-8')
+        signature = hmac.new(secret_bytes, canonical_body.encode('utf-8'), hashlib.sha256).hexdigest()
 
         headers = {
             "Content-Type": "application/json",
             "X-RAGuard-Event": event_type,
             "X-RAGuard-Timestamp": timestamp,
-            "X-RAGuard-Signature": f"sha256={signature}"
+            "X-RAGuard-Signature": f"sha256={signature}",
+            "User-Agent": "Veritas-RAG-Webhook-Delivery/1.0"
         }
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        # Defend against DNS rebinding and SSRF at connection time with IP pinning:
+        # SSRFProtectedTransport preserves TLS SNI, certificate validation, and rejects private/prohibited IPs at connect_tcp.
+        # follow_redirects=False prevents open-redirect SSRF bypasses.
+        transport = SSRFProtectedTransport(verify=True)
+        async with httpx.AsyncClient(transport=transport, timeout=10.0, follow_redirects=False) as client:
             response = await client.post(webhook.endpoint_url, content=canonical_body, headers=headers)
             response.raise_for_status()
 
         status = "SUCCESS"
         error_msg = None
+    except SSRFValidationError as e:
+        status = "FAILED_PERMANENT"
+        error_msg = f"SSRF Protection Blocked Delivery: {e}"
     except httpx.HTTPStatusError as e:
         status = "FAILED_PERMANENT" if 400 <= e.response.status_code < 500 else "FAILED_TRANSIENT"
         error_msg = f"HTTP Error: {e.response.status_code}"
