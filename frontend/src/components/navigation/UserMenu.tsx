@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Link, useNavigate } from 'react-router-dom'
 import { LogOut, Settings, LayoutDashboard } from 'lucide-react'
@@ -7,6 +8,7 @@ import { getAssetUrl } from '@/api/client'
 export function UserMenu() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [imageFailed, setImageFailed] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -14,14 +16,38 @@ export function UserMenu() {
   }
 
   const avatarUrl = getAssetUrl(user?.avatar_url)
-  const initials = user?.full_name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
+
+  useEffect(() => {
+    setImageFailed(false)
+  }, [avatarUrl])
+
+  // Precedence:
+  // 1. Saved non-empty profile name (username, full_name, display_name)
+  // 2. Role fallback: "Admin" for admin/owner/platform_admin, "User" for user/member/viewer/etc.
+  const rawSavedName =
+    user?.username?.trim() ||
+    user?.full_name?.trim() ||
+    user?.display_name?.trim() ||
+    (typeof user?.profile_data?.full_name === 'string' && user.profile_data.full_name.trim()) ||
+    ''
+
+  const roleStr = (user?.role ? String(user.role) : '').toLowerCase()
+  const isAdminRole = ['admin', 'owner', 'platform_admin'].includes(roleStr)
+  const displayName = rawSavedName || (isAdminRole ? 'Admin' : 'User')
+
+  const initials = displayName.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'
 
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors overflow-hidden">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+          {avatarUrl && !imageFailed ? (
+            <img
+              src={avatarUrl}
+              alt="Avatar"
+              className="h-full w-full object-cover"
+              onError={() => setImageFailed(true)}
+            />
           ) : (
             <span className="text-sm font-semibold">{initials}</span>
           )}
@@ -33,7 +59,7 @@ export function UserMenu() {
           className="z-50 w-56 overflow-hidden rounded-md border border-border bg-surface-elevated p-1 shadow-md animate-in data-[side=bottom]:slide-in-from-top-2 mt-2"
         >
           <div className="flex flex-col space-y-1 p-2">
-            <p className="text-sm font-medium leading-none">{user?.full_name || 'User'}</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             <p className="text-xs leading-none text-muted-foreground truncate">{user?.email}</p>
           </div>
           <DropdownMenu.Separator className="-mx-1 my-1 h-px bg-border-subtle" />

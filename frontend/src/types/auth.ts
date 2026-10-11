@@ -14,6 +14,8 @@ export interface UserContext {
   workspace_id?: string | null
   workspace_name: string | null
   full_name: string | null
+  username?: string | null
+  display_name?: string | null
   is_active: boolean
   avatar_url?: string | null
   profile_data?: Record<string, any>

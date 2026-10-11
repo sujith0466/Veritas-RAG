@@ -52,4 +52,121 @@ describe('Workstream 1: UserMenu Navigation Deduping', () => {
     const profileItem = screen.queryByRole('menuitem', { name: /^Profile$/i })
     expect(profileItem).not.toBeInTheDocument()
   })
+
+  it('renders saved profile name over generic name or role in navbar dropdown', async () => {
+    useAuthStore.setState({
+      user: {
+        id: 'usr-nav-2',
+        email: 'alice@veritas.rag',
+        username: 'alice_researcher',
+        role: 'ADMIN' as any,
+      } as any,
+      token: 'mock-jwt-token',
+      status: 'AUTHENTICATED',
+    })
+
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>
+    )
+
+    const trigger = screen.getByRole('button')
+    fireEvent.pointerDown(trigger, { pointerId: 1 })
+    fireEvent.keyDown(trigger, { key: 'ArrowDown', code: 'ArrowDown' })
+
+    await waitFor(() => {
+      expect(screen.getByText('alice_researcher')).toBeInTheDocument()
+    })
+  })
+
+  it('falls back to "Admin" when profile name is missing or whitespace-only and role is admin', async () => {
+    useAuthStore.setState({
+      user: {
+        id: 'usr-nav-3',
+        email: 'admin@veritas.rag',
+        username: '   ',
+        full_name: null,
+        role: 'admin' as any,
+      } as any,
+      token: 'mock-jwt-token',
+      status: 'AUTHENTICATED',
+    })
+
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>
+    )
+
+    const trigger = screen.getByRole('button')
+    fireEvent.pointerDown(trigger, { pointerId: 1 })
+    fireEvent.keyDown(trigger, { key: 'ArrowDown', code: 'ArrowDown' })
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin')).toBeInTheDocument()
+    })
+  })
+
+  it('falls back to "User" when profile name is missing and role is non-admin', async () => {
+    useAuthStore.setState({
+      user: {
+        id: 'usr-nav-4',
+        email: 'viewer@veritas.rag',
+        username: '',
+        full_name: '',
+        role: 'viewer' as any,
+      } as any,
+      token: 'mock-jwt-token',
+      status: 'AUTHENTICATED',
+    })
+
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>
+    )
+
+    const trigger = screen.getByRole('button')
+    fireEvent.pointerDown(trigger, { pointerId: 1 })
+    fireEvent.keyDown(trigger, { key: 'ArrowDown', code: 'ArrowDown' })
+
+    await waitFor(() => {
+      expect(screen.getByText('User')).toBeInTheDocument()
+    })
+  })
+
+  it('renders uploaded avatar picture and falls back gracefully on image error', async () => {
+    useAuthStore.setState({
+      user: {
+        id: 'usr-nav-5',
+        email: 'carol@veritas.rag',
+        username: 'carol_sec',
+        avatar_url: '/api/v1/storage/avatars/usr-nav-5/photo.jpeg',
+        role: 'member' as any,
+      } as any,
+      token: 'mock-jwt-token',
+      status: 'AUTHENTICATED',
+    })
+
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>
+    )
+
+    // Avatar image should be rendered
+    const img = screen.getByRole('img', { name: /avatar/i })
+    expect(img).toBeInTheDocument()
+    expect(img).toHaveAttribute('src', expect.stringContaining('/api/v1/storage/avatars/usr-nav-5/photo.jpeg'))
+
+    // Trigger onError on image
+    fireEvent.error(img)
+
+    // Image should be removed and fallback initials displayed without crashing
+    await waitFor(() => {
+      expect(screen.queryByRole('img', { name: /avatar/i })).not.toBeInTheDocument()
+      expect(screen.getByText('C')).toBeInTheDocument()
+    })
+  })
 })

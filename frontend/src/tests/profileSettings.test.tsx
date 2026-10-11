@@ -183,4 +183,36 @@ describe('Workstream 2: Profile Settings Hardening & Validation', () => {
       )
     })
   })
+
+  it('renders uploaded avatar picture and falls back gracefully when image fails to load', async () => {
+    vi.mocked(userService.getProfile).mockResolvedValueOnce({
+      data: {
+        username: 'lead_dev',
+        avatar_url: '/api/v1/storage/avatars/usr-prof-1/photo.jpeg',
+        version: 1,
+        profile_data: {},
+      },
+    } as any)
+
+    render(
+      <MemoryRouter>
+        <ProfileSettings />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Profile Settings')).toBeInTheDocument()
+    })
+
+    const img = screen.getByRole('img', { name: /profile avatar/i })
+    expect(img).toBeInTheDocument()
+    expect(img).toHaveAttribute('src', expect.stringContaining('/api/v1/storage/avatars/usr-prof-1/photo.jpeg'))
+
+    // Trigger image error
+    fireEvent.error(img)
+
+    await waitFor(() => {
+      expect(screen.queryByRole('img', { name: /profile avatar/i })).not.toBeInTheDocument()
+    })
+  })
 })

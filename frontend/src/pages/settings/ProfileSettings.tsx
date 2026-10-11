@@ -30,6 +30,7 @@ export function ProfileSettings() {
   })
 
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [avatarLoadError, setAvatarLoadError] = useState(false)
 
   useEffect(() => {
     loadProfile()
@@ -51,6 +52,7 @@ export function ProfileSettings() {
       })
       setVersion(data.version)
       setAvatarPreview(getAssetUrl(data.avatar_url) || null)
+      setAvatarLoadError(false)
     } catch (error) {
       toast({ title: 'Error', message: 'Failed to load profile data', type: 'error' })
     } finally {
@@ -122,11 +124,13 @@ export function ProfileSettings() {
     // Quick preview
     const objectUrl = URL.createObjectURL(file)
     setAvatarPreview(objectUrl)
+    setAvatarLoadError(false)
 
     setUploading(true)
     try {
       const { data } = await userService.uploadAvatar(file)
       setAvatarPreview(getAssetUrl(data.avatar_url) || null)
+      setAvatarLoadError(false)
 
       if (user && token) {
         setAuth({ ...user, ...data }, token)
@@ -135,6 +139,7 @@ export function ProfileSettings() {
     } catch (error) {
       toast({ title: 'Error', message: 'Failed to upload avatar', type: 'error' })
       setAvatarPreview(getAssetUrl(user?.avatar_url) || null)
+      setAvatarLoadError(false)
     } finally {
       setUploading(false)
     }
@@ -226,8 +231,13 @@ export function ProfileSettings() {
         <Card className="p-6 w-64 flex flex-col items-center text-center space-y-4">
           <h3 className="font-medium text-sm w-full text-left">Profile Picture</h3>
           <div className="relative w-32 h-32 rounded-full border-4 border-muted overflow-hidden group">
-            {avatarPreview ? (
-              <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+            {avatarPreview && !avatarLoadError ? (
+              <img
+                src={avatarPreview}
+                alt="Profile Avatar"
+                className="w-full h-full object-cover"
+                onError={() => setAvatarLoadError(true)}
+              />
             ) : (
               <div className="w-full h-full bg-muted flex items-center justify-center">
                 <User className="h-12 w-12 text-muted-foreground/50" />
