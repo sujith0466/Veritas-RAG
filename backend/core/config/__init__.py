@@ -21,6 +21,7 @@ from .gemini import GeminiSettings
 from .llm_manager import LLMManagerSettings
 from .logging import LoggingSettings
 from .observability import ObservabilitySettings
+from .ocr import OCRSettings
 from .openrouter import OpenRouterSettings
 from .qdrant import QdrantSettings
 from .redis import RedisSettings
@@ -50,6 +51,7 @@ class Settings:
         self.security = SecuritySettings()
         self.logging = LoggingSettings()
         self.observability = ObservabilitySettings()
+        self.ocr = OCRSettings()
         self.features = FeatureFlagSettings()
         self.embeddings = EmbeddingSettings()
         self.retrieval = RetrievalSettings()
@@ -92,6 +94,7 @@ __all__ = [
     "LLMManagerSettings",
     "LoggingSettings",
     "ObservabilitySettings",
+    "OCRSettings",
     "OpenRouterSettings",
     "QdrantSettings",
     "RedisSettings",

@@ -17,7 +17,9 @@ class DoclingOCREngine(OCREngine):
     def engine_name(self) -> str:
         return "docling"
 
-    async def process(self, stream: BinaryIO, filename: str) -> OCRResult:
+    async def process(
+        self, stream: BinaryIO, filename: str, timeout_seconds: float | None = None
+    ) -> OCRResult:
         try:
             import docling
 

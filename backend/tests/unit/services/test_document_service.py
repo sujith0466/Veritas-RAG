@@ -219,6 +219,10 @@ async def test_upload_new_version_preserves_ready_status(service, mock_session):
     service.job_repo.create = AsyncMock(side_effect=lambda j, s: j)
     service.event_repo.append_event = AsyncMock()
 
+    mock_execute_res = MagicMock()
+    mock_execute_res.scalar.return_value = 1
+    mock_session.execute.return_value = mock_execute_res
+
     with patch("backend.document.services.document_service.acquire_lock", return_value=DummyAsyncContextManager()), \
          patch("backend.document.services.job_dispatcher.JobDispatcher.dispatch_job", new_callable=AsyncMock):
 

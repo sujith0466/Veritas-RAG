@@ -344,20 +344,51 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
                 await session.commit()
 
                 stream.seek(0)
-                ocr_res = await ocr_pipeline.execute(stream, doc.filename)
-                extracted.text = ocr_res.text
-                extracted.word_count = ocr_res.word_count
-                extracted.page_count = ocr_res.page_count
-                extracted.metadata["ocr_engine_used"] = ocr_res.engine_used
+                from backend.core.config import get_settings
+                ocr_timeout = get_settings().ocr.timeout_seconds
 
-                ocr_duration = (time.perf_counter() - t2) * 1000.0
-                stage_metrics.append(
-                    StageMetricDTO(
-                        stage="ocr",
-                        duration_ms=round(ocr_duration, 2),
-                        status="COMPLETED",
+                try:
+                    ocr_res = await ocr_pipeline.execute(
+                        stream, doc.filename, timeout_seconds=ocr_timeout
                     )
-                )
+                    extracted.text = ocr_res.text
+                    extracted.word_count = ocr_res.word_count
+                    extracted.page_count = ocr_res.page_count
+                    extracted.metadata["ocr_engine_used"] = ocr_res.engine_used
+
+                    ocr_duration = (time.perf_counter() - t2) * 1000.0
+                    stage_metrics.append(
+                        StageMetricDTO(
+                            stage="ocr",
+                            duration_ms=round(ocr_duration, 2),
+                            status="COMPLETED",
+                        )
+                    )
+                except Exception as ocr_exc:
+                    ocr_duration = (time.perf_counter() - t2) * 1000.0
+                    is_timeout = (
+                        isinstance(ocr_exc, DocumentDomainException)
+                        and ocr_exc.code == DocumentErrorCode.OCR_TIMEOUT
+                    )
+                    stage_metrics.append(
+                        StageMetricDTO(
+                            stage="ocr",
+                            duration_ms=round(ocr_duration, 2),
+                            status="TIMEOUT" if is_timeout else "FAILED",
+                        )
+                    )
+                    logger.error(
+                        "OCR processing failed in ingestion worker",
+                        job_id=job_id,
+                        document_id=str(doc.id),
+                        filename=doc.filename,
+                        is_timeout=is_timeout,
+                        timeout_seconds=ocr_timeout,
+                        elapsed_ms=round(ocr_duration, 2),
+                        error_code=getattr(ocr_exc, "code", "UNKNOWN"),
+                        error=str(ocr_exc),
+                    )
+                    raise
 
                 ocr_payload = create_domain_event(
                     event_type=EVENT_OCR_COMPLETED,

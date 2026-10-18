@@ -29,13 +29,20 @@ class OCREngine(ABC):
         ...
 
     @abstractmethod
-    async def process(self, stream: BinaryIO, filename: str) -> OCRResult:
+    async def process(
+        self, stream: BinaryIO, filename: str, timeout_seconds: float | None = None
+    ) -> OCRResult:
         """Perform OCR on the binary stream of an image or scanned document.
+
+        Args:
+            stream: Binary IO stream containing the document or image.
+            filename: Name of the file being processed.
+            timeout_seconds: Optional timeout deadline in seconds bounding execution for this engine.
 
         Returns:
             OCRResult containing extracted text, word/page counts, and confidence score.
 
         Raises:
-            DocumentDomainException(OCR_xxx): On execution failure or engine unavailability.
+            DocumentDomainException(OCR_xxx): On execution failure, timeout, or engine unavailability.
         """
         ...

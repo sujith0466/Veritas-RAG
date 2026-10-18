@@ -42,9 +42,10 @@ class DocumentErrorCode(StrEnum):
     )
     EXTRACT_003 = "EXTRACT_003"  # No capable extractor registered for MIME type (FATAL)
 
-    # OCR errors (OCR_xxx) — RECOVERABLE by default
+    # OCR errors (OCR_xxx) — RECOVERABLE by default except OCR_TIMEOUT
     OCR_001 = "OCR_001"  # OCR processing engine failure
     OCR_002 = "OCR_002"  # OCR service currently unavailable
+    OCR_TIMEOUT = "OCR_003"  # OCR processing timed out (FATAL)
 
     # System & Orchestration errors (SYS_xxx) — RECOVERABLE by default
     SYS_001 = "SYS_001"  # Database or transaction error during pipeline execution
@@ -70,6 +71,7 @@ ERROR_SEVERITY_MAP: dict[DocumentErrorCode | str, ErrorSeverity] = {
     DocumentErrorCode.EXTRACT_003: ErrorSeverity.FATAL,
     DocumentErrorCode.OCR_001: ErrorSeverity.RECOVERABLE,
     DocumentErrorCode.OCR_002: ErrorSeverity.RECOVERABLE,
+    DocumentErrorCode.OCR_TIMEOUT: ErrorSeverity.FATAL,
     DocumentErrorCode.SYS_001: ErrorSeverity.RECOVERABLE,
     DocumentErrorCode.SYS_002: ErrorSeverity.RECOVERABLE,
     DocumentErrorCode.CONTRACT_001: ErrorSeverity.RECOVERABLE,
