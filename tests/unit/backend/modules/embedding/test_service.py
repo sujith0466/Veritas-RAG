@@ -13,6 +13,7 @@ import pytest
 from backend.core.events.dispatcher import EventDispatcher
 from backend.core.events.types import EventType
 from backend.modules.chunking.models.chunk import DocumentChunk
+from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
 from backend.modules.embedding.events.payloads import (
     EVENT_EMBEDDING_FAILED,
     EVENT_EMBEDDING_STARTED,
@@ -111,6 +112,8 @@ class TestEmbeddingService:
 
     from unittest.mock import patch
 
+    from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
+
     @patch("backend.cache.rate_limit.RateLimiter.check_limit", return_value={"current": 1, "limit": 600, "remaining": 599})
     async def test_process_batch_idempotency_filtering(self, mock_rate_limit) -> None:
         mock_repo = AsyncMock()
@@ -136,8 +139,31 @@ class TestEmbeddingService:
 
         # First call returns 4 unindexed chunks, second call returns [] to terminate loop
         mock_repo.get_unembedded_chunks.side_effect = [[c1, c2, c3, c4], []]
-        # Repository reports h_cached_1 and h_cached_2 already exist in vector storage
-        mock_repo.filter_existing_content_hashes.return_value = {"h_cached_1", "h_cached_2"}
+        # Repository reports existing embeddings for h_cached_1 and h_cached_2
+        mock_repo.get_existing_embeddings_by_hashes.return_value = {
+            "h_cached_1": ChunkEmbedding(
+                id=uuid.uuid4(),
+                tenant_id="t1",
+                chunk_id=uuid.uuid4(),
+                document_version_id=uuid.uuid4(),
+                content_hash="h_cached_1",
+                provider="local",
+                model_name="BAAI/bge-small-en-v1.5",
+                dimension=384,
+                embedding_vector=[0.1] * 384,
+            ),
+            "h_cached_2": ChunkEmbedding(
+                id=uuid.uuid4(),
+                tenant_id="t1",
+                chunk_id=uuid.uuid4(),
+                document_version_id=uuid.uuid4(),
+                content_hash="h_cached_2",
+                provider="local",
+                model_name="BAAI/bge-small-en-v1.5",
+                dimension=384,
+                embedding_vector=[0.2] * 384,
+            ),
+        }
 
         mock_dispatcher = AsyncMock(spec=EventDispatcher)
         service = EmbeddingService(repository=mock_repo, event_dispatcher=mock_dispatcher)
@@ -145,18 +171,198 @@ class TestEmbeddingService:
         mock_repo.update_job_progress.return_value = job
         completed = await service.process_embedding_batch(job_id=job_id, tenant_id="t1", batch_size=100)
 
-        # Verify cached chunks were marked as embedded directly without vector computation
+        # Verify cached chunks were marked as embedded directly
         assert mock_repo.mark_chunks_as_embedded.await_count == 2
-        mock_repo.bulk_insert_chunk_embeddings.assert_awaited_once()
-        inserted_recs = mock_repo.bulk_insert_chunk_embeddings.call_args[0][0]
-        assert len(inserted_recs) == 2
-        assert {r.content_hash for r in inserted_recs} == {"h_missing_1", "h_missing_2"}
+        # Verify bulk_insert_chunk_embeddings was called for BOTH cached chunks and missing chunks
+        assert mock_repo.bulk_insert_chunk_embeddings.await_count == 2
+        
+        # Call 1: cached chunks insertion bound to CURRENT document version id
+        cached_call_recs = mock_repo.bulk_insert_chunk_embeddings.call_args_list[0][0][0]
+        assert len(cached_call_recs) == 2
+        assert {r.chunk_id for r in cached_call_recs} == {c1.id, c2.id}
+        assert all(r.document_version_id == doc_ver for r in cached_call_recs)
+        assert all(r.dimension == 384 for r in cached_call_recs)
+
+        # Call 2: missing chunks insertion bound to CURRENT document version id
+        missing_call_recs = mock_repo.bulk_insert_chunk_embeddings.call_args_list[1][0][0]
+        assert len(missing_call_recs) == 2
+        assert {r.content_hash for r in missing_call_recs} == {"h_missing_1", "h_missing_2"}
+        assert all(r.document_version_id == doc_ver for r in missing_call_recs)
 
         # Verify progress and completion events published
         assert mock_dispatcher.publish.await_count >= 2
         event_types = [call[0][0].event_type for call in mock_dispatcher.publish.call_args_list]
         assert EventType.EMBEDDING_PROGRESS in event_types
         assert EventType.EMBEDDING_COMPLETED in event_types
+
+    @patch("backend.cache.rate_limit.RateLimiter.check_limit", return_value={"current": 1, "limit": 600, "remaining": 599})
+    async def test_process_batch_fully_cached_version(self, mock_rate_limit) -> None:
+        """Verify 100% cached version makes zero provider calls and stages all embeddings."""
+        mock_repo = AsyncMock()
+        job_id = uuid.uuid4()
+        doc_ver = uuid.uuid4()
+        job = EmbeddingJob(
+            id=job_id,
+            tenant_id="t1",
+            document_id=uuid.uuid4(),
+            document_version_id=doc_ver,
+            provider="local",
+            model_name="BAAI/bge-small-en-v1.5",
+            total_chunks=2,
+            processed_chunks=0,
+            status="PENDING",
+        )
+        mock_repo.get_job_by_id_and_tenant.return_value = job
+
+        c1 = DocumentChunk(id=uuid.uuid4(), tenant_id="t1", document_version_id=doc_ver, content="cached 1", content_hash="h1")
+        c2 = DocumentChunk(id=uuid.uuid4(), tenant_id="t1", document_version_id=doc_ver, content="cached 2", content_hash="h2")
+
+        mock_repo.get_unembedded_chunks.side_effect = [[c1, c2], []]
+        mock_repo.get_existing_embeddings_by_hashes.return_value = {
+            "h1": ChunkEmbedding(
+                id=uuid.uuid4(),
+                tenant_id="t1",
+                chunk_id=uuid.uuid4(),
+                document_version_id=uuid.uuid4(),
+                content_hash="h1",
+                provider="local",
+                model_name="BAAI/bge-small-en-v1.5",
+                dimension=384,
+                embedding_vector=[0.1] * 384,
+            ),
+            "h2": ChunkEmbedding(
+                id=uuid.uuid4(),
+                tenant_id="t1",
+                chunk_id=uuid.uuid4(),
+                document_version_id=uuid.uuid4(),
+                content_hash="h2",
+                provider="local",
+                model_name="BAAI/bge-small-en-v1.5",
+                dimension=384,
+                embedding_vector=[0.2] * 384,
+            ),
+        }
+
+        mock_dispatcher = AsyncMock(spec=EventDispatcher)
+        service = EmbeddingService(repository=mock_repo, event_dispatcher=mock_dispatcher)
+
+        mock_repo.update_job_progress.return_value = job
+        await service.process_embedding_batch(job_id=job_id, tenant_id="t1", batch_size=100)
+
+        # Bulk insert called exactly once for cached records
+        mock_repo.bulk_insert_chunk_embeddings.assert_awaited_once()
+        staged_recs = mock_repo.bulk_insert_chunk_embeddings.call_args[0][0]
+        assert len(staged_recs) == 2
+        assert {r.chunk_id for r in staged_recs} == {c1.id, c2.id}
+        assert all(r.document_version_id == doc_ver for r in staged_recs)
+
+        # Mark chunks embedded called once
+        mock_repo.mark_chunks_as_embedded.assert_awaited_once_with([c1.id, c2.id], "t1")
+        # Job progress incremented by 2
+        mock_repo.update_job_progress.assert_any_await(job_id, "t1", processed_delta=2)
+
+    @patch("backend.cache.rate_limit.RateLimiter.check_limit", return_value={"current": 1, "limit": 600, "remaining": 599})
+    async def test_process_batch_duplicate_content_hashes_in_document(self, mock_rate_limit) -> None:
+        """Verify duplicate content hashes in the same version receive distinct ChunkEmbedding records."""
+        mock_repo = AsyncMock()
+        job_id = uuid.uuid4()
+        doc_ver = uuid.uuid4()
+        job = EmbeddingJob(
+            id=job_id,
+            tenant_id="t1",
+            document_id=uuid.uuid4(),
+            document_version_id=doc_ver,
+            provider="local",
+            model_name="BAAI/bge-small-en-v1.5",
+            total_chunks=2,
+            processed_chunks=0,
+            status="PENDING",
+        )
+        mock_repo.get_job_by_id_and_tenant.return_value = job
+
+        # Both chunks have identical content_hash "duplicate_hash"
+        c1 = DocumentChunk(id=uuid.uuid4(), tenant_id="t1", document_version_id=doc_ver, content="dup", content_hash="duplicate_hash")
+        c2 = DocumentChunk(id=uuid.uuid4(), tenant_id="t1", document_version_id=doc_ver, content="dup", content_hash="duplicate_hash")
+
+        mock_repo.get_unembedded_chunks.side_effect = [[c1, c2], []]
+        mock_repo.get_existing_embeddings_by_hashes.return_value = {
+            "duplicate_hash": ChunkEmbedding(
+                id=uuid.uuid4(),
+                tenant_id="t1",
+                chunk_id=uuid.uuid4(),
+                document_version_id=uuid.uuid4(),
+                content_hash="duplicate_hash",
+                provider="local",
+                model_name="BAAI/bge-small-en-v1.5",
+                dimension=384,
+                embedding_vector=[0.5] * 384,
+            ),
+        }
+
+        mock_dispatcher = AsyncMock(spec=EventDispatcher)
+        service = EmbeddingService(repository=mock_repo, event_dispatcher=mock_dispatcher)
+
+        mock_repo.update_job_progress.return_value = job
+        await service.process_embedding_batch(job_id=job_id, tenant_id="t1", batch_size=100)
+
+        # 1 cache hit generates 2 separate ChunkEmbedding records, each with its chunk's unique id
+        staged_recs = mock_repo.bulk_insert_chunk_embeddings.call_args[0][0]
+        assert len(staged_recs) == 2
+        assert staged_recs[0].chunk_id == c1.id
+        assert staged_recs[1].chunk_id == c2.id
+        assert staged_recs[0].document_version_id == doc_ver
+        assert staged_recs[1].document_version_id == doc_ver
+
+    @patch("backend.cache.rate_limit.RateLimiter.check_limit", return_value={"current": 1, "limit": 600, "remaining": 599})
+    async def test_process_batch_dimension_mismatch_falls_back_to_provider(self, mock_rate_limit) -> None:
+        """Verify cached record with wrong dimension is rejected as cache hit and vectorized by provider."""
+        mock_repo = AsyncMock()
+        job_id = uuid.uuid4()
+        doc_ver = uuid.uuid4()
+        job = EmbeddingJob(
+            id=job_id,
+            tenant_id="t1",
+            document_id=uuid.uuid4(),
+            document_version_id=doc_ver,
+            provider="local",
+            model_name="BAAI/bge-small-en-v1.5",
+            total_chunks=1,
+            processed_chunks=0,
+            status="PENDING",
+        )
+        mock_repo.get_job_by_id_and_tenant.return_value = job
+
+        c1 = DocumentChunk(id=uuid.uuid4(), tenant_id="t1", document_version_id=doc_ver, content="dim mismatch", content_hash="h_bad_dim")
+        mock_repo.get_unembedded_chunks.side_effect = [[c1], []]
+
+        # Cached record has dimension 768, but manager expects 384
+        mock_repo.get_existing_embeddings_by_hashes.return_value = {
+            "h_bad_dim": ChunkEmbedding(
+                id=uuid.uuid4(),
+                tenant_id="t1",
+                chunk_id=uuid.uuid4(),
+                document_version_id=uuid.uuid4(),
+                content_hash="h_bad_dim",
+                provider="local",
+                model_name="BAAI/bge-small-en-v1.5",
+                dimension=768,
+                embedding_vector=[0.1] * 768,
+            ),
+        }
+
+        mock_dispatcher = AsyncMock(spec=EventDispatcher)
+        service = EmbeddingService(repository=mock_repo, event_dispatcher=mock_dispatcher)
+
+        mock_repo.update_job_progress.return_value = job
+        await service.process_embedding_batch(job_id=job_id, tenant_id="t1", batch_size=100)
+
+        # Chunks were NOT routed to cache insert; instead routed to provider embedding
+        assert mock_repo.bulk_insert_chunk_embeddings.await_count == 1
+        inserted_recs = mock_repo.bulk_insert_chunk_embeddings.call_args[0][0]
+        assert len(inserted_recs) == 1
+        assert inserted_recs[0].chunk_id == c1.id
+        # Vector was generated with expected 384 dimension
+        assert inserted_recs[0].dimension == 384
 
     @patch("backend.modules.embedding.services.embedding_service.EmbeddingManager.vectorize_batch")
     @patch("backend.cache.rate_limit.RateLimiter.check_limit", return_value={"current": 1, "limit": 600, "remaining": 599})
@@ -177,7 +383,7 @@ class TestEmbeddingService:
         mock_repo.get_unembedded_chunks.return_value = [
             DocumentChunk(id=uuid.uuid4(), tenant_id="t1", document_version_id=job.document_version_id, content="fail", content_hash="hf")
         ]
-        mock_repo.filter_existing_content_hashes.return_value = set()
+        mock_repo.get_existing_embeddings_by_hashes.return_value = {}
 
         mock_dispatcher = AsyncMock(spec=EventDispatcher)
         service = EmbeddingService(repository=mock_repo, event_dispatcher=mock_dispatcher)

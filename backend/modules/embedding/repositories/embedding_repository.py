@@ -179,16 +179,28 @@ class EmbeddingRepository(BaseRepository[EmbeddingJob], IEmbeddingRepository):
         if not hashes:
             return {}
 
-        stmt = select(ChunkEmbedding).where(
-            ChunkEmbedding.tenant_id == tenant_id,
-            ChunkEmbedding.content_hash.in_(hashes),
-            ChunkEmbedding.provider == provider,
-            ChunkEmbedding.model_name == model_name,
-            ChunkEmbedding.is_deleted.is_(False),
+        stmt = (
+            select(ChunkEmbedding)
+            .where(
+                ChunkEmbedding.tenant_id == tenant_id,
+                ChunkEmbedding.content_hash.in_(hashes),
+                ChunkEmbedding.provider == provider,
+                ChunkEmbedding.model_name == model_name,
+                ChunkEmbedding.is_deleted.is_(False),
+            )
+            .order_by(
+                ChunkEmbedding.content_hash.asc(),
+                ChunkEmbedding.created_at.desc(),
+                ChunkEmbedding.id.desc(),
+            )
         )
         result = await self.session.execute(stmt)
         records = result.scalars().all()
-        return {rec.content_hash: rec for rec in records}
+        cached_map: dict[str, ChunkEmbedding] = {}
+        for rec in records:
+            if rec.content_hash not in cached_map:
+                cached_map[rec.content_hash] = rec
+        return cached_map
 
     async def bulk_insert_chunk_embeddings(self, records: list[ChunkEmbedding]) -> int:
         """Bulk insert `ChunkEmbedding` records into staging storage (`chunk_embeddings`)."""

@@ -146,19 +146,46 @@ class EmbeddingService:
             if not chunks:
                 break
 
+            cached_chunks: list[DocumentChunk] = []
+            cached_embeddings_to_insert: list[ChunkEmbedding] = []
+            missing_chunks: list[DocumentChunk] = []
+
             if not force_reembed:
                 hashes = [c.content_hash for c in chunks]
-                existing = await self.repository.filter_existing_content_hashes(
+                cached_map = await self.repository.get_existing_embeddings_by_hashes(
                     hashes, tenant_id, job.provider, job.model_name
                 )
-                cached_chunks = [c for c in chunks if c.content_hash in existing]
-                missing_chunks = [c for c in chunks if c.content_hash not in existing]
+                for chunk in chunks:
+                    cached_rec = cached_map.get(chunk.content_hash)
+                    if (
+                        cached_rec is not None
+                        and cached_rec.dimension == manager.dimension
+                        and isinstance(cached_rec.embedding_vector, list)
+                        and len(cached_rec.embedding_vector) == manager.dimension
+                    ):
+                        cached_chunks.append(chunk)
+                        cached_embeddings_to_insert.append(
+                            ChunkEmbedding(
+                                tenant_id=tenant_id,
+                                chunk_id=chunk.id,
+                                document_version_id=job.document_version_id,
+                                content_hash=chunk.content_hash,
+                                provider=job.provider,
+                                model_name=job.model_name,
+                                dimension=manager.dimension,
+                                embedding_vector=cached_rec.embedding_vector,
+                            )
+                        )
+                    else:
+                        missing_chunks.append(chunk)
             else:
-                cached_chunks = []
                 missing_chunks = list(chunks)
 
             # Fast-path for already vectorized chunks (Zero-call idempotency check)
             if cached_chunks:
+                await self.repository.bulk_insert_chunk_embeddings(
+                    cached_embeddings_to_insert
+                )
                 await self.repository.mark_chunks_as_embedded(
                     [c.id for c in cached_chunks], tenant_id
                 )
@@ -213,8 +240,9 @@ class EmbeddingService:
                                 event_type=EventType.EMBEDDING_FAILED, payload=payload
                             )
                         )
+                    import traceback
                     logger.error(
-                        "embedding_batch_failed", job_id=job_id, error=str(exc)
+                        "embedding_batch_failed", job_id=job_id, error=str(exc), traceback=traceback.format_exc()
                     )
                     raise
 

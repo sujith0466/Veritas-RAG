@@ -71,23 +71,6 @@ class CeleryEmbeddingWorker:
                     },
                 )
 
-            from backend.core.events.dispatcher import get_dispatcher
-            from backend.core.events.types import EventType
-            from backend.modules.embedding.events import create_embedding_event
-
-            success_event = create_embedding_event(
-                event_type=EventType.EMBEDDING_COMPLETED,
-                tenant_id=tenant_id,
-                job_id=job.id,
-                document_id=job.document_id,
-                data={
-                    "processed_chunks": job.processed_chunks,
-                    "tokens_consumed": job.total_tokens_consumed,
-                }
-            )
-            dispatcher = get_dispatcher()
-            await dispatcher.publish(success_event)
-
             return {
                 "status": "success",
                 "job_id": str(job.id),
@@ -101,6 +84,8 @@ class CeleryEmbeddingWorker:
                 raise celery_task.retry(exc=exc, countdown=10)
             raise exc
         except Exception as exc:
+            import traceback
+            tb_str = traceback.format_exc()
             await self.session.rollback()
             error_code = getattr(exc, "code", "EMB_004")
             severity = getattr(exc, "severity", get_error_severity(str(error_code)))
@@ -112,6 +97,7 @@ class CeleryEmbeddingWorker:
                 error_code=str(error_code),
                 severity=str(severity),
                 error=str(exc),
+                traceback=tb_str,
             )
 
             # Check if Celery retry is appropriate and supported

@@ -150,15 +150,17 @@ class TestEmbeddingRepository:
     async def test_get_existing_embeddings_by_hashes(self) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()
-        rec_a = ChunkEmbedding(tenant_id="t-1", chunk_id=uuid.uuid4(), document_version_id=uuid.uuid4(), content_hash="h_a", provider="openai", model_name="m", dimension=1024, embedding_vector=[0.1])
-        mock_result.scalars.return_value.all.return_value = [rec_a]
+        rec_a1 = ChunkEmbedding(tenant_id="t-1", chunk_id=uuid.uuid4(), document_version_id=uuid.uuid4(), content_hash="h_a", provider="openai", model_name="m", dimension=1024, embedding_vector=[0.1])
+        rec_a2 = ChunkEmbedding(tenant_id="t-1", chunk_id=uuid.uuid4(), document_version_id=uuid.uuid4(), content_hash="h_a", provider="openai", model_name="m", dimension=1024, embedding_vector=[0.9])
+        mock_result.scalars.return_value.all.return_value = [rec_a1, rec_a2]
         mock_session.execute.return_value = mock_result
 
         repo = EmbeddingRepository(mock_session)
         res_map = await repo.get_existing_embeddings_by_hashes(["h_a", "h_b"], "t-1", "openai", "m")
 
         assert "h_a" in res_map
-        assert res_map["h_a"] is rec_a
+        # First record (most recent per order_by) must be retained
+        assert res_map["h_a"] is rec_a1
         assert "h_b" not in res_map
 
     async def test_bulk_insert_chunk_embeddings(self) -> None:
