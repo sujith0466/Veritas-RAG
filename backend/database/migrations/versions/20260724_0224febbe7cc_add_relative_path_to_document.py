@@ -45,7 +45,6 @@ def upgrade() -> None:
     op.drop_table('token_usages')
     op.drop_index(op.f('idx_confidence_evaluations_tenant_id'), table_name='confidence_evaluations')
     op.drop_table('confidence_evaluations')
-    op.drop_table('tenant_quotas')
     op.drop_index(op.f('ix_reflection_logs_correlation_id'), table_name='reflection_logs')
     op.drop_index(op.f('ix_reflection_logs_tenant_id'), table_name='reflection_logs')
     op.drop_table('reflection_logs')
@@ -63,8 +62,6 @@ def upgrade() -> None:
     op.drop_index(op.f('ix_document_chunks_tenant_hash'), table_name='document_chunks')
     op.add_column('documents', sa.Column('relative_path', sa.String(length=1024), nullable=True))
     op.create_index(op.f('ix_embedding_jobs_document_version_id'), 'embedding_jobs', ['document_version_id'], unique=False)
-    op.drop_index(op.f('ix_health_scan_jobs_tenant_status'), table_name='health_scan_jobs')
-    op.drop_column('health_scan_jobs', 'is_deleted')
     op.drop_index(op.f('ix_query_analytics_tenant_id'), table_name='query_analytics_records')
     op.create_index(op.f('ix_query_analytics_records_tenant_id'), 'query_analytics_records', ['tenant_id'], unique=False)
     op.drop_index(op.f('ix_stale_embedding_records_tenant_chunk'), table_name='stale_embedding_records')
@@ -78,8 +75,6 @@ def downgrade() -> None:
     op.create_index(op.f('ix_stale_embedding_records_tenant_chunk'), 'stale_embedding_records', ['tenant_id', 'chunk_id'], unique=False)
     op.drop_index(op.f('ix_query_analytics_records_tenant_id'), table_name='query_analytics_records')
     op.create_index(op.f('ix_query_analytics_tenant_id'), 'query_analytics_records', ['tenant_id'], unique=False)
-    op.add_column('health_scan_jobs', sa.Column('is_deleted', sa.BOOLEAN(), server_default=sa.text('false'), autoincrement=False, nullable=False))
-    op.create_index(op.f('ix_health_scan_jobs_tenant_status'), 'health_scan_jobs', ['tenant_id', 'scan_type', 'status'], unique=False)
     op.drop_index(op.f('ix_embedding_jobs_document_version_id'), table_name='embedding_jobs')
     op.drop_column('documents', 'relative_path')
     op.create_index(op.f('ix_document_chunks_tenant_hash'), 'document_chunks', ['tenant_id', 'content_hash'], unique=False)
@@ -146,14 +141,6 @@ def downgrade() -> None:
     )
     op.create_index(op.f('ix_reflection_logs_tenant_id'), 'reflection_logs', ['tenant_id'], unique=False)
     op.create_index(op.f('ix_reflection_logs_correlation_id'), 'reflection_logs', ['correlation_id'], unique=False)
-    op.create_table('tenant_quotas',
-    sa.Column('tenant_id', sa.VARCHAR(length=64), autoincrement=False, nullable=False),
-    sa.Column('monthly_token_limit', sa.BIGINT(), autoincrement=False, nullable=False),
-    sa.Column('monthly_budget_usd', sa.DOUBLE_PRECISION(precision=53), autoincrement=False, nullable=False),
-    sa.Column('warning_threshold_pct', sa.DOUBLE_PRECISION(precision=53), autoincrement=False, nullable=False),
-    sa.Column('is_hard_enforced', sa.BOOLEAN(), autoincrement=False, nullable=False),
-    sa.PrimaryKeyConstraint('tenant_id', name=op.f('tenant_quotas_pkey'))
-    )
     op.create_table('confidence_evaluations',
     sa.Column('id', sa.UUID(), autoincrement=False, nullable=False),
     sa.Column('tenant_id', sa.VARCHAR(length=50), autoincrement=False, nullable=False),

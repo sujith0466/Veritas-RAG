@@ -67,13 +67,56 @@ class RetrievalRepository(BaseRepository[RetrievalQueryLog]):
             select(Document.id)
             .where(
                 Document.id.in_(document_ids),
-                Document.tenant_id == tenant_id,
+                Document.tenant_id == str(tenant_id),
                 Document.is_deleted.is_(False),
                 Document.status == DocumentStatus.READY.value,
             )
         )
         result = await self.session.execute(stmt)
         return set(result.scalars().all())
+
+    async def validate_active_candidates(
+        self,
+        candidate_tuples: set[tuple[UUID, UUID, UUID]],
+        tenant_id: str,
+    ) -> set[tuple[UUID, UUID, UUID]]:
+        """Validate candidate (chunk_id, document_id, version_id) tuples against authoritative PostgreSQL state.
+
+        Asserts:
+        1. DocumentChunk belongs to Document and DocumentVersion for this tenant.
+        2. Document is not deleted and status == READY.
+        3. DocumentVersion is not deleted and is_active_vector is True.
+        4. Document.latest_version_id == DocumentVersion.id (version is current).
+        """
+        if not candidate_tuples:
+            return set()
+
+        from backend.document.models.document import Document, DocumentVersion
+        from backend.document.models.status import DocumentStatus
+        from backend.modules.chunking.models.chunk import DocumentChunk
+
+        chunk_ids = {t[0] for t in candidate_tuples}
+        stmt = (
+            select(
+                DocumentChunk.id,
+                Document.id,
+                DocumentVersion.id,
+            )
+            .join(Document, DocumentChunk.document_id == Document.id)
+            .join(DocumentVersion, DocumentChunk.document_version_id == DocumentVersion.id)
+            .where(
+                DocumentChunk.id.in_(chunk_ids),
+                Document.tenant_id == str(tenant_id),
+                Document.is_deleted.is_(False),
+                Document.status == DocumentStatus.READY.value,
+                DocumentVersion.is_deleted.is_(False),
+                DocumentVersion.is_active_vector.is_(True),
+                Document.latest_version_id == DocumentVersion.id,
+            )
+        )
+        result = await self.session.execute(stmt)
+        valid_tuples = {(row[0], row[1], row[2]) for row in result.all()}
+        return valid_tuples
 
     async def get_query_history(
         self, tenant_id: str, limit: int = 50, offset: int = 0

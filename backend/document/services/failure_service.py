@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
-from backend.document.models.document import Document
+from backend.document.models.document import Document, DocumentVersion
 from backend.document.models.event_log import DocumentEventLog
 from backend.document.models.failed_job import FailedJobDiagnostics
 from backend.document.models.job import ProcessingJob
@@ -40,18 +40,25 @@ class PipelineFailureSynchronizer:
         embedding_job_id: uuid.UUID | None = None,
         tenant_id: str | None = None,
         worker_context: dict[str, Any] | None = None,
+        version_id: uuid.UUID | None = None,
     ) -> None:
         """Atomically transition document and related jobs to terminal FAILED state."""
         now = datetime.now(timezone.utc)
         safe_error_code = str(error_code)[:50]
         safe_error_msg = str(error_message)
 
-        # 1. Update Document status to FAILED
+        # 1. Resolve Document and tenant
         doc = await session.get(Document, document_id)
+        if doc and tenant_id and doc.tenant_id != tenant_id:
+            logger.warning(
+                "Cross-tenant pipeline failure attempt rejected",
+                document_id=str(document_id),
+                doc_tenant=doc.tenant_id,
+                request_tenant=tenant_id,
+            )
+            return
+
         resolved_tenant_id = tenant_id or (doc.tenant_id if doc else "unknown")
-        if doc:
-            doc.status = DocumentStatus.FAILED
-            doc.updated_at = now
 
         # 2. Update ProcessingJob if present or find document's active processing job
         target_job: ProcessingJob | None = None
@@ -77,8 +84,8 @@ class PipelineFailureSynchronizer:
             target_job.updated_at = now
 
         # 3. Update EmbeddingJob if embedding failed
+        emb_job: EmbeddingJob | None = None
         if failing_stage == "embedding":
-            emb_job: EmbeddingJob | None = None
             if embedding_job_id:
                 emb_job = await session.get(EmbeddingJob, embedding_job_id)
             elif doc:
@@ -98,6 +105,39 @@ class PipelineFailureSynchronizer:
                 emb_job.error_message = safe_error_msg
                 emb_job.completed_at = now
                 emb_job.updated_at = now
+
+        # 4. Multi-version serving check: preserve READY if another valid active version exists
+        if doc:
+            failing_ver_id = (
+                version_id
+                or (target_job.version_id if target_job else None)
+                or (emb_job.document_version_id if emb_job else None)
+            )
+            ver_stmt = (
+                select(DocumentVersion)
+                .where(
+                    DocumentVersion.document_id == document_id,
+                    DocumentVersion.is_deleted.is_(False),
+                )
+            )
+            ver_res = await session.execute(ver_stmt)
+            all_versions = ver_res.scalars().all() if hasattr(ver_res, "scalars") else []
+            has_active_version = any(
+                getattr(v, "is_active_vector", False)
+                and (failing_ver_id is None or getattr(v, "id", None) != failing_ver_id)
+                for v in all_versions
+            )
+            if has_active_version:
+                doc.status = DocumentStatus.READY
+                logger.info(
+                    "Preserved document READY status after in-flight version failure",
+                    document_id=str(document_id),
+                    failing_stage=failing_stage,
+                    failing_version_id=str(failing_ver_id) if failing_ver_id else None,
+                )
+            else:
+                doc.status = DocumentStatus.FAILED
+            doc.updated_at = now
 
         # 4. Record Forensic Diagnostic Entry in failed_job_diagnostics if job exists
         if target_job:

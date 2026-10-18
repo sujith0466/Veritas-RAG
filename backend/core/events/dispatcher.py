@@ -118,11 +118,17 @@ class EventDispatcher:
             async def _persist_notification_record():
                 try:
                     import uuid
-                    from backend.core.database.session import async_session_factory
+                    from backend.database.engine import get_session_factory
                     from backend.services.notification.notification_service import NotificationService
                     from backend.models.entities.notification import NotificationCategory, NotificationSeverity
 
-                    tenant_uuid = uuid.UUID(str(tenant_id)) if not isinstance(tenant_id, uuid.UUID) else tenant_id
+                    async_session_factory = get_session_factory()
+                    try:
+                        tenant_uuid = uuid.UUID(str(tenant_id)) if not isinstance(tenant_id, uuid.UUID) else tenant_id
+                    except (ValueError, TypeError):
+                        # Non-UUID tenant identifiers (e.g. string slugs in E2E runs) skip in-app notification table
+                        return
+
                     user_id_raw = getattr(event, "user_id", event_dict.get("user_id"))
                     user_uuid = None
                     if user_id_raw:

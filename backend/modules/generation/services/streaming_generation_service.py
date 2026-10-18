@@ -70,6 +70,7 @@ class StreamingGroundedGenerationService:
         enable_reliability = settings.features.enable_streaming_reliability
 
         window_buffer = ""
+        seen_markers_local: set[int] = set()
         reliability_engine = None
         if enable_reliability:
             from backend.modules.reliability.services.reliability_engine import ReliabilityEngine

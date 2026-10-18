@@ -50,5 +50,7 @@ class RedisSettings(BaseSettings):
 
     @property
     def test_url(self) -> str:
+        if self.url_override:
+            return self.url_override
         auth = f":{self.password}@" if self.password else ""
         return f"redis://{auth}{self.host}:{self.port}/{self.test_db}"

@@ -56,27 +56,14 @@ class RetrievalOrchestrator:
         self.event_dispatcher = event_dispatcher
         self.index_manager = index_manager
 
-    def _get_collection_name(self, options: SearchRequestDTO, tenant_id: str = None) -> str:
-        if (
-            hasattr(options, "filter_dsl")
-            and options.filter_dsl
-            and getattr(options.filter_dsl, "collection_name", None)
-        ):
-            return str(options.filter_dsl.collection_name)
-        if (
-            hasattr(options, "filters")
-            and getattr(options, "filters", None)
-            and isinstance(options.filters, dict)
-            and options.filters.get("collection_name")
-        ):
-            return str(options.filters["collection_name"])
-
-        # FIX: Ensure we use the exact same tenant-scoped naming convention
-        # as the ingestion pipeline (VectorStorageService).
+    def _get_collection_name(self, options: SearchRequestDTO | None = None, tenant_id: str | None = None) -> str:
+        # P0-3A/B: Derive collection strictly from the authenticated tenant_id and system configuration.
+        # Caller-provided collection_name in filters or filter_dsl MUST NEVER override tenant namespace.
         from backend.core.config import get_settings
+        settings = get_settings()
         if tenant_id:
-            return get_settings().qdrant.collection_name(tenant_id)
-        return get_settings().qdrant.collection_prefix
+            return settings.qdrant.collection_name(str(tenant_id))
+        return settings.qdrant.collection_prefix
 
     async def _execute_dense_stage(
         self,
@@ -98,18 +85,73 @@ class RetrievalOrchestrator:
                     "Incompatible embedding provider passed to orchestrator."
                 )
 
-            filter_conditions = {"tenant_id": tenant_id}
+            # P0-3A: Build filter conditions with immutable tenant_id.
+            # Never allow caller-supplied filters to overwrite tenant_id or inject collection_name.
+            filter_conditions: dict[str, Any] = {}
             if filters:
-                for k, v in filters.items():
-                    if k != "collection_name":
+                raw_filters = filters.model_dump(exclude_none=True) if hasattr(filters, "model_dump") else dict(filters)
+                for k, v in raw_filters.items():
+                    if k not in ("collection_name", "tenant_id") and v is not None:
                         filter_conditions[k] = v
+            # Enforce authenticated tenant_id after copying user filters
+            filter_conditions["tenant_id"] = str(tenant_id)
 
-            raw_hits = await self.vector_provider.search_points(
-                collection_name=collection_name,
-                query_vector=query_vector,
-                filter_conditions=filter_conditions,
-                limit=limit,
-            )
+            # Bounded retrieval over-fetch caps: max 2 calls, max 200 candidates, 2.0s timeout
+            DENSE_STAGE_TIMEOUT_SEC = 2.0
+            MAX_SEARCH_CALLS = 2
+            MAX_CANDIDATE_CAP = 200
+
+            deadline = time.perf_counter() + DENSE_STAGE_TIMEOUT_SEC
+            hits: list[dict[str, Any]] = []
+
+            # Call 1: Primary search bounded by deadline
+            try:
+                remaining_time = max(0.0, deadline - time.perf_counter())
+                hits = await asyncio.wait_for(
+                    self.vector_provider.search_points(
+                        collection_name=collection_name,
+                        query_vector=query_vector,
+                        filter_conditions=filter_conditions,
+                        limit=limit,
+                        offset=None,
+                    ),
+                    timeout=remaining_time,
+                )
+            except TimeoutError:
+                logger.warning("Primary dense search timed out; returning empty candidates to trigger graceful degradation")
+                hits = []
+
+            # Call 2: Supplementary search only if primary page hit full limit and we have headroom
+            if len(hits) == limit and limit < MAX_CANDIDATE_CAP:
+                remaining_time = max(0.0, deadline - time.perf_counter())
+                if remaining_time > 0.0:
+                    supp_limit = min(limit, MAX_CANDIDATE_CAP - len(hits))
+                    try:
+                        supp_hits = await asyncio.wait_for(
+                            self.vector_provider.search_points(
+                                collection_name=collection_name,
+                                query_vector=query_vector,
+                                filter_conditions=filter_conditions,
+                                limit=supp_limit,
+                                offset=len(hits),
+                            ),
+                            timeout=remaining_time,
+                        )
+                        # Deduplicate hits by point_id
+                        seen_points = {h.get("point_id") for h in hits}
+                        for sh in supp_hits:
+                            pid = sh.get("point_id")
+                            if pid not in seen_points:
+                                hits.append(sh)
+                                seen_points.add(pid)
+                    except TimeoutError:
+                        logger.warning("Supplementary dense over-fetch timed out; proceeding with primary hits")
+                    except Exception as supp_err:
+                        logger.warning("Supplementary dense over-fetch failed; proceeding with primary hits", error=str(supp_err))
+                else:
+                    logger.warning("Dense stage deadline reached before supplementary over-fetch; proceeding with primary hits")
+
+            raw_hits = hits[:MAX_CANDIDATE_CAP]
 
             candidates: list[CandidatePointDTO] = []
             for idx, hit in enumerate(raw_hits, start=1):
@@ -336,8 +378,25 @@ class RetrievalOrchestrator:
             )
             rrf_ms = (time.perf_counter() - rrf_start) * 1000.0
 
-            # Stage 2.5: Defense-in-depth: Exclude soft-deleted or non-READY documents
-            if self.repository and hasattr(self.repository, "filter_active_ready_document_ids"):
+            # Stage 2.5: Authoritative candidate validation against PostgreSQL state
+            if self.repository and hasattr(self.repository, "validate_active_candidates"):
+                try:
+                    candidate_tuples = {
+                        (c.chunk_id, c.document_id, c.document_version_id)
+                        for c in deduped
+                        if getattr(c, "chunk_id", None) and getattr(c, "document_id", None) and getattr(c, "document_version_id", None)
+                    }
+                    if candidate_tuples:
+                        valid_tuples = await self.repository.validate_active_candidates(
+                            candidate_tuples, tenant_id
+                        )
+                        deduped = [
+                            c for c in deduped
+                            if (getattr(c, "chunk_id", None), getattr(c, "document_id", None), getattr(c, "document_version_id", None)) in valid_tuples
+                        ]
+                except Exception as exc:
+                    logger.warning("Authoritative candidate validation failed; proceeding with caution", error=str(exc))
+            elif self.repository and hasattr(self.repository, "filter_active_ready_document_ids"):
                 try:
                     candidate_doc_ids = {
                         c.document_id for c in deduped if getattr(c, "document_id", None)
@@ -423,7 +482,7 @@ class RetrievalOrchestrator:
         if correlation_id == "auto" or not correlation_id:
             correlation_id = f"req_{uuid4().hex[:8]}"
 
-        collection_name = self._get_collection_name(options)
+        collection_name = self._get_collection_name(options, tenant_id=tenant_id)
 
         dense_task = self._execute_dense_stage(
             query=query_clean,
@@ -451,6 +510,37 @@ class RetrievalOrchestrator:
             merged, similarity_threshold=options.dedup_similarity_threshold
         )
         rrf_ms = (time.perf_counter() - rrf_start) * 1000.0
+
+        # Stage 2.5: Authoritative candidate validation in sandbox mode
+        if self.repository and hasattr(self.repository, "validate_active_candidates"):
+            try:
+                candidate_tuples = {
+                    (c.chunk_id, c.document_id, c.document_version_id)
+                    for c in deduped
+                    if getattr(c, "chunk_id", None) and getattr(c, "document_id", None) and getattr(c, "document_version_id", None)
+                }
+                if candidate_tuples:
+                    valid_tuples = await self.repository.validate_active_candidates(
+                        candidate_tuples, tenant_id
+                    )
+                    deduped = [
+                        c for c in deduped
+                        if (getattr(c, "chunk_id", None), getattr(c, "document_id", None), getattr(c, "document_version_id", None)) in valid_tuples
+                    ]
+            except Exception as exc:
+                logger.warning("Sandbox candidate validation failed; proceeding with caution", error=str(exc))
+        elif self.repository and hasattr(self.repository, "filter_active_ready_document_ids"):
+            try:
+                candidate_doc_ids = {
+                    c.document_id for c in deduped if getattr(c, "document_id", None)
+                }
+                if candidate_doc_ids:
+                    valid_doc_ids = await self.repository.filter_active_ready_document_ids(
+                        candidate_doc_ids, tenant_id
+                    )
+                    deduped = [c for c in deduped if getattr(c, "document_id", None) in valid_doc_ids]
+            except Exception as exc:
+                logger.warning("Sandbox document validity check failed; proceeding with caution", error=str(exc))
 
         rerank_start = time.perf_counter()
         rerank_input = [c.model_copy(deep=True) for c in deduped[:30]]

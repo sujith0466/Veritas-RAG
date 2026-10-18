@@ -181,3 +181,60 @@ async def test_rollback_to_version_dispatch_failure_preserves_state(service, moc
         assert job.dispatch_state == DispatchState.FAILED_DISPATCH.value
         assert "Broker unreachable" in job.dispatch_error
         mock_session.commit.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_upload_new_version_preserves_ready_status(service, mock_session):
+    """Gate L2: upload_new_version on a READY document retains READY status during re-processing."""
+    tenant_id = "tenant-1"
+    doc_id = uuid.uuid4()
+    v1_id = uuid.uuid4()
+
+    mock_doc = MagicMock()
+    mock_doc.id = doc_id
+    mock_doc.tenant_id = tenant_id
+    mock_doc.status = DocumentStatus.READY
+    mock_doc.latest_version_id = v1_id
+    mock_doc.filename = "guide.pdf"
+
+    mock_v1 = MagicMock()
+    mock_v1.version_number = 1
+    mock_doc.versions = [mock_v1]
+
+    service.doc_repo.get_by_id_with_versions.return_value = mock_doc
+    service.validator.validate = AsyncMock(
+        return_value=MagicMock(sanitized_filename="guide.pdf", mime_type="application/pdf")
+    )
+    service.storage.save_stream = AsyncMock(
+        return_value=MagicMock(
+            provider="local",
+            bucket_or_container="bucket",
+            object_key="key",
+            file_size_bytes=100,
+            checksum_sha256="hash123",
+        )
+    )
+    service.storage_repo.create = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+    service.doc_repo.add_version = AsyncMock(side_effect=lambda v, s: v)
+    service.job_repo.create = AsyncMock(side_effect=lambda j, s: j)
+    service.event_repo.append_event = AsyncMock()
+
+    with patch("backend.document.services.document_service.acquire_lock", return_value=DummyAsyncContextManager()), \
+         patch("backend.document.services.job_dispatcher.JobDispatcher.dispatch_job", new_callable=AsyncMock):
+
+        doc, version, job = await service.upload_new_version(
+            document_id=doc_id,
+            stream=MagicMock(),
+            filename="guide.pdf",
+            declared_mime="application/pdf",
+            tenant_id=tenant_id,
+            owner_user_id=None,
+            session=mock_session,
+        )
+
+        assert doc.status == DocumentStatus.READY
+        assert doc.latest_version_id == v1_id
+        assert version.version_number == 2
+        assert version.is_active_vector is False
+        assert job.version_id == version.id
+

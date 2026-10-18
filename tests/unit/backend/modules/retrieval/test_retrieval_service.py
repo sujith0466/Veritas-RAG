@@ -206,6 +206,337 @@ class TestRetrievalOrchestrator:
             await orchestrator.execute_hybrid_search(options=options, tenant_id="org_test")
         assert exc_info.value.code == RetrievalErrorCode.RET_001
 
+    async def test_tenant_isolation_caller_collection_name_override_ignored(
+        self,
+        mock_embedding_provider: MagicMock,
+        mock_vector_provider: MagicMock,
+        mock_sparse_provider: MagicMock,
+        mock_reranker_provider: MagicMock,
+    ) -> None:
+        orchestrator = RetrievalOrchestrator(
+            embedding_provider=mock_embedding_provider,
+            vector_provider=mock_vector_provider,
+            sparse_provider=mock_sparse_provider,
+            reranker_provider=mock_reranker_provider,
+        )
+
+        from backend.modules.retrieval.schemas.filter_dsl import FilterDSL
+
+        # Attacker supplies collection_name and victim tenant_id inside filter_dsl
+        dsl = FilterDSL(
+            tenant_id="victim_tenant",
+            metadata_eq={"category": "confidential"}
+        )
+        options = SearchRequestDTO(
+            query="sensitive data exfiltration",
+            top_k=5,
+            filter_dsl=dsl,
+        )
+
+        await orchestrator.execute_hybrid_search(options=options, tenant_id="attacker_tenant")
+
+        # Must query attacker's collection strictly and use attacker_tenant
+        mock_vector_provider.search_points.assert_called_once()
+        call_kwargs = mock_vector_provider.search_points.call_args.kwargs
+        assert call_kwargs["collection_name"] == "raguard_knowledge_attacker_tenant"
+        assert call_kwargs["filter_conditions"]["tenant_id"] == "attacker_tenant"
+        assert "collection_name" not in call_kwargs["filter_conditions"]
+
+    async def test_tenant_isolation_caller_tenant_id_in_filters_cannot_override(
+        self,
+        mock_embedding_provider: MagicMock,
+        mock_vector_provider: MagicMock,
+        mock_sparse_provider: MagicMock,
+        mock_reranker_provider: MagicMock,
+    ) -> None:
+        orchestrator = RetrievalOrchestrator(
+            embedding_provider=mock_embedding_provider,
+            vector_provider=mock_vector_provider,
+            sparse_provider=mock_sparse_provider,
+            reranker_provider=mock_reranker_provider,
+        )
+
+        from backend.modules.retrieval.schemas.filter_dsl import FilterDSL
+
+        # Attacker tries to pass tenant_id in FilterDSL
+        dsl = FilterDSL(tenant_id="other_tenant")
+        options = SearchRequestDTO(
+            query="test tenant filter tampering",
+            top_k=5,
+            filter_dsl=dsl,
+        )
+
+        await orchestrator.execute_hybrid_search(options=options, tenant_id="trusted_tenant")
+
+        mock_vector_provider.search_points.assert_called_once()
+        call_kwargs = mock_vector_provider.search_points.call_args.kwargs
+        assert call_kwargs["filter_conditions"]["tenant_id"] == "trusted_tenant"
+
+    async def test_sandbox_search_resolves_tenant_collection_strictly(
+        self,
+        mock_embedding_provider: MagicMock,
+        mock_vector_provider: MagicMock,
+        mock_sparse_provider: MagicMock,
+        mock_reranker_provider: MagicMock,
+    ) -> None:
+        orchestrator = RetrievalOrchestrator(
+            embedding_provider=mock_embedding_provider,
+            vector_provider=mock_vector_provider,
+            sparse_provider=mock_sparse_provider,
+            reranker_provider=mock_reranker_provider,
+        )
+
+        options = SearchRequestDTO(query="Sandbox multi-stage evaluation", top_k=5)
+
+        sandbox_res = await orchestrator.execute_sandbox_search(options=options, tenant_id="tenant_sandbox_123")
+
+        mock_vector_provider.search_points.assert_called_once()
+        call_kwargs = mock_vector_provider.search_points.call_args.kwargs
+        assert call_kwargs["collection_name"] == "raguard_knowledge_tenant_sandbox_123"
+        assert call_kwargs["filter_conditions"]["tenant_id"] == "tenant_sandbox_123"
+        assert len(sandbox_res.dense_results) == 2
+
+    async def test_candidate_validation_rejects_superseded_or_inactive_versions(
+        self,
+        mock_embedding_provider: MagicMock,
+        mock_sparse_provider: MagicMock,
+        mock_reranker_provider: MagicMock,
+    ) -> None:
+        valid_cid = uuid.uuid4()
+        stale_cid = uuid.uuid4()
+        doc_id = uuid.uuid4()
+        v1_id = uuid.uuid4()
+        v2_id = uuid.uuid4()
+
+        vector_prov = MagicMock()
+        vector_prov.search_points = AsyncMock(
+            return_value=[
+                {
+                    "point_id": str(valid_cid),
+                    "score": 0.95,
+                    "payload": {
+                        "chunk_id": str(valid_cid),
+                        "document_id": str(doc_id),
+                        "document_version_id": str(v2_id),
+                        "tenant_id": "test_tenant",
+                        "content": "Active version 2 content",
+                    },
+                },
+                {
+                    "point_id": str(stale_cid),
+                    "score": 0.92,
+                    "payload": {
+                        "chunk_id": str(stale_cid),
+                        "document_id": str(doc_id),
+                        "document_version_id": str(v1_id),
+                        "tenant_id": "test_tenant",
+                        "content": "Superseded version 1 content",
+                    },
+                },
+            ]
+        )
+
+        mock_repo = MagicMock()
+        # Mock repository validating ONLY (valid_cid, doc_id, v2_id) as active
+        mock_repo.validate_active_candidates = AsyncMock(
+            return_value={(valid_cid, doc_id, v2_id)}
+        )
+
+        # Sparse returns empty to isolate dense candidate validation
+        sparse_prov = MagicMock()
+        sparse_prov.search_keywords = AsyncMock(return_value=[])
+
+        orchestrator = RetrievalOrchestrator(
+            embedding_provider=mock_embedding_provider,
+            vector_provider=vector_prov,
+            sparse_provider=sparse_prov,
+            reranker_provider=mock_reranker_provider,
+            repository=mock_repo,
+        )
+
+        options = SearchRequestDTO(query="test version validation", top_k=5)
+        res = await orchestrator.execute_hybrid_search(options=options, tenant_id="test_tenant")
+
+        # Stale candidate must be discarded before reranking
+        mock_repo.validate_active_candidates.assert_called_once()
+        reranked_chunks = [c.chunk_id for c in res.final_evidence]
+        assert valid_cid in reranked_chunks
+        assert stale_cid not in reranked_chunks
+
+    async def test_dense_overfetch_supplemental_timeout_preserves_primary_results(
+        self,
+        mock_embedding_provider: MagicMock,
+        mock_sparse_provider: MagicMock,
+        mock_reranker_provider: MagicMock,
+    ) -> None:
+        """D4-2: When primary call completes but supplemental over-fetch times out, primary results must survive."""
+        primary_cids = [uuid.uuid4() for _ in range(10)]
+        doc_id = uuid.uuid4()
+        ver_id = uuid.uuid4()
+        tenant_id = "tenant_timeout_test"
+
+        vector_prov = MagicMock()
+        primary_hits = [
+            {
+                "point_id": str(cid),
+                "score": 0.95 - i * 0.01,
+                "payload": {
+                    "chunk_id": str(cid),
+                    "document_id": str(doc_id),
+                    "document_version_id": str(ver_id),
+                    "tenant_id": tenant_id,
+                    "content": f"Distinct scientific domain subject matter {i} analyzing topic {uuid.uuid4().hex}",
+                },
+            }
+            for i, cid in enumerate(primary_cids)
+        ]
+
+        # Call 1 returns primary_hits; Call 2 times out
+        async def _mock_search(*args, **kwargs):
+            if kwargs.get("offset") is None:
+                return list(primary_hits)
+            raise TimeoutError("Supplementary overfetch timeout")
+
+        vector_prov.search_points = AsyncMock(side_effect=_mock_search)
+
+        mock_repo = MagicMock()
+        mock_repo.validate_active_candidates = AsyncMock(
+            return_value={(cid, doc_id, ver_id) for cid in primary_cids}
+        )
+
+        sparse_prov = MagicMock()
+        sparse_prov.search_keywords = AsyncMock(return_value=[])
+
+        orchestrator = RetrievalOrchestrator(
+            embedding_provider=mock_embedding_provider,
+            vector_provider=vector_prov,
+            sparse_provider=sparse_prov,
+            reranker_provider=mock_reranker_provider,
+            repository=mock_repo,
+        )
+
+        # Set limit_dense=10 (valid >=10) to trigger supplementary over-fetch (len(hits) == limit)
+        options = SearchRequestDTO(query="timeout resilience test", top_k=10, limit_dense=10)
+        res = await orchestrator.execute_hybrid_search(options=options, tenant_id=tenant_id)
+
+        # Both calls were attempted
+        assert vector_prov.search_points.call_count == 2
+        # Candidate validation ran on preserved primary hits
+        mock_repo.validate_active_candidates.assert_called_once()
+        # Primary results survived into final evidence
+        final_cids = [c.chunk_id for c in res.final_evidence]
+        assert len(final_cids) == 10
+        assert primary_cids[0] in final_cids
+
+    async def test_dense_primary_timeout_yields_empty_candidates_no_fabrication(
+        self,
+        mock_embedding_provider: MagicMock,
+        mock_sparse_provider: MagicMock,
+        mock_reranker_provider: MagicMock,
+    ) -> None:
+        """D4-2: When primary call itself times out, no nonexistent results are fabricated."""
+        vector_prov = MagicMock()
+        vector_prov.search_points = AsyncMock(side_effect=TimeoutError("Primary search timeout"))
+
+        sparse_prov = MagicMock()
+        sparse_prov.search_keywords = AsyncMock(return_value=[])
+
+        orchestrator = RetrievalOrchestrator(
+            embedding_provider=mock_embedding_provider,
+            vector_provider=vector_prov,
+            sparse_provider=sparse_prov,
+            reranker_provider=mock_reranker_provider,
+        )
+
+        options = SearchRequestDTO(query="primary timeout test", top_k=5)
+        res = await orchestrator.execute_hybrid_search(options=options, tenant_id="tenant_p_timeout")
+
+        # Vector search was attempted once
+        assert vector_prov.search_points.call_count == 1
+        # No results fabricated
+        assert len(res.final_evidence) == 0
+
+    async def test_dense_overfetch_supplemental_success_merges_and_deduplicates(
+        self,
+        mock_embedding_provider: MagicMock,
+        mock_sparse_provider: MagicMock,
+        mock_reranker_provider: MagicMock,
+    ) -> None:
+        """D4-2: Supplemental call succeeds, merges new results, and deduplicates against primary results."""
+        primary_cids = [uuid.uuid4() for _ in range(10)]
+        supp_cid = uuid.uuid4()
+        doc_id = uuid.uuid4()
+        ver_id = uuid.uuid4()
+        tenant_id = "tenant_overfetch_test"
+
+        primary_hits = [
+            {
+                "point_id": str(cid),
+                "score": 0.95 - i * 0.01,
+                "payload": {
+                    "chunk_id": str(cid),
+                    "document_id": str(doc_id),
+                    "document_version_id": str(ver_id),
+                    "tenant_id": tenant_id,
+                    "content": f"Discrete distinct knowledge fragment {i} analyzing concept {uuid.uuid4().hex}",
+                },
+            }
+            for i, cid in enumerate(primary_cids)
+        ]
+        supp_hits = [
+            {
+                "point_id": str(supp_cid),
+                "score": 0.80,
+                "payload": {
+                    "chunk_id": str(supp_cid),
+                    "document_id": str(doc_id),
+                    "document_version_id": str(ver_id),
+                    "tenant_id": tenant_id,
+                    "content": f"Unique supplementary knowledge discovery topic {uuid.uuid4().hex}",
+                },
+            },
+            primary_hits[0],  # Duplicate of first primary hit
+        ]
+
+        # Call 1 returns primary_hits (limit=10). Call 2 returns supp_hits (1 new, 1 duplicate).
+        async def _mock_search(*args, **kwargs):
+            if kwargs.get("offset") is None:
+                return list(primary_hits)
+            return list(supp_hits)
+
+        vector_prov = MagicMock()
+        vector_prov.search_points = AsyncMock(side_effect=_mock_search)
+
+        mock_repo = MagicMock()
+        mock_repo.validate_active_candidates = AsyncMock(
+            return_value={(cid, doc_id, ver_id) for cid in primary_cids} | {(supp_cid, doc_id, ver_id)}
+        )
+
+        sparse_prov = MagicMock()
+        sparse_prov.search_keywords = AsyncMock(return_value=[])
+
+        orchestrator = RetrievalOrchestrator(
+            embedding_provider=mock_embedding_provider,
+            vector_provider=vector_prov,
+            sparse_provider=sparse_prov,
+            reranker_provider=mock_reranker_provider,
+            repository=mock_repo,
+        )
+
+        options = SearchRequestDTO(query="overfetch merge test", top_k=15, limit_dense=10)
+        res = await orchestrator.execute_hybrid_search(options=options, tenant_id=tenant_id)
+
+        # Verified two calls made, second with offset=10
+        assert vector_prov.search_points.call_count == 2
+        second_call_kwargs = vector_prov.search_points.call_args_list[1].kwargs
+        assert second_call_kwargs["offset"] == 10
+
+        # Verified all 11 unique chunks validated without duplicate
+        final_cids = [c.chunk_id for c in res.final_evidence]
+        assert len(final_cids) == 11
+        assert supp_cid in final_cids
+        assert primary_cids[0] in final_cids
+
 
 @pytest.mark.asyncio
 class TestRerankerProviders:

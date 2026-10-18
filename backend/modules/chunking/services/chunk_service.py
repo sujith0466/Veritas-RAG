@@ -214,7 +214,8 @@ class ChunkingService:
         ChunkProcessingContract.verify(chunk_entities)
 
         # 10. Update Document status to CHUNKED and emit domain event
-        document.status = DocumentStatus.CHUNKED
+        if document.status != DocumentStatus.READY:
+            document.status = DocumentStatus.CHUNKED
         duration_ms = (time.perf_counter() - start_time) * 1000.0
 
         event_payload = create_chunk_event(

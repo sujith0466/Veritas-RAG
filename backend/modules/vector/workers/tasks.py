@@ -150,14 +150,20 @@ async def _async_sync_vectors_task(
         @dataclass(frozen=True)
         class VectorIndexedEvent(BaseEvent):
             document_id: str = ""
+            document_version_id: str = ""
             tenant_id: str = ""
             data: dict = field(default_factory=dict)
             event_type: EventType = EventType.VECTORS_INDEXED
 
         success_event = VectorIndexedEvent(
             document_id=document_id,
+            document_version_id=document_version_id,
             tenant_id=tenant_id,
-            data={"upserted_points": upserted},
+            data={
+                "upserted_points": upserted,
+                "document_version_id": document_version_id,
+                "version_id": document_version_id,
+            },
         )
         dispatcher = get_dispatcher()
         await dispatcher.publish(success_event)
@@ -169,3 +175,16 @@ async def _async_sync_vectors_task(
             "upserted_points": upserted,
             "status": "COMPLETED",
         }
+
+
+@celery_app.task(bind=True, queue="indexing", max_retries=3, acks_late=True)
+def reconcile_superseded_vectors_task(self: Any, tenant_id: str | None = None) -> dict[str, Any]:
+    """Background reconciliation task for clearing orphaned/superseded vectors in CLEANUP_PENDING state."""
+    async def _run():
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            service = VectorStorageService(session=session)
+            reconciled = await service.reconcile_superseded_vectors(tenant_id=tenant_id)
+            return {"tenant_id": tenant_id, "reconciled_ops": reconciled, "status": "COMPLETED"}
+
+    return asyncio.run(_run())

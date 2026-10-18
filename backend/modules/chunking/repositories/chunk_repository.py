@@ -106,9 +106,24 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
     async def get_tenant_chunks(
         self, tenant_id: str
     ) -> Sequence[DocumentChunk]:
-        stmt = select(DocumentChunk).where(
-            DocumentChunk.tenant_id == tenant_id,
-            DocumentChunk.is_deleted.is_(False),
+        """Fetch all chunks for a tenant that belong to active versions of READY, non-deleted documents."""
+        from backend.document.models.document import Document, DocumentVersion
+        from backend.document.models.status import DocumentStatus
+
+        stmt = (
+            select(DocumentChunk)
+            .join(Document, DocumentChunk.document_id == Document.id)
+            .join(DocumentVersion, DocumentChunk.document_version_id == DocumentVersion.id)
+            .where(
+                DocumentChunk.tenant_id == str(tenant_id),
+                DocumentChunk.is_deleted.is_(False),
+                Document.is_deleted.is_(False),
+                Document.status == DocumentStatus.READY.value,
+                DocumentVersion.is_deleted.is_(False),
+                DocumentVersion.is_active_vector.is_(True),
+                Document.latest_version_id == DocumentVersion.id,
+            )
+            .order_by(DocumentChunk.created_at.asc())
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()

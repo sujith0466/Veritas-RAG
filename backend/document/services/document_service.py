@@ -750,8 +750,13 @@ class DocumentService:
                 declared_mime=declared_mime,
             )
 
-            # Determine new version number
-            latest_version_num = max(v.version_number for v in doc.versions) if doc.versions else 0
+            # Determine new version number authoritatively from database
+            from sqlalchemy import func, select
+            ver_stmt = select(func.coalesce(func.max(DocumentVersion.version_number), 0)).where(
+                DocumentVersion.document_id == document_id,
+                DocumentVersion.is_deleted.is_(False),
+            )
+            latest_version_num = (await session.execute(ver_stmt)).scalar() or 0
             new_version_num = latest_version_num + 1
 
             original_key = get_versioned_path(
@@ -779,15 +784,17 @@ class DocumentService:
                 version_number=new_version_num,
                 storage_object_id=storage_obj.id,
                 content_hash=storage_dto.checksum_sha256,
-                is_active_vector=True,
+                is_active_vector=False,  # P0-3: Only set True upon successful vector sync in handle_vector_sync_completed
             )
             version = await self.doc_repo.add_version(version, session)
+            if hasattr(doc, "versions") and doc.versions is not None:
+                doc.versions.append(version)
 
-            # Deactivate older vectors in DB flag
-            await self.doc_repo.set_active_version(doc.id, version.id, session)
-
-            doc.latest_version_id = version.id
-            doc.status = DocumentStatus.UPLOADED
+            # P0-3: Do NOT deactivate existing active version or promote latest_version_id until vector sync succeeds
+            if not doc.latest_version_id:
+                doc.latest_version_id = version.id
+            if doc.status != DocumentStatus.READY:
+                doc.status = DocumentStatus.UPLOADED
             await session.flush()
 
             job = ProcessingJob(

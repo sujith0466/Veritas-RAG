@@ -1,0 +1,172 @@
+version: "3.9"
+
+# ==============================================================================
+# VERITAS-RAG — P0-3 Isolated End-to-End Test Infrastructure
+# ==============================================================================
+# Dedicated, disposable service definitions for live P0-3 lifecycle verification.
+# All services operate on non-colliding ports and isolated networks to prevent
+# any collision or interference with local development services (5432, 6379, 6333).
+# ==============================================================================
+
+networks:
+  e2e_network:
+    name: e2e_network_${RUN_ID:-default}
+    driver: bridge
+
+volumes:
+  e2e_pg_data:
+    name: e2e_pg_data_${RUN_ID:-default}
+  e2e_qdrant_data:
+    name: e2e_qdrant_data_${RUN_ID:-default}
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: raguard-e2e-postgres-${RUN_ID:-default}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: raguard_test_db
+    ports:
+      - "${E2E_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - e2e_pg_data:/var/lib/postgresql/data
+    networks:
+      - e2e_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d raguard_test_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: raguard-e2e-redis-${RUN_ID:-default}
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    ports:
+      - "${E2E_REDIS_PORT:-6389}:6379"
+    networks:
+      - e2e_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+  qdrant:
+    image: qdrant/qdrant:v1.7.4
+    container_name: raguard-e2e-qdrant-${RUN_ID:-default}
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__LOG_LEVEL: WARN
+    ports:
+      - "${E2E_QDRANT_PORT:-6343}:6333"
+      - "${E2E_QDRANT_GRPC_PORT:-6344}:6334"
+    volumes:
+      - e2e_qdrant_data:/qdrant/storage
+    networks:
+      - e2e_network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 2 bash -c 'cat < /dev/null > /dev/tcp/localhost/6333' || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  worker:
+    image: "${E2E_WORKER_IMAGE:?FATAL: E2E_WORKER_IMAGE must be specified with verified source digest}"
+    container_name: raguard-e2e-worker-${RUN_ID:-default}
+    restart: unless-stopped
+    command: celery -A backend.tasks.celery_app worker -l info --concurrency=1 -Q ingestion,indexing,embeddings,retrieval,default,retention,health
+    environment:
+      - ENVIRONMENT=staging
+      - PYTHONPATH=/app
+      - APP_SECRET_KEY=e2e-isolated-test-secret-key-0000000000000000
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/raguard_test_db
+      - ALEMBIC_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/raguard_test_db
+      - TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/raguard_test_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION_PREFIX=raguard_e2e_${RUN_ID:-default}
+      - LOCAL_STORAGE_ROOT=/app/data/storage
+      - DEFAULT_EMBEDDING_PROVIDER=local
+      - HF_HOME=/app/data/storage/hf_cache
+    volumes:
+      - ../../scratch/e2e_storage_${RUN_ID:-default}:/app/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A backend.tasks.celery_app inspect ping -t 2 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    networks:
+      - e2e_network
+
+  api:
+    image: "${E2E_WORKER_IMAGE:?FATAL: E2E_WORKER_IMAGE must be specified with verified source digest}"
+    container_name: raguard-e2e-api-${RUN_ID:-default}
+    restart: unless-stopped
+    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    ports:
+      - "${E2E_API_PORT:-8008}:8000"
+    environment:
+      - ENVIRONMENT=staging
+      - PYTHONPATH=/app
+      - APP_SECRET_KEY=e2e-isolated-test-secret-key-0000000000000000
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/raguard_test_db
+      - ALEMBIC_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/raguard_test_db
+      - TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/raguard_test_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION_PREFIX=raguard_e2e_${RUN_ID:-default}
+      - LOCAL_STORAGE_ROOT=/app/data/storage
+      - DEFAULT_EMBEDDING_PROVIDER=local
+      - HF_HOME=/app/data/storage/hf_cache
+      - ENABLE_SSE_RECOVERY=true
+      - ENABLE_SSE_HEARTBEAT=true
+      - ENABLE_AI_POLICY_ENGINE=true
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - LLM_PROVIDER_PRIORITY=${LLM_PROVIDER_PRIORITY:-openrouter,gemini}
+      - PRIMARY_LLM_PROVIDER=${PRIMARY_LLM_PROVIDER:-openrouter}
+      - FALLBACK_LLM_PROVIDER=${FALLBACK_LLM_PROVIDER:-gemini}
+    volumes:
+      - ../../scratch/e2e_storage_${RUN_ID:-default}:/app/data/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - e2e_network

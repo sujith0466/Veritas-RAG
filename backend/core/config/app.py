@@ -26,15 +26,15 @@ class AppSettings(BaseSettings):
 
     @property
     def is_development(self) -> bool:
-        return self.environment == "development"
+        return self.environment in ("development", "dev")
 
     @property
     def is_testing(self) -> bool:
-        return self.environment == "testing"
+        return self.environment in ("testing", "test")
 
     @property
     def is_production(self) -> bool:
-        return self.environment == "production"
+        return self.environment in ("production", "prod")
 
 
 class ServerSettings(BaseSettings):

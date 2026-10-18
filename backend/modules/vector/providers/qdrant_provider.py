@@ -296,10 +296,11 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
         query_vector: list[float],
         filter_conditions: dict[str, Any],
         limit: int = 50,
+        offset: int | None = None,
     ) -> list[dict[str, Any]]:
-        """Search for approximate nearest neighbors in Qdrant with exact payload filtering."""
+        """Search for approximate nearest neighbors in Qdrant with exact payload filtering and pagination offset."""
         log = logger.bind(
-            collection_name=collection_name, filter=filter_conditions, limit=limit
+            collection_name=collection_name, filter=filter_conditions, limit=limit, offset=offset
         )
         try:
             must_conditions = [
@@ -319,7 +320,8 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 query_vector=query_vector,
                 query_filter=filter_selector,
                 limit=limit,
-                with_payload=True
+                offset=offset,
+                with_payload=True,
             )
             latency_ms = (time.perf_counter() - start) * 1000
             QdrantMetrics.record_search(latency_ms)

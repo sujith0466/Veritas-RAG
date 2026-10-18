@@ -22,64 +22,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Add missing modern columns expected by ORM BaseModel & NotificationDeliveryLog
-    op.add_column(
-        "notification_delivery_logs",
-        sa.Column(
-            "payload_snapshot",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=False,
-            server_default=sa.text("'{}'::jsonb"),
-        ),
-    )
-    op.add_column(
-        "notification_delivery_logs",
-        sa.Column(
-            "attempt_count",
-            sa.Integer(),
-            nullable=False,
-            server_default=sa.text("0"),
-        ),
-    )
-    op.add_column(
-        "notification_delivery_logs",
-        sa.Column(
-            "is_deleted",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("false"),
-        ),
-    )
-
-    # 2. Drop legacy unused columns
-    op.drop_column("notification_delivery_logs", "notification_id")
-    op.drop_column("notification_delivery_logs", "retry_count")
+    pass
 
 
 def downgrade() -> None:
-    # 1. Restore legacy columns
-    op.add_column(
-        "notification_delivery_logs",
-        sa.Column(
-            "notification_id",
-            sa.UUID(),
-            autoincrement=False,
-            nullable=False,
-            server_default=sa.text("gen_random_uuid()"),
-        ),
-    )
-    op.add_column(
-        "notification_delivery_logs",
-        sa.Column(
-            "retry_count",
-            sa.INTEGER(),
-            autoincrement=False,
-            nullable=False,
-            server_default=sa.text("0"),
-        ),
-    )
+    pass
 
-    # 2. Drop modern columns
-    op.drop_column("notification_delivery_logs", "is_deleted")
-    op.drop_column("notification_delivery_logs", "attempt_count")
-    op.drop_column("notification_delivery_logs", "payload_snapshot")

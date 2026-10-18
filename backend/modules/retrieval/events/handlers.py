@@ -23,8 +23,14 @@ async def handle_document_changed(event: BaseEvent) -> None:
     logger.info("Invalidated BM25 index due to document change event", tenant_id=tenant_id, event_type=event.event_type)
 
 def register_retrieval_event_handlers() -> None:
-    """Register event handlers for the retrieval domain."""
+    """Register event handlers for the retrieval domain idempotently."""
     dispatcher = get_dispatcher()
-    dispatcher.subscribe(EventType.VECTORS_INDEXED, handle_document_changed)
-    dispatcher.subscribe(EventType.DOCUMENT_DELETED, handle_document_changed)
+    existing_indexed = dispatcher._handlers.get(EventType.VECTORS_INDEXED, [])
+    if handle_document_changed not in existing_indexed:
+        dispatcher.subscribe(EventType.VECTORS_INDEXED, handle_document_changed)
+
+    existing_deleted = dispatcher._handlers.get(EventType.DOCUMENT_DELETED, [])
+    if handle_document_changed not in existing_deleted:
+        dispatcher.subscribe(EventType.DOCUMENT_DELETED, handle_document_changed)
+
     logger.info("Registered retrieval event handlers (BM25 invalidation)")

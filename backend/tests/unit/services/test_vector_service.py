@@ -78,3 +78,64 @@ async def test_cleanup_old_versions_vectors(service, mock_session):
 
     assert service.provider.delete_points_by_filter.call_count == 2
     assert service.repo.update_sync_status.call_count == 2
+
+
+async def test_cleanup_failure_transitions_to_cleanup_pending(service, mock_session):
+    doc_id = uuid.uuid4()
+    current_ver = uuid.uuid4()
+    tenant_id = "tenant-fail"
+
+    mock_rec = MagicMock()
+    mock_rec.id = uuid.uuid4()
+    mock_rec.collection_name = "col_retry"
+    mock_rec.document_version_id = uuid.uuid4()
+
+    mock_execute = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_rec]
+    mock_execute.scalars.return_value = mock_scalars
+    mock_session.execute.return_value = mock_execute
+
+    # Simulate Qdrant delete failing on all attempts
+    service.provider.delete_points_by_filter.side_effect = RuntimeError("Qdrant 503 Service Unavailable")
+
+    await service.cleanup_old_versions_vectors(doc_id, current_ver, tenant_id)
+
+    # Must retry 3 times
+    assert service.provider.delete_points_by_filter.call_count == 3
+    # Must record CLEANUP_PENDING and keep is_deleted False
+    service.repo.update_sync_status.assert_called_with(
+        mock_rec.id, status="CLEANUP_PENDING", error_message="Qdrant purge failed: Qdrant 503 Service Unavailable"
+    )
+    assert mock_rec.is_deleted is False
+
+
+async def test_reconcile_superseded_vectors_success(service, mock_session):
+    tenant_id = "tenant-reconcile"
+
+    mock_rec = MagicMock()
+    mock_rec.id = uuid.uuid4()
+    mock_rec.tenant_id = tenant_id
+    mock_rec.collection_name = "col_reconcile"
+    mock_rec.document_version_id = uuid.uuid4()
+
+    mock_execute = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_rec]
+    mock_execute.scalars.return_value = mock_scalars
+    mock_session.execute.return_value = mock_execute
+
+    service.provider.delete_points_by_filter.return_value = 10
+    service.provider.delete_points_by_filter.side_effect = None
+
+    with patch("backend.modules.vector.services.vector_service.acquire_lock") as mock_lock:
+        mock_lock.return_value.__aenter__.return_value = "token"
+        reconciled = await service.reconcile_superseded_vectors(tenant_id=tenant_id)
+        mock_lock.assert_called_once_with("cleanup:reconciliation:tenant-reconcile", timeout=120, acquire_timeout=2)
+
+    assert reconciled == 10
+    service.provider.delete_points_by_filter.assert_called_once()
+    service.repo.update_sync_status.assert_called_with(
+        mock_rec.id, status="FAILED", error_message="Superseded by newer version"
+    )
+    assert mock_rec.is_deleted is True

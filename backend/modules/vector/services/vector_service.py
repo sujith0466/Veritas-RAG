@@ -5,12 +5,15 @@ batch point upserts into Qdrant (`ADR-004`), synchronization state tracking insi
 PostgreSQL (`VectorIndexMetadata`), and domain event distribution (`VectorsIndexed`).
 """
 
+import asyncio
 from typing import Any
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+
+from backend.cache.locks import LockAcquisitionError, acquire_lock
 
 from backend.core.config import get_settings
 from backend.core.events.dispatcher import EventDispatcher, get_dispatcher
@@ -219,6 +222,7 @@ class VectorStorageService:
                 status="COMPLETED",
                 points_count=upserted_count,
             )
+            await self.session.commit()
 
             payload_event = create_vector_indexed_payload(
                 tenant_id=tenant_id,
@@ -258,6 +262,7 @@ class VectorStorageService:
                 status="FAILED",
                 error_message=err_msg,
             )
+            await self.session.commit()
 
             fail_event = create_vector_index_failed_payload(
                 tenant_id=tenant_id,
@@ -395,26 +400,82 @@ class VectorStorageService:
                 "tenant_id": tenant_id,
                 "document_version_id": str(rec.document_version_id),
             }
-            try:
-                op_id = await self.provider.delete_points_by_filter(col, filter_conds)
-                total_ops += op_id
-                await self.repo.update_sync_status(
-                    rec.id, status="FAILED", error_message="Superseded by newer version"
-                )
-                rec.is_deleted = True
-            except Exception as exc:
-                log.warning(
-                    "Failed to delete old version points from collection",
-                    collection=col,
-                    version_id=str(rec.document_version_id),
-                    error=str(exc),
-                )
+            deleted_successfully = False
+            for attempt in range(1, 4):
+                try:
+                    op_id = await self.provider.delete_points_by_filter(col, filter_conds)
+                    total_ops += op_id
+                    await self.repo.update_sync_status(
+                        rec.id, status="FAILED", error_message="Superseded by newer version"
+                    )
+                    rec.is_deleted = True
+                    deleted_successfully = True
+                    break
+                except Exception as exc:
+                    if attempt < 3:
+                        await asyncio.sleep(0.2 * attempt)
+                    else:
+                        log.warning(
+                            "Failed to delete old version points from collection after retries",
+                            collection=col,
+                            version_id=str(rec.document_version_id),
+                            error=str(exc),
+                        )
+                        # Mark record as CLEANUP_PENDING with error details, keeping is_deleted=False for reconciliation
+                        await self.repo.update_sync_status(
+                            rec.id, status="CLEANUP_PENDING", error_message=f"Qdrant purge failed: {exc!s}"
+                        )
+                        rec.is_deleted = False
 
         await self.session.flush()
         log.info(
             "Completed cleanup of old version vectors", total_deleted_ops=total_ops
         )
         return total_ops
+
+    async def reconcile_superseded_vectors(self, tenant_id: str | None = None) -> int:
+        """Periodic or event-triggered idempotent reconciliation of CLEANUP_PENDING vector records."""
+        lock_key = f"cleanup:reconciliation:{tenant_id or 'global'}"
+        try:
+            async with acquire_lock(lock_key, timeout=120, acquire_timeout=2):
+                stmt = select(VectorIndexMetadata).where(
+                    VectorIndexMetadata.status == "CLEANUP_PENDING",
+                    VectorIndexMetadata.is_deleted.is_(False),
+                )
+                if tenant_id:
+                    stmt = stmt.where(VectorIndexMetadata.tenant_id == tenant_id)
+
+                pending_records = (await self.session.execute(stmt)).scalars().all()
+                if not pending_records:
+                    return 0
+
+                reconciled_ops = 0
+                for rec in pending_records:
+                    filter_conds = {
+                        "tenant_id": rec.tenant_id,
+                        "document_version_id": str(rec.document_version_id),
+                    }
+                    try:
+                        op_id = await self.provider.delete_points_by_filter(rec.collection_name, filter_conds)
+                        reconciled_ops += op_id
+                        await self.repo.update_sync_status(
+                            rec.id, status="FAILED", error_message="Superseded by newer version"
+                        )
+                        rec.is_deleted = True
+                    except Exception as exc:
+                        logger.warning(
+                            "Reconciliation purge retry failed",
+                            metadata_id=str(rec.id),
+                            tenant_id=rec.tenant_id,
+                            error=str(exc),
+                        )
+
+                await self.session.flush()
+                logger.info("Completed superseded vector reconciliation", reconciled_ops=reconciled_ops)
+                return reconciled_ops
+        except LockAcquisitionError:
+            logger.info("Reconciliation already in progress for lock key; skipping", lock_key=lock_key)
+            return 0
 
     async def sync_metadata(self, doc: Any) -> None:
         """Update Qdrant point payloads with the latest user_metadata from PostgreSQL."""

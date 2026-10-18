@@ -115,6 +115,11 @@ def create_celery_app() -> Celery:
                 "schedule": 86400.0, # Every 24 hours
                 "options": {"queue": "retention"},
             },
+            "reconcile-superseded-vectors": {
+                "task": "backend.modules.vector.workers.tasks.reconcile_superseded_vectors_task",
+                "schedule": 3600.0, # Every 1 hour
+                "options": {"queue": "indexing"},
+            },
         },
     )
 
@@ -129,9 +134,11 @@ logger = structlog.get_logger(__name__)
 
 @worker_process_init.connect
 def init_worker(**kwargs):
+    from backend.modules.retrieval.events.handlers import register_retrieval_event_handlers
     from backend.tasks.listeners import register_pipeline_listeners
 
     register_pipeline_listeners()
+    register_retrieval_event_handlers()
 
 
 @before_task_publish.connect

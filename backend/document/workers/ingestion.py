@@ -125,6 +125,9 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             version = next(
                 (v for v in doc.versions if v.id == job.version_id), doc.versions[0]
             )
+            has_active_version = any(
+                v.is_active_vector and v.id != version.id for v in doc.versions
+            )
             if not version.storage_object:
                 raise DocumentDomainException(
                     code=DocumentErrorCode.STORE_002,
@@ -136,7 +139,8 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             # ── Stage 0: Website Fetching (if source_type == "website") ──────────
             if doc.source_type == "website":
                 t_fetch = time.perf_counter()
-                doc.status = DocumentStatus.FETCHING
+                if not has_active_version and doc.status != DocumentStatus.READY:
+                    doc.status = DocumentStatus.FETCHING
                 job.current_step = "fetch"
                 job.status = "FETCHING"
                 job.dispatch_state = DispatchState.ACKNOWLEDGED.value
@@ -240,7 +244,8 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
 
             # ── Stage 1: Validation ──────────────────────────────────────────────
             t0 = time.perf_counter()
-            doc.status = DocumentStatus.VALIDATING
+            if not has_active_version and doc.status != DocumentStatus.READY:
+                doc.status = DocumentStatus.VALIDATING
             job.current_step = "validation"
             job.status = "VALIDATING"
             job.dispatch_state = DispatchState.ACKNOWLEDGED.value
@@ -282,7 +287,8 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
 
             # ── Stage 2: Extraction ──────────────────────────────────────────────
             t1 = time.perf_counter()
-            doc.status = DocumentStatus.EXTRACTING
+            if not has_active_version and doc.status != DocumentStatus.READY:
+                doc.status = DocumentStatus.EXTRACTING
             job.current_step = "extraction"
             job.status = "EXTRACTING"
             await session.commit()
@@ -332,7 +338,8 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             # ── Stage 3: OCR Fallback (if required) ──────────────────────────────
             if extracted.needs_ocr:
                 t2 = time.perf_counter()
-                doc.status = DocumentStatus.OCR
+                if not has_active_version and doc.status != DocumentStatus.READY:
+                    doc.status = DocumentStatus.OCR
                 job.current_step = "ocr"
                 await session.commit()
 
@@ -401,7 +408,8 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             await session.commit()
 
             # ── Stage 5: Canonical Manifest Generation ───────────────────────────
-            doc.status = DocumentStatus.MANIFEST_GENERATING
+            if not has_active_version and doc.status != DocumentStatus.READY:
+                doc.status = DocumentStatus.MANIFEST_GENERATING
             job.current_step = "manifest"
             await session.commit()
 
@@ -441,7 +449,8 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             # ── Stage 6: Contract Verification & Final Transition ────────────────
             await DocumentProcessingContract.verify(doc, version, storage)
 
-            doc.status = DocumentStatus.PROCESSED
+            if not has_active_version and doc.status != DocumentStatus.READY:
+                doc.status = DocumentStatus.PROCESSED
             doc.word_count = extracted.word_count
             doc.page_count = extracted.page_count
             doc.language = extracted.language
@@ -451,12 +460,18 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             job.completed_at = datetime.now(UTC)
 
             # Emit DocumentProcessed event
+            target_version_id_str = str(job.version_id) if job.version_id else str(doc.latest_version_id)
             proc_payload = create_domain_event(
                 event_type=EVENT_DOCUMENT_PROCESSED,
                 tenant_id=tenant_id,
                 document_id=doc.id,
                 job_id=job.id,
-                data={"manifest_key": manifest_key, "word_count": doc.word_count},
+                data={
+                    "manifest_key": manifest_key,
+                    "word_count": doc.word_count,
+                    "document_version_id": target_version_id_str,
+                    "version_id": target_version_id_str,
+                },
             )
             await event_repo.append_event(
                 DocumentEventLog(
