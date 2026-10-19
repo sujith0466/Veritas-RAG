@@ -85,6 +85,12 @@ export function AIChatPage() {
   const observerRef = useRef<IntersectionObserver | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
+  // AUD-014: Stream token buffering refs to coalesce high-frequency SSE re-renders into rAF batches
+  const streamFrameIdRef = useRef<number | null>(null)
+  const accumulatedTextRef = useRef<string>('')
+  const accumulatedCitationsRef = useRef<any[]>([])
+  const flushScheduledRef = useRef<boolean>(false)
+
   // Guard to prevent store sync from overwriting local optimistic state after stream completes
   const hasOptimisticContent = useRef(false)
   const handledInitialQueryRef = useRef<string | null>(null)
@@ -150,6 +156,11 @@ export function AIChatPage() {
         cancelAnimationFrame(rafIdRef.current)
         rafIdRef.current = null
       }
+      if (streamFrameIdRef.current !== null) {
+        cancelAnimationFrame(streamFrameIdRef.current)
+        streamFrameIdRef.current = null
+        flushScheduledRef.current = false
+      }
     }
   }, [])
 
@@ -158,6 +169,11 @@ export function AIChatPage() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
       abortControllerRef.current = null
+    }
+    if (streamFrameIdRef.current !== null) {
+      cancelAnimationFrame(streamFrameIdRef.current)
+      streamFrameIdRef.current = null
+      flushScheduledRef.current = false
     }
     setIsStreaming(false)
     hasOptimisticContent.current = false
@@ -184,6 +200,11 @@ export function AIChatPage() {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
         abortControllerRef.current = null
+      }
+      if (streamFrameIdRef.current !== null) {
+        cancelAnimationFrame(streamFrameIdRef.current)
+        streamFrameIdRef.current = null
+        flushScheduledRef.current = false
       }
     }
   }, [sessionId, fetchSession, navigate])
@@ -315,10 +336,51 @@ export function AIChatPage() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
 
-      let fullAssistantText = ''
-      const accumulatedCitations: any[] = []
+      accumulatedTextRef.current = ''
+      accumulatedCitationsRef.current = []
+      flushScheduledRef.current = false
       let finalReliability: number | undefined = undefined
       let buffer = ''
+
+      const scheduleFlush = () => {
+        if (flushScheduledRef.current) return
+        flushScheduledRef.current = true
+        streamFrameIdRef.current = requestAnimationFrame(() => {
+          flushScheduledRef.current = false
+          streamFrameIdRef.current = null
+          setMessages(prev => {
+            const newMsgs = [...prev]
+            if (newMsgs.length === 0) return prev
+            newMsgs[newMsgs.length - 1] = {
+              ...newMsgs[newMsgs.length - 1],
+              message: accumulatedTextRef.current,
+              citations: accumulatedCitationsRef.current.length > 0 ? [...accumulatedCitationsRef.current] : undefined
+            }
+            return newMsgs
+          })
+          scheduleScrollToBottom()
+        })
+      }
+
+      const flushImmediately = (reliabilityScore?: number) => {
+        if (streamFrameIdRef.current !== null) {
+          cancelAnimationFrame(streamFrameIdRef.current)
+          streamFrameIdRef.current = null
+          flushScheduledRef.current = false
+        }
+        setMessages(prev => {
+          const newMsgs = [...prev]
+          if (newMsgs.length === 0) return prev
+          newMsgs[newMsgs.length - 1] = {
+            ...newMsgs[newMsgs.length - 1],
+            message: accumulatedTextRef.current,
+            citations: accumulatedCitationsRef.current.length > 0 ? [...accumulatedCitationsRef.current] : undefined,
+            reliability_score: reliabilityScore !== undefined ? reliabilityScore : finalReliability
+          }
+          return newMsgs
+        })
+        scheduleScrollToBottom()
+      }
 
       let isStreamDone = false
       // eslint-disable-next-line no-constant-condition
@@ -350,29 +412,16 @@ export function AIChatPage() {
               const data = JSON.parse(eventData)
 
               if (data.text_delta) {
-                fullAssistantText += data.text_delta
+                accumulatedTextRef.current += data.text_delta
               }
 
               // F9.5 Progressive Citation Accumulation + Deduplication
               if (data.citations_delta && data.citations_delta.length > 0) {
                 for (const cite of data.citations_delta) {
-                  if (!accumulatedCitations.some(c => c.citation_index === cite.citation_index)) {
-                    accumulatedCitations.push(cite)
+                  if (!accumulatedCitationsRef.current.some(c => c.citation_index === cite.citation_index)) {
+                    accumulatedCitationsRef.current.push(cite)
                   }
                 }
-              }
-
-              // Only update if there are meaningful changes
-              if (data.text_delta !== undefined || data.citations_delta) {
-                setMessages(prev => {
-                  const newMsgs = [...prev]
-                  newMsgs[newMsgs.length - 1] = {
-                    ...newMsgs[newMsgs.length - 1],
-                    message: fullAssistantText,
-                    citations: accumulatedCitations.length > 0 ? [...accumulatedCitations] : undefined
-                  }
-                  return newMsgs
-                })
               }
 
               if (data.is_final) {
@@ -382,20 +431,28 @@ export function AIChatPage() {
                 } else if (data.is_fully_grounded !== undefined) {
                   finalReliability = data.is_fully_grounded ? 1.0 : 0.5
                 }
+                flushImmediately(finalReliability)
                 isStreamDone = true
+              } else if (data.text_delta !== undefined || data.citations_delta) {
+                scheduleFlush()
               }
             } catch (err) {
               console.error('Failed to parse SSE event', err)
             }
           } else if (eventType === 'error' && eventData) {
             try {
+              if (streamFrameIdRef.current !== null) {
+                cancelAnimationFrame(streamFrameIdRef.current)
+                streamFrameIdRef.current = null
+                flushScheduledRef.current = false
+              }
               const errData = JSON.parse(eventData)
               setMessages(prev => {
                 const newMsgs = [...prev]
                 const lastMsg = newMsgs[newMsgs.length - 1]
                 newMsgs[newMsgs.length - 1] = {
                   ...lastMsg,
-                  message: fullAssistantText,
+                  message: accumulatedTextRef.current,
                   metadata_json: {
                     ...(lastMsg.metadata_json as any || {}),
                     status: 'ERROR',
@@ -412,13 +469,16 @@ export function AIChatPage() {
         }
       }
 
+      flushImmediately(finalReliability)
       setMessages(prev => {
         const newMsgs = [...prev]
-        newMsgs[newMsgs.length - 1] = {
-          ...newMsgs[newMsgs.length - 1],
-          message: fullAssistantText,
-          citations: accumulatedCitations.length > 0 ? accumulatedCitations : undefined,
-          reliability_score: finalReliability
+        if (newMsgs.length > 0) {
+          newMsgs[newMsgs.length - 1] = {
+            ...newMsgs[newMsgs.length - 1],
+            message: accumulatedTextRef.current,
+            citations: accumulatedCitationsRef.current.length > 0 ? [...accumulatedCitationsRef.current] : undefined,
+            reliability_score: finalReliability
+          }
         }
         useChatStore.setState(state => {
           if (!state.activeSession || state.activeSession.id !== targetSessionId) return state
@@ -447,6 +507,11 @@ export function AIChatPage() {
         })
       }
     } finally {
+      if (streamFrameIdRef.current !== null) {
+        cancelAnimationFrame(streamFrameIdRef.current)
+        streamFrameIdRef.current = null
+        flushScheduledRef.current = false
+      }
       setIsStreaming(false)
       abortControllerRef.current = null
     }
