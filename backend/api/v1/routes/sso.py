@@ -71,15 +71,28 @@ async def create_idp(
 @router.get(
     "",
     response_model=list[IdentityProviderResponse],
-    summary="List all Identity Providers for a workspace"
+    summary="List all Identity Providers for a workspace",
 )
 async def list_idps(
     workspace_slug: str,
     session: AsyncSession = Depends(get_db),
+    user_context: UserContext = Depends(require_role(Role.ADMIN)),
 ) -> list[IdentityProviderResponse]:
     from sqlalchemy import select
 
     from backend.models.entities.identity_provider import IdentityProvider
-    stmt = select(IdentityProvider)
+
+    repo = WorkspaceRepository(session)
+    workspace = await repo.get_by_slug(workspace_slug)
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+
+    if str(user_context.tenant_id) != str(workspace.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient workspace membership")
+
+    stmt = select(IdentityProvider).where(
+        IdentityProvider.workspace_id == workspace.id,
+        IdentityProvider.is_active.is_(True),
+    )
     result = await session.execute(stmt)
     return list(result.scalars().all())

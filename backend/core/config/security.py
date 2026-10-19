@@ -37,6 +37,15 @@ class SecuritySettings(BaseSettings):
     # Cookie security policy (None = dynamic by ENVIRONMENT; True/False overrides)
     cookie_secure_override: bool | None = Field(default=None, alias="COOKIE_SECURE")
 
+    # JWT Configuration
+    jwt_signing_algorithm: str = Field(default="HS256", alias="JWT_SIGNING_ALGORITHM")
+    jwt_allowed_verification_algorithms: str | list[str] = Field(
+        default=["HS256"], alias="JWT_ALLOWED_VERIFICATION_ALGORITHMS"
+    )
+    jwt_secret_key: str | None = Field(default=None, alias="JWT_SECRET_KEY")
+    jwt_private_key: str | None = Field(default=None, alias="JWT_PRIVATE_KEY")
+    jwt_public_key: str | None = Field(default=None, alias="JWT_PUBLIC_KEY")
+
     model_config = {
         "populate_by_name": True,
         "env_file": (".env", ".env.local"),
@@ -67,3 +76,11 @@ class SecuritySettings(BaseSettings):
             return self.cookie_secure_override
         env = os.getenv("ENVIRONMENT", "development").lower()
         return env in ("production", "staging")
+
+    @property
+    def allowed_jwt_algorithms(self) -> list[str]:
+        if isinstance(self.jwt_allowed_verification_algorithms, list):
+            return self.jwt_allowed_verification_algorithms
+        if isinstance(self.jwt_allowed_verification_algorithms, str):
+            return [a.strip() for a in self.jwt_allowed_verification_algorithms.split(",") if a.strip()]
+        return ["HS256"]

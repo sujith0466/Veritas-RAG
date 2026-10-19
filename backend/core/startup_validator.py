@@ -34,8 +34,62 @@ class StartupValidator:
     def validate_configuration(self) -> None:
         """Layer 1: Configuration validation. No network I/O."""
         self._validate_environment()
+        self._validate_jwt_security()
         self._validate_embeddings()
         self._validate_consistency()
+
+    def _validate_jwt_security(self) -> None:
+        """Verify JWT security settings against environment requirements."""
+        import os
+
+        env = self.settings.app.environment.lower()
+        if env in ("production", "prod", "staging"):
+            sec = self.settings.security
+            allowed_algs = sec.allowed_jwt_algorithms
+            signing_alg = sec.jwt_signing_algorithm
+
+            # 1. HS256 validation
+            if "HS256" in allowed_algs or signing_alg == "HS256":
+                secret = (
+                    sec.jwt_secret_key
+                    or os.getenv("JWT_SECRET_KEY")
+                    or os.getenv("APP_SECRET_KEY")
+                )
+                if not secret:
+                    self._fail("Production environment requires JWT_SECRET_KEY or APP_SECRET_KEY for HS256")
+                if secret == "fallback-secret-key-do-not-use-in-production":
+                    self._fail("Rejecting hardcoded fallback JWT secret in production/staging environment")
+                if len(secret.encode("utf-8")) < 32:
+                    self._fail(
+                        f"JWT_SECRET_KEY must be at least 32 bytes in production/staging (found {len(secret.encode('utf-8'))} bytes)"
+                    )
+
+            # 2. RS256 validation
+            if "RS256" in allowed_algs or signing_alg == "RS256":
+                pub_key = sec.jwt_public_key or os.getenv("JWT_PUBLIC_KEY")
+                priv_key = sec.jwt_private_key or os.getenv("JWT_PRIVATE_KEY")
+                if signing_alg == "RS256" and not priv_key:
+                    self._fail("Production environment with RS256 signing requires JWT_PRIVATE_KEY")
+                if not pub_key:
+                    self._fail("Production environment with RS256 verification requires JWT_PUBLIC_KEY")
+
+                # Active cryptographic roundtrip test if private key is present
+                if priv_key and pub_key:
+                    try:
+                        import jwt
+                        payload = {"sub": "startup-test", "iss": "raguard-auth-server", "aud": "raguard-api"}
+                        token = jwt.encode(payload, priv_key, algorithm="RS256")
+                        jwt.decode(
+                            token,
+                            pub_key,
+                            algorithms=["RS256"],
+                            audience="raguard-api",
+                            issuer="raguard-auth-server",
+                        )
+                    except Exception as e:
+                        self._fail(f"RS256 cryptographic roundtrip test failed: {e}")
+
+        self._pass("JWT security configuration validated")
 
     async def validate_infrastructure(self) -> None:
         """Layer 2: Infrastructure validation. Performs network I/O."""

@@ -137,41 +137,118 @@ class ChatOrchestrator:
         else:
             is_recovering = False
 
-        # Determine active workspace from session_id
-        if workspace_id is None:
-            from backend.models.entities.workspace import Workspace
-            from backend.models.entities.workspace_member import WorkspaceMember
-            try:
-                async with session_maker() as session:
-                    ws_res = await session.execute(
-                        select(Workspace)
-                        .join(WorkspaceMember, Workspace.id == WorkspaceMember.workspace_id)
-                        .where(WorkspaceMember.user_id == uuid.UUID(user_id))
-                        .order_by(Workspace.created_at.asc())
-                        .limit(1)
-                    )
-                    ws = ws_res.scalar_one_or_none()
-                    if not ws:
-                        err = SSEMessageDTO.error(
-                            code="WORKSPACE_REQUIRED",
-                            message="User has no active workspaces.",
-                            correlation_id=correlation_id,
-                            recoverable=False
-                        )
-                        yield err.to_sse_string()
-                        return
-                    workspace_id = ws.id
-            except Exception as e:
-                import logging
-                logging.error(f"Failed to determine workspace: {e}")
-                err = SSEMessageDTO.error(
-                    code="INTERNAL_ERROR",
-                    message="Failed to resolve active workspace.",
-                    correlation_id=correlation_id,
-                    recoverable=False
+        # Determine active workspace from session_id and verify ownership
+        from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
+        from backend.modules.chat.models.chat_session import ChatSession
+
+        try:
+            async with session_maker() as session:
+                session_res = await session.execute(
+                    select(ChatSession).where(ChatSession.id == session_id).limit(1)
                 )
-                yield err.to_sse_string()
-                return
+                chat_session = session_res.scalar_one_or_none()
+                if not chat_session:
+                    err = SSEMessageDTO.error(
+                        code="SESSION_ACCESS_DENIED",
+                        message="Chat session not found.",
+                        correlation_id=correlation_id,
+                        recoverable=False,
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                # Ownership Check: Verify str(chat_session.user_id) == str(user_id)
+                if str(chat_session.user_id) != str(user_id):
+                    err = SSEMessageDTO.error(
+                        code="SESSION_ACCESS_DENIED",
+                        message="User does not own this chat session.",
+                        correlation_id=correlation_id,
+                        recoverable=False,
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                session_workspace = str(chat_session.tenant_id)
+                if not session_workspace:
+                    err = SSEMessageDTO.error(
+                        code="WORKSPACE_REQUIRED",
+                        message="Chat session has no associated workspace.",
+                        correlation_id=correlation_id,
+                        recoverable=False,
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                # If workspace_id was explicitly provided, verify it matches session_workspace
+                if workspace_id is not None and str(workspace_id) != session_workspace:
+                    err = SSEMessageDTO.error(
+                        code="WORKSPACE_MISMATCH",
+                        message="Requested workspace does not match session workspace.",
+                        correlation_id=correlation_id,
+                        recoverable=False,
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                # Verify user is an active member of session_workspace
+                try:
+                    ws_uuid = uuid.UUID(session_workspace)
+                    u_uuid = uuid.UUID(user_id)
+                except (ValueError, TypeError):
+                    ws_uuid = None
+                    u_uuid = None
+
+                if not ws_uuid or not u_uuid:
+                    err = SSEMessageDTO.error(
+                        code="WORKSPACE_REQUIRED",
+                        message="Invalid workspace or user identifier.",
+                        correlation_id=correlation_id,
+                        recoverable=False,
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                member_res = await session.execute(
+                    select(WorkspaceMember).where(
+                        WorkspaceMember.workspace_id == ws_uuid,
+                        WorkspaceMember.user_id == u_uuid,
+                        WorkspaceMember.status == MemberStatus.ACTIVE.value,
+                        WorkspaceMember.is_deleted == False,
+                    ).limit(1)
+                )
+                if not member_res.scalar_one_or_none():
+                    err = SSEMessageDTO.error(
+                        code="WORKSPACE_REQUIRED",
+                        message="User is not an active member of this workspace.",
+                        correlation_id=correlation_id,
+                        recoverable=False,
+                    )
+                    yield err.to_sse_string()
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                # Adopt session_workspace as retrieval scope
+                workspace_id = ws_uuid
+                tenant_id = session_workspace
+                tenant_uuid = ws_uuid
+
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to resolve and verify session workspace: {e}")
+            err = SSEMessageDTO.error(
+                code="INTERNAL_ERROR",
+                message="Failed to resolve active workspace.",
+                correlation_id=correlation_id,
+                recoverable=False,
+            )
+            yield err.to_sse_string()
+            SSE_ACTIVE_STREAMS.dec()
+            return
 
         # 1. Load prior conversation history & save current user message
         conversation_history: list[dict[str, Any]] = []

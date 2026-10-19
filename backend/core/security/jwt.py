@@ -19,27 +19,67 @@ from backend.core.exceptions.auth import ExpiredTokenException, InvalidTokenExce
 
 logger = structlog.get_logger(__name__)
 
-# In production, these should be loaded securely from vault/env.
-# For local development, we fallback to generating a runtime key if absent.
-_DEFAULT_PRIVATE_KEY = os.getenv("JWT_PRIVATE_KEY")
-_DEFAULT_PUBLIC_KEY = os.getenv("JWT_PUBLIC_KEY")
+# Default fallback secret for development environments
+_DEV_FALLBACK_SECRET = "fallback-secret-key-do-not-use-in-production"
 
-if not _DEFAULT_PRIVATE_KEY:
-    # Dummy fallback for dev mode so the app doesn't crash without keys.
-    # We use HS256 in this degraded mode just to allow booting if RS256 keys aren't mounted.
-    _DEFAULT_PRIVATE_KEY = "fallback-secret-key-do-not-use-in-production"
-    _DEFAULT_PUBLIC_KEY = _DEFAULT_PRIVATE_KEY
-    _ALGORITHM = "HS256"
-else:
-    _ALGORITHM = "RS256"
 
 class JWTService:
     """Handles native JWT generation, validation, and Redis blocklisting."""
 
-    def __init__(self) -> None:
-        self.private_key = _DEFAULT_PRIVATE_KEY
-        self.public_key = _DEFAULT_PUBLIC_KEY
-        self.algorithm = _ALGORITHM
+    def __init__(
+        self,
+        signing_algorithm: str | None = None,
+        allowed_algorithms: list[str] | None = None,
+        hmac_secret_key: str | None = None,
+        rsa_private_key: str | None = None,
+        rsa_public_key: str | None = None,
+    ) -> None:
+        try:
+            from backend.core.config import get_settings
+            settings = get_settings()
+            sec = settings.security
+        except Exception:
+            sec = None
+
+        self.signing_algorithm = (
+            signing_algorithm
+            or (getattr(sec, "jwt_signing_algorithm", None) if sec else None)
+            or os.getenv("JWT_SIGNING_ALGORITHM")
+            or "HS256"
+        )
+        self.allowed_algorithms = (
+            allowed_algorithms
+            or (getattr(sec, "allowed_jwt_algorithms", None) if sec else None)
+            or ["HS256"]
+        )
+
+        self.hmac_secret_key = (
+            hmac_secret_key
+            or (getattr(sec, "jwt_secret_key", None) if sec else None)
+            or os.getenv("JWT_SECRET_KEY")
+            or os.getenv("APP_SECRET_KEY")
+            or _DEV_FALLBACK_SECRET
+        )
+        self.rsa_private_key = (
+            rsa_private_key
+            or (getattr(sec, "jwt_private_key", None) if sec else None)
+            or os.getenv("JWT_PRIVATE_KEY")
+        )
+        self.rsa_public_key = (
+            rsa_public_key
+            or (getattr(sec, "jwt_public_key", None) if sec else None)
+            or os.getenv("JWT_PUBLIC_KEY")
+        )
+
+        if self.signing_algorithm == "RS256":
+            self.private_key = self.rsa_private_key
+            self.public_key = self.rsa_public_key
+            self.algorithm = "RS256"
+        else:
+            self.private_key = self.hmac_secret_key
+            self.public_key = self.hmac_secret_key
+            self.algorithm = "HS256"
+
         self.redis = get_redis_client()
         self.issuer = "raguard-auth-server"
         self.audience = "raguard-api"
@@ -184,12 +224,33 @@ class JWTService:
     async def verify_token(self, token: str) -> TokenPayload:
         """Decode and verify an Access token, checking the Redis blocklist."""
         try:
+            try:
+                header = jwt.get_unverified_header(token)
+            except Exception as e:
+                raise InvalidTokenException(f"Malformed token header: {e}") from e
+
+            token_alg = header.get("alg")
+            if not token_alg or token_alg not in self.allowed_algorithms or token_alg.lower() == "none":
+                raise InvalidTokenException(f"Unauthorized token algorithm: {token_alg}")
+
+            if token_alg == "RS256":
+                if not self.rsa_public_key:
+                    raise InvalidTokenException("RS256 public key not configured")
+                verification_key = self.rsa_public_key
+            elif token_alg == "HS256":
+                if not self.hmac_secret_key:
+                    raise InvalidTokenException("HS256 secret key not configured")
+                verification_key = self.hmac_secret_key
+            else:
+                raise InvalidTokenException(f"Algorithm key mapping undefined for: {token_alg}")
+
             raw_claims = jwt.decode(
                 token,
-                self.public_key,
-                algorithms=[self.algorithm],
+                verification_key,
+                algorithms=[token_alg],
                 audience=self.audience,
-                issuer=self.issuer
+                issuer=self.issuer,
+                options={"require": ["exp", "iss", "aud", "sub", "jti", "nbf"]},
             )
 
             jti = raw_claims.get("jti")
