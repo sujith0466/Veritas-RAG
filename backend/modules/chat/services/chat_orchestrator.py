@@ -1,11 +1,14 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
+import inspect
 import json
 import time
 from typing import Any
 import uuid
 
+from pydantic import ValidationError
+from redis.exceptions import RedisError
 from sqlalchemy import select
 from structlog import get_logger
 
@@ -97,8 +100,37 @@ class ChatOrchestrator:
                 SSE_ACTIVE_STREAMS.dec()
                 return
 
-            last_chunk_index = int(parts[1])
-            chunks = await redis.lrange(redis_key, 0, -1)
+            try:
+                last_chunk_index = int(parts[1])
+            except ValueError:
+                err = SSEMessageDTO.error(
+                    code="INVALID_CORRELATION",
+                    message="The Last-Event-ID has an invalid chunk index.",
+                    correlation_id=correlation_id,
+                    recoverable=False
+                )
+                yield err.to_sse_string()
+                SSE_ACTIVE_STREAMS.dec()
+                return
+
+            try:
+                chunks = await redis.lrange(redis_key, 0, -1)
+            except RedisError as redis_read_err:
+                logger.error(
+                    "Redis error while reading stream replay buffer",
+                    session_id=session_id,
+                    correlation_id=correlation_id,
+                    error=str(redis_read_err),
+                )
+                err = SSEMessageDTO.error(
+                    code="STREAM_EXPIRED",
+                    message="Stream replay buffer unavailable. Please regenerate the request.",
+                    correlation_id=correlation_id,
+                    recoverable=False
+                )
+                yield err.to_sse_string()
+                SSE_ACTIVE_STREAMS.dec()
+                return
 
             if not chunks:
                 SSE_REDIS_BUFFER_MISSES_TOTAL.inc()
@@ -112,31 +144,86 @@ class ChatOrchestrator:
                 SSE_ACTIVE_STREAMS.dec()
                 return
 
-            SSE_REDIS_BUFFER_HITS_TOTAL.inc()
-            is_stream_finished = False
+            parsed_chunks = []
+            is_valid_buffer = True
             for chunk_bytes in chunks:
-                chunk_data = json.loads(chunk_bytes)
-                if chunk_data.get("is_final", False):
-                    is_stream_finished = True
+                try:
+                    c_data = json.loads(chunk_bytes)
+                except (json.JSONDecodeError, UnicodeDecodeError, TypeError):
+                    is_valid_buffer = False
+                    break
+
+                if not isinstance(c_data, dict):
+                    is_valid_buffer = False
+                    break
+
+                c_idx = c_data.get("chunk_index")
+                if type(c_idx) is not int or c_idx < 0:
+                    is_valid_buffer = False
+                    break
+
+                ev_type = c_data.get("event_type")
+                if not isinstance(ev_type, str) or ev_type != "chunk":
+                    is_valid_buffer = False
+                    break
+
+                is_fin = c_data.get("is_final")
+                if type(is_fin) is not bool:
+                    is_valid_buffer = False
+                    break
+
+                payload = c_data.get("payload")
+                if not isinstance(payload, dict):
+                    is_valid_buffer = False
+                    break
+
+                try:
+                    chunk_dto = StreamingGenerationChunkDTO.model_validate(payload, strict=True)
+                    if chunk_dto.chunk_index != c_idx or chunk_dto.is_final is not is_fin:
+                        is_valid_buffer = False
+                        break
+                except (ValidationError, TypeError, ValueError):
+                    is_valid_buffer = False
+                    break
+
+                parsed_chunks.append(c_data)
+
+            if is_valid_buffer and parsed_chunks:
+                indices = [c["chunk_index"] for c in parsed_chunks]
+                if indices != list(range(len(parsed_chunks))):
+                    is_valid_buffer = False
+                elif parsed_chunks[-1]["is_final"] is not True:
+                    is_valid_buffer = False
+            else:
+                is_valid_buffer = False
+
+            if not is_valid_buffer:
+                SSE_REDIS_BUFFER_MISSES_TOTAL.inc()
+                err = SSEMessageDTO.error(
+                    code="STREAM_EXPIRED",
+                    message="Stream replay buffer incomplete or invalid. Please regenerate the request.",
+                    correlation_id=correlation_id,
+                    recoverable=False
+                )
+                yield err.to_sse_string()
+                SSE_ACTIVE_STREAMS.dec()
+                return
+
+            SSE_REDIS_BUFFER_HITS_TOTAL.inc()
+            for chunk_data in parsed_chunks:
                 if chunk_data["chunk_index"] > last_chunk_index:
                     dto = SSEMessageDTO(
                         id=SSEMessageDTO.format_id(correlation_id, chunk_data["chunk_index"]),
-                        event=chunk_data["event_type"],
-                        data=json.dumps(chunk_data["payload"])
+                        event=chunk_data.get("event_type", "chunk"),
+                        data=json.dumps(chunk_data["payload"], separators=(",", ":"), ensure_ascii=False)
                     )
                     yield dto.to_sse_string()
                     SSE_REPLAYED_CHUNKS_TOTAL.inc()
 
-            if is_stream_finished:
-                # Buffer was complete, we are done
-                SSE_ACTIVE_STREAMS.dec()
-                return
+            SSE_ACTIVE_STREAMS.dec()
+            return
 
-            # If buffer is incomplete, we fall through and re-execute to resume generation.
-            # However, we must skip saving the User Message again, and filter out yielded chunks.
-            is_recovering = True
-        else:
-            is_recovering = False
+        is_recovering = False
 
         # Determine active workspace from session_id and verify ownership
         from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
@@ -449,6 +536,7 @@ class ChatOrchestrator:
         is_interrupted = False
         terminal_error = None
         ttft_recorded = False
+        buffer_enabled = bool(settings.features.enable_sse_recovery)
 
         try:
             iterator = self.ai_wrapper_service.stream_request(req, uuid.UUID(user_id), correlation_id).__aiter__()
@@ -477,25 +565,43 @@ class ChatOrchestrator:
                         if chunk.wrapper_metadata and "reliability_score" in chunk.wrapper_metadata:
                             reliability_score = float(chunk.wrapper_metadata["reliability_score"])
 
+                    chunk_dict = chunk.model_dump(mode="json")
+                    chunk_json = json.dumps(chunk_dict, separators=(",", ":"), ensure_ascii=False)
+
                     # F8.3 SSE DTO
                     dto = SSEMessageDTO(
                         id=SSEMessageDTO.format_id(correlation_id, chunk.chunk_index),
                         event="chunk",
-                        data=chunk.model_dump_json()
+                        data=chunk_json
                     )
 
                     # F8.4 Redis Buffer
-                    if settings.features.enable_sse_recovery:
-                        chunk_data = json.loads(chunk.model_dump_json())
-                        payload = {
-                            "chunk_index": chunk.chunk_index,
-                            "event_type": "chunk",
-                            "payload": chunk_data,
-                            "is_final": chunk.is_final,
-                        }
-                        await redis.rpush(redis_key, json.dumps(payload))
-                        # Apply TTL on every chunk to prevent Redis leaks on abort (EP8-018)
-                        await redis.expire(redis_key, 300)
+                    if buffer_enabled:
+                        try:
+                            payload = {
+                                "chunk_index": chunk.chunk_index,
+                                "event_type": "chunk",
+                                "payload": chunk_dict,
+                                "is_final": chunk.is_final,
+                            }
+                            redis_payload_str = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+                            pipe = redis.pipeline(transaction=True)
+                            if inspect.isawaitable(pipe):
+                                pipe = await pipe
+                            async with pipe:
+                                pipe.rpush(redis_key, redis_payload_str)
+                                pipe.expire(redis_key, 300)
+                                res = pipe.execute(raise_on_error=True)
+                                if inspect.isawaitable(res):
+                                    await res
+                        except RedisError as redis_err:
+                            buffer_enabled = False
+                            logger.warning(
+                                "Redis stream buffering failed; disabling buffering for stream",
+                                session_id=session_id,
+                                correlation_id=correlation_id,
+                                error=str(redis_err),
+                            )
 
                     yield dto.to_sse_string()
                     stream_chunks_count += 1
