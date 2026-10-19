@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Send, Mic, X, Check, User as UserIcon, ChevronRight, ChevronDown, ShieldCheck, Sparkles, FileText, Layers } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
@@ -644,6 +644,14 @@ export function AIChatPage() {
     setShareMessage(msg)
   }, [])
 
+  const handleStartEdit = useCallback((id: string) => {
+    setEditingMessageId(id)
+  }, [])
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessageId(null)
+  }, [])
+
   const handleStartVoice = useCallback(async () => {
     if (isStreaming) return
     originalInputRef.current = input
@@ -756,11 +764,11 @@ export function AIChatPage() {
               message={msg}
               isStreaming={isStreaming && i === messages.length - 1}
               isEditing={editingMessageId === msg.id}
-              onStartEdit={() => setEditingMessageId(msg.id)}
-              onCancelEdit={() => setEditingMessageId(null)}
-              onSaveEdit={(newText) => handleEditMessage(msg.id, newText)}
-              onFeedback={(rating) => handleFeedbackMessage(msg.id, rating)}
-              onShare={() => handleShareMessage(msg)}
+              onStartEdit={handleStartEdit}
+              onCancelEdit={handleCancelEdit}
+              onSaveEdit={handleEditMessage}
+              onFeedback={handleFeedbackMessage}
+              onShare={handleShareMessage}
               disabled={isStreaming}
             />
           ))
@@ -981,7 +989,20 @@ function AssistantIndicator({ isGenerating }: { isGenerating?: boolean }) {
   return <Sparkles className="h-3.5 w-3.5 text-primary/80" aria-hidden="true" />
 }
 
-function ChatMessageBubble({
+export interface ChatMessageBubbleProps {
+  message: ChatMessage
+  isStreaming?: boolean
+  isEditing?: boolean
+  onStartEdit?: (messageId: string) => void
+  onCancelEdit?: () => void
+  onSaveEdit?: (messageId: string, newText: string) => Promise<void> | void
+  onFeedback?: (messageId: string, rating: 'like' | 'dislike' | null) => void
+  onShare?: (message: ChatMessage) => void
+  disabled?: boolean
+  onRender?: (messageId: string) => void
+}
+
+export const ChatMessageBubble = memo(function ChatMessageBubble({
   message,
   isStreaming = false,
   isEditing = false,
@@ -991,18 +1012,26 @@ function ChatMessageBubble({
   onFeedback,
   onShare,
   disabled = false,
-}: {
-  message: ChatMessage
-  isStreaming?: boolean
-  isEditing?: boolean
-  onStartEdit?: () => void
-  onCancelEdit?: () => void
-  onSaveEdit?: (newText: string) => Promise<void> | void
-  onFeedback?: (rating: 'like' | 'dislike' | null) => void
-  onShare?: () => void
-  disabled?: boolean
-}) {
+  onRender,
+}: ChatMessageBubbleProps) {
+  onRender?.(message.id)
   const isUser = message.role === 'user'
+
+  const handleStartEdit = useCallback(() => {
+    onStartEdit?.(message.id)
+  }, [onStartEdit, message.id])
+
+  const handleSaveEdit = useCallback((newText: string) => {
+    return onSaveEdit?.(message.id, newText)
+  }, [onSaveEdit, message.id])
+
+  const handleFeedback = useCallback((rating: 'like' | 'dislike' | null) => {
+    onFeedback?.(message.id, rating)
+  }, [onFeedback, message.id])
+
+  const handleShare = useCallback(() => {
+    onShare?.(message)
+  }, [onShare, message])
 
   // F9.5 Interactive Citation Links Pre-processing
   let processedMessage = message.message || ''
@@ -1042,7 +1071,7 @@ function ChatMessageBubble({
           {isUser && isEditing ? (
             <MessageEditInput
               initialContent={message.message}
-              onSave={onSaveEdit!}
+              onSave={handleSaveEdit}
               onCancel={onCancelEdit!}
               disabled={disabled || isStreaming}
               className="w-full min-w-[280px] sm:min-w-[400px]"
@@ -1144,7 +1173,7 @@ function ChatMessageBubble({
                 <div className="flex items-center justify-end mt-0.5">
                   <UserMessageActions
                     content={message.message}
-                    onEdit={onStartEdit}
+                    onEdit={handleStartEdit}
                     disabled={disabled || isStreaming}
                     className="opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity"
                   />
@@ -1196,8 +1225,8 @@ function ChatMessageBubble({
                 <AssistantMessageActions
                   content={processedMessage}
                   feedback={(message.metadata_json as any)?.feedback || null}
-                  onFeedback={onFeedback}
-                  onShare={onShare}
+                  onFeedback={handleFeedback}
+                  onShare={handleShare}
                   disabled={disabled || isStreaming}
                   className="ml-auto"
                 />
@@ -1213,4 +1242,4 @@ function ChatMessageBubble({
       </div>
     </div>
   )
-}
+})
