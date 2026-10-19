@@ -30,6 +30,7 @@ from backend.observability.metrics.prometheus import (
     SSE_REDIS_BUFFER_MISSES_TOTAL,
     SSE_REPLAYED_CHUNKS_TOTAL,
     SSE_STREAM_DURATION_SECONDS,
+    SSE_TTFT_SECONDS,
 )
 
 logger = get_logger(__name__)
@@ -447,6 +448,7 @@ class ChatOrchestrator:
         reliability_score = 0.0
         is_interrupted = False
         terminal_error = None
+        ttft_recorded = False
 
         try:
             iterator = self.ai_wrapper_service.stream_request(req, uuid.UUID(user_id), correlation_id).__aiter__()
@@ -462,6 +464,12 @@ class ChatOrchestrator:
 
                     if chunk.text_delta:
                         full_assistant_text += chunk.text_delta
+                        if not ttft_recorded:
+                            ttft_recorded = True
+                            try:
+                                SSE_TTFT_SECONDS.observe(time.perf_counter() - started_at)
+                            except Exception:
+                                pass
 
                     if chunk.is_final:
                         final_citations = [c.model_dump() for c in chunk.citations_delta]
