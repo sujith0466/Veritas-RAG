@@ -41,7 +41,11 @@ async def stream_ai_request(
 
     return StreamingResponse(
         _stream_generator(),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        }
     )
 
 @router.post("/generate", response_model=SuccessResponse[AIWrapperResponse])
