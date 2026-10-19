@@ -16,11 +16,11 @@ from backend.models.entities.audit_log import AuditLog
 from backend.repositories.interfaces.audit_log_repository import IAuditLogRepository
 
 
-test_app = FastAPI()
+app = FastAPI()
 for exc_class, handler in get_exception_handlers():
-    test_app.add_exception_handler(exc_class, handler)
+    app.add_exception_handler(exc_class, handler)
 
-test_app.include_router(audit_logs_router, prefix="/api/v1")
+app.include_router(audit_logs_router, prefix="/api/v1")
 
 
 @pytest.fixture
@@ -59,11 +59,11 @@ def test_list_audit_logs_pagination_and_total_pages(tenant_id):
     mock_repo.search_logs.return_value = (mock_logs, total_count)
 
     user = make_admin_user(tenant_id)
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_audit_log_repository] = lambda: mock_repo
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_audit_log_repository] = lambda: mock_repo
 
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.get("/api/v1/audit-logs?page=2&page_size=50")
         assert res.status_code == 200
         data = res.json()
@@ -83,7 +83,7 @@ def test_list_audit_logs_pagination_and_total_pages(tenant_id):
             limit=50,
         )
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()
 
 
 def test_list_audit_logs_filtering_parameters(tenant_id):
@@ -91,14 +91,14 @@ def test_list_audit_logs_filtering_parameters(tenant_id):
     mock_repo.search_logs.return_value = ([], 0)
 
     user = make_admin_user(tenant_id)
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_audit_log_repository] = lambda: mock_repo
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_audit_log_repository] = lambda: mock_repo
 
     start = "2026-10-01T00:00:00Z"
     end = "2026-10-04T00:00:00Z"
 
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.get(
             f"/api/v1/audit-logs?query=settings&action=WORKSPACE_SETTINGS_UPDATED&start_date={start}&end_date={end}&page=1&page_size=20"
         )
@@ -113,4 +113,4 @@ def test_list_audit_logs_filtering_parameters(tenant_id):
         assert kwargs["skip"] == 0
         assert kwargs["limit"] == 20
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()

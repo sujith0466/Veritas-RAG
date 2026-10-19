@@ -16,7 +16,6 @@ from backend.core.config import (
     SecuritySettings,
     ServerSettings,
     Settings,
-    SupabaseSettings,
     get_settings,
 )
 
@@ -146,7 +145,6 @@ class TestUnifiedSettings:
         assert isinstance(settings.database, DatabaseSettings)
         assert isinstance(settings.redis, RedisSettings)
         assert isinstance(settings.qdrant, QdrantSettings)
-        assert isinstance(settings.supabase, SupabaseSettings)
         assert isinstance(settings.gemini, GeminiSettings)
         assert isinstance(settings.openrouter, OpenRouterSettings)
         assert isinstance(settings.ai, LLMManagerSettings)

@@ -18,12 +18,12 @@ from backend.models.entities.workspace_member import MemberStatus, WorkspaceMemb
 from backend.repositories.workspace_member import WorkspaceMemberRepository
 
 
-test_app = FastAPI()
+app = FastAPI()
 for exc_class, handler in get_exception_handlers():
-    test_app.add_exception_handler(exc_class, handler)
+    app.add_exception_handler(exc_class, handler)
 
-test_app.include_router(domains_router, prefix="/api/v1")
-test_app.include_router(webhooks_router, prefix="/api/v1")
+app.include_router(domains_router, prefix="/api/v1")
+app.include_router(webhooks_router, prefix="/api/v1")
 
 
 @pytest.fixture
@@ -96,14 +96,14 @@ async def test_require_workspace_admin_or_owner_success_for_admin_and_owner(monk
 
 
 def test_domains_route_unauthenticated(workspace_id):
-    client = TestClient(test_app)
+    client = TestClient(app)
     # No auth dependency override -> raises 401 Authentication required
     res = client.get(f"/api/v1/workspaces/{workspace_id}/domains")
     assert res.status_code == 401
 
 
 def test_webhooks_route_unauthenticated(workspace_id):
-    client = TestClient(test_app)
+    client = TestClient(app)
     res = client.get(f"/api/v1/workspaces/{workspace_id}/webhooks")
     assert res.status_code == 401
 
@@ -122,14 +122,14 @@ def test_domains_route_unauthorized_member(monkeypatch, workspace_id, mock_db):
 
     monkeypatch.setattr(WorkspaceMemberRepository, "get_membership", mock_get_membership)
 
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_db] = lambda: mock_db
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.get(f"/api/v1/workspaces/{workspace_id}/domains")
         assert res.status_code == 403
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()
 
 
 def test_domains_cross_tenant_verification_404(monkeypatch, workspace_id, mock_db):
@@ -162,15 +162,15 @@ def test_domains_cross_tenant_verification_404(monkeypatch, workspace_id, mock_d
 
     monkeypatch.setattr(WorkspaceDomainRepository, "get_by_id", mock_get_by_id)
 
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_db] = lambda: mock_db
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.post(f"/api/v1/workspaces/{workspace_id}/domains/{foreign_domain.id}/verify")
         assert res.status_code == 404
         assert "Domain not found" in str(res.json())
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()
 
 
 def test_webhooks_route_unauthorized_member(monkeypatch, workspace_id, mock_db):
@@ -187,11 +187,11 @@ def test_webhooks_route_unauthorized_member(monkeypatch, workspace_id, mock_db):
 
     monkeypatch.setattr(WorkspaceMemberRepository, "get_membership", mock_get_membership)
 
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_db] = lambda: mock_db
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.get(f"/api/v1/workspaces/{workspace_id}/webhooks")
         assert res.status_code == 403
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()

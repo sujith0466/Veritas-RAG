@@ -3,6 +3,7 @@ import asyncio
 from collections.abc import AsyncGenerator
 import json
 import time
+from typing import Any
 import uuid
 
 from sqlalchemy import select
@@ -600,3 +601,116 @@ class ChatOrchestrator:
                     t.add_done_callback(_background_tasks.discard)
                 except Exception as exc:
                     logger.error("Chat analytics background task failed", error=str(exc))
+
+
+def compute_chat_reliability_score(
+    *,
+    answer_text: str,
+    evidence_chunks: list[Any],
+    citations: list[dict],
+    is_grounded: bool,
+    retrieval_result: Any = None,
+) -> float:
+    """Compute chat reliability from retrieval, citation, and grounding signals."""
+    if not answer_text.strip():
+        return 0.0
+
+    non_empty_evidence = [
+        chunk for chunk in evidence_chunks if str((chunk.content if hasattr(chunk, "content") else chunk.get("content", "")) or "").strip()
+    ]
+    evidence_completeness = (
+        len(non_empty_evidence) / len(evidence_chunks) if evidence_chunks else 0.0
+    )
+    citation_validity = _citation_validity(answer_text, citations, non_empty_evidence)
+    context_coverage = _context_coverage(answer_text)
+    retrieval_quality = _retrieval_quality(non_empty_evidence, retrieval_result)
+    grounding_confidence = 1.0 if is_grounded else 0.0
+
+    score = (
+        retrieval_quality * 0.20
+        + citation_validity * 0.25
+        + grounding_confidence * 0.25
+        + evidence_completeness * 0.15
+        + context_coverage * 0.15
+    )
+
+    all_checks_passed = (
+        is_grounded
+        and retrieval_quality >= 1.0
+        and citation_validity >= 1.0
+        and evidence_completeness >= 1.0
+        and context_coverage >= 1.0
+    )
+    if not all_checks_passed:
+        score = min(score, 0.99)
+
+    return round(max(0.0, min(1.0, score)), 4)
+
+
+def _citation_validity(
+    answer_text: str, citations: list[dict], evidence_chunks: list[Any]
+) -> float:
+    import re
+    marker_indices = [int(marker) for marker in re.findall(r"\[(\d+)\]", answer_text)]
+    if not marker_indices:
+        return 1.0 if len(answer_text.split()) <= 5 else 0.0
+
+    valid_count = 0
+    for idx in marker_indices:
+        chunk_pos = idx - 1
+        citation = next(
+            (item for item in citations if item.get("citation_index") == idx),
+            None,
+        )
+        if (
+            citation
+            and 0 <= chunk_pos < len(evidence_chunks)
+            and str((evidence_chunks[chunk_pos].content if hasattr(evidence_chunks[chunk_pos], "content") else evidence_chunks[chunk_pos].get("content", "")) or "").strip()
+            and str(citation.get("excerpt") or "").strip()
+        ):
+            valid_count += 1
+
+    return valid_count / len(marker_indices)
+
+
+def _context_coverage(answer_text: str) -> float:
+    import re
+    claim_pattern = re.compile(
+        r"([A-Z0-9][^.!?]*[.!?])\s*(\[\d+\](?:\s*\[\d+\])*)?",
+        re.IGNORECASE | re.DOTALL,
+    )
+    matches = claim_pattern.findall(answer_text)
+    if not matches:
+        return 1.0 if re.search(r"\[\d+\]", answer_text) else 0.0
+
+    total = 0
+    cited = 0
+    for sentence, trailing_markers in matches:
+        if len(sentence.split()) <= 2:
+            continue
+        total += 1
+        if trailing_markers or re.search(r"\[\d+\]", sentence):
+            cited += 1
+
+    return cited / total if total else 1.0
+
+
+def _retrieval_quality(evidence_chunks: list[Any], retrieval_result: Any) -> float:
+    from typing import Any
+    if not evidence_chunks:
+        return 0.0
+    if retrieval_result is None:
+        return 1.0
+
+    final_evidence = getattr(retrieval_result, "final_evidence", evidence_chunks)
+    if not final_evidence:
+        return 0.0
+
+    requested = getattr(retrieval_result, "top_k_requested", len(final_evidence)) or 1
+    count_score = min(len(final_evidence) / requested, 1.0)
+    if len(final_evidence) == len(evidence_chunks):
+        return count_score
+
+    non_empty_ratio = len(evidence_chunks) / len(final_evidence)
+    return round((count_score + non_empty_ratio) / 2, 4)
+

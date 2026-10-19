@@ -19,11 +19,11 @@ from backend.services.workspace.management_service import (
 )
 
 
-test_app = FastAPI()
+app = FastAPI()
 for exc_class, handler in get_exception_handlers():
-    test_app.add_exception_handler(exc_class, handler)
+    app.add_exception_handler(exc_class, handler)
 
-test_app.include_router(workspaces_router, prefix="/api/v1")
+app.include_router(workspaces_router, prefix="/api/v1")
 
 
 @pytest.fixture
@@ -57,12 +57,12 @@ def test_get_workspace_settings_success(workspace_id):
     mock_service.get_settings.return_value = mock_settings
 
     user = make_user(Role.ADMIN)
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
-    test_app.dependency_overrides[get_db] = lambda: AsyncMock()
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
+    app.dependency_overrides[get_db] = lambda: AsyncMock()
 
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.get(f"/api/v1/workspaces/{workspace_id}/settings")
         assert res.status_code == 200
         data = res.json()
@@ -71,7 +71,7 @@ def test_get_workspace_settings_success(workspace_id):
         assert data["data"]["version"] == 1
         assert data["data"]["settings"]["general"]["retention_days"] == 90
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()
 
 
 def test_patch_workspace_settings_success(workspace_id):
@@ -90,12 +90,12 @@ def test_patch_workspace_settings_success(workspace_id):
     mock_service.patch_settings.return_value = mock_settings
 
     user = make_user(Role.ADMIN)
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
-    test_app.dependency_overrides[get_db] = lambda: AsyncMock()
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
+    app.dependency_overrides[get_db] = lambda: AsyncMock()
 
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.patch(
             f"/api/v1/workspaces/{workspace_id}/settings",
             json={
@@ -109,7 +109,7 @@ def test_patch_workspace_settings_success(workspace_id):
         assert data["data"]["version"] == 2
         assert data["data"]["settings"]["general"]["retention_days"] == 180
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()
 
 
 def test_patch_workspace_settings_concurrency_conflict_409(workspace_id):
@@ -120,12 +120,12 @@ def test_patch_workspace_settings_concurrency_conflict_409(workspace_id):
     )
 
     user = make_user(Role.ADMIN)
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
-    test_app.dependency_overrides[get_db] = lambda: AsyncMock()
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
+    app.dependency_overrides[get_db] = lambda: AsyncMock()
 
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.patch(
             f"/api/v1/workspaces/{workspace_id}/settings",
             json={
@@ -136,7 +136,7 @@ def test_patch_workspace_settings_concurrency_conflict_409(workspace_id):
         assert res.status_code == 409
         assert "Settings were modified" in str(res.json())
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()
 
 
 def test_patch_workspace_settings_unauthorized_403(workspace_id):
@@ -147,12 +147,12 @@ def test_patch_workspace_settings_unauthorized_403(workspace_id):
     )
 
     user = make_user(Role.VIEWER)
-    test_app.dependency_overrides[get_current_user] = lambda: user
-    test_app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
-    test_app.dependency_overrides[get_db] = lambda: AsyncMock()
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_workspace_settings_service] = lambda: mock_service
+    app.dependency_overrides[get_db] = lambda: AsyncMock()
 
     try:
-        client = TestClient(test_app)
+        client = TestClient(app)
         res = client.patch(
             f"/api/v1/workspaces/{workspace_id}/settings",
             json={
@@ -163,4 +163,4 @@ def test_patch_workspace_settings_unauthorized_403(workspace_id):
         assert res.status_code == 403
         assert "Only workspace OWNER or ADMIN" in str(res.json())
     finally:
-        test_app.dependency_overrides.clear()
+        app.dependency_overrides.clear()

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 import structlog
 
@@ -23,7 +23,7 @@ class ComplianceAuditor:
             action=action,
             resource=resource,
             status=status,
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         )
         # In a real system, this might write to a secure WORM drive or separate audit DB
         self.logger.info(json.dumps(event.model_dump()))

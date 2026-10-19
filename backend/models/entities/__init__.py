@@ -20,6 +20,7 @@ from .workspace_access_request import (
     AccessRequestType,
     WorkspaceAccessRequest,
 )
+from .workspace_webhook import WorkspaceWebhook
 
 __all__ = [
     "AuditLog",

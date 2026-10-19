@@ -1,6 +1,6 @@
 """App-level configuration settings."""
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 
@@ -9,7 +9,10 @@ class AppSettings(BaseSettings):
 
     name: str = Field(default="Veritas RAG", alias="APP_NAME")
     version: str = Field(default="1.0.0", alias="APP_VERSION")
-    environment: str = Field(default="development", alias="ENVIRONMENT")
+    environment: str = Field(
+        default="development",
+        validation_alias=AliasChoices("APP_ENVIRONMENT", "ENVIRONMENT"),
+    )
     debug: bool = Field(default=False, alias="APP_DEBUG")
     secret_key: str = Field(alias="APP_SECRET_KEY")
     frontend_url: str | None = Field(default=None, alias="FRONTEND_URL")

@@ -1,6 +1,6 @@
 import pytest
 
-from backend.modules.security.middleware import SecurityInterceptor
+from backend.modules.security.security_interceptor import SecurityInterceptor
 from backend.modules.security.services.auditor import ComplianceAuditor
 from backend.modules.security.services.dlp import DLPEngine
 

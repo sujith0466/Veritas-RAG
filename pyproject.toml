@@ -122,7 +122,7 @@ warn_unused_ignores = false
 # ─── Pytest ───────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["tests", "backend/tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -131,6 +131,7 @@ addopts = [
     "--tb=short",
     "-v",
     "-p", "no:flask",
+    "--import-mode=importlib",
 ]
 markers = [
     "unit: Pure unit tests with no external dependencies",
@@ -140,6 +141,7 @@ markers = [
 ]
 filterwarnings = [
     "error",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
     "ignore::starlette.exceptions.StarletteDeprecationWarning:fastapi.testclient.*",
     "ignore:(?s).*google\\.generativeai.*:FutureWarning",
     "ignore:.*urllib3.*:Warning",
