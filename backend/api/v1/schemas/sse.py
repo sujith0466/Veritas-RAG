@@ -28,6 +28,12 @@ class SSEErrorPayload(BaseModel):
     correlation_id: str | None = None
     recoverable: bool = False
 
+class SSEProgressPayload(BaseModel):
+    """Structured progress payload for SSE events."""
+    stage: str
+    message: str
+    correlation_id: str | None = None
+
 class SSEMessageDTO(BaseModel):
     """
     Standard DTO for Server-Sent Events serialization.
@@ -63,6 +69,24 @@ class SSEMessageDTO(BaseModel):
     @classmethod
     def heartbeat(cls) -> "SSEMessageDTO":
         return cls(event="heartbeat", data="{}", comment="keepalive")
+
+    @classmethod
+    def progress(
+        cls,
+        stage: str,
+        message: str,
+        correlation_id: str | None = None,
+    ) -> "SSEMessageDTO":
+        payload = SSEProgressPayload(
+            stage=stage,
+            message=message,
+            correlation_id=correlation_id,
+        )
+        return cls(
+            event="progress",
+            data=payload.model_dump_json(exclude_none=True),
+            id=None,
+        )
 
     @classmethod
     def error(cls, code: str, message: str, correlation_id: str | None = None, retry_after: int | None = None, recoverable: bool = False) -> "SSEMessageDTO":

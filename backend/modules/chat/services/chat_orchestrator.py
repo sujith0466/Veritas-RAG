@@ -538,6 +538,14 @@ class ChatOrchestrator:
         ttft_recorded = False
         buffer_enabled = bool(settings.features.enable_sse_recovery)
 
+        # Emit initial progress event: preflight complete, knowledge retrieval commencing (REC-001)
+        progress_dto = SSEMessageDTO.progress(
+            stage="retrieving",
+            message="Searching knowledge base...",
+            correlation_id=correlation_id,
+        )
+        yield progress_dto.to_sse_string()
+
         try:
             iterator = self.ai_wrapper_service.stream_request(req, uuid.UUID(user_id), correlation_id).__aiter__()
 

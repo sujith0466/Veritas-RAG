@@ -254,8 +254,12 @@ async def test_redis_pipelined_rpush_and_expire(
     ):
         events.append(event)
 
-    # 2 chunks yielded + done event
-    assert len(events) == 3
+    # Initial progress event + 2 chunks yielded + done event (REC-001 contract)
+    assert len(events) == 4
+    assert "event: progress" in events[0]
+    chunk_events = [e for e in events if "event: chunk" in e]
+    assert len(chunk_events) == 2
+    assert any("event: done" in e for e in events)
 
     # Pipeline was called twice (once per chunk) with transaction=True
     assert mock_redis_client.pipeline.call_count == 2
@@ -329,8 +333,9 @@ async def test_redis_write_failure_shields_live_stream(
     ):
         events.append(event)
 
-    # Both chunks and the done event are successfully delivered to client!
-    assert len(events) == 3
+    # Initial progress event + both chunks + done event are successfully delivered to client!
+    assert len(events) == 4
+    assert "event: progress" in events[0]
     assert any("Token 1" in e for e in events)
     assert any("Token 2" in e for e in events)
     assert any("event: done" in e for e in events)
@@ -378,10 +383,11 @@ async def test_unexpected_non_redis_write_exception_propagates(
         events.append(event)
 
     # Must NOT be caught by Redis fallback (which would have shielded live SSE and delivered Token 1);
-    # instead, the unexpected exception aborts generation and yields INTERNAL_ERROR.
-    assert len(events) == 1
-    assert "INTERNAL_ERROR" in events[0]
-    assert "Token 1" not in events[0]
+    # instead, the unexpected exception aborts generation after initial progress event and yields INTERNAL_ERROR.
+    assert len(events) == 2
+    assert "event: progress" in events[0]
+    assert "INTERNAL_ERROR" in events[1]
+    assert not any("Token 1" in e for e in events)
 
 
 # ==============================================================================

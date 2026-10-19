@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { useState, useCallback } from 'react'
-import { ChatMessageBubble } from '@/pages/chat'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { ChatMessageBubble, parseSSEBlock, applyProgressUpdate } from '@/pages/chat'
 import type { ChatMessage } from '@/stores/chatStore'
 
 // Test Harness simulating the chat message list rendering loop
@@ -13,6 +13,7 @@ interface ConversationHarnessProps {
   onSaveEdit?: (messageId: string, newText: string) => Promise<void> | void
   onFeedback?: (messageId: string, rating: 'like' | 'dislike' | null) => void
   onShare?: (message: ChatMessage) => void
+  abortController?: AbortController
 }
 
 function ConversationHarness({
@@ -23,10 +24,20 @@ function ConversationHarness({
   onSaveEdit,
   onFeedback,
   onShare,
+  abortController,
 }: ConversationHarnessProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [isStreaming, setIsStreaming] = useState(true)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController>(abortController || new AbortController())
+  const accumulatedTextRef = useRef('')
+  const accumulatedCitationsRef = useRef<any[]>([])
+
+  useEffect(() => {
+    if (abortController) {
+      abortControllerRef.current = abortController
+    }
+  }, [abortController])
 
   const handleStartEdit = useCallback((id: string) => {
     setEditingMessageId(id)
@@ -67,9 +78,11 @@ function ConversationHarness({
       const next = [...prev]
       const lastIndex = next.length - 1
       const lastMsg = next[lastIndex]
+      const newText = (lastMsg.message || '') + ' token'
+      accumulatedTextRef.current = newText
       next[lastIndex] = {
         ...lastMsg,
-        message: (lastMsg.message || '') + ' token',
+        message: newText,
       }
       return next
     })
@@ -100,6 +113,81 @@ function ConversationHarness({
     })
   }
 
+  const setProgressOnActive = (stage: string, message: string) => {
+    setMessages(prev => applyProgressUpdate(
+      prev,
+      JSON.stringify({ stage, message }),
+      {
+        isAborted: Boolean(abortControllerRef.current?.signal.aborted),
+        isTerminal: !isStreaming,
+        accumulatedText: accumulatedTextRef.current,
+      }
+    ))
+  }
+
+  const setErrorOnActive = (errorMessage: string) => {
+    setIsStreaming(false)
+    setMessages(prev => {
+      const next = [...prev]
+      const lastIndex = next.length - 1
+      const lastMsg = next[lastIndex]
+      next[lastIndex] = {
+        ...lastMsg,
+        metadata_json: {
+          ...(lastMsg.metadata_json as any || {}),
+          status: 'ERROR',
+          error: { message: errorMessage },
+        },
+      }
+      return next
+    })
+  }
+
+  const feedSSE = (rawSSE: string) => {
+    let buffer = rawSSE
+    while (buffer.includes('\n\n')) {
+      const splitIndex = buffer.indexOf('\n\n')
+      const block = buffer.slice(0, splitIndex)
+      buffer = buffer.slice(splitIndex + 2)
+
+      const { eventType, eventData } = parseSSEBlock(block)
+
+      if (eventType === 'chunk' && eventData) {
+        try {
+          const data = JSON.parse(eventData)
+          if (data.text_delta) {
+            accumulatedTextRef.current += data.text_delta
+          }
+          if (data.citations_delta && data.citations_delta.length > 0) {
+            for (const cite of data.citations_delta) {
+              if (!accumulatedCitationsRef.current.some(c => c.citation_index === cite.citation_index)) {
+                accumulatedCitationsRef.current.push(cite)
+              }
+            }
+          }
+          setMessages(prev => {
+            const next = [...prev]
+            const last = next[next.length - 1]
+            next[next.length - 1] = {
+              ...last,
+              message: accumulatedTextRef.current,
+              citations: accumulatedCitationsRef.current.length > 0 ? [...accumulatedCitationsRef.current] : undefined,
+            }
+            return next
+          })
+        } catch (err) {
+          console.error('Failed to parse SSE event', err)
+        }
+      } else if (eventType === 'progress' && eventData) {
+        setMessages(prev => applyProgressUpdate(prev, eventData, {
+          isAborted: Boolean(abortControllerRef.current?.signal.aborted),
+          isTerminal: !isStreaming,
+          accumulatedText: accumulatedTextRef.current,
+        }))
+      }
+    }
+  }
+
   return (
     <div>
       <div data-testid="controls">
@@ -124,6 +212,51 @@ function ConversationHarness({
           onClick={() => updateActiveReliability(0.95)}
         >
           Set Reliability
+        </button>
+        <button
+          data-testid="set-progress-btn"
+          onClick={() => setProgressOnActive('retrieving', 'Searching knowledge base...')}
+        >
+          Set Progress
+        </button>
+        <button
+          data-testid="set-error-btn"
+          onClick={() => setErrorOnActive('Stream failed')}
+        >
+          Set Error
+        </button>
+        <button
+          data-testid="feed-empty-chunk-btn"
+          onClick={() => feedSSE('event: chunk\ndata: {"text_delta":""}\n\n')}
+        >
+          Feed Empty Chunk
+        </button>
+        <button
+          data-testid="feed-citations-chunk-btn"
+          onClick={() => feedSSE('event: chunk\ndata: {"citations_delta":[{"citation_index":1,"document_id":"doc-1","document_name":"Enterprise_Knowledge_Base.pdf","excerpt":"Verified policy detail"}]}\n\n')}
+        >
+          Feed Citations Chunk
+        </button>
+        <button
+          data-testid="feed-text-delta-btn"
+          onClick={() => feedSSE('event: chunk\ndata: {"text_delta":"Verified corporate policy."}\n\n')}
+        >
+          Feed Text Delta
+        </button>
+        <button
+          data-testid="feed-progress-btn"
+          onClick={() => feedSSE('event: progress\ndata: {"stage":"retrieving","message":"Late progress message"}\n\n')}
+        >
+          Feed Progress
+        </button>
+        <button
+          data-testid="abort-stream-btn"
+          onClick={() => {
+            abortControllerRef.current.abort()
+            setIsStreaming(false)
+          }}
+        >
+          Abort Stream
         </button>
       </div>
 
@@ -397,6 +530,384 @@ describe('REC-004: ChatMessageBubble Rendering Optimization Regression Suite', (
       fireEvent.click(cancelBtn)
 
       expect(onCancelEdit).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('REC-001: SSE Progress Events & Non-Regressive Bubble Rendering', () => {
+    it('renders dynamic progress message from metadata when retrieving', () => {
+      const assistantWithProgress: ChatMessage = {
+        id: 'msg-asst-prog',
+        session_id: 'sess-1',
+        role: 'assistant',
+        message: '',
+        created_at: '2026-10-19T10:00:00Z',
+        metadata_json: {
+          progress_stage: 'retrieving',
+          progress_message: 'Searching knowledge base...',
+        },
+      }
+
+      render(
+        <ChatMessageBubble
+          message={assistantWithProgress}
+          isStreaming={true}
+        />
+      )
+
+      expect(screen.getByText('Searching knowledge base...')).toBeDefined()
+    })
+
+    it('falls back to default Searching knowledge base... when progress_message is missing', () => {
+      const assistantEmpty: ChatMessage = {
+        id: 'msg-asst-empty',
+        session_id: 'sess-1',
+        role: 'assistant',
+        message: '',
+        created_at: '2026-10-19T10:00:00Z',
+      }
+
+      render(
+        <ChatMessageBubble
+          message={assistantEmpty}
+          isStreaming={true}
+        />
+      )
+
+      expect(screen.getByText('Searching knowledge base...')).toBeDefined()
+    })
+
+    it('does not re-render historical message bubbles when active progress message updates', () => {
+      const renderTracker = vi.fn()
+      const initialMessages: ChatMessage[] = [
+        ...sampleMessages,
+        {
+          id: 'msg-asst-active',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:03:00Z',
+        },
+      ]
+
+      render(
+        <ConversationHarness
+          initialMessages={initialMessages}
+          renderSpy={renderTracker}
+        />
+      )
+
+      // Initial mount renders each message once
+      expect(renderTracker).toHaveBeenCalledWith('msg-user-1')
+      expect(renderTracker).toHaveBeenCalledWith('msg-asst-1')
+      expect(renderTracker).toHaveBeenCalledWith('msg-asst-streaming')
+      expect(renderTracker).toHaveBeenCalledWith('msg-asst-active')
+
+      const initialUser1Count = renderTracker.mock.calls.filter(([id]) => id === 'msg-user-1').length
+      const initialAsst1Count = renderTracker.mock.calls.filter(([id]) => id === 'msg-asst-1').length
+      const initialStreamingCount = renderTracker.mock.calls.filter(([id]) => id === 'msg-asst-streaming').length
+
+      // Trigger progress update on active assistant bubble
+      const setProgressBtn = screen.getByTestId('set-progress-btn')
+      fireEvent.click(setProgressBtn)
+
+      // Active assistant displays progress
+      expect(screen.getByText('Searching knowledge base...')).toBeDefined()
+
+      // Historical messages must not have re-rendered (render counts remain unchanged)
+      const afterUser1Count = renderTracker.mock.calls.filter(([id]) => id === 'msg-user-1').length
+      const afterAsst1Count = renderTracker.mock.calls.filter(([id]) => id === 'msg-asst-1').length
+      const afterStreamingCount = renderTracker.mock.calls.filter(([id]) => id === 'msg-asst-streaming').length
+
+      expect(afterUser1Count).toBe(initialUser1Count)
+      expect(afterAsst1Count).toBe(initialAsst1Count)
+      expect(afterStreamingCount).toBe(initialStreamingCount)
+    })
+
+    it('unmounts progress UI and renders answer text when first token arrives', () => {
+      const initialMessages: ChatMessage[] = [
+        {
+          id: 'msg-asst-active',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:03:00Z',
+          metadata_json: {
+            progress_stage: 'retrieving',
+            progress_message: 'Searching knowledge base...',
+          },
+        },
+      ]
+
+      render(<ConversationHarness initialMessages={initialMessages} />)
+
+      // Progress is visible before token
+      expect(screen.getByText('Searching knowledge base...')).toBeDefined()
+
+      // Append token
+      const appendTokenBtn = screen.getByTestId('append-token-btn')
+      fireEvent.click(appendTokenBtn)
+
+      // Progress is cleared and token is visible
+      expect(screen.queryByText('Searching knowledge base...')).toBeNull()
+      expect(screen.getByText('token')).toBeDefined()
+    })
+
+    it('unmounts progress UI and displays error when terminal ERROR status is set', () => {
+      const initialMessages: ChatMessage[] = [
+        {
+          id: 'msg-asst-active',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:03:00Z',
+          metadata_json: {
+            progress_stage: 'retrieving',
+            progress_message: 'Searching knowledge base...',
+          },
+        },
+      ]
+
+      render(<ConversationHarness initialMessages={initialMessages} />)
+
+      expect(screen.getByText('Searching knowledge base...')).toBeDefined()
+
+      // Trigger error
+      const setErrorBtn = screen.getByTestId('set-error-btn')
+      fireEvent.click(setErrorBtn)
+
+      // Progress is unmounted and error is shown
+      expect(screen.queryByText('Searching knowledge base...')).toBeNull()
+      expect(screen.getByText('Error:')).toBeDefined()
+      expect(screen.getByText(/Stream failed/)).toBeDefined()
+    })
+
+    it('safely catches malformed progress JSON without crashing or corrupting messages', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const messages: ChatMessage[] = [
+        {
+          id: 'msg-asst-active',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:00:00Z',
+        },
+      ]
+
+      const block = 'event: progress\ndata: {broken json payload\n\n'
+      const { eventType, eventData } = parseSSEBlock(block.trim())
+      expect(eventType).toBe('progress')
+
+      // Invoke production applyProgressUpdate with malformed payload
+      const result = applyProgressUpdate(messages, eventData, { isAborted: false })
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to parse progress SSE event', expect.any(SyntaxError))
+      expect(result).toBe(messages)
+      expect(result[0].metadata_json).toBeUndefined()
+      consoleErrorSpy.mockRestore()
+    })
+
+    it('safely ignores unknown event types with zero state side effects', () => {
+      const block = 'event: future_unknown_event\ndata: {"foo":"bar"}\n\n'
+      const { eventType, eventData } = parseSSEBlock(block.trim())
+
+      expect(eventType).toBe('future_unknown_event')
+      expect(eventData).toBe('{"foo":"bar"}')
+
+      const messages: ChatMessage[] = [
+        {
+          id: 'msg-asst-active',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:00:00Z',
+        },
+      ]
+
+      // Unknown event type is not handled by progress, chunk, or error handlers
+      expect(eventType === 'progress').toBe(false)
+      expect(messages[0].metadata_json).toBeUndefined()
+    })
+
+    it('keeps progress indicator visible across empty and metadata-only chunks until first non-empty text delta arrives', () => {
+      const initialMessages: ChatMessage[] = [
+        {
+          id: 'msg-asst-prog',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:00:00Z',
+          metadata_json: {
+            progress_stage: 'retrieving',
+            progress_message: 'Searching knowledge base...',
+          },
+        },
+      ]
+
+      // Unit verification: production applyProgressUpdate rejects progress once text has streamed
+      const messagesWithAnswer: ChatMessage[] = [
+        {
+          ...initialMessages[0],
+          message: 'Real answer token',
+        },
+      ]
+      const rejectedUpdate = applyProgressUpdate(
+        messagesWithAnswer,
+        JSON.stringify({ stage: 'retrieving', message: 'Ignored progress update' }),
+        { isAborted: false, accumulatedText: 'Real answer token' }
+      )
+      expect(rejectedUpdate[0].metadata_json?.progress_message).toBe('Searching knowledge base...')
+
+      // DOM and stream lifecycle verification in ConversationHarness
+      render(<ConversationHarness initialMessages={initialMessages} />)
+
+      // Initial state: progress indicator is visible
+      expect(screen.getByText('Searching knowledge base...')).toBeInTheDocument()
+
+      // Feed empty chunk (text_delta = "")
+      fireEvent.click(screen.getByTestId('feed-empty-chunk-btn'))
+
+      // Progress MUST remain visible (not cleared by empty chunk)
+      expect(screen.getByText('Searching knowledge base...')).toBeInTheDocument()
+
+      // Feed metadata-only chunk (citations_delta present, no text_delta)
+      fireEvent.click(screen.getByTestId('feed-citations-chunk-btn'))
+
+      // Progress MUST still remain visible
+      expect(screen.getByText('Searching knowledge base...')).toBeInTheDocument()
+
+      // Feed first non-empty text delta
+      fireEvent.click(screen.getByTestId('feed-text-delta-btn'))
+
+      // Progress indicator must now be unmounted / cleared
+      expect(screen.queryByText('Searching knowledge base...')).toBeNull()
+
+      // First token of answer is rendered
+      expect(screen.getByText(/Verified corporate policy\./)).toBeInTheDocument()
+    })
+
+    it('rejects late progress events after AbortController cancellation and does not restore progress indicator', () => {
+      const abortController = new AbortController()
+      const initialMessages: ChatMessage[] = [
+        {
+          id: 'msg-asst-active',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:00:00Z',
+          metadata_json: {
+            progress_stage: 'retrieving',
+            progress_message: 'Searching knowledge base...',
+          },
+        },
+      ]
+
+      // 1. Direct unit verification of production applyProgressUpdate function
+      abortController.abort()
+      const updatedMessages = applyProgressUpdate(
+        initialMessages,
+        JSON.stringify({ stage: 'retrieving', message: 'Late ghost progress update' }),
+        { isAborted: abortController.signal.aborted }
+      )
+      // Guard strictly rejected the late progress update
+      expect(updatedMessages[0].metadata_json?.progress_message).toBe('Searching knowledge base...')
+      expect(updatedMessages[0].metadata_json?.progress_message).not.toBe('Late ghost progress update')
+
+      // 2. Full UI lifecycle verification in DOM via ConversationHarness
+      const liveController = new AbortController()
+      render(
+        <ConversationHarness
+          initialMessages={initialMessages}
+          abortController={liveController}
+        />
+      )
+
+      // Before abort: progress indicator is visible
+      expect(screen.getByText('Searching knowledge base...')).toBeInTheDocument()
+
+      // Simulate client cancelling / aborting generation
+      fireEvent.click(screen.getByTestId('abort-stream-btn'))
+
+      // AbortController is aborted and streaming is stopped
+      expect(liveController.signal.aborted).toBe(true)
+
+      // Progress indicator is unmounted because stream was terminated
+      expect(screen.queryByText('Searching knowledge base...')).toBeNull()
+
+      // Now simulate a late progress event arriving over the network after abort
+      fireEvent.click(screen.getByTestId('feed-progress-btn'))
+
+      // Late progress must NOT be applied to state or restored to DOM
+      expect(screen.queryByText('Late progress message')).toBeNull()
+      expect(screen.queryByText('Searching knowledge base...')).toBeNull()
+
+      // Direct progress trigger is also rejected when aborted
+      fireEvent.click(screen.getByTestId('set-progress-btn'))
+      expect(screen.queryByText('Searching knowledge base...')).toBeNull()
+    })
+
+    it('rejects late progress events when stream is terminal or completed, including empty-answer responses', () => {
+      const lateProgressPayload = JSON.stringify({
+        stage: 'retrieving',
+        message: 'Late ghost progress update',
+      })
+
+      // Case 1: Empty response completed with isTerminal: true (reader exhaustion or is_final without text)
+      const emptyTerminalMessages: ChatMessage[] = [
+        {
+          id: 'msg-asst-empty-terminal',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:00:00Z',
+        },
+      ]
+      const result1 = applyProgressUpdate(emptyTerminalMessages, lateProgressPayload, {
+        isAborted: false,
+        isTerminal: true,
+        accumulatedText: '',
+      })
+      expect(result1[0].metadata_json).toBeUndefined()
+
+      // Case 2: Response completed with text and isTerminal: true
+      const textCompletedMessages: ChatMessage[] = [
+        {
+          id: 'msg-asst-text-completed',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: 'Completed assistant response text.',
+          created_at: '2026-10-19T10:00:00Z',
+          metadata_json: {
+            progress_stage: 'retrieving',
+            progress_message: 'Searching knowledge base...',
+          },
+        },
+      ]
+      const result2 = applyProgressUpdate(textCompletedMessages, lateProgressPayload, {
+        isAborted: false,
+        isTerminal: true,
+        accumulatedText: 'Completed assistant response text.',
+      })
+      expect(result2[0].metadata_json?.progress_message).toBe('Searching knowledge base...')
+      expect(result2[0].metadata_json?.progress_message).not.toBe('Late ghost progress update')
+
+      // Case 3: Error terminal state (isExplicitError)
+      const errorTerminalMessages: ChatMessage[] = [
+        {
+          id: 'msg-asst-error-terminal',
+          session_id: 'sess-1',
+          role: 'assistant',
+          message: '',
+          created_at: '2026-10-19T10:00:00Z',
+          metadata_json: {
+            status: 'ERROR',
+            error: { message: 'Stream failed' },
+          },
+        },
+      ]
+      const result3 = applyProgressUpdate(errorTerminalMessages, lateProgressPayload, {
+        isAborted: false,
+      })
+      expect(result3[0].metadata_json?.progress_message).toBeUndefined()
     })
   })
 })

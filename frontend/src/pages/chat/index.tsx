@@ -23,6 +23,78 @@ import { AssistantMessageActions } from '@/components/chat/AssistantMessageActio
 import { MessageEditInput } from '@/components/chat/MessageEditInput'
 import { ShareModal } from '@/components/chat/ShareModal'
 
+export interface ParsedSSEEvent {
+  eventType: string
+  eventData: string
+  id?: string
+}
+
+export function parseSSEBlock(block: string): ParsedSSEEvent {
+  const lines = block.split('\n')
+  let eventType = 'message'
+  let eventData = ''
+  let id: string | undefined = undefined
+
+  for (const line of lines) {
+    if (line.startsWith('event: ')) {
+      eventType = line.slice(7)
+    } else if (line.startsWith('data: ')) {
+      eventData = line.slice(6)
+    } else if (line.startsWith('id: ')) {
+      id = line.slice(4)
+    }
+  }
+
+  return { eventType, eventData, id }
+}
+
+export interface ProgressUpdateParams {
+  isAborted: boolean
+  isTerminal?: boolean
+  accumulatedText?: string
+}
+
+export function applyProgressUpdate(
+  messages: ChatMessage[],
+  eventData: string,
+  params: ProgressUpdateParams
+): ChatMessage[] {
+  try {
+    const data = JSON.parse(eventData)
+    if (!data.message) return messages
+    if (messages.length === 0) return messages
+
+    const newMsgs = [...messages]
+    const lastMsg = newMsgs[newMsgs.length - 1]
+
+    // Explicit terminal state check:
+    // 1. Explicit terminal stream flag (stream marked done, reader finished, or inactive)
+    const isTerminal = Boolean(params.isTerminal)
+    // 2. Explicit error status in metadata
+    const isExplicitError = (lastMsg.metadata_json as any)?.status === 'ERROR'
+    // 3. Cancellation initiated on abortController
+    const isAborted = Boolean(params.isAborted)
+    // 4. Answer text has already begun streaming into accumulatedText or message
+    const hasAnswerText = Boolean(params.accumulatedText) || Boolean(lastMsg.message && lastMsg.message.trim().length > 0)
+
+    // Only update active assistant placeholder if not in a terminal state and no answer text has arrived
+    if (lastMsg.role === 'assistant' && !isTerminal && !isExplicitError && !isAborted && !hasAnswerText) {
+      newMsgs[newMsgs.length - 1] = {
+        ...lastMsg,
+        metadata_json: {
+          ...(lastMsg.metadata_json as Record<string, any> || {}),
+          progress_stage: data.stage,
+          progress_message: data.message,
+        },
+      }
+    }
+    return newMsgs
+  } catch (err) {
+    console.error('Failed to parse progress SSE event', err)
+    return messages
+  }
+}
+
 export function AIChatPage() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
@@ -386,7 +458,10 @@ export function AIChatPage() {
       // eslint-disable-next-line no-constant-condition
       while (!isStreamDone) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          isStreamDone = true
+          break
+        }
 
         buffer += decoder.decode(value, { stream: true })
 
@@ -395,17 +470,7 @@ export function AIChatPage() {
           const block = buffer.slice(0, splitIndex)
           buffer = buffer.slice(splitIndex + 2)
 
-          const lines = block.split('\n')
-          let eventType = 'message'
-          let eventData = ''
-
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.slice(7)
-            } else if (line.startsWith('data: ')) {
-              eventData = line.slice(6)
-            }
-          }
+          const { eventType, eventData } = parseSSEBlock(block)
 
           if (eventType === 'chunk' && eventData) {
             try {
@@ -465,6 +530,12 @@ export function AIChatPage() {
               console.error('Failed to parse error data', err)
             }
             isStreamDone = true
+          } else if (eventType === 'progress' && eventData) {
+            setMessages(prev => applyProgressUpdate(prev, eventData, {
+              isAborted: Boolean(abortControllerRef.current?.signal.aborted),
+              isTerminal: isStreamDone,
+              accumulatedText: accumulatedTextRef.current,
+            }))
           }
         }
       }
@@ -1091,7 +1162,9 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                       <span className="h-1.5 w-1.5 rounded-full bg-primary/80 animate-pulse [animation-delay:200ms]" />
                       <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-pulse [animation-delay:400ms]" />
                     </div>
-                    <span className="text-xs text-muted-foreground/90 font-medium tracking-tight">Searching knowledge base...</span>
+                    <span className="text-xs text-muted-foreground/90 font-medium tracking-tight">
+                      {(message.metadata_json as any)?.progress_message || "Searching knowledge base..."}
+                    </span>
                   </div>
                 ) : (
                   <div className={cn(
