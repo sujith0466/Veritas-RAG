@@ -83,7 +83,7 @@ class AIWrapperService:
 
             # Member check
             member = await session.execute(
-                select(WorkspaceMember).where(
+                select(WorkspaceMember.id).where(
                     WorkspaceMember.workspace_id == req.workspace_id,
                     WorkspaceMember.user_id == user_id,
                 )
@@ -93,7 +93,7 @@ class AIWrapperService:
 
             # Ready KB Check
             docs = await session.execute(
-                select(Document).where(
+                select(Document.id).where(
                     Document.tenant_id == str(req.tenant_id),
                     Document.status == DocumentStatus.READY
                 ).limit(1)

@@ -302,7 +302,7 @@ class ChatOrchestrator:
                     return
 
                 member_res = await session.execute(
-                    select(WorkspaceMember).where(
+                    select(WorkspaceMember.id).where(
                         WorkspaceMember.workspace_id == ws_uuid,
                         WorkspaceMember.user_id == u_uuid,
                         WorkspaceMember.status == MemberStatus.ACTIVE.value,
