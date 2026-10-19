@@ -17,6 +17,7 @@ async def handle_document_processed(event) -> None:
     try:
         from backend.database.engine import get_session_factory
         from backend.modules.chunking.workers.tasks import process_document_chunking_task
+        from backend.document.services.failure_service import PipelineFailureSynchronizer
         session_factory = get_session_factory()
 
         async with session_factory() as session:
@@ -45,16 +46,28 @@ async def handle_document_processed(event) -> None:
             )
             version_id = str(target_ver_id)
 
-            # Update state to CHUNKING only if document is not already online serving queries
-            if doc.status != DocumentStatus.READY:
-                doc.status = DocumentStatus.CHUNKING
-                await session.commit()
-
             logger.info("Dispatching chunking task", document_id=document_id, version_id=version_id)
-            process_document_chunking_task.apply_async(
-                args=[tenant_id, document_id, version_id],
-                queue="ingestion"
-            )
+            try:
+                process_document_chunking_task.apply_async(
+                    args=[tenant_id, document_id, version_id],
+                    queue="ingestion"
+                )
+                # Update state to CHUNKING strictly AFTER successful dispatch
+                if doc.status != DocumentStatus.READY:
+                    doc.status = DocumentStatus.CHUNKING
+                    await session.commit()
+            except Exception as dispatch_exc:
+                logger.error("Failed to dispatch chunking task to broker", document_id=document_id, error=str(dispatch_exc))
+                await PipelineFailureSynchronizer.record_pipeline_failure(
+                    session=session,
+                    document_id=doc.id,
+                    failing_stage="chunking_dispatch",
+                    error_code="BROKER_DISPATCH_FAILED",
+                    error_message=f"Broker dispatch failed: {dispatch_exc!s}",
+                    exception=dispatch_exc,
+                    tenant_id=tenant_id,
+                    version_id=uuid.UUID(version_id) if version_id else None,
+                )
     except Exception as e:
         logger.error("Pipeline Orchestrator: Failed to handle document processed", error=str(e))
 
@@ -66,6 +79,7 @@ async def handle_chunking_completed(event) -> None:
         from backend.database.engine import get_session_factory
         from backend.modules.embedding.services.embedding_service import EmbeddingService
         from backend.modules.embedding.workers.tasks import process_embedding_batch_task
+        from backend.document.services.failure_service import PipelineFailureSynchronizer
         session_factory = get_session_factory()
 
         async with session_factory() as session:
@@ -93,11 +107,7 @@ async def handle_chunking_completed(event) -> None:
                 or (getattr(payload_obj, "version_id", None) if payload_obj else None)
                 or doc.latest_version_id
             )
-
-            # Preserve READY status for online serving during re-indexing
-            if doc.status != DocumentStatus.READY:
-                doc.status = DocumentStatus.EMBEDDING
-                await session.commit()
+            target_ver_uuid = uuid.UUID(str(target_ver_id)) if target_ver_id else doc.latest_version_id
 
             from backend.core.config import get_settings
             from backend.modules.embedding.repositories.embedding_repository import (
@@ -118,17 +128,35 @@ async def handle_chunking_completed(event) -> None:
             job = await emb_service.initiate_embedding_job(
                 tenant_id=doc.tenant_id,
                 document_id=doc.id,
-                document_version_id=uuid.UUID(str(target_ver_id)) if target_ver_id else doc.latest_version_id,
+                document_version_id=target_ver_uuid,
                 provider=provider,
                 model_name=model_name,
                 force_reembed=False
             )
             await session.commit()
 
-            process_embedding_batch_task.apply_async(
-                args=[str(job.id), doc.tenant_id, 100, False],
-                queue="embeddings"
-            )
+            try:
+                process_embedding_batch_task.apply_async(
+                    args=[str(job.id), doc.tenant_id, 100, False],
+                    queue="embeddings"
+                )
+                # Preserve READY status for online serving during re-indexing; only set EMBEDDING after dispatch
+                if doc.status != DocumentStatus.READY:
+                    doc.status = DocumentStatus.EMBEDDING
+                    await session.commit()
+            except Exception as dispatch_exc:
+                logger.error("Failed to dispatch embedding task to broker", document_id=str(doc.id), error=str(dispatch_exc))
+                await PipelineFailureSynchronizer.record_pipeline_failure(
+                    session=session,
+                    document_id=doc.id,
+                    failing_stage="embedding_dispatch",
+                    error_code="BROKER_DISPATCH_FAILED",
+                    error_message=f"Broker dispatch failed: {dispatch_exc!s}",
+                    exception=dispatch_exc,
+                    tenant_id=doc.tenant_id,
+                    version_id=target_ver_uuid,
+                    embedding_job_id=job.id,
+                )
     except Exception as e:
         logger.error("Pipeline Orchestrator: Failed to handle chunking completed", error=str(e))
 
@@ -139,6 +167,7 @@ async def handle_embedding_completed(event) -> None:
     try:
         from backend.database.engine import get_session_factory
         from backend.modules.vector.workers.tasks import sync_vectors_to_qdrant_task
+        from backend.document.services.failure_service import PipelineFailureSynchronizer
         session_factory = get_session_factory()
 
         async with session_factory() as session:
@@ -166,6 +195,7 @@ async def handle_embedding_completed(event) -> None:
                 or event_data.get("version_id")
                 or doc.latest_version_id
             )
+            target_ver_uuid = uuid.UUID(str(target_ver_id)) if target_ver_id else doc.latest_version_id
 
             # Skip duplicate task dispatch if already in VECTOR_SYNC
             if doc.status == DocumentStatus.VECTOR_SYNC:
@@ -175,20 +205,32 @@ async def handle_embedding_completed(event) -> None:
                 )
                 return
 
-            # Preserve READY status for online serving during re-indexing
-            if doc.status != DocumentStatus.READY:
-                doc.status = DocumentStatus.VECTOR_SYNC
-                await session.commit()
-
-            sync_vectors_to_qdrant_task.apply_async(
-                args=[str(doc.id), str(target_ver_id), doc.tenant_id],
-                queue="indexing"
-            )
+            try:
+                sync_vectors_to_qdrant_task.apply_async(
+                    args=[str(doc.id), str(target_ver_id), doc.tenant_id],
+                    queue="indexing"
+                )
+                # Preserve READY status for online serving during re-indexing
+                if doc.status != DocumentStatus.READY:
+                    doc.status = DocumentStatus.VECTOR_SYNC
+                    await session.commit()
+            except Exception as dispatch_exc:
+                logger.error("Failed to dispatch vector sync task to broker", document_id=str(doc.id), error=str(dispatch_exc))
+                await PipelineFailureSynchronizer.record_pipeline_failure(
+                    session=session,
+                    document_id=doc.id,
+                    failing_stage="vector_sync_dispatch",
+                    error_code="BROKER_DISPATCH_FAILED",
+                    error_message=f"Broker dispatch failed: {dispatch_exc!s}",
+                    exception=dispatch_exc,
+                    tenant_id=doc.tenant_id,
+                    version_id=target_ver_uuid,
+                )
     except Exception as e:
         logger.error("Pipeline Orchestrator: Failed to handle embedding completed", error=str(e))
 
 async def handle_vector_sync_completed(event) -> None:
-    """Mark document as READY."""
+    """Mark document as READY and clean up superseded version vectors."""
     logger.info("Pipeline Orchestrator: Received VectorSyncCompleted event, marking READY", event_id=event.event_id)
     try:
         from backend.database.engine import get_session_factory
@@ -265,6 +307,24 @@ async def handle_vector_sync_completed(event) -> None:
 
             await session.commit()
             logger.info("Document is now READY for RAG with active version", document_id=str(doc.id), version_id=str(doc.latest_version_id))
+
+            # Milestone 4 (AUD-007): Purge superseded vector points strictly AFTER active version promotion commits.
+            try:
+                from backend.modules.vector.services.vector_service import VectorStorageService
+                vec_svc = VectorStorageService(session=session)
+                await vec_svc.cleanup_old_versions_vectors(
+                    document_id=doc.id,
+                    current_version_id=doc.latest_version_id,
+                    tenant_id=doc.tenant_id,
+                )
+                await session.commit()
+            except Exception as cleanup_err:
+                logger.error(
+                    "Pipeline Orchestrator: Post-promotion vector cleanup failed",
+                    document_id=str(doc.id),
+                    version_id=str(doc.latest_version_id),
+                    error=str(cleanup_err),
+                )
     except Exception as e:
         logger.error("Pipeline Orchestrator: Failed to handle vector sync completed", error=str(e))
 

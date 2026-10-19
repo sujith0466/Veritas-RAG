@@ -125,7 +125,7 @@ async def _cascade_soft_delete_subtree(self, folder_id: str, workspace_id: str, 
             evt = FolderChildrenSoftDeletedEvent(
                 workspace_id=ws_uuid, root_folder_id=f_uuid, deleted_count=total_deleted, worker_task_id=self.request.id
             )
-            await dispatcher.publish(evt)
+            await dispatcher.publish(evt, await_delivery=True)
 
     except Exception as e:
         logger.error("cascade_soft_delete_failed", error=str(e), folder_id=folder_id)
@@ -208,7 +208,7 @@ async def _cascade_restore_subtree(self, folder_id: str, workspace_id: str, acto
             evt = FolderChildrenRestoredEvent(
                 workspace_id=ws_uuid, root_folder_id=f_uuid, restored_count=total_restored, worker_task_id=self.request.id
             )
-            await dispatcher.publish(evt)
+            await dispatcher.publish(evt, await_delivery=True)
 
     except Exception as e:
         logger.error("cascade_restore_failed", error=str(e), folder_id=folder_id)
@@ -301,7 +301,7 @@ async def _cascade_move_subtree(self, source_id: str, workspace_id: str, old_pat
             evt = FolderSubtreeMovedEvent(
                 workspace_id=ws_uuid, root_folder_id=f_uuid, moved_count=total_moved, worker_task_id=self.request.id
             )
-            await dispatcher.publish(evt)
+            await dispatcher.publish(evt, await_delivery=True)
 
     except Exception as e:
         logger.error("cascade_move_failed", error=str(e), folder_id=source_id)
@@ -384,7 +384,7 @@ async def _hard_delete_folder_subtree(self, folder_id: str, workspace_id: str):
             evt = FolderHardDeletedEvent(
                 workspace_id=ws_uuid, folder_id=f_uuid, documents_deleted=0, vectors_deleted=0, s3_objects_deleted=0, folders_deleted=1, worker_task_id=self.request.id
             )
-            await dispatcher.publish(evt)
+            await dispatcher.publish(evt, await_delivery=True)
 
     except Exception as e:
         logger.error("folder_purge_failed", error=str(e), folder_id=folder_id)

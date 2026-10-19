@@ -519,7 +519,7 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
             # Publish event in process to trigger next pipeline stage
             from backend.core.events.dispatcher import get_dispatcher
             dispatcher = get_dispatcher()
-            await dispatcher.publish(proc_payload)
+            await dispatcher.publish(proc_payload, await_delivery=True)
 
             logger.info(
                 "Document processing completed successfully",

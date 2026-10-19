@@ -166,7 +166,7 @@ async def _async_sync_vectors_task(
             },
         )
         dispatcher = get_dispatcher()
-        await dispatcher.publish(success_event)
+        await dispatcher.publish(success_event, await_delivery=True)
 
         return {
             "tenant_id": tenant_id,

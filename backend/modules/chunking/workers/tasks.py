@@ -105,7 +105,7 @@ async def _async_process_chunking(
 
             # Publish event in process to trigger next pipeline stage
             dispatcher = get_dispatcher()
-            await dispatcher.publish(success_event)
+            await dispatcher.publish(success_event, await_delivery=True)
 
             logger.info(
                     "chunking_task_completed",

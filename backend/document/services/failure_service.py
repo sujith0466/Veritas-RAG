@@ -127,6 +127,11 @@ class PipelineFailureSynchronizer:
                 and (failing_ver_id is None or getattr(v, "id", None) != failing_ver_id)
                 for v in all_versions
             )
+            if failing_ver_id:
+                for v in all_versions:
+                    if getattr(v, "id", None) == failing_ver_id:
+                        v.is_active_vector = False
+
             if has_active_version:
                 doc.status = DocumentStatus.READY
                 logger.info(

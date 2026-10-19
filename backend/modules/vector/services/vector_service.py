@@ -238,14 +238,6 @@ class VectorStorageService:
                 )
             )
 
-            # Trigger F5.6 Cleanup: Purge vectors of superseded older versions
-            await self.cleanup_old_versions_vectors(
-                document_id=doc_uuid,
-                current_version_id=ver_uuid,
-                tenant_id=tenant_id,
-                collection_name=target_col,
-            )
-
             return upserted_count
 
         except Exception as exc:

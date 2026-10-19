@@ -63,7 +63,7 @@ class EventDispatcher:
         except ValueError:
             pass
 
-    async def publish(self, event: BaseEvent) -> None:
+    async def publish(self, event: BaseEvent, await_delivery: bool = False) -> None:
         """Publish an event to all registered handlers.
 
         Handlers are invoked concurrently via asyncio.gather.
@@ -72,6 +72,8 @@ class EventDispatcher:
 
         Args:
             event: The domain event to publish.
+            await_delivery: If True, awaits background delivery tasks (Redis pub/sub and DB persistence)
+                           instead of spawning detached background tasks.
         """
         handlers = self._handlers.get(event.event_type, [])
 
@@ -90,8 +92,8 @@ class EventDispatcher:
             except Exception as e:
                 logger.error("Failed to enqueue webhook delivery", error=str(e))
 
-            # Publish to Redis for WebSocket In-App Notifications
-            try:
+            # Define Redis Pub/Sub async routine
+            async def _publish():
                 import json
                 from backend.core.config import get_settings
                 import redis.asyncio as aioredis
@@ -99,73 +101,96 @@ class EventDispatcher:
                 settings = get_settings()
                 channel_name = f"workspace:{tenant_id}:notifications"
                 redis_client = aioredis.from_url(settings.redis.redis_url)
-
-                async def _publish():
-                    try:
-                        await redis_client.publish(channel_name, json.dumps({
-                            "type": event_type_name,
-                            "payload": event_dict,
-                            "timestamp": event_dict.get("occurred_at") or event_dict.get("timestamp")
-                        }))
-                    finally:
-                        await redis_client.aclose()
-
-                asyncio.create_task(_publish())
-            except Exception as e:
-                logger.error("Failed to publish to Redis Pub/Sub", error=str(e))
-
-            # Persist In-App Notification in DB for durable inbox/history
-            async def _persist_notification_record():
                 try:
-                    import uuid
-                    from backend.database.engine import get_session_factory
-                    from backend.services.notification.notification_service import NotificationService
-                    from backend.models.entities.notification import NotificationCategory, NotificationSeverity
+                    await redis_client.publish(channel_name, json.dumps({
+                        "type": event_type_name,
+                        "payload": event_dict,
+                        "timestamp": event_dict.get("occurred_at") or event_dict.get("timestamp")
+                    }))
+                finally:
+                    await redis_client.aclose()
 
-                    async_session_factory = get_session_factory()
+            # Define In-App Notification DB persistence routine
+            async def _persist_notification_record():
+                import uuid
+                from backend.database.engine import get_session_factory
+                from backend.services.notification.notification_service import NotificationService
+                from backend.models.entities.notification import NotificationCategory, NotificationSeverity
+
+                async_session_factory = get_session_factory()
+                try:
+                    tenant_uuid = uuid.UUID(str(tenant_id)) if not isinstance(tenant_id, uuid.UUID) else tenant_id
+                except (ValueError, TypeError):
+                    # Non-UUID tenant identifiers (e.g. string slugs in E2E runs) skip in-app notification table
+                    return
+
+                user_id_raw = getattr(event, "user_id", event_dict.get("user_id"))
+                user_uuid = None
+                if user_id_raw:
                     try:
-                        tenant_uuid = uuid.UUID(str(tenant_id)) if not isinstance(tenant_id, uuid.UUID) else tenant_id
-                    except (ValueError, TypeError):
-                        # Non-UUID tenant identifiers (e.g. string slugs in E2E runs) skip in-app notification table
-                        return
+                        user_uuid = uuid.UUID(str(user_id_raw))
+                    except Exception:
+                        user_uuid = None
 
-                    user_id_raw = getattr(event, "user_id", event_dict.get("user_id"))
-                    user_uuid = None
-                    if user_id_raw:
-                        try:
-                            user_uuid = uuid.UUID(str(user_id_raw))
-                        except Exception:
-                            user_uuid = None
+                category = NotificationCategory.SYSTEM.value
+                if "document" in event_type_name.lower():
+                    category = NotificationCategory.DOCUMENT.value
+                elif "security" in event_type_name.lower() or "auth" in event_type_name.lower():
+                    category = NotificationCategory.SECURITY.value
+                elif "workspace" in event_type_name.lower() or "member" in event_type_name.lower():
+                    category = NotificationCategory.WORKSPACE.value
 
-                    category = NotificationCategory.SYSTEM.value
-                    if "document" in event_type_name.lower():
-                        category = NotificationCategory.DOCUMENT.value
-                    elif "security" in event_type_name.lower() or "auth" in event_type_name.lower():
-                        category = NotificationCategory.SECURITY.value
-                    elif "workspace" in event_type_name.lower() or "member" in event_type_name.lower():
-                        category = NotificationCategory.WORKSPACE.value
+                title = event_type_name.replace("_", " ").title()
+                message = f"Event {event_type_name} recorded for workspace."
+                if "document" in event_type_name.lower():
+                    doc_title = event_dict.get("title") or event_dict.get("document_id") or "Document"
+                    message = f"Document processing update: {doc_title}"
 
-                    title = event_type_name.replace("_", " ").title()
-                    message = f"Event {event_type_name} recorded for workspace."
-                    if "document" in event_type_name.lower():
-                        doc_title = event_dict.get("title") or event_dict.get("document_id") or "Document"
-                        message = f"Document processing update: {doc_title}"
+                async with async_session_factory() as session:
+                    service = NotificationService(session)
+                    await service.create_and_publish(
+                        tenant_id=tenant_uuid,
+                        user_id=user_uuid,
+                        category=category,
+                        severity=NotificationSeverity.INFO.value,
+                        title=title,
+                        message=message,
+                        payload_json=event_dict,
+                    )
 
-                    async with async_session_factory() as session:
-                        service = NotificationService(session)
-                        await service.create_and_publish(
-                            tenant_id=tenant_uuid,
-                            user_id=user_uuid,
-                            category=category,
-                            severity=NotificationSeverity.INFO.value,
-                            title=title,
-                            message=message,
-                            payload_json=event_dict,
+            if await_delivery:
+                delivery_tasks = [
+                    ("redis_pubsub", _publish()),
+                    ("persist_notification_record", _persist_notification_record()),
+                ]
+                delivery_results = await asyncio.gather(
+                    *(t[1] for t in delivery_tasks),
+                    return_exceptions=True,
+                )
+                for (task_name, _), result in zip(delivery_tasks, delivery_results, strict=True):
+                    if isinstance(result, Exception):
+                        logger.error(
+                            "Event delivery task raised an exception",
+                            event_type=event_type_name,
+                            handler=task_name,
+                            error=str(result),
+                            exc_info=result,
                         )
-                except Exception as ex:
-                    logger.warning("Failed to persist domain event as in-app notification", error=str(ex))
+            else:
+                async def _safe_publish():
+                    try:
+                        await _publish()
+                    except Exception as e:
+                        logger.error("Failed to publish to Redis Pub/Sub", error=str(e), exc_info=e)
 
-            asyncio.create_task(_persist_notification_record())
+                async def _safe_persist():
+                    try:
+                        await _persist_notification_record()
+                    except Exception as ex:
+                        logger.warning("Failed to persist domain event as in-app notification", error=str(ex), exc_info=ex)
+
+                asyncio.create_task(_safe_publish())
+                asyncio.create_task(_safe_persist())
 
         if not handlers:
             logger.debug(
@@ -192,12 +217,12 @@ class EventDispatcher:
                 logger.error(
                     "Event handler raised an exception",
                     event_type=event.event_type,
-                    handler=handler.__qualname__,
+                    handler=getattr(handler, "__qualname__", str(handler)),
                     error=str(result),
                     exc_info=result,
                 )
 
-    async def dispatch(self, event_type: "Any", payload: dict | None = None, **kwargs) -> None:
+    async def dispatch(self, event_type: "Any", payload: dict | None = None, await_delivery: bool = False, **kwargs) -> None:
         """Backward compatibility shim for older codebase callers.
 
         Converts the older (event_type, payload) signature to a BaseEvent and routes
@@ -222,7 +247,7 @@ class EventDispatcher:
                     object.__setattr__(self, k, v)
 
         event = LegacyEvent(etype=event_type, **combined_payload)
-        await self.publish(event)
+        await self.publish(event, await_delivery=await_delivery)
 
     def handler_count(self, event_type: EventType) -> int:
         """Return the number of registered handlers for an event type."""
