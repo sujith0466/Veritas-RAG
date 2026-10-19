@@ -51,9 +51,9 @@ class TestQdrantClient:
 
             get_qdrant_client()
             mock_client_cls.assert_called_once_with(
-                host="qdrant.cloud",
-                port=6333,
                 prefer_grpc=True,
+                timeout=mock_settings.return_value.qdrant.timeout,
+                url="http://qdrant.cloud:6333",
                 api_key="secret_key",
             )
 

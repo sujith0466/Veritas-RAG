@@ -135,7 +135,7 @@ class TestEventDispatcher:
         dispatcher.subscribe(EventType.VALIDATION_COMPLETED, slow_handler_2)
 
         start = asyncio.get_running_loop().time()
-        await dispatcher.publish(DummyEvent(event_type=EventType.VALIDATION_COMPLETED))
+        await dispatcher.publish(DummyEvent(event_type=EventType.VALIDATION_COMPLETED, tenant_id=None))
         total_duration = asyncio.get_running_loop().time() - start
 
         # If sequential, duration would be >= 0.10. If concurrent via gather, should be ~0.05

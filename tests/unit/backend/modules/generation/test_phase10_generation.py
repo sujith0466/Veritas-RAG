@@ -70,6 +70,9 @@ class MockLLMProvider:
     async def generate_stream(self, query, evidence):
         yield "This is a mock response. [1] [2]"
 
+    async def stream(self, req):
+        yield "This is a mock response. [1] [2]"
+
 @pytest.mark.asyncio
 async def test_streaming_generation_service_with_evidence():
     extractor = CitationExtractor()

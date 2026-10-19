@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { WorkspaceSettings } from '@/pages/settings/WorkspaceSettings'
@@ -70,6 +70,8 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-02T00:00:00Z'))
 
     // Auth Store state
     useAuthStore.setState({
@@ -109,6 +111,10 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
       expires_at: '2026-11-01T00:00:00Z',
       default_role: 'MEMBER',
     } as any)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders Workspace Identity card with Public Workspace ID and diagnostic UUID (A9.1-A9.3)', async () => {

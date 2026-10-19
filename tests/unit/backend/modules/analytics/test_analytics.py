@@ -158,7 +158,7 @@ async def test_get_query_trace_detail() -> None:
     )
     mock_record.id = uuid4()
     mock_record.created_at = datetime.now(UTC)
-    mock_session.scalar = AsyncMock(return_value=mock_record)
+    mock_session.scalar = AsyncMock(side_effect=[mock_record, None])
 
     repo = AnalyticsRepository(session=mock_session)
     service = QueryAnalyticsService(repository=repo)
@@ -190,7 +190,7 @@ async def test_execute_query_sandbox() -> None:
     )
     mock_record.id = uuid4()
     mock_record.created_at = datetime.now(UTC)
-    mock_session.scalar = AsyncMock(return_value=mock_record)
+    mock_session.scalar = AsyncMock(side_effect=[mock_record, None])
 
     repo = AnalyticsRepository(session=mock_session)
     service = QueryAnalyticsService(repository=repo)
@@ -244,16 +244,19 @@ async def test_get_most_cited_documents() -> None:
     mock_session = MagicMock()
     mock_execute = MagicMock()
 
-    class RowMock:
-        def __init__(self, doc_id, doc_name, count, last_cited):
-            self.document_id = doc_id
-            self.document_name = doc_name
-            self.citation_count = count
-            self.last_cited_at = last_cited
-
-    mock_execute.all.return_value = [
-        RowMock("doc_1", "Employee Handbook", 15, datetime(2026, 8, 1, tzinfo=UTC)),
-        RowMock("doc_2", "Q3 Financials", 5, datetime(2026, 8, 2, tzinfo=UTC)),
+    mock_execute.mappings.return_value.all.return_value = [
+        {
+            "document_id": "doc_1",
+            "document_title": "Employee Handbook",
+            "citation_count": 15,
+            "last_cited_at": datetime(2026, 8, 1, tzinfo=UTC),
+        },
+        {
+            "document_id": "doc_2",
+            "document_title": "Q3 Financials",
+            "citation_count": 5,
+            "last_cited_at": datetime(2026, 8, 2, tzinfo=UTC),
+        },
     ]
     mock_session.execute = AsyncMock(return_value=mock_execute)
 

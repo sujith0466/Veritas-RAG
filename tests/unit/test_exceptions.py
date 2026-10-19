@@ -147,7 +147,7 @@ class TestExceptionHandlers:
             }
         ])
         response = await validation_exception_handler(mock_request, exc)
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == 422
 
         import json
         body = json.loads(bytes(response.body).decode("utf-8"))

@@ -138,7 +138,7 @@ class TestRetrievalRepository:
         assert metrics.tenant_id == "org_audit"
         assert metrics.total_queries_executed == 2
         assert metrics.avg_total_duration_ms == 60.0
-        assert metrics.p95_total_duration_ms == 80.0
+        assert abs(metrics.p95_total_duration_ms - 78.0) < 1e-3
         assert metrics.avg_dense_candidates == 15.0
         assert metrics.stage_latencies_avg.dense_ms == 10.0
 

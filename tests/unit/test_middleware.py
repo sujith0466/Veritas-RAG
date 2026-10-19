@@ -72,7 +72,7 @@ class TestSecurityHeadersMiddleware:
 
         # API endpoint should get no-store
         api_resp = client.get("/api/v1/secure")
-        assert api_resp.headers["Cache-Control"] == "no-store"
+        assert api_resp.headers["Cache-Control"] == "no-store, no-cache, must-revalidate, max-age=0"
         assert api_resp.headers["Pragma"] == "no-cache"
 
         # Web/page endpoint should NOT get no-store
@@ -82,4 +82,4 @@ class TestSecurityHeadersMiddleware:
     def test_hsts_header_in_production(self, app_factory: Callable[..., FastAPI]) -> None:
         client = TestClient(app_factory(is_production=True))
         response = client.get("/api/v1/secure")
-        assert response.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
+        assert response.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains; preload"

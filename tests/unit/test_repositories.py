@@ -104,12 +104,12 @@ class TestConcreteRepositories:
     async def test_user_repository_get_by_supabase_id(self) -> None:
         mock_session = AsyncMock(spec=AsyncSession)
         mock_result = MagicMock()
-        mock_user = User(email="auth@raguard.ai", supabase_user_id="sub_123")
+        mock_user = User(email="auth@raguard.ai", username="auth_user")
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_session.execute.return_value = mock_result
 
         repo = UserRepository(mock_session)
-        found = await repo.get_by_supabase_id("sub_123")
+        found = await repo.get_by_username("auth_user")
         assert found is mock_user
 
     @pytest.mark.asyncio

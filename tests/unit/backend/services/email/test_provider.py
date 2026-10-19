@@ -32,43 +32,36 @@ def mock_unconfigured_settings():
 
 @pytest.mark.asyncio
 async def test_unconfigured_smtp_aborts_send(mock_unconfigured_settings):
+    from backend.services.email.provider import EmailConfigurationError
     provider = SMTPEmailProvider()
-    result = await provider._send_email("test@example.com", "Subject", "Body")
-    assert result is False
+    with pytest.raises(EmailConfigurationError):
+        await provider._send_email("test@example.com", "Subject", "Body")
 
 @pytest.mark.asyncio
-@patch("aiosmtplib.SMTP")
-async def test_successful_email_dispatch(mock_smtp_class, mock_settings):
-    mock_smtp_instance = AsyncMock()
-    # aiosmtplib.SMTP acts as an async context manager
-    mock_smtp_class.return_value.__aenter__.return_value = mock_smtp_instance
-    
+@patch("backend.tasks.emails.send_email_task.delay")
+async def test_successful_email_dispatch(mock_delay, mock_settings):
     provider = SMTPEmailProvider()
     result = await provider.send_verification_email("test@example.com", "token123")
     
     assert result is True
-    mock_smtp_instance.login.assert_awaited_once_with("user", "password")
-    mock_smtp_instance.send_message.assert_awaited_once()
+    mock_delay.assert_called_once()
+    _, kwargs = mock_delay.call_args
+    assert kwargs["to_addresses"] == ["test@example.com"]
+    assert "token123" in kwargs["text_content"]
 
 @pytest.mark.asyncio
-@patch("aiosmtplib.SMTP")
-async def test_email_dispatch_exception_is_swallowed_safely(mock_smtp_class, mock_settings):
-    mock_smtp_instance = AsyncMock()
-    mock_smtp_class.return_value.__aenter__.return_value = mock_smtp_instance
-    mock_smtp_instance.send_message.side_effect = Exception("Connection Timeout")
+@patch("backend.tasks.emails.send_email_task.delay")
+async def test_email_dispatch_exception_is_swallowed_safely(mock_delay, mock_settings):
+    mock_delay.side_effect = Exception("Connection Timeout")
     
     provider = SMTPEmailProvider()
-    result = await provider.send_password_reset_email("test@example.com", "token123")
-    
-    # Should swallow exception and return False so auth flows don't crash
-    assert result is False
+    with pytest.raises(Exception, match="Connection Timeout"):
+        await provider.send_password_reset_email("test@example.com", "token123")
 
 @pytest.mark.asyncio
-@patch("aiosmtplib.SMTP")
-async def test_send_invitation_email_formats_correctly(mock_smtp_class, mock_settings):
-    mock_smtp_instance = AsyncMock()
-    mock_smtp_class.return_value.__aenter__.return_value = mock_smtp_instance
-    
+@patch("backend.tasks.emails.send_email_task.delay")
+async def test_send_invitation_email_formats_correctly(mock_delay, mock_settings):
+    mock_settings.return_value.frontend_url = "https://app.veritas-rag.internal"
     provider = SMTPEmailProvider()
     result = await provider.send_invitation_email(
         "newuser@example.com",
@@ -78,10 +71,10 @@ async def test_send_invitation_email_formats_correctly(mock_smtp_class, mock_set
     )
     
     assert result is True
-    mock_smtp_instance.send_message.assert_awaited_once()
-    sent_message = mock_smtp_instance.send_message.await_args[0][0]
+    mock_delay.assert_called_once()
+    _, kwargs = mock_delay.call_args
     
-    assert sent_message["To"] == "newuser@example.com"
-    assert sent_message["From"] == "noreply@example.com"
-    assert "invited to join Test Workspace" in sent_message["Subject"]
-    assert "inviteToken123" in sent_message.get_content()
+    assert kwargs["to_addresses"] == ["newuser@example.com"]
+    assert "invited to join Test Workspace" in kwargs["subject"]
+    assert "inviteToken123" in kwargs["text_content"]
+    assert "https://app.veritas-rag.internal/invitations/accept?token=inviteToken123" in kwargs["text_content"]

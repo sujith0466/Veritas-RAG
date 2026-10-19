@@ -306,6 +306,7 @@ class QueryAnalyticsService:
 
         if (
             retrieval_log
+            and getattr(retrieval_log, "stage_breakdown_json", None) is not None
             and isinstance(retrieval_log.stage_breakdown_json, dict)
             and retrieval_log.stage_breakdown_json
         ):
