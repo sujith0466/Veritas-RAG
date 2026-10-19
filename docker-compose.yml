@@ -44,7 +44,7 @@ services:
       dockerfile: Dockerfile
       target: runtime
     image: veritas-rag:1.0.0
-    command: celery -A backend.tasks.celery_app worker -l info -Q ingestion,indexing,embeddings,retrieval,default,retention
+    command: celery -A backend.tasks.celery_app worker -l info -Q ingestion,indexing,embeddings,retrieval,default,retention,webhooks,high,medium,folders.critical,folders.purge,jobs.high,jobs.default,health
     env_file:
       - .env
     environment:
