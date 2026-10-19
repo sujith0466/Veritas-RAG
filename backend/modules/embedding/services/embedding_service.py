@@ -10,6 +10,7 @@ import uuid
 
 import structlog
 
+from backend.cache.locks import LockAcquisitionError, acquire_lock
 from backend.core.events.dispatcher import EventDispatcher
 from backend.core.events.types import EventType
 from backend.modules.embedding.events.payloads import (
@@ -181,6 +182,82 @@ class EmbeddingService:
             else:
                 missing_chunks = list(chunks)
 
+            # Milestone 5 (AUD-010): Distributed chunk embedding lock with Redis outage fallback
+            chunks_to_vectorize = []
+            acquired_locks = []
+
+            for chunk in missing_chunks:
+                lock_name = f"embed:{tenant_id}:{chunk.content_hash}"
+                try:
+                    lock_ctx = acquire_lock(lock_name, timeout=30, acquire_timeout=10)
+                    token = await lock_ctx.__aenter__()
+                    acquired_locks.append(lock_ctx)
+
+                    # Re-check cache under lock in case another worker vectorized it while waiting
+                    recheck_map = await self.repository.get_existing_embeddings_by_hashes(
+                        [chunk.content_hash], tenant_id, job.provider, job.model_name
+                    )
+                    cached_rec = recheck_map.get(chunk.content_hash)
+                    if (
+                        cached_rec is not None
+                        and cached_rec.dimension == manager.dimension
+                        and isinstance(cached_rec.embedding_vector, list)
+                        and len(cached_rec.embedding_vector) == manager.dimension
+                    ):
+                        cached_chunks.append(chunk)
+                        cached_embeddings_to_insert.append(
+                            ChunkEmbedding(
+                                tenant_id=tenant_id,
+                                chunk_id=chunk.id,
+                                document_version_id=job.document_version_id,
+                                content_hash=chunk.content_hash,
+                                provider=job.provider,
+                                model_name=job.model_name,
+                                dimension=manager.dimension,
+                                embedding_vector=cached_rec.embedding_vector,
+                            )
+                        )
+                    else:
+                        chunks_to_vectorize.append(chunk)
+                except LockAcquisitionError:
+                    # Acquisition timed out (10s) — re-check cache to see if prior holder completed
+                    recheck_map = await self.repository.get_existing_embeddings_by_hashes(
+                        [chunk.content_hash], tenant_id, job.provider, job.model_name
+                    )
+                    cached_rec = recheck_map.get(chunk.content_hash)
+                    if (
+                        cached_rec is not None
+                        and cached_rec.dimension == manager.dimension
+                        and isinstance(cached_rec.embedding_vector, list)
+                        and len(cached_rec.embedding_vector) == manager.dimension
+                    ):
+                        cached_chunks.append(chunk)
+                        cached_embeddings_to_insert.append(
+                            ChunkEmbedding(
+                                tenant_id=tenant_id,
+                                chunk_id=chunk.id,
+                                document_version_id=job.document_version_id,
+                                content_hash=chunk.content_hash,
+                                provider=job.provider,
+                                model_name=job.model_name,
+                                dimension=manager.dimension,
+                                embedding_vector=cached_rec.embedding_vector,
+                            )
+                        )
+                    else:
+                        # Proceed with vectorization as fallback (at-least-once guarantee)
+                        chunks_to_vectorize.append(chunk)
+                except Exception as redis_err:
+                    # Redis outage fallback: log warning and proceed without distributed locking.
+                    # Database integrity is enforced by schema unique constraints.
+                    logger.warning(
+                        "Redis distributed lock unavailable during embedding; falling back to optimistic DB execution",
+                        chunk_hash=chunk.content_hash,
+                        tenant_id=tenant_id,
+                        error=str(redis_err),
+                    )
+                    chunks_to_vectorize.append(chunk)
+
             # Fast-path for already vectorized chunks (Zero-call idempotency check)
             if cached_chunks:
                 await self.repository.bulk_insert_chunk_embeddings(
@@ -194,85 +271,92 @@ class EmbeddingService:
                 )
 
             # Vectorize missing chunks via external or local provider
-            if missing_chunks:
-                texts = [c.content for c in missing_chunks]
-                try:
-                    from backend.cache.rate_limit import RateLimiter, RateLimitExceeded
-                    from backend.modules.embedding.schemas.errors import RateLimitExceededError
-
+            try:
+                if chunks_to_vectorize:
+                    texts = [c.content for c in chunks_to_vectorize]
                     try:
-                        await RateLimiter.check_limit(
-                            tenant=tenant_id, domain="embeddings", action="api", entity_id="global", limit=600, window_seconds=60
+                        from backend.cache.rate_limit import RateLimiter, RateLimitExceeded
+                        from backend.modules.embedding.schemas.errors import RateLimitExceededError
+
+                        try:
+                            await RateLimiter.check_limit(
+                                tenant=tenant_id, domain="embeddings", action="api", entity_id="global", limit=600, window_seconds=60
+                            )
+                        except RateLimitExceeded:
+                            raise RateLimitExceededError("Rate limit exceeded for provider API")
+
+                        result = await manager.vectorize_batch(texts, batch_size=batch_size)
+
+                        provider_used = result.provider_metadata.get("fallback_provider", job.provider) if isinstance(result.provider_metadata, dict) else job.provider
+                        cost = 0.0
+                        if provider_used == "openai":
+                            cost = (result.tokens_consumed / 1000) * 0.00013
+                        elif provider_used == "cohere":
+                            cost = (result.tokens_consumed / 1000) * 0.00010
+
+                        step_metrics = {"estimated_cost_usd": cost}
+                        fallback_prov = provider_used if provider_used != job.provider else None
+                    except Exception as exc:
+                        await self.repository.update_job_progress(
+                            job_id,
+                            tenant_id,
+                            failed_delta=len(chunks_to_vectorize),
+                            status="FAILED",
+                            error_message=str(exc),
                         )
-                    except RateLimitExceeded:
-                        raise RateLimitExceededError("Rate limit exceeded for provider API")
+                        if self.event_dispatcher:
+                            payload = create_embedding_event(
+                                event_type=EVENT_EMBEDDING_FAILED,
+                                tenant_id=tenant_id,
+                                document_id=job.document_id,
+                                document_version_id=job.document_version_id,
+                                job_id=job_id,
+                                data={"error": str(exc)},
+                            )
+                            await self.event_dispatcher.publish(
+                                EmbeddingDomainEvent(
+                                    event_type=EventType.EMBEDDING_FAILED, payload=payload
+                                )
+                            )
+                        import traceback
+                        logger.error(
+                            "embedding_batch_failed", job_id=job_id, error=str(exc), traceback=traceback.format_exc()
+                        )
+                        raise
 
-                    result = await manager.vectorize_batch(texts, batch_size=batch_size)
+                    new_recs = []
+                    for idx, chunk in enumerate(chunks_to_vectorize):
+                        new_recs.append(
+                            ChunkEmbedding(
+                                tenant_id=tenant_id,
+                                chunk_id=chunk.id,
+                                document_version_id=job.document_version_id,
+                                content_hash=chunk.content_hash,
+                                provider=job.provider,
+                                model_name=job.model_name,
+                                dimension=manager.dimension,
+                                embedding_vector=result.embeddings[idx],
+                            )
+                        )
 
-                    provider_used = result.provider_metadata.get("fallback_provider", job.provider) if isinstance(result.provider_metadata, dict) else job.provider
-                    cost = 0.0
-                    if provider_used == "openai":
-                        cost = (result.tokens_consumed / 1000) * 0.00013
-                    elif provider_used == "cohere":
-                        cost = (result.tokens_consumed / 1000) * 0.00010
-
-                    step_metrics = {"estimated_cost_usd": cost}
-                    fallback_prov = provider_used if provider_used != job.provider else None
-                except Exception as exc:
+                    await self.repository.bulk_insert_chunk_embeddings(new_recs)
+                    await self.repository.mark_chunks_as_embedded(
+                        [c.id for c in chunks_to_vectorize], tenant_id
+                    )
                     await self.repository.update_job_progress(
                         job_id,
                         tenant_id,
-                        failed_delta=len(missing_chunks),
-                        status="FAILED",
-                        error_message=str(exc),
+                        processed_delta=len(chunks_to_vectorize),
+                        tokens_delta=result.tokens_consumed,
+                        step_metrics_update=step_metrics,
+                        fallback_provider=fallback_prov,
                     )
-                    if self.event_dispatcher:
-                        payload = create_embedding_event(
-                            event_type=EVENT_EMBEDDING_FAILED,
-                            tenant_id=tenant_id,
-                            document_id=job.document_id,
-                            document_version_id=job.document_version_id,
-                            job_id=job_id,
-                            data={"error": str(exc)},
-                        )
-                        await self.event_dispatcher.publish(
-                            EmbeddingDomainEvent(
-                                event_type=EventType.EMBEDDING_FAILED, payload=payload
-                            )
-                        )
-                    import traceback
-                    logger.error(
-                        "embedding_batch_failed", job_id=job_id, error=str(exc), traceback=traceback.format_exc()
-                    )
-                    raise
-
-                new_recs = []
-                for idx, chunk in enumerate(missing_chunks):
-                    new_recs.append(
-                        ChunkEmbedding(
-                            tenant_id=tenant_id,
-                            chunk_id=chunk.id,
-                            document_version_id=job.document_version_id,
-                            content_hash=chunk.content_hash,
-                            provider=job.provider,
-                            model_name=job.model_name,
-                            dimension=manager.dimension,
-                            embedding_vector=result.embeddings[idx],
-                        )
-                    )
-
-                await self.repository.bulk_insert_chunk_embeddings(new_recs)
-                await self.repository.mark_chunks_as_embedded(
-                    [c.id for c in missing_chunks], tenant_id
-                )
-                await self.repository.update_job_progress(
-                    job_id,
-                    tenant_id,
-                    processed_delta=len(missing_chunks),
-                    tokens_delta=result.tokens_consumed,
-                    step_metrics_update=step_metrics,
-                    fallback_provider=fallback_prov,
-                )
+            finally:
+                for lock_ctx in acquired_locks:
+                    try:
+                        await lock_ctx.__aexit__(None, None, None)
+                    except Exception as rel_err:
+                        logger.warning("Failed to release chunk embedding lock", error=str(rel_err))
 
             job = (
                 await self.repository.get_job_by_id_and_tenant(job_id, tenant_id)

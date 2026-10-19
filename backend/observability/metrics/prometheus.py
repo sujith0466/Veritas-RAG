@@ -95,6 +95,12 @@ ERRORS_TOTAL = Counter(
     ["error_code", "stage"],
 )
 
+RETRIEVAL_VALIDATION_ERRORS_TOTAL = Counter(
+    "raguard_retrieval_validation_errors_total",
+    "Total failures encountered during authoritative candidate validation against database state.",
+    ["tenant_id", "stage"],
+)
+
 # ── 3. AI Reliability, Self-Correction & Reflection Metrics ───────────────────
 
 SELF_CORRECTION_RETRIES_TOTAL = Counter(

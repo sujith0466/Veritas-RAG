@@ -5,6 +5,7 @@ percentile latency calculations ($P_{95}$), and stage timing aggregations (`ADR-
 """
 
 from collections.abc import Sequence
+from datetime import datetime, timedelta, timezone
 import math
 from uuid import UUID
 
@@ -136,10 +137,30 @@ class RetrievalRepository(BaseRepository[RetrievalQueryLog]):
         return result.scalars().all()
 
     async def get_tenant_metrics(self, tenant_id: str) -> RetrievalMetricsDTO:
-        """Compute aggregate KPIs ($P_{95}$ latency, avg candidates) for a tenant across history."""
+        """Calculate aggregated search performance KPIs over the last 30 days (`AUD-013`).
+
+        Computes continuous P95 percentile latency, average durations, and stage breakdowns.
+        Uses PostgreSQL native percentile_cont(0.95) in production, and continuous rank
+        interpolation in SQLite test harnesses.
+        """
+        dialect_name = "postgresql"
+        try:
+            bind = getattr(self.session, "bind", None) or self.session.get_bind()
+            if bind and hasattr(bind, "dialect") and bind.dialect.name:
+                dialect_name = bind.dialect.name
+        except Exception:
+            dialect_name = "postgresql"
+
+        # SQLite strips tzinfo on read-back, requiring naive UTC cutoff; PostgreSQL requires aware UTC
+        if dialect_name == "sqlite":
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).replace(tzinfo=None)
+        else:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
         count_stmt = select(func.count(RetrievalQueryLog.id)).where(
             RetrievalQueryLog.tenant_id == tenant_id,
             RetrievalQueryLog.is_deleted.is_(False),
+            RetrievalQueryLog.created_at >= cutoff,
         )
         total_queries = (await self.session.execute(count_stmt)).scalar() or 0
 
@@ -154,6 +175,7 @@ class RetrievalRepository(BaseRepository[RetrievalQueryLog]):
         ).where(
             RetrievalQueryLog.tenant_id == tenant_id,
             RetrievalQueryLog.is_deleted.is_(False),
+            RetrievalQueryLog.created_at >= cutoff,
         )
         avg_res = (await self.session.execute(avg_stmt)).first()
         avg_duration = float(avg_res[0] or 0.0) if avg_res else 0.0
@@ -161,25 +183,50 @@ class RetrievalRepository(BaseRepository[RetrievalQueryLog]):
         avg_sparse = float(avg_res[2] or 0.0) if avg_res else 0.0
         avg_merged = float(avg_res[3] or 0.0) if avg_res else 0.0
 
-        # Fetch durations ordered ascending to compute exact P95 index
-        durations_stmt = (
-            select(RetrievalQueryLog.total_duration_ms)
-            .where(
+        if dialect_name == "postgresql":
+            # PostgreSQL native continuous percentile within 30-day window
+            p95_stmt = select(
+                func.percentile_cont(0.95).within_group(RetrievalQueryLog.total_duration_ms.asc())
+            ).where(
                 RetrievalQueryLog.tenant_id == tenant_id,
                 RetrievalQueryLog.is_deleted.is_(False),
+                RetrievalQueryLog.created_at >= cutoff,
             )
-            .order_by(RetrievalQueryLog.total_duration_ms.asc())
-        )
-        durations = (await self.session.execute(durations_stmt)).scalars().all()
-        p95_idx = max(0, math.ceil(len(durations) * 0.95) - 1)
-        p95_duration = float(durations[p95_idx]) if durations else 0.0
+            p95_val = (await self.session.execute(p95_stmt)).scalar_one_or_none()
+            p95_duration = float(p95_val or 0.0)
+        else:
+            # SQLite / Test Harness: continuous linear interpolation matching percentile_cont(0.95)
+            durations_stmt = (
+                select(RetrievalQueryLog.total_duration_ms)
+                .where(
+                    RetrievalQueryLog.tenant_id == tenant_id,
+                    RetrievalQueryLog.is_deleted.is_(False),
+                    RetrievalQueryLog.created_at >= cutoff,
+                )
+                .order_by(RetrievalQueryLog.total_duration_ms.asc())
+            )
+            durations = [float(d) for d in (await self.session.execute(durations_stmt)).scalars().all()]
+            n = len(durations)
+            if n == 0:
+                p95_duration = 0.0
+            elif n == 1:
+                p95_duration = durations[0]
+            else:
+                # Continuous rank matching PostgreSQL percentile_cont(0.95):
+                # Rank R = 1 + 0.95 * (n - 1) (1-indexed) -> (R - 1) in 0-indexed terms: 0.95 * (n - 1)
+                rank = 0.95 * (n - 1)
+                lower_idx = int(math.floor(rank))
+                upper_idx = int(math.ceil(rank))
+                fraction = rank - lower_idx
+                p95_duration = durations[lower_idx] + fraction * (durations[upper_idx] - durations[lower_idx])
 
-        # Average stage latencies from recent 100 queries
+        # Average stage latencies from recent 100 queries within 30-day window
         recent_stmt = (
             select(RetrievalQueryLog.stage_breakdown_json)
             .where(
                 RetrievalQueryLog.tenant_id == tenant_id,
                 RetrievalQueryLog.is_deleted.is_(False),
+                RetrievalQueryLog.created_at >= cutoff,
             )
             .order_by(desc(RetrievalQueryLog.created_at))
             .limit(100)
@@ -210,7 +257,7 @@ class RetrievalRepository(BaseRepository[RetrievalQueryLog]):
             tenant_id=tenant_id,
             total_queries_executed=total_queries,
             avg_total_duration_ms=round(avg_duration, 2),
-            p95_total_duration_ms=round(p95_duration, 2),
+            p95_total_duration_ms=round(p95_duration, 4),
             avg_dense_candidates=round(avg_dense, 2),
             avg_sparse_candidates=round(avg_sparse, 2),
             avg_merged_candidates=round(avg_merged, 2),

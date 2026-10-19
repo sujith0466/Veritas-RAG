@@ -395,7 +395,18 @@ class RetrievalOrchestrator:
                             if (getattr(c, "chunk_id", None), getattr(c, "document_id", None), getattr(c, "document_version_id", None)) in valid_tuples
                         ]
                 except Exception as exc:
-                    logger.warning("Authoritative candidate validation failed; proceeding with caution", error=str(exc))
+                    logger.error(
+                        "Authoritative candidate validation failed; failing closed to protect prompt grounding",
+                        error=str(exc),
+                        tenant_id=tenant_id,
+                        candidate_count=len(deduped),
+                    )
+                    try:
+                        from backend.observability.metrics.prometheus import RETRIEVAL_VALIDATION_ERRORS_TOTAL
+                        RETRIEVAL_VALIDATION_ERRORS_TOTAL.labels(tenant_id=tenant_id, stage="validate_active_candidates").inc()
+                    except Exception:
+                        pass
+                    deduped = []
             elif self.repository and hasattr(self.repository, "filter_active_ready_document_ids"):
                 try:
                     candidate_doc_ids = {
@@ -407,7 +418,18 @@ class RetrievalOrchestrator:
                         )
                         deduped = [c for c in deduped if getattr(c, "document_id", None) in valid_doc_ids]
                 except Exception as exc:
-                    logger.warning("Defense-in-depth document validity check failed; proceeding with caution", error=str(exc))
+                    logger.error(
+                        "Defense-in-depth document validity check failed; failing closed to protect prompt grounding",
+                        error=str(exc),
+                        tenant_id=tenant_id,
+                        candidate_count=len(deduped),
+                    )
+                    try:
+                        from backend.observability.metrics.prometheus import RETRIEVAL_VALIDATION_ERRORS_TOTAL
+                        RETRIEVAL_VALIDATION_ERRORS_TOTAL.labels(tenant_id=tenant_id, stage="filter_active_ready_document_ids").inc()
+                    except Exception:
+                        pass
+                    deduped = []
 
             # Stage 3: Cross-Encoder Reranking (`strictly bounded to top N <= 30 per ADR-M4-002`)
             rerank_start = time.perf_counter()
