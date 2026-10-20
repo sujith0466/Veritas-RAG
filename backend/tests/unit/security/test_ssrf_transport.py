@@ -33,6 +33,12 @@ def test_is_safe_ip_blocks_private_and_loopback():
 
 def test_is_safe_ip_blocks_cloud_metadata():
     assert is_safe_ip(ipaddress.ip_address("169.254.169.254")) is False
+    # SEC-003: Explicit checks for 169.254.0.0/16, 100.64.0.0/10, and fd00::/8
+    assert is_safe_ip(ipaddress.ip_address("169.254.1.1")) is False
+    assert is_safe_ip(ipaddress.ip_address("100.64.0.1")) is False
+    assert is_safe_ip(ipaddress.ip_address("100.127.255.254")) is False
+    assert is_safe_ip(ipaddress.ip_address("fd00::1")) is False
+    assert is_safe_ip(ipaddress.ip_address("fd12:3456:789a::1")) is False
 
 
 def test_is_safe_ip_ipv4_mapped_ipv6():

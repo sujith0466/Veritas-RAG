@@ -813,7 +813,7 @@ async def soft_delete_workspace(
 ) -> WorkspaceResponse:
     """Soft delete workspace with 30-day retention grace period."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = current_user.role == Role.PLATFORM_ADMIN
         workspace = await management_service.soft_delete_workspace(
             session=session,
             workspace_id=workspace_id,
@@ -876,7 +876,7 @@ async def restore_deleted_workspace(
 ) -> WorkspaceResponse:
     """Restore a soft-deleted workspace to ACTIVE state within the 30-day grace window."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        is_platform_admin = current_user.role == Role.PLATFORM_ADMIN
         workspace = await management_service.restore_deleted_workspace(
             session=session,
             workspace_id=workspace_id,
@@ -927,7 +927,7 @@ async def restore_deleted_workspace(
 async def hard_delete_workspace(
     workspace_id: uuid.UUID,
     request: HardDeleteWorkspaceRequest,
-    current_user: UserContext = Depends(require_role(Role.ADMIN)),
+    current_user: UserContext = Depends(require_role(Role.PLATFORM_ADMIN)),
     session: AsyncSession = Depends(get_db),
     management_service: WorkspaceManagementService = Depends(get_workspace_management_service),
 ) -> dict[str, Any]:

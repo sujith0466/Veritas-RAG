@@ -20,6 +20,13 @@ class SSRFValidationError(Exception):
     pass
 
 
+PROHIBITED_METADATA_NETWORKS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("fd00::/8"),
+)
+
+
 def is_safe_ip(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     """Evaluates whether an IP address is safe for outbound webhook delivery.
     
@@ -40,6 +47,11 @@ def is_safe_ip(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     # Explicit check for AWS/GCP/Azure/OpenStack metadata IP
     if str(ip_obj) == "169.254.169.254":
         return False
+
+    # Explicit check for prohibited metadata and carrier-grade NAT / unique local CIDR ranges
+    for prohibited_net in PROHIBITED_METADATA_NETWORKS:
+        if ip_obj.version == prohibited_net.version and ip_obj in prohibited_net:
+            return False
 
     # Block non-routable / private / internal scopes
     if (

@@ -139,3 +139,128 @@ async def test_reconcile_superseded_vectors_success(service, mock_session):
         mock_rec.id, status="FAILED", error_message="Superseded by newer version"
     )
     assert mock_rec.is_deleted is True
+
+
+async def test_data001_reserved_payload_field_stripping(service, mock_session):
+    """DATA-001: User metadata cannot overwrite system reserved fields in Qdrant point payloads."""
+    from backend.document.models.document import Document
+    from backend.modules.chunking.models.chunk import DocumentChunk
+    from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
+    from backend.modules.vector.schemas.payload import VectorPointDTO
+
+    doc_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    chunk_id = uuid.uuid4()
+    legitimate_tenant_id = "tenant-legitimate-123"
+
+    # Mock ChunkEmbedding
+    mock_emb = MagicMock(spec=ChunkEmbedding)
+    mock_emb.chunk_id = chunk_id
+    mock_emb.document_version_id = version_id
+    mock_emb.tenant_id = legitimate_tenant_id
+    mock_emb.content_hash = "legitimate_content_hash"
+    mock_emb.dimension = 384
+    mock_emb.provider = "openai"
+    mock_emb.model_name = "text-embedding-3-small"
+    mock_emb.embedding_vector = [0.05] * 384
+
+    # Mock DocumentChunk
+    mock_chunk = MagicMock(spec=DocumentChunk)
+    mock_chunk.id = chunk_id
+    mock_chunk.document_version_id = version_id
+    mock_chunk.tenant_id = legitimate_tenant_id
+    mock_chunk.content = "Legitimate document content"
+    mock_chunk.strategy_used = "hierarchical"
+    mock_chunk.chunk_index = 0
+    mock_chunk.token_count = 5
+    mock_chunk.character_count = 27
+    mock_chunk.section_path = "Introduction"
+    mock_chunk.page_numbers = [1]
+
+    # Mock Document with adversarial user_metadata attempting payload poisoning
+    mock_doc = MagicMock(spec=Document)
+    mock_doc.id = doc_id
+    mock_doc.tenant_id = legitimate_tenant_id
+    mock_doc.filename = "report.pdf"
+    mock_doc.source_type = "file_upload"
+    mock_doc.source_url = None
+    mock_doc.canonical_url = None
+    mock_doc.final_url = None
+    mock_doc.user_metadata = {
+        "tenant_id": "malicious-attacker-tenant",
+        "document_id": "malicious-doc-override",
+        "content_hash": "poisoned-hash",
+        "content": "spoofed-content",
+        "strategy_used": "fake_strategy",
+        "chunk_index": 9999,
+        "token_count": 0,
+        "character_count": 0,
+        "section_path": "hacked",
+        "page_numbers": [999],
+        "provider": "malicious-provider",
+        "model_name": "malicious-model",
+        "source_type": "spoofed_source",
+        "source_url": "http://evil.com",
+        "title": "spoofed_title",
+        # Legitimate custom metadata tag:
+        "custom_department": "finance",
+        "project_tag": "q4_audit",
+    }
+
+    async def mock_execute(stmt):
+        mock_result = MagicMock()
+        stmt_str = str(stmt)
+        if "chunk_embeddings" in stmt_str:
+            mock_result.scalars.return_value.all.return_value = [mock_emb]
+        elif "document_chunks" in stmt_str:
+            mock_result.scalars.return_value.all.return_value = [mock_chunk]
+        elif "documents" in stmt_str:
+            mock_result.scalar_one_or_none.return_value = mock_doc
+        else:
+            mock_result.scalars.return_value.all.return_value = []
+            mock_result.scalar_one_or_none.return_value = None
+        return mock_result
+
+    mock_session.execute = mock_execute
+
+    service.repo.get_or_create_metadata = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+    service.repo.update_sync_status = AsyncMock()
+    service.cleanup_old_versions_vectors = AsyncMock(return_value=0)
+    service.dispatcher = AsyncMock()
+
+    with patch("backend.document.repositories.document_repository.DocumentRepository") as mock_doc_repo_cls:
+        mock_doc_repo_inst = MagicMock()
+        mock_doc_repo_inst.get_by_id = AsyncMock(return_value=mock_doc)
+        mock_doc_repo_cls.return_value = mock_doc_repo_inst
+
+        service.provider.upsert_points = AsyncMock(return_value=1)
+
+        count = await service.sync_document_vectors(doc_id, version_id, legitimate_tenant_id)
+
+    assert count == 1
+    service.provider.upsert_points.assert_called_once()
+    upserted_points: list[VectorPointDTO] = service.provider.upsert_points.call_args[0][1]
+    assert len(upserted_points) == 1
+
+    payload = upserted_points[0].payload
+
+    # Prove system keys CANNOT be poisoned by user_metadata
+    assert payload["tenant_id"] == legitimate_tenant_id
+    assert payload["document_id"] == str(doc_id)
+    assert payload["document_version_id"] == str(version_id)
+    assert payload["content_hash"] == "legitimate_content_hash"
+    assert payload["content"] == "Legitimate document content"
+    assert payload["strategy_used"] == "hierarchical"
+    assert payload["chunk_index"] == 0
+    assert payload["token_count"] == 5
+    assert payload["character_count"] == 27
+    assert payload["section_path"] == "Introduction"
+    assert payload["page_numbers"] == [1]
+    assert payload["provider"] == "openai"
+    assert payload["model_name"] == "text-embedding-3-small"
+    assert payload["source_type"] == "file_upload"
+    assert payload["title"] == "report.pdf"
+
+    # Prove non-reserved metadata tags are safely preserved
+    assert payload["custom_department"] == "finance"
+    assert payload["project_tag"] == "q4_audit"

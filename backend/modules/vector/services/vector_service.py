@@ -37,6 +37,27 @@ from backend.modules.vector.schemas.payload import (
 
 logger = structlog.get_logger(__name__)
 
+RESERVED_PAYLOAD_FIELDS: frozenset[str] = frozenset({
+    "tenant_id",
+    "document_id",
+    "document_version_id",
+    "content_hash",
+    "content",
+    "strategy_used",
+    "chunk_index",
+    "token_count",
+    "character_count",
+    "section_path",
+    "page_numbers",
+    "provider",
+    "model_name",
+    "source_type",
+    "source_url",
+    "canonical_url",
+    "final_url",
+    "title",
+})
+
 
 class VectorStorageService:
     """Domain service orchestrating vector storage operations (`ADR-004`, `ADR-M3-001`)."""
@@ -121,7 +142,12 @@ class VectorStorageService:
         from backend.document.repositories.document_repository import DocumentRepository
         doc_repo = DocumentRepository()
         doc = await doc_repo.get_by_id(doc_uuid, tenant_id, self.session)
-        user_meta = dict(getattr(doc, "user_metadata", {})) if doc else {}
+        doc_user_meta = getattr(doc, "user_metadata", {}) or {}
+        raw_user_meta = dict(doc_user_meta) if isinstance(doc_user_meta, dict) else {}
+        clean_user_meta = {
+            k: v for k, v in raw_user_meta.items()
+            if k not in RESERVED_PAYLOAD_FIELDS
+        }
 
         raw_source_type = getattr(doc, "source_type", None) or "file_upload"
         doc_source_type = (
@@ -165,6 +191,7 @@ class VectorStorageService:
                     str(emb.chunk_id)
                 )
                 payload: dict[str, Any] = {
+                    **clean_user_meta,  # Inject dynamic metadata tags (sanitized)
                     "tenant_id": tenant_id,
                     "document_id": str(doc_uuid),
                     "document_version_id": str(ver_uuid),
@@ -193,7 +220,6 @@ class VectorStorageService:
                     "canonical_url": doc_canonical_url,
                     "final_url": doc_final_url,
                     "title": doc_title,
-                    **user_meta,  # Inject dynamic metadata tags
                 }
 
                 points.append(

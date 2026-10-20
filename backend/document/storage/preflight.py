@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 from typing import Any
+import uuid
 
 import structlog
 
@@ -79,12 +80,44 @@ class StoragePreflightValidator:
 
         # 2. Tenant Isolation Check
         if expected_tenant_id:
-            normalized_expected = str(expected_tenant_id).strip().lower()
-            # If the object_key begins with a UUID-like path segment, ensure it matches expected_tenant_id
+            try:
+                normalized_expected = str(uuid.UUID(str(expected_tenant_id))).lower()
+            except (ValueError, TypeError, AttributeError):
+                normalized_expected = str(expected_tenant_id).strip().lower()
+
             parts = normalized_key.lstrip("/").split("/")
-            if parts and len(parts[0]) == 36 and "-" in parts[0]:
-                key_tenant = parts[0].lower()
-                if key_tenant != normalized_expected:
+            if parts:
+                key_tenant = None
+                if parts[0].lower() == "documents":
+                    if len(parts) > 1 and parts[1].strip():
+                        tenant_segment = parts[1].strip()
+                        try:
+                            key_tenant = str(uuid.UUID(tenant_segment)).lower()
+                        except (ValueError, TypeError, AttributeError):
+                            return PreflightResult(
+                                is_valid=False,
+                                storage_provider=provider,
+                                bucket_or_container=bucket,
+                                object_key=object_key,
+                                error_code="MALFORMED_TENANT_SEGMENT",
+                                error_message="Storage key canonical documents path contains a malformed tenant segment.",
+                            )
+                    else:
+                        return PreflightResult(
+                            is_valid=False,
+                            storage_provider=provider,
+                            bucket_or_container=bucket,
+                            object_key=object_key,
+                            error_code="MALFORMED_TENANT_SEGMENT",
+                            error_message="Storage key canonical documents path is missing tenant segment.",
+                        )
+                elif len(parts[0]) == 36 and "-" in parts[0]:
+                    try:
+                        key_tenant = str(uuid.UUID(parts[0])).lower()
+                    except (ValueError, TypeError, AttributeError):
+                        key_tenant = parts[0].lower()
+
+                if key_tenant is not None and key_tenant != normalized_expected:
                     logger.warning(
                         "Tenant isolation violation in storage key",
                         expected_tenant=normalized_expected,

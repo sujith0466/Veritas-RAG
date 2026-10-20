@@ -19,10 +19,6 @@ from backend.core.exceptions.auth import ExpiredTokenException, InvalidTokenExce
 
 logger = structlog.get_logger(__name__)
 
-# Default fallback secret for development environments
-_DEV_FALLBACK_SECRET = "fallback-secret-key-do-not-use-in-production"
-
-
 class JWTService:
     """Handles native JWT generation, validation, and Redis blocklisting."""
 
@@ -38,8 +34,17 @@ class JWTService:
             from backend.core.config import get_settings
             settings = get_settings()
             sec = settings.security
+            is_testing = getattr(settings, "is_testing", False)
         except Exception:
+            settings = None
             sec = None
+            is_testing = False
+
+        if not is_testing:
+            is_testing = (
+                os.getenv("APP_ENVIRONMENT", "").lower() in ("testing", "test")
+                or os.getenv("ENVIRONMENT", "").lower() in ("testing", "test")
+            )
 
         self.signing_algorithm = (
             signing_algorithm
@@ -57,8 +62,8 @@ class JWTService:
             hmac_secret_key
             or (getattr(sec, "jwt_secret_key", None) if sec else None)
             or os.getenv("JWT_SECRET_KEY")
+            or (getattr(settings.app, "secret_key", None) if settings and hasattr(settings, "app") else None)
             or os.getenv("APP_SECRET_KEY")
-            or _DEV_FALLBACK_SECRET
         )
         self.rsa_private_key = (
             rsa_private_key
@@ -72,10 +77,23 @@ class JWTService:
         )
 
         if self.signing_algorithm == "RS256":
+            if not self.rsa_private_key and not self.rsa_public_key:
+                if not is_testing:
+                    raise ValueError(
+                        "JWTService configuration error: RSA keys (JWT_PRIVATE_KEY / JWT_PUBLIC_KEY) "
+                        "must be provided for RS256 algorithm."
+                    )
             self.private_key = self.rsa_private_key
             self.public_key = self.rsa_public_key
             self.algorithm = "RS256"
         else:
+            if not self.hmac_secret_key:
+                if not is_testing:
+                    raise ValueError(
+                        "JWTService configuration error: HMAC secret key (JWT_SECRET_KEY or APP_SECRET_KEY) "
+                        "must be configured in non-test environments."
+                    )
+                self.hmac_secret_key = "test_ephemeral_jwt_secret_key_for_testing_purposes_only_64b"
             self.private_key = self.hmac_secret_key
             self.public_key = self.hmac_secret_key
             self.algorithm = "HS256"

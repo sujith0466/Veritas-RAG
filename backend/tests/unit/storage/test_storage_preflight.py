@@ -94,6 +94,73 @@ def test_storage_preflight_tenant_isolation(mock_storage_obj):
     assert result.error_code == "TENANT_ISOLATION_VIOLATION"
 
 
+def test_storage_preflight_canonical_documents_tenant_isolation(mock_storage_obj):
+    """ING-001: Test pre-flight enforces tenant isolation and strict UUID syntax on canonical documents/{tenant_id}/... keys."""
+    expected_tenant = "11111111-1111-1111-1111-111111111111"
+    cross_tenant = "22222222-2222-2222-2222-222222222222"
+
+    # 1. Valid canonical tenant UUID (fails later on file existence, but passes tenant isolation)
+    mock_storage_obj.object_key = f"documents/{expected_tenant}/doc-1/v1/original/file.pdf"
+    res_valid = StoragePreflightValidator.validate(
+        mock_storage_obj,
+        expected_tenant_id=expected_tenant,
+    )
+    # Fails on missing physical file, proving tenant isolation passed
+    assert res_valid.error_code == "STORAGE_OBJECT_NOT_FOUND"
+
+    # 2. Cross-tenant canonical UUID rejected with TENANT_ISOLATION_VIOLATION
+    mock_storage_obj.object_key = f"documents/{cross_tenant}/doc-1/v1/original/file.pdf"
+    res_cross = StoragePreflightValidator.validate(
+        mock_storage_obj,
+        expected_tenant_id=expected_tenant,
+    )
+    assert res_cross.is_valid is False
+    assert res_cross.error_code == "TENANT_ISOLATION_VIOLATION"
+
+    # 3. Short malformed tenant segment rejected with MALFORMED_TENANT_SEGMENT
+    mock_storage_obj.object_key = "documents/invalid_tenant_slug/doc-1/v1/original/file.pdf"
+    res_short = StoragePreflightValidator.validate(
+        mock_storage_obj,
+        expected_tenant_id=expected_tenant,
+    )
+    assert res_short.is_valid is False
+    assert res_short.error_code == "MALFORMED_TENANT_SEGMENT"
+
+    # 4. 36-character hyphenated non-UUID rejected with MALFORMED_TENANT_SEGMENT
+    mock_storage_obj.object_key = "documents/zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz/doc-1/v1/original/file.pdf"
+    res_non_hex = StoragePreflightValidator.validate(
+        mock_storage_obj,
+        expected_tenant_id=expected_tenant,
+    )
+    assert res_non_hex.is_valid is False
+    assert res_non_hex.error_code == "MALFORMED_TENANT_SEGMENT"
+
+    # 6. Missing or incomplete canonical tenant segments fail closed with MALFORMED_TENANT_SEGMENT
+    mock_storage_obj.object_key = "documents"
+    res_missing1 = StoragePreflightValidator.validate(
+        mock_storage_obj,
+        expected_tenant_id=expected_tenant,
+    )
+    assert res_missing1.is_valid is False
+    assert res_missing1.error_code == "MALFORMED_TENANT_SEGMENT"
+
+    mock_storage_obj.object_key = "documents/"
+    res_missing2 = StoragePreflightValidator.validate(
+        mock_storage_obj,
+        expected_tenant_id=expected_tenant,
+    )
+    assert res_missing2.is_valid is False
+    assert res_missing2.error_code == "MALFORMED_TENANT_SEGMENT"
+
+    mock_storage_obj.object_key = "documents//doc-1/v1/original/file.pdf"
+    res_missing3 = StoragePreflightValidator.validate(
+        mock_storage_obj,
+        expected_tenant_id=expected_tenant,
+    )
+    assert res_missing3.is_valid is False
+    assert res_missing3.error_code == "MALFORMED_TENANT_SEGMENT"
+
+
 def test_storage_preflight_unreadable_file(tmp_path, mock_storage_obj):
     """Test pre-flight detects unreadable / permission denied files."""
     tenant_id = "63e0de56-cb8a-45dd-a417-688f0c88ffbb"
