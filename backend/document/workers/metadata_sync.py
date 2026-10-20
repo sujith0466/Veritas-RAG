@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 @celery_app.task(
     bind=True,
     name="document.sync_document_metadata_to_vectors_job",
-    queue="vector_ops",
+    queue="indexing",
     max_retries=3,
     acks_late=True,
 )
@@ -37,6 +37,6 @@ async def _async_sync_metadata(document_id: uuid.UUID, tenant_id: str) -> None:
             logger.warning(f"Document {document_id} not found during sync.")
             return
 
-        vector_service = VectorStorageService()
+        vector_service = VectorStorageService(session=session)
         await vector_service.sync_metadata(doc)
         logger.info(f"Successfully synced metadata for document {document_id}")

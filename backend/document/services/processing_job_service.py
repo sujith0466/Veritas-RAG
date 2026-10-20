@@ -233,33 +233,6 @@ class ProcessingJobService:
 
         await session.flush()
 
-    async def mark_job_completed(
-        self,
-        job_id: uuid.UUID,
-        worker_id: str,
-        session: AsyncSession,
-    ) -> None:
-        """Mark the overall job as fully completed and update document status."""
-        job = await self.job_repo.get_by_id(job_id, session)
-        if not job:
-            return
-
-        job.status = "COMPLETED"
-        job.completed_at = datetime.now(UTC)
-
-        # Update document status to READY
-        doc_stmt = select(Document).where(Document.id == job.document_id)
-        doc_res = await session.execute(doc_stmt)
-        doc = doc_res.scalar_one_or_none()
-        if doc:
-            doc.status = DocumentStatus.READY
-
-        await session.flush()
-
-        await self.audit_repo.append(
-            job_id, "JOB_COMPLETED", worker_id, None, session
-        )
-
     async def requeue_stale_jobs(
         self,
         threshold_minutes: int = 5,

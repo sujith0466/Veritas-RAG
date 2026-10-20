@@ -27,7 +27,7 @@ def create_celery_app() -> Celery:
         include=[
             "backend.document.workers.ingestion",
             "backend.document.workers.processing_job_worker",
-            "backend.document.workers.extraction_worker",
+            "backend.document.workers.metadata_sync",
             "backend.modules.chunking.workers.tasks",
             "backend.modules.embedding.workers.tasks",
             "backend.modules.vector.workers.tasks",
@@ -66,6 +66,7 @@ def create_celery_app() -> Celery:
             "folders.hard_delete_folder_subtree": {"queue": "folders.purge"},
             "jobs.process_high": {"queue": "jobs.high"},
             "jobs.process_default": {"queue": "jobs.default"},
+            "document.sync_document_metadata_to_vectors_job": {"queue": "indexing"},
             "backend.tasks.retention.*": {"queue": "retention"},
         },
         task_queues={
