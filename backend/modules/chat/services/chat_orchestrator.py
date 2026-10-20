@@ -229,6 +229,9 @@ class ChatOrchestrator:
         from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
         from backend.modules.chat.models.chat_session import ChatSession
 
+        conversation_history: list[dict[str, Any]] = []
+        user_ai_prefs: dict[str, Any] = {}
+
         try:
             async with session_maker() as session:
                 session_res = await session.execute(
@@ -325,6 +328,179 @@ class ChatOrchestrator:
                 tenant_id = session_workspace
                 tenant_uuid = ws_uuid
 
+                # 1. Load prior conversation history & save current user message
+                if not is_recovering:
+                    try:
+                        repo = ChatRepository(session)
+                        # Load prior history for the authenticated session before persisting current query
+                        try:
+                            prior_messages = await repo.list_messages(
+                                session_id=session_id,
+                                tenant_id=tenant_id,
+                                user_id=user_id,
+                                limit=50
+                            )
+                            valid_turns = []
+                            for msg in prior_messages:
+                                if msg.role in ("user", "assistant") and msg.message and msg.message.strip():
+                                    valid_turns.append({"role": msg.role, "content": msg.message.strip()})
+
+                            # Context budget: Sliding window pruning (max 10 turns, max 3000 chars)
+                            budget_turns = []
+                            char_budget = 3000
+                            current_chars = 0
+                            for turn in reversed(valid_turns[-10:]):
+                                turn_len = len(turn["content"])
+                                if current_chars + turn_len > char_budget:
+                                    break
+                                budget_turns.insert(0, turn)
+                                current_chars += turn_len
+
+                            conversation_history = budget_turns
+
+                            logger.info(
+                                "Chat conversation history loaded",
+                                session_id=session_id,
+                                history_loaded=bool(conversation_history),
+                                history_turn_count=len(conversation_history),
+                                history_char_count=current_chars,
+                                history_truncated=(len(valid_turns) > len(conversation_history)),
+                                correlation_id=correlation_id
+                            )
+                        except Exception as hist_err:
+                            logger.warning(
+                                "Failed to load prior chat history; proceeding in single-turn mode",
+                                error=str(hist_err),
+                                session_id=session_id,
+                                correlation_id=correlation_id
+                            )
+                            conversation_history = []
+
+                        await repo.add_message(
+                            session_id=session_id,
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            dto=ChatMessageCreateDTO(
+                                role="user",
+                                message=query
+                            )
+                        )
+                    except Exception as e:
+                        from fastapi import HTTPException
+
+                        status_code = e.status_code if isinstance(e, HTTPException) else 500
+                        detail_msg = e.detail if isinstance(e, HTTPException) else "An internal error occurred during generation."
+
+                        if status_code == 404:
+                            error_code = "SESSION_NOT_FOUND"
+                            user_message = str(detail_msg)
+                        elif status_code == 403:
+                            error_code = "UNAUTHORIZED"
+                            user_message = str(detail_msg)
+                        else:
+                            error_code = "INTERNAL_ERROR"
+                            user_message = "An internal error occurred during generation."
+
+                        logger.error(
+                            "Chat orchestrator session message initialization failed",
+                            session_id=session_id,
+                            error=str(e),
+                            error_code=error_code,
+                            status_code=status_code,
+                            correlation_id=correlation_id,
+                        )
+
+                        err = SSEMessageDTO.error(
+                            code=error_code,
+                            message=user_message,
+                            correlation_id=correlation_id,
+                            recoverable=False,
+                        )
+                        yield err.to_sse_string()
+                        SSE_ACTIVE_STREAMS.dec()
+                        return
+
+                # 1.5 Check if knowledge base is still processing
+                processing_statuses = [
+                    DocumentStatus.UPLOADED,
+                    DocumentStatus.PENDING,
+                    DocumentStatus.VALIDATING,
+                    DocumentStatus.EXTRACTING,
+                    DocumentStatus.OCR,
+                    DocumentStatus.MANIFEST_GENERATING,
+                    DocumentStatus.PROCESSED,
+                    DocumentStatus.CHUNKING,
+                    DocumentStatus.CHUNKED,
+                    DocumentStatus.EMBEDDING,
+                    DocumentStatus.EMBEDDED,
+                    DocumentStatus.VECTOR_SYNC
+                ]
+
+                ready_result = await session.execute(
+                    select(Document).where(
+                        Document.tenant_id == tenant_id,
+                        Document.status == DocumentStatus.READY
+                    ).limit(1)
+                )
+                has_ready_doc = ready_result.scalar_one_or_none() is not None
+
+                has_processing_doc = False
+                if not has_ready_doc:
+                    proc_result = await session.execute(
+                        select(Document).where(
+                            Document.tenant_id == tenant_id,
+                            Document.status.in_(processing_statuses)
+                        ).limit(1)
+                    )
+                    has_processing_doc = proc_result.scalar_one_or_none() is not None
+
+                if not has_ready_doc and has_processing_doc:
+                    msg = "Your knowledge base is currently being prepared. Document processing is still in progress."
+
+                    chunk = StreamingGenerationChunkDTO(
+                        chunk_index=0,
+                        text_delta=msg,
+                        is_final=True,
+                        is_fully_grounded=True,
+                        citations_delta=[],
+                        correlation_id=correlation_id
+                    )
+
+                    dto = SSEMessageDTO(
+                        id=SSEMessageDTO.format_id(correlation_id, 0),
+                        event="chunk",
+                        data=chunk.model_dump_json()
+                    )
+                    yield dto.to_sse_string()
+
+                    repo = ChatRepository(session)
+                    await repo.add_message(
+                        session_id=session_id,
+                        tenant_id=tenant_id,
+                        user_id=user_id,
+                        dto=ChatMessageCreateDTO(
+                            role="assistant",
+                            message=msg,
+                            citations=[],
+                            reliability_score=1.0,
+                            metadata_json={"system_message": True}
+                        )
+                    )
+                    SSE_ACTIVE_STREAMS.dec()
+                    return
+
+                # 1.6 Fetch user AI preferences (temperature, custom prompt, default model)
+                try:
+                    from backend.models.entities.user import User
+                    user_res = await session.execute(
+                        select(User.preferences).where(User.id == uuid.UUID(user_id)).limit(1)
+                    )
+                    user_prefs_record = user_res.scalar_one_or_none()
+                    if user_prefs_record and isinstance(user_prefs_record, dict):
+                        user_ai_prefs = user_prefs_record.get("ai") or {}
+                except Exception as pref_err:
+                    logger.warning("Could not read user AI preferences; defaulting", error=str(pref_err))
+
         except Exception as e:
             import logging
             logging.error(f"Failed to resolve and verify session workspace: {e}")
@@ -337,184 +513,6 @@ class ChatOrchestrator:
             yield err.to_sse_string()
             SSE_ACTIVE_STREAMS.dec()
             return
-
-        # 1. Load prior conversation history & save current user message
-        conversation_history: list[dict[str, Any]] = []
-        if not is_recovering:
-            async with session_maker() as session:
-                try:
-                    repo = ChatRepository(session)
-                    # Load prior history for the authenticated session before persisting current query
-                    try:
-                        prior_messages = await repo.list_messages(
-                            session_id=session_id,
-                            tenant_id=tenant_id,
-                            user_id=user_id,
-                            limit=50
-                        )
-                        valid_turns = []
-                        for msg in prior_messages:
-                            if msg.role in ("user", "assistant") and msg.message and msg.message.strip():
-                                valid_turns.append({"role": msg.role, "content": msg.message.strip()})
-
-                        # Context budget: Sliding window pruning (max 10 turns, max 3000 chars)
-                        budget_turns = []
-                        char_budget = 3000
-                        current_chars = 0
-                        for turn in reversed(valid_turns[-10:]):
-                            turn_len = len(turn["content"])
-                            if current_chars + turn_len > char_budget:
-                                break
-                            budget_turns.insert(0, turn)
-                            current_chars += turn_len
-
-                        conversation_history = budget_turns
-
-                        logger.info(
-                            "Chat conversation history loaded",
-                            session_id=session_id,
-                            history_loaded=bool(conversation_history),
-                            history_turn_count=len(conversation_history),
-                            history_char_count=current_chars,
-                            history_truncated=(len(valid_turns) > len(conversation_history)),
-                            correlation_id=correlation_id
-                        )
-                    except Exception as hist_err:
-                        logger.warning(
-                            "Failed to load prior chat history; proceeding in single-turn mode",
-                            error=str(hist_err),
-                            session_id=session_id,
-                            correlation_id=correlation_id
-                        )
-                        conversation_history = []
-
-                    await repo.add_message(
-                        session_id=session_id,
-                        tenant_id=tenant_id,
-                        user_id=user_id,
-                        dto=ChatMessageCreateDTO(
-                            role="user",
-                            message=query
-                        )
-                    )
-                except Exception as e:
-                    from fastapi import HTTPException
-
-                    status_code = e.status_code if isinstance(e, HTTPException) else 500
-                    detail_msg = e.detail if isinstance(e, HTTPException) else "An internal error occurred during generation."
-
-                    if status_code == 404:
-                        error_code = "SESSION_NOT_FOUND"
-                        user_message = str(detail_msg)
-                    elif status_code == 403:
-                        error_code = "UNAUTHORIZED"
-                        user_message = str(detail_msg)
-                    else:
-                        error_code = "INTERNAL_ERROR"
-                        user_message = "An internal error occurred during generation."
-
-                    logger.error(
-                        "Chat orchestrator session message initialization failed",
-                        session_id=session_id,
-                        error=str(e),
-                        error_code=error_code,
-                        status_code=status_code,
-                        correlation_id=correlation_id,
-                    )
-
-                    err = SSEMessageDTO.error(
-                        code=error_code,
-                        message=user_message,
-                        correlation_id=correlation_id,
-                        recoverable=False,
-                    )
-                    yield err.to_sse_string()
-                    SSE_ACTIVE_STREAMS.dec()
-                    return
-
-        # 1.5 Check if knowledge base is still processing
-        processing_statuses = [
-            DocumentStatus.UPLOADED,
-            DocumentStatus.PENDING,
-            DocumentStatus.VALIDATING,
-            DocumentStatus.EXTRACTING,
-            DocumentStatus.OCR,
-            DocumentStatus.MANIFEST_GENERATING,
-            DocumentStatus.PROCESSED,
-            DocumentStatus.CHUNKING,
-            DocumentStatus.CHUNKED,
-            DocumentStatus.EMBEDDING,
-            DocumentStatus.EMBEDDED,
-            DocumentStatus.VECTOR_SYNC
-        ]
-
-        async with session_maker() as session:
-            ready_result = await session.execute(
-                select(Document).where(
-                    Document.tenant_id == tenant_id,
-                    Document.status == DocumentStatus.READY
-                ).limit(1)
-            )
-            has_ready_doc = ready_result.scalar_one_or_none() is not None
-
-            has_processing_doc = False
-            if not has_ready_doc:
-                proc_result = await session.execute(
-                    select(Document).where(
-                        Document.tenant_id == tenant_id,
-                        Document.status.in_(processing_statuses)
-                    ).limit(1)
-                )
-                has_processing_doc = proc_result.scalar_one_or_none() is not None
-
-            if not has_ready_doc and has_processing_doc:
-                msg = "Your knowledge base is currently being prepared. Document processing is still in progress."
-
-                chunk = StreamingGenerationChunkDTO(
-                    chunk_index=0,
-                    text_delta=msg,
-                    is_final=True,
-                    is_fully_grounded=True,
-                    citations_delta=[],
-                    correlation_id=correlation_id
-                )
-
-                dto = SSEMessageDTO(
-                    id=SSEMessageDTO.format_id(correlation_id, 0),
-                    event="chunk",
-                    data=chunk.model_dump_json()
-                )
-                yield dto.to_sse_string()
-
-                repo = ChatRepository(session)
-                await repo.add_message(
-                    session_id=session_id,
-                    tenant_id=tenant_id,
-                    user_id=user_id,
-                    dto=ChatMessageCreateDTO(
-                        role="assistant",
-                        message=msg,
-                        citations=[],
-                        reliability_score=1.0,
-                        metadata_json={"system_message": True}
-                    )
-                )
-                SSE_ACTIVE_STREAMS.dec()
-                return
-
-        # 1.6 Fetch user AI preferences (temperature, custom prompt, default model)
-        user_ai_prefs = {}
-        try:
-            from backend.models.entities.user import User
-            async with session_maker() as session:
-                user_res = await session.execute(
-                    select(User.preferences).where(User.id == uuid.UUID(user_id)).limit(1)
-                )
-                user_prefs_record = user_res.scalar_one_or_none()
-                if user_prefs_record and isinstance(user_prefs_record, dict):
-                    user_ai_prefs = user_prefs_record.get("ai") or {}
-        except Exception as pref_err:
-            logger.warning("Could not read user AI preferences; defaulting", error=str(pref_err))
 
         # 2. Delegate to AIWrapperService
         req = AIWrapperRequest(

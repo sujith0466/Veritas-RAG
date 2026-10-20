@@ -540,3 +540,146 @@ def test_sqlite_eager_load_suppression_empirical_proof():
     finally:
         event.remove(engine, "before_cursor_execute", capture_sql)
         engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_chat_orchestrator_consolidated_session_lifecycle():
+    """Verify REC-007: ChatOrchestrator.stream_chat uses a single session context
+    for preflight operations, passes that session to ChatRepository, executes operations
+    sequentially, closes the session before AIWrapper streaming begins, and keeps the
+    session closed during the complete streaming lifecycle.
+    """
+    session_id = str(uuid.uuid4())
+    owner_id = str(uuid.uuid4())
+    ws_id = str(uuid.uuid4())
+    correlation_id = str(uuid.uuid4())
+
+    operation_log = []
+    executed_statements = []
+
+    mock_session = AsyncMock()
+
+    async def mock_execute(stmt, *args, **kwargs):
+        executed_statements.append(stmt)
+        stmt_str = str(stmt).lower()
+        if "chat_sessions" in stmt_str:
+            operation_log.append("query_chat_session")
+            res = MagicMock()
+            fake_sess = MagicMock(spec=ChatSession)
+            fake_sess.id = session_id
+            fake_sess.user_id = owner_id
+            fake_sess.tenant_id = ws_id
+            res.scalar_one_or_none.return_value = fake_sess
+            return res
+        elif "workspace_members" in stmt_str:
+            operation_log.append("query_workspace_member")
+            res = MagicMock()
+            res.scalar_one_or_none.return_value = uuid.uuid4()
+            return res
+        elif "documents" in stmt_str:
+            operation_log.append("query_document_readiness")
+            res = MagicMock()
+            res.scalar_one_or_none.return_value = MagicMock()
+            return res
+        elif "users" in stmt_str or "preferences" in stmt_str:
+            operation_log.append("query_user_preferences")
+            res = MagicMock()
+            res.scalar_one_or_none.return_value = {"ai": {"temperature": 0.7}}
+            return res
+        else:
+            pytest.fail(f"Unexpected SQL statement executed on preflight session: {stmt}")
+
+    mock_session.execute = AsyncMock(side_effect=mock_execute)
+
+    async def mock_enter(*args):
+        operation_log.append("session_enter")
+        return mock_session
+
+    async def mock_exit(*args):
+        operation_log.append("session_exit")
+        return None
+
+    mock_context = MagicMock()
+    mock_context.__aenter__ = mock_enter
+    mock_context.__aexit__ = mock_exit
+    maker = MagicMock(return_value=mock_context)
+
+    repo_sessions = []
+    class MockChatRepo:
+        def __init__(self, s):
+            repo_sessions.append(s)
+            operation_log.append("repo_init")
+
+        async def list_messages(self, *args, **kwargs):
+            operation_log.append("list_messages")
+            return []
+
+        async def add_message(self, *args, **kwargs):
+            operation_log.append("add_message")
+            return MagicMock()
+
+    mock_ai_wrapper = MagicMock()
+    async def mock_stream_request(*args, **kwargs):
+        operation_log.append("stream_request_started")
+        yield AIWrapperStreamChunk(
+            chunk_index=0,
+            text_delta="Controlled final response",
+            is_final=True,
+            is_fully_grounded=True,
+            citations_delta=[],
+            correlation_id=correlation_id,
+            wrapper_metadata={"reliability_score": 0.95},
+        )
+        operation_log.append("stream_request_finished")
+
+    mock_ai_wrapper.stream_request = mock_stream_request
+
+    orchestrator = ChatOrchestrator(ai_wrapper_service=mock_ai_wrapper, chat_repo=MagicMock())
+
+    with patch("backend.modules.chat.services.chat_orchestrator.ChatRepository", MockChatRepo), \
+         patch("backend.modules.chat.services.chat_orchestrator.get_session_factory", return_value=maker):
+        events = []
+        async for chunk in orchestrator.stream_chat(
+            session_id=session_id,
+            tenant_id=ws_id,
+            user_id=owner_id,
+            query="Hello test",
+            correlation_id=correlation_id,
+        ):
+            events.append(chunk)
+
+    # 1. Single session_maker() context used for entire preflight
+    assert maker.call_count == 1
+    assert operation_log.count("session_enter") == 1
+    assert operation_log.count("session_exit") == 1
+
+    # 2. Exactly 4 expected preflight queries executed with zero unhandled queries
+    assert len(executed_statements) == 4
+    assert mock_session.execute.call_count == 4
+
+    # 3. Repository received the exact same session instance
+    assert len(repo_sessions) == 1
+    assert repo_sessions[0] is mock_session
+
+    # 4. Strict chronological sequence: session opens, queries execute, session closes BEFORE stream starts
+    expected_sequence = [
+        "session_enter",
+        "query_chat_session",
+        "query_workspace_member",
+        "repo_init",
+        "list_messages",
+        "add_message",
+        "query_document_readiness",
+        "query_user_preferences",
+        "session_exit",
+        "stream_request_started",
+        "stream_request_finished",
+    ]
+    assert operation_log == expected_sequence
+
+    # 5. Full stream consumed cleanly to completion: progress -> chunk -> done
+    assert len(events) == 3
+    assert "event: progress" in events[0]
+    assert "event: chunk" in events[1]
+    assert "Controlled final response" in events[1]
+    assert "event: done" in events[2]
