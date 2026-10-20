@@ -600,6 +600,37 @@ class DocumentService:
         if not success:
             return False
 
+        # Cascade soft-delete to DocumentVersion, DocumentChunk, and ChunkEmbedding
+        from backend.document.models.document import DocumentVersion
+        from backend.modules.chunking.models.chunk import DocumentChunk
+        from backend.modules.embedding.models.chunk_embedding import ChunkEmbedding
+        from sqlalchemy import update
+
+        await session.execute(
+            update(DocumentVersion)
+            .where(DocumentVersion.document_id == document_id)
+            .values(is_deleted=True)
+        )
+        await session.execute(
+            update(DocumentChunk)
+            .where(
+                DocumentChunk.document_id == document_id,
+                DocumentChunk.tenant_id == tenant_id,
+            )
+            .values(is_deleted=True)
+        )
+        version_ids = [v.id for v in doc.versions] if doc.versions else []
+        if version_ids:
+            await session.execute(
+                update(ChunkEmbedding)
+                .where(
+                    ChunkEmbedding.document_version_id.in_(version_ids),
+                    ChunkEmbedding.tenant_id == tenant_id,
+                )
+                .values(is_deleted=True)
+            )
+        await session.flush()
+
         # Delete physical artifacts from storage prefix (`documents/{tenant_id}/{document_id}`)
         prefix = f"documents/{tenant_id}/{document_id}"
         await self.storage.delete_prefix(prefix)
@@ -858,11 +889,9 @@ class DocumentService:
                 version_number=new_version_num,
                 storage_object_id=target_version.storage_object_id,
                 content_hash=target_version.content_hash,
-                is_active_vector=True,
+                is_active_vector=False,  # P0-3 / DATA-002: Promoted upon VECTORS_INDEXED in handle_vector_sync_completed
             )
             version = await self.doc_repo.add_version(version, session)
-
-            await self.doc_repo.set_active_version(doc.id, version.id, session)
 
             doc.latest_version_id = version.id
             doc.status = DocumentStatus.UPLOADED

@@ -5,8 +5,9 @@ If extracted text falls below minimal word density thresholds (<50 words),
 sets `needs_ocr = True` to trigger OCR fallback (`EXTRACT_002`).
 """
 
+import asyncio
 import io
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
 from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
@@ -38,36 +39,39 @@ class PDFExtractor(BaseExtractor):
             pdf_bytes = stream.read()
             stream.seek(current_pos)
 
-            # Try pypdf extraction if available, otherwise fallback to minimal parsing
-            extracted_pages: list[str] = []
-            page_count = 0
-            metadata: dict[str, Any] = {}
+            def _extract_sync() -> tuple[list[str], int, dict[str, Any]]:
+                try:
+                    import pypdf
 
-            try:
-                import pypdf
+                    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+                    p_count = len(reader.pages)
+                    meta: dict[str, Any] = {}
+                    if reader.metadata:
+                        meta = {
+                            k.lstrip("/"): str(v) for k, v in reader.metadata.items() if v
+                        }
 
-                reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-                page_count = len(reader.pages)
-                if reader.metadata:
-                    metadata = {
-                        k.lstrip("/"): str(v) for k, v in reader.metadata.items() if v
-                    }
+                    pages: list[str] = []
+                    for page in reader.pages:
+                        page_text = page.extract_text() or ""
+                        pages.append(page_text)
+                    return pages, p_count, meta
+                except ImportError:
+                    raise DocumentDomainException(
+                        code=DocumentErrorCode.EXTRACT_001,
+                        message="PDFExtractor requires `pypdf` package which is not installed.",
+                    )
+                except Exception as e:
+                    if isinstance(e, DocumentDomainException):
+                        raise
+                    raise DocumentDomainException(
+                        code=DocumentErrorCode.EXTRACT_001,
+                        message=f"Corrupted or unreadable PDF document structure: {e}",
+                        detail={"filename": filename, "error": str(e)},
+                    ) from e
 
-                for page in reader.pages:
-                    page_text = page.extract_text() or ""
-                    extracted_pages.append(page_text)
-            except ImportError:
-                # If pypdf not installed, raise specific extraction error
-                raise DocumentDomainException(
-                    code=DocumentErrorCode.EXTRACT_001,
-                    message="PDFExtractor requires `pypdf` package which is not installed.",
-                )
-            except Exception as e:
-                raise DocumentDomainException(
-                    code=DocumentErrorCode.EXTRACT_001,
-                    message=f"Corrupted or unreadable PDF document structure: {e}",
-                    detail={"filename": filename, "error": str(e)},
-                ) from e
+            # Offload synchronous, CPU-bound PDF extraction to worker thread to avoid blocking event loop
+            extracted_pages, page_count, metadata = await asyncio.to_thread(_extract_sync)
 
             full_text = "\n\n".join(extracted_pages).strip()
             words = full_text.split()

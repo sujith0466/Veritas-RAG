@@ -36,7 +36,7 @@ class StoragePreflightValidator:
     """Pre-flight check executing prior to worker extraction."""
 
     CONTAINER_ROOT = Path("/app/data/storage")
-    HOST_FALLBACK_ROOT = Path("D:/app/data/storage")
+    HOST_FALLBACK_ROOT = Path(os.getenv("STORAGE_FALLBACK_ROOT", Path.cwd() / "data" / "storage"))
 
     @classmethod
     def validate(
@@ -48,13 +48,21 @@ class StoragePreflightValidator:
 
         Args:
             storage_object: StorageObject ORM entity or DTO with attributes:
-                            `storage_provider`, `bucket_or_container`, `object_key`, `size_bytes`.
+                            `provider` (or `storage_provider`), `bucket_or_container`,
+                            `object_key`, `file_size_bytes` (or `size_bytes`).
             expected_tenant_id: Optional tenant UUID string to verify namespace isolation.
         """
-        provider = getattr(storage_object, "storage_provider", "local") or "local"
+        provider = (
+            getattr(storage_object, "provider", None)
+            or getattr(storage_object, "storage_provider", None)
+            or "local"
+        )
         bucket = getattr(storage_object, "bucket_or_container", "") or ""
         object_key = getattr(storage_object, "object_key", "") or ""
-        expected_size = getattr(storage_object, "size_bytes", None)
+        expected_size = (
+            getattr(storage_object, "file_size_bytes", None)
+            or getattr(storage_object, "size_bytes", None)
+        )
 
         # 1. Malformed Key & Path Traversal Check
         if not object_key or "\0" in object_key:
@@ -152,7 +160,7 @@ class StoragePreflightValidator:
         # Candidate B: Standard container root
         candidate_paths.append((cls.CONTAINER_ROOT / clean_key).resolve())
 
-        # Candidate C: Host fallback root (if on local Windows machine)
+        # Candidate C: Host fallback root (platform-independent)
         candidate_paths.append((cls.HOST_FALLBACK_ROOT / clean_key).resolve())
 
         # 5. Check Physical Existence

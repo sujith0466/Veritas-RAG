@@ -1,6 +1,6 @@
 """Plain Text and structured text extractor (`PlainTextExtractor`).
 
-Extracts UTF-8 / ASCII content from `.txt`, `.md`, `.csv`, `.json` files.
+Extracts UTF-8 / ASCII content from `.txt`, `.md`, `.csv`, `.json`, `.yaml`, `.yml`, `.xml` files.
 """
 
 from typing import BinaryIO
@@ -11,7 +11,7 @@ from .base import BaseExtractor, ExtractedContent, ExtractorCapability
 
 
 class PlainTextExtractor(BaseExtractor):
-    """Extractor for standard plain-text, markdown, CSV, and JSON documents."""
+    """Extractor for standard plain-text, markdown, CSV, JSON, YAML, and XML documents."""
 
     @property
     def capability(self) -> ExtractorCapability:
@@ -23,8 +23,12 @@ class PlainTextExtractor(BaseExtractor):
                 "text/csv",
                 "application/csv",
                 "application/json",
+                "application/x-yaml",
+                "text/yaml",
+                "application/xml",
+                "text/xml",
             },
-            supported_extensions={".txt", ".md", ".csv", ".json"},
+            supported_extensions={".txt", ".md", ".csv", ".json", ".yaml", ".yml", ".xml"},
             priority=10,
             enabled=True,
         )

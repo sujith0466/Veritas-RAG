@@ -155,6 +155,14 @@ class ChunkingService:
         # 7. Instantiate ORM entities and perform cross-version deduplication
         chunk_entities: list[DocumentChunk] = []
 
+        # DATA-004 Policy & Architecture Note:
+        # Chunk content hashes are intentionally salted with tenant_id, document_id, and chunk index.
+        # Trade-off:
+        # - Benefit: Complete collision isolation per tenant and per document, ensuring deterministic
+        #   provenance, strict multi-tenant boundary safety, and scoped re-chunking.
+        # - Limitation: Prevents cross-document chunk deduplication across distinct documents.
+        # Cross-document deduplication is deferred to a future schema release if shared knowledge
+        # repository deduplication is required.
         # Calculate hashes independent of version_id
         content_hashes = [
             hashlib.sha256(f"{tenant_id}:{document_id}:{idx}:{dto.content}".encode()).hexdigest()

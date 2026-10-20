@@ -15,6 +15,7 @@ ALLOWED_EXTENSIONS: set[str] = {
     ".json",
     ".html",
     ".yaml",
+    ".yml",
     ".xml",
 }
 
@@ -29,6 +30,7 @@ ALLOWED_MIMES: set[str] = {
     "application/json",
     "text/html",
     "application/x-yaml",
+    "text/yaml",
     "application/xml",
     "text/xml",
 }
@@ -44,7 +46,8 @@ EXTENSION_TO_MIMES: dict[str, set[str]] = {
     ".csv": {"text/csv", "application/csv", "text/plain"},
     ".json": {"application/json", "text/plain"},
     ".html": {"text/html", "text/plain"},
-    ".yaml": {"application/x-yaml", "text/plain"},
+    ".yaml": {"application/x-yaml", "text/plain", "text/yaml"},
+    ".yml": {"application/x-yaml", "text/plain", "text/yaml"},
     ".xml": {"application/xml", "text/xml", "text/plain"},
 }
 

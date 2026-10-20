@@ -95,26 +95,21 @@ async def _do_process_job(task_instance: Any, job_id: str, session_factory: Any)
                     message="Job is missing target version_id.",
                 )
 
-            doc = await doc_repo.get_by_id_with_versions(
-                job.document_id, str(job.document_id), session
-            )
-            if not doc:
-                # Fallback without tenant check if tenant_id is unknown to worker initially
-                from sqlalchemy import select
+            from sqlalchemy import select
 
-                from backend.document.models import Document
+            from backend.document.models import Document
 
-                tenant_id_stmt = select(Document.tenant_id).where(Document.id == job.document_id)
-                actual_tenant_id = await session.scalar(tenant_id_stmt)
+            tenant_id_stmt = select(Document.tenant_id).where(Document.id == job.document_id)
+            actual_tenant_id = await session.scalar(tenant_id_stmt)
 
-                if not actual_tenant_id:
-                    raise DocumentDomainException(
-                        code=DocumentErrorCode.SYS_001,
-                        message="Target document or version missing.",
-                    )
-                doc = await doc_repo.get_by_id_with_versions(
-                    job.document_id, actual_tenant_id, session
+            if not actual_tenant_id:
+                raise DocumentDomainException(
+                    code=DocumentErrorCode.SYS_001,
+                    message="Target document or version missing.",
                 )
+            doc = await doc_repo.get_by_id_with_versions(
+                job.document_id, str(actual_tenant_id), session
+            )
 
             if not doc or not doc.versions:
                 raise DocumentDomainException(

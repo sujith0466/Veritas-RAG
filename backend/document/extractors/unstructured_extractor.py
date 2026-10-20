@@ -13,6 +13,7 @@ except ImportError:
     partition = None
 
 from backend.document.extractors.base import BaseExtractor, ExtractedContent, ExtractorCapability
+from backend.document.schemas.errors import DocumentDomainException, DocumentErrorCode
 
 
 class UnstructuredExtractor(BaseExtractor):
@@ -37,12 +38,10 @@ class UnstructuredExtractor(BaseExtractor):
     ) -> ExtractedContent:
         """Extract elements using unstructured."""
         if partition is None:
-            return ExtractedContent(
-                text="",
-                word_count=0,
-                page_count=1,
-                metadata={"error": "unstructured library not installed"},
-                needs_ocr=False,
+            raise DocumentDomainException(
+                code=DocumentErrorCode.EXTRACT_001,
+                message="unstructured library not installed; required for UnstructuredExtractor",
+                detail={"extractor": "UnstructuredExtractor", "filename": filename, "mime_type": mime_type},
             )
 
         stream.seek(0)

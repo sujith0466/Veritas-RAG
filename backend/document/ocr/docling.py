@@ -24,10 +24,10 @@ class DoclingOCREngine(OCREngine):
             import docling
 
             raise NotImplementedError("Docling native processing hook prepared.")
-        except ImportError:
+        except (ImportError, NotImplementedError):
             raise DocumentDomainException(
                 code=DocumentErrorCode.OCR_002,
-                message="Docling OCR engine is not available (`docling` package not installed).",
+                message="Docling OCR engine is not available (`docling` package not installed or hook not implemented).",
                 detail={"engine": self.engine_name},
             )
         except Exception as e:

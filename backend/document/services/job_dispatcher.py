@@ -39,9 +39,12 @@ class JobDispatcher:
         session: Session | None = None,
         queue: str = "ingestion",
         force: bool = False,
+        correlation_id: str | None = None,
     ) -> DispatchResult:
         """Synchronous version of job dispatch for sync contexts (e.g. Celery sweeper or sync tasks)."""
-        return JobDispatcher._execute_dispatch(job, session=session, queue=queue, force=force)
+        return JobDispatcher._execute_dispatch(
+            job, session=session, queue=queue, force=force, correlation_id=correlation_id
+        )
 
     @staticmethod
     async def dispatch_job(
@@ -49,6 +52,7 @@ class JobDispatcher:
         session: AsyncSession | None = None,
         queue: str = "ingestion",
         force: bool = False,
+        correlation_id: str | None = None,
     ) -> DispatchResult:
         """Asynchronously dispatch a processing job to Celery broker with durable state tracking.
         
@@ -57,8 +61,11 @@ class JobDispatcher:
             session: Optional AsyncSession to persist immediate dispatch metadata.
             queue: Celery queue name (default: "ingestion").
             force: Bypass deduplication and cooldown checks if True.
+            correlation_id: Optional correlation ID for distributed trace continuity.
         """
-        result = JobDispatcher._execute_dispatch(job, session=session, queue=queue, force=force)
+        result = JobDispatcher._execute_dispatch(
+            job, session=session, queue=queue, force=force, correlation_id=correlation_id
+        )
         if session:
             try:
                 await session.flush()
@@ -76,9 +83,19 @@ class JobDispatcher:
         session: Session | AsyncSession | None = None,
         queue: str = "ingestion",
         force: bool = False,
+        correlation_id: str | None = None,
     ) -> DispatchResult:
         """Internal dispatch execution engine with deduplication and error recording."""
         now = datetime.now(timezone.utc)
+
+        # Resolve correlation ID from parameter or active context
+        resolved_correlation_id = correlation_id
+        if not resolved_correlation_id:
+            try:
+                import structlog.contextvars
+                resolved_correlation_id = structlog.contextvars.get_contextvars().get("correlation_id")
+            except Exception:
+                resolved_correlation_id = None
 
         # 1. Deduplication Guard: Check if already DISPATCHED and active or within cooldown
         if not force and job.dispatch_state == DispatchState.DISPATCHED.value:
@@ -130,9 +147,14 @@ class JobDispatcher:
         try:
             from backend.document.workers.ingestion import process_document_job
 
+            task_headers = {}
+            if resolved_correlation_id:
+                task_headers["correlation_id"] = resolved_correlation_id
+
             task = process_document_job.apply_async(
                 args=[str(job.id)],
                 queue=queue,
+                headers=task_headers if task_headers else None,
             )
             job.dispatch_state = DispatchState.DISPATCHED.value
             job.celery_task_id = str(task.id) if task else None
@@ -144,6 +166,7 @@ class JobDispatcher:
                 job_id=str(job.id),
                 task_id=job.celery_task_id,
                 queue=queue,
+                correlation_id=resolved_correlation_id,
             )
             return DispatchResult(
                 success=True,
@@ -162,6 +185,7 @@ class JobDispatcher:
                 job_id=str(job.id),
                 queue=queue,
                 error=error_message,
+                correlation_id=resolved_correlation_id,
             )
             return DispatchResult(
                 success=False,
