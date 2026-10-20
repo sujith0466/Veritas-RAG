@@ -322,6 +322,7 @@ class QdrantVectorDBProvider(BaseVectorDBProvider):
                 limit=limit,
                 offset=offset,
                 with_payload=True,
+                with_vectors=False,
             )
             latency_ms = (time.perf_counter() - start) * 1000
             QdrantMetrics.record_search(latency_ms)
