@@ -378,58 +378,90 @@ class RetrievalOrchestrator:
             )
             rrf_ms = (time.perf_counter() - rrf_start) * 1000.0
 
-            # Stage 2.5: Authoritative candidate validation against PostgreSQL state
+            # Stage 2.5: Authoritative candidate validation against PostgreSQL state (`RET-002`)
             if self.repository and hasattr(self.repository, "validate_active_candidates"):
-                try:
-                    candidate_tuples = {
-                        (c.chunk_id, c.document_id, c.document_version_id)
-                        for c in deduped
-                        if getattr(c, "chunk_id", None) and getattr(c, "document_id", None) and getattr(c, "document_version_id", None)
-                    }
-                    if candidate_tuples:
-                        valid_tuples = await self.repository.validate_active_candidates(
-                            candidate_tuples, tenant_id
-                        )
+                candidate_tuples = {
+                    (c.chunk_id, c.document_id, c.document_version_id)
+                    for c in deduped
+                    if getattr(c, "chunk_id", None) and getattr(c, "document_id", None) and getattr(c, "document_version_id", None)
+                }
+                if candidate_tuples:
+                    valid_tuples = None
+                    last_exc = None
+                    for attempt in range(2):
+                        try:
+                            valid_tuples = await self.repository.validate_active_candidates(
+                                candidate_tuples, tenant_id
+                            )
+                            break
+                        except Exception as exc:
+                            last_exc = exc
+                            if attempt == 0:
+                                logger.warning(
+                                    "Transient DB error during candidate validation; retrying once with 100ms backoff",
+                                    error=str(exc),
+                                    tenant_id=tenant_id,
+                                    attempt=attempt + 1,
+                                )
+                                await asyncio.sleep(0.1)
+
+                    if valid_tuples is not None:
                         deduped = [
                             c for c in deduped
                             if (getattr(c, "chunk_id", None), getattr(c, "document_id", None), getattr(c, "document_version_id", None)) in valid_tuples
                         ]
-                except Exception as exc:
-                    logger.error(
-                        "Authoritative candidate validation failed; failing closed to protect prompt grounding",
-                        error=str(exc),
-                        tenant_id=tenant_id,
-                        candidate_count=len(deduped),
-                    )
-                    try:
-                        from backend.observability.metrics.prometheus import RETRIEVAL_VALIDATION_ERRORS_TOTAL
-                        RETRIEVAL_VALIDATION_ERRORS_TOTAL.labels(tenant_id=tenant_id, stage="validate_active_candidates").inc()
-                    except Exception:
-                        pass
-                    deduped = []
-            elif self.repository and hasattr(self.repository, "filter_active_ready_document_ids"):
-                try:
-                    candidate_doc_ids = {
-                        c.document_id for c in deduped if getattr(c, "document_id", None)
-                    }
-                    if candidate_doc_ids:
-                        valid_doc_ids = await self.repository.filter_active_ready_document_ids(
-                            candidate_doc_ids, tenant_id
+                    else:
+                        logger.error(
+                            "Authoritative candidate validation failed after retry; strictly failing closed to protect prompt grounding",
+                            error=str(last_exc),
+                            tenant_id=tenant_id,
+                            candidate_count=len(deduped),
                         )
+                        try:
+                            from backend.observability.metrics.prometheus import RETRIEVAL_VALIDATION_ERRORS_TOTAL
+                            RETRIEVAL_VALIDATION_ERRORS_TOTAL.labels(tenant_id=tenant_id, stage="validate_active_candidates").inc()
+                        except Exception:
+                            pass
+                        deduped = []
+            elif self.repository and hasattr(self.repository, "filter_active_ready_document_ids"):
+                candidate_doc_ids = {
+                    c.document_id for c in deduped if getattr(c, "document_id", None)
+                }
+                if candidate_doc_ids:
+                    valid_doc_ids = None
+                    last_exc = None
+                    for attempt in range(2):
+                        try:
+                            valid_doc_ids = await self.repository.filter_active_ready_document_ids(
+                                candidate_doc_ids, tenant_id
+                            )
+                            break
+                        except Exception as exc:
+                            last_exc = exc
+                            if attempt == 0:
+                                logger.warning(
+                                    "Transient DB error during document validity check; retrying once with 100ms backoff",
+                                    error=str(exc),
+                                    tenant_id=tenant_id,
+                                    attempt=attempt + 1,
+                                )
+                                await asyncio.sleep(0.1)
+
+                    if valid_doc_ids is not None:
                         deduped = [c for c in deduped if getattr(c, "document_id", None) in valid_doc_ids]
-                except Exception as exc:
-                    logger.error(
-                        "Defense-in-depth document validity check failed; failing closed to protect prompt grounding",
-                        error=str(exc),
-                        tenant_id=tenant_id,
-                        candidate_count=len(deduped),
-                    )
-                    try:
-                        from backend.observability.metrics.prometheus import RETRIEVAL_VALIDATION_ERRORS_TOTAL
-                        RETRIEVAL_VALIDATION_ERRORS_TOTAL.labels(tenant_id=tenant_id, stage="filter_active_ready_document_ids").inc()
-                    except Exception:
-                        pass
-                    deduped = []
+                    else:
+                        logger.error(
+                            "Defense-in-depth document validity check failed after retry; strictly failing closed to protect prompt grounding",
+                            error=str(last_exc),
+                            tenant_id=tenant_id,
+                            candidate_count=len(deduped),
+                        )
+                        try:
+                            from backend.observability.metrics.prometheus import RETRIEVAL_VALIDATION_ERRORS_TOTAL
+                            RETRIEVAL_VALIDATION_ERRORS_TOTAL.labels(tenant_id=tenant_id, stage="filter_active_ready_document_ids").inc()
+                        except Exception:
+                            pass
+                        deduped = []
 
             # Stage 3: Cross-Encoder Reranking (`strictly bounded to top N <= 30 per ADR-M4-002`)
             rerank_start = time.perf_counter()

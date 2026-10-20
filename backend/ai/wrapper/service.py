@@ -22,13 +22,18 @@ from backend.document.models.status import DocumentStatus
 from backend.modules.generation.schemas.generation_dto import GenerationRequestDTOv2
 
 # (Assuming these exist per the architecture and earlier modules)
+from typing import TYPE_CHECKING, Any
 from backend.modules.generation.services.streaming_generation_service import (
     StreamingGroundedGenerationService,
 )
-from backend.modules.retrieval.schemas.retrieval_dto import SearchRequestDTO
+from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO, SearchRequestDTO
 from backend.modules.retrieval.services.retrieval_service import RetrievalOrchestrator
 from backend.models.entities.workspace import Workspace
 from backend.models.entities.workspace_member import WorkspaceMember
+
+if TYPE_CHECKING:
+    from backend.modules.query_rewrite.services.rewrite_orchestrator import RewriteOrchestrator
+    from backend.modules.reliability.services.reliability_gateway import ReliabilityGateway
 
 logger = structlog.get_logger(__name__)
 
@@ -49,6 +54,8 @@ class AIWrapperService:
         streaming_generation: StreamingGroundedGenerationService,
         event_dispatcher: EventDispatcher,
         llm_manager: LLMProviderManager,
+        reliability_gateway: Any | None = None,
+        query_rewrite_orchestrator: Any | None = None,
     ):
         self.namespace_resolver = namespace_resolver
         self.rate_limiter = rate_limiter
@@ -56,6 +63,38 @@ class AIWrapperService:
         self.streaming_generation = streaming_generation
         self.event_dispatcher = event_dispatcher
         self.llm_manager = llm_manager
+
+        if reliability_gateway is not None:
+            self.reliability_gateway = reliability_gateway
+        elif retrieval_orchestrator is not None:
+            try:
+                from backend.modules.reliability.circuit_breaker.engine import (
+                    CircuitBreakerEngine,
+                )
+                from backend.modules.reliability.fallbacks.router import FallbackRouter
+                from backend.modules.reliability.fallbacks.zero_result import (
+                    ZeroResultRecoverer,
+                )
+                from backend.modules.reliability.services.reliability_gateway import (
+                    ReliabilityGateway,
+                )
+                from backend.modules.retrieval.api.dependencies import _bm25_provider
+
+                self.reliability_gateway = ReliabilityGateway(
+                    orchestrator=retrieval_orchestrator,
+                    circuit_breaker=CircuitBreakerEngine(),
+                    fallback_router=FallbackRouter(sparse_provider=_bm25_provider),
+                    zero_result_recoverer=ZeroResultRecoverer(sparse_provider=_bm25_provider),
+                    event_dispatcher=event_dispatcher,
+                    target_module="qdrant_hybrid",
+                )
+            except Exception as e:
+                logger.warning("Failed to auto-construct default ReliabilityGateway", error=str(e))
+                self.reliability_gateway = None
+        else:
+            self.reliability_gateway = None
+
+        self.query_rewrite_orchestrator = query_rewrite_orchestrator
 
         # EP8-004 & EP8-013: Bind the real LLM manager to the generation service
         self.streaming_generation.llm_provider = self.llm_manager
@@ -143,17 +182,13 @@ class AIWrapperService:
             # Step 4: Qdrant Namespace Binding
             binding = await self.namespace_resolver.resolve(request.workspace_id, request.tenant_id)
 
-            # Step 5: Query Preprocessing & Contextualization for Retrieval
+            # Step 5: Query Preprocessing & Contextualization for Retrieval (RET-001)
             retrieval_query = request.query
             if request.conversation_history:
                 try:
-                    from backend.modules.query_rewrite.strategies.entity_recovery import (
-                        MissingEntityRecoveryStrategy,
-                    )
                     from backend.modules.query_rewrite.schemas.rewrite_dto import (
                         RewriteRequestDTOv2,
                     )
-                    recovery_strategy = MissingEntityRecoveryStrategy()
                     history_texts = [
                         t.get("content", "") or t.get("message", "")
                         for t in request.conversation_history
@@ -162,16 +197,23 @@ class AIWrapperService:
                     rewrite_req = RewriteRequestDTOv2(
                         original_query=request.query,
                         tenant_id=str(request.tenant_id),
-                        conversation_history=[h for h in history_texts if h]
+                        conversation_history=[h for h in history_texts if h],
                     )
-                    rewrite_res = recovery_strategy.rewrite(rewrite_req)
+                    orchestrator = self.query_rewrite_orchestrator
+                    if orchestrator is None:
+                        from backend.modules.query_rewrite.services.rewrite_orchestrator import (
+                            RewriteOrchestrator,
+                        )
+                        orchestrator = RewriteOrchestrator(llm_provider=self.llm_manager)
+
+                    rewrite_res = orchestrator.rewrite(rewrite_req)
                     if rewrite_res and rewrite_res.rewritten_query:
                         retrieval_query = rewrite_res.rewritten_query
                 except Exception as rewrite_exc:
                     logger.warning("Query contextualization skipped", error=str(rewrite_exc))
                     retrieval_query = request.query
 
-            # Step 6: Hybrid Retrieval (Timeout 5s)
+            # Step 6: Hybrid Retrieval (Timeout 5s - RET-004)
             search_req = SearchRequestDTO(
                 tenant_id=request.tenant_id,
                 workspace_id=request.workspace_id,
@@ -179,24 +221,72 @@ class AIWrapperService:
                 top_k=5,
             )
 
-            # Ensure consistency by passing tenant_id to the RetrievalOrchestrator
-            retrieval_result = await self.retrieval_orchestrator.execute_hybrid_search(
-                options=search_req,
-                tenant_id=str(request.tenant_id),
-                correlation_id=correlation_id
-            )
+            if self.reliability_gateway is not None:
+                from backend.modules.reliability.schemas.reliability_dto import SearchOptionsDTO
+                search_opts = SearchOptionsDTO(
+                    top_k=5,
+                    sla_budget_ms=5000.0,
+                    enable_fallback=True,
+                    enable_zero_result_recovery=True,
+                )
+                reliable_result = await self.reliability_gateway.execute_reliable_search(
+                    query=retrieval_query,
+                    tenant_id=str(request.tenant_id),
+                    options=search_opts,
+                    correlation_id=correlation_id,
+                )
+                evidence_chunks = []
+                for c in (reliable_result.candidates or []):
+                    if isinstance(c, RankedEvidenceDTO):
+                        evidence_chunks.append(c)
+                    else:
+                        try:
+                            cid = uuid.UUID(str(c.chunk_id))
+                        except (ValueError, TypeError, AttributeError):
+                            cid = uuid.uuid4()
+                        try:
+                            did = uuid.UUID(str(c.document_id))
+                        except (ValueError, TypeError, AttributeError):
+                            did = uuid.uuid4()
+                        try:
+                            dvid = uuid.UUID(str(c.document_version_id))
+                        except (ValueError, TypeError, AttributeError):
+                            dvid = uuid.uuid4()
+                        evidence_chunks.append(
+                            RankedEvidenceDTO(
+                                chunk_id=cid,
+                                document_id=did,
+                                document_version_id=dvid,
+                                tenant_id=str(getattr(c, "tenant_id", request.tenant_id)),
+                                content=getattr(c, "content", ""),
+                                rrf_score=float(getattr(c, "score", 0.0) or 0.0),
+                                final_rank=int(getattr(c, "rank", 1) or 1),
+                                metadata=getattr(c, "metadata", {}) or {},
+                            )
+                        )
+            else:
+                # Ensure consistency by passing tenant_id to the RetrievalOrchestrator
+                retrieval_result = await self.retrieval_orchestrator.execute_hybrid_search(
+                    options=search_req,
+                    tenant_id=str(request.tenant_id),
+                    correlation_id=correlation_id,
+                )
+                evidence_chunks = (
+                    retrieval_result.final_evidence
+                    if retrieval_result and retrieval_result.final_evidence
+                    else []
+                )
 
             await self.event_dispatcher.dispatch(
                 EventType.AI_WRAPPER_RETRIEVAL_COMPLETED,
                 tenant_id=str(request.tenant_id),
                 correlation_id=correlation_id,
-                payload={"found": len(retrieval_result.final_evidence) if retrieval_result and retrieval_result.final_evidence else 0}
+                payload={"found": len(evidence_chunks)},
             )
 
             # Step 7 & 8: Confidence & Retry
             # Handled internally by StreamingGroundedGenerationService in Epic 7 structure,
-            # or we prepare the evidence directly.
-            evidence_chunks = retrieval_result.final_evidence if retrieval_result and retrieval_result.final_evidence else []
+            # or prepared via evidence_chunks above.
 
             # Step 9 & 10: Generation
             await self.event_dispatcher.dispatch(

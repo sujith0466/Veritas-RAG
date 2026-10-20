@@ -268,7 +268,15 @@ class _TenantBM25Index:
 
 
 class BM25SparseSearchProvider(BaseSparseSearchProvider):
-    """In-memory Okapi BM25 sparse keyword search provider (`ADR-005`)."""
+    """In-memory Okapi BM25 sparse keyword search provider (`ADR-005`).
+
+    RET-003 Architectural Policy & Limitation:
+    Maintains inverted term-frequency indices in-memory within the local Python process.
+    In multi-worker deployments (e.g. multi-process Uvicorn workers or distributed Celery worker pods),
+    inverted indices are partitioned in-process and do not synchronize state across process boundaries
+    without an external shared sparse search service (such as Elasticsearch, OpenSearch, or Qdrant sparse).
+    When running in multi-worker environments, a warning is logged at initialization.
+    """
 
     def __init__(
         self,
@@ -280,6 +288,26 @@ class BM25SparseSearchProvider(BaseSparseSearchProvider):
         self.k1 = k1
         self.b = b
         self._indices: OrderedDict[str, _TenantBM25Index] = OrderedDict()
+
+        # RET-003: Check for multi-worker concurrency and log operational boundary warning
+        import os
+        try:
+            web_workers = int(os.getenv("WEB_CONCURRENCY", "1") or "1")
+        except ValueError:
+            web_workers = 1
+        try:
+            celery_workers = int(os.getenv("CELERY_CONCURRENCY", "1") or "1")
+        except ValueError:
+            celery_workers = 1
+
+        if web_workers > 1 or celery_workers > 1:
+            logger.warning(
+                "RET-003: In-memory BM25 sparse search provider detected multi-worker configuration. "
+                "In-memory inverted indices are partitioned per-process and do not share state across process boundaries. "
+                "Ensure tenant stickiness or deploy centralized sparse indexing for cross-worker consistency.",
+                web_concurrency=web_workers,
+                celery_concurrency=celery_workers,
+            )
 
     def _get_or_create_index(self, tenant_id: str) -> _TenantBM25Index:
         if tenant_id in self._indices:
