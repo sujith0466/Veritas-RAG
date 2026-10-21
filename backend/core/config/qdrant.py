@@ -27,5 +27,6 @@ class QdrantSettings(BaseSettings):
         "extra": "ignore",
     }
 
-    def collection_name(self, dimension: int) -> str:
-        return f"{self.collection_prefix}_knowledge_{dimension}"
+    def collection_name(self, tenant_id: str | int) -> str:
+        """Return the tenant-scoped Qdrant collection name (ARCH-003)."""
+        return f"{self.collection_prefix}_knowledge_{tenant_id}"

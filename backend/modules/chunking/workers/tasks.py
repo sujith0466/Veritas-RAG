@@ -11,6 +11,7 @@ import uuid
 
 import structlog
 
+from backend.cache.locks import LockAcquisitionError, acquire_lock
 from backend.database.engine import get_session_factory
 from backend.document.models import DocumentEventLog
 from backend.modules.chunking.events import EVENT_CHUNKING_FAILED, create_chunk_event
@@ -44,17 +45,21 @@ def process_document_chunking_task(
     Returns:
         Dictionary summary of execution outcome.
     """
-    return asyncio.run(
-        _async_process_chunking(
-        self,
-        tenant_id,
-        uuid.UUID(document_id),
-        uuid.UUID(version_id),
-        strategy_override,
-        max_characters,
-        overlap_characters,
+    try:
+        return asyncio.run(
+            _async_process_chunking(
+                self,
+                tenant_id,
+                uuid.UUID(document_id),
+                uuid.UUID(version_id),
+                strategy_override,
+                max_characters,
+                overlap_characters,
+            )
         )
-    )
+    except LockAcquisitionError as exc:
+        logger.warning("Chunking lock acquisition failed, scheduling short retry", error=str(exc))
+        raise self.retry(exc=exc, countdown=10) from exc
 
 
 async def _async_process_chunking(
@@ -66,13 +71,15 @@ async def _async_process_chunking(
     max_characters: int,
     overlap_characters: int,
 ) -> dict[str, Any]:
-    session_factory = get_session_factory()
+    lock_key = f"chunking:{version_id}"
+    async with acquire_lock(lock_key, timeout=600, acquire_timeout=5):
+        session_factory = get_session_factory()
 
-    service = ChunkingService()
+        service = ChunkingService()
 
-    async with session_factory() as session:
-        try:
-            chunks, duration_ms = await service.chunk_document_version(
+        async with session_factory() as session:
+            try:
+                chunks, duration_ms = await service.chunk_document_version(
                     tenant_id=tenant_id,
                     document_id=document_id,
                     version_id=version_id,
@@ -80,64 +87,64 @@ async def _async_process_chunking(
                     strategy_override=strategy_override,
                     max_characters=max_characters,
                     overlap_characters=overlap_characters,
-            )
-            await session.commit()
-            # Emit and persist CHUNKING_COMPLETED event
-            from backend.core.events.dispatcher import get_dispatcher
-            from backend.core.events.types import EventType
+                )
+                await session.commit()
+                # Emit and persist CHUNKING_COMPLETED event
+                from backend.core.events.dispatcher import get_dispatcher
+                from backend.core.events.types import EventType
 
-            success_event = create_chunk_event(
+                success_event = create_chunk_event(
                     event_type=EventType.CHUNKING_COMPLETED,
                     tenant_id=tenant_id,
                     document_id=document_id,
                     document_version_id=version_id,
-                    data={"chunk_count": len(chunks), "duration_ms": duration_ms}
-            )
+                    data={"chunk_count": len(chunks), "duration_ms": duration_ms},
+                )
 
-            event_log = DocumentEventLog(
+                event_log = DocumentEventLog(
                     document_id=document_id,
                     event_type=EventType.CHUNKING_COMPLETED,
                     payload=success_event.model_dump(mode="json"),
-                    triggered_by="celery_worker"
-            )
-            session.add(event_log)
-            await session.commit()
+                    triggered_by="celery_worker",
+                )
+                session.add(event_log)
+                await session.commit()
 
-            # Publish event in process to trigger next pipeline stage
-            dispatcher = get_dispatcher()
-            await dispatcher.publish(success_event, await_delivery=True)
+                # Publish event in process to trigger next pipeline stage
+                dispatcher = get_dispatcher()
+                await dispatcher.publish(success_event, await_delivery=True)
 
-            logger.info(
+                logger.info(
                     "chunking_task_completed",
                     tenant_id=tenant_id,
                     document_id=str(document_id),
                     chunk_count=len(chunks),
                     duration_ms=duration_ms,
-            )
-            return {
+                )
+                return {
                     "status": "success",
                     "document_id": str(document_id),
                     "version_id": str(version_id),
                     "chunk_count": len(chunks),
                     "duration_ms": duration_ms,
-            }
+                }
 
-        except Exception as exc:
-            await session.rollback()
-            error_code = getattr(exc, "code", "CHK_003")
-            severity = getattr(exc, "severity", get_error_severity(str(error_code)))
+            except Exception as exc:
+                await session.rollback()
+                error_code = getattr(exc, "code", "CHK_003")
+                severity = getattr(exc, "severity", get_error_severity(str(error_code)))
 
-            logger.error(
+                logger.error(
                     "chunking_task_failed",
                     tenant_id=tenant_id,
                     document_id=str(document_id),
                     error_code=str(error_code),
                     severity=str(severity),
                     error=str(exc),
-            )
+                )
 
-            # Record failure event if possible
-            try:
+                # Record failure event if possible
+                try:
                     fail_event = create_chunk_event(
                         event_type=EVENT_CHUNKING_FAILED,
                         tenant_id=tenant_id,
@@ -156,29 +163,30 @@ async def _async_process_chunking(
                     )
                     session.add(event_log)
                     await session.commit()
-            except Exception as log_exc:
+                except Exception as log_exc:
                     logger.warning("failed_to_log_chunking_error_event", error=str(log_exc))
 
-            if (
-                severity == ErrorSeverity.RECOVERABLE
-                and task_instance.request.retries < task_instance.max_retries
-            ):
-                backoff_seconds = 2**task_instance.request.retries * 5
-                raise task_instance.retry(exc=exc, countdown=backoff_seconds) from exc
+                if (
+                    severity == ErrorSeverity.RECOVERABLE
+                    and task_instance.request.retries < task_instance.max_retries
+                ):
+                    backoff_seconds = 2**task_instance.request.retries * 5
+                    raise task_instance.retry(exc=exc, countdown=backoff_seconds) from exc
 
-            # Fatal error or retries exhausted: Synchronize terminal failure state
-            try:
-                from backend.document.services.failure_service import PipelineFailureSynchronizer
-                await PipelineFailureSynchronizer.record_pipeline_failure(
-                    session=session,
-                    document_id=document_id,
-                    failing_stage="chunking",
-                    error_code=str(error_code),
-                    error_message=str(exc),
-                    exception=exc,
-                    tenant_id=tenant_id,
-                )
-            except Exception as sync_err:
-                logger.warning("failed_to_sync_chunking_failure", error=str(sync_err))
+                # Fatal error or retries exhausted: Synchronize terminal failure state
+                try:
+                    from backend.document.services.failure_service import PipelineFailureSynchronizer
 
-            raise exc
+                    await PipelineFailureSynchronizer.record_pipeline_failure(
+                        session=session,
+                        document_id=document_id,
+                        failing_stage="chunking",
+                        error_code=str(error_code),
+                        error_message=str(exc),
+                        exception=exc,
+                        tenant_id=tenant_id,
+                    )
+                except Exception as sync_err:
+                    logger.warning("failed_to_sync_chunking_failure", error=str(sync_err))
+
+                raise exc

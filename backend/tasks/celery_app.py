@@ -40,6 +40,7 @@ def create_celery_app() -> Celery:
             "backend.tasks.quota",
             "backend.tasks.retention",
             "backend.document.workers.archive",
+            "backend.document.workers.watchdog_worker",
         ],
     )
 
@@ -59,6 +60,10 @@ def create_celery_app() -> Celery:
         # Rate limiting (global default — override per task)
         task_default_rate_limit="100/m",
         task_default_queue="default",
+        # Worker performance and limits (PERF-003)
+        worker_prefetch_multiplier=1,
+        task_soft_time_limit=300,
+        task_time_limit=360,
         task_routes={
             "folders.cascade_soft_delete_subtree": {"queue": "high"},
             "folders.cascade_restore_subtree": {"queue": "medium"},
@@ -97,6 +102,11 @@ def create_celery_app() -> Celery:
             "job-stale-monitor": {
                 "task": "jobs.requeue_stale_jobs",
                 "schedule": 300.0, # Every 5 minutes
+            },
+            "document-pipeline-watchdog": {
+                "task": "documents.sweep_stale_pipeline_documents",
+                "schedule": 300.0, # Every 5 minutes
+                "options": {"queue": "default"},
             },
             "workspace-staleness-evaluator": {
                 "task": "backend.modules.knowledge_health.workers.tasks.evaluate_all_workspaces_staleness",

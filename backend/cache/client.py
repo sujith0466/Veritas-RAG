@@ -129,6 +129,44 @@ async def check_cache_health() -> dict[str, Any]:
     }
 
 
+async def disconnect_redis_pool(loop: asyncio.AbstractEventLoop | None = None) -> None:
+    """Explicitly disconnect Redis connection pool for an event loop without disrupting shared clients.
+
+    PERF-004: Prevents connection leaks when per-task event loops are torn down.
+    """
+    if loop is None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+    if loop is not None:
+        client = _state.clients.pop(loop, None)
+        if client is not None:
+            try:
+                await client.close()
+            except Exception:
+                pass
+        pool = _state.pools.pop(loop, None)
+        if pool is not None:
+            try:
+                await pool.disconnect()
+            except Exception:
+                pass
+    elif _state.fallback_pool is not None:
+        if _state.fallback_client is not None:
+            try:
+                await _state.fallback_client.close()
+            except Exception:
+                pass
+            _state.fallback_client = None
+        try:
+            await _state.fallback_pool.disconnect()
+        except Exception:
+            pass
+        _state.fallback_pool = None
+
+
 async def close_cache() -> None:
     """Close the Redis client and disconnect the connection pool."""
     for loop, client in list(_state.clients.items()):

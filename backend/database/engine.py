@@ -25,8 +25,10 @@ logger = structlog.get_logger(__name__)
 class _EngineState:
     engines: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
     sessionmakers: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+    raw_engines: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
     fallback_engine: AsyncEngine | None = None
     fallback_sessionmaker: async_sessionmaker[AsyncSession] | None = None
+    fallback_raw_engine: AsyncEngine | None = None
 
 _state = _EngineState()
 
@@ -131,6 +133,34 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
                 pass
 
 
+def get_raw_engine() -> AsyncEngine:
+    """Return the raw PostgreSQL AsyncEngine instance (bypassing PgBouncer), isolated per event loop.
+
+    PERF-002: Reuses singleton engine across health checks instead of instantiating new engines per probe.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop is not None:
+        if loop in _state.raw_engines:
+            return _state.raw_engines[loop]
+    elif _state.fallback_raw_engine is not None:
+        return _state.fallback_raw_engine
+
+    settings = get_settings().database
+    url = settings.url
+    raw_engine = create_async_engine(url, pool_pre_ping=True)
+
+    if loop is not None:
+        _state.raw_engines[loop] = raw_engine
+    else:
+        _state.fallback_raw_engine = raw_engine
+
+    return raw_engine
+
+
 async def check_db_health() -> bool:
     """Check database connectivity by executing SELECT 1.
 
@@ -145,11 +175,11 @@ async def check_db_health() -> bool:
             await conn.execute(text("SELECT 1"))
 
         # If PgBouncer is in use, verify raw Postgres as well to ensure the backend DB is up
+        # PERF-002: Reuse singleton raw engine rather than creating and disposing per probe
         if settings.use_pgbouncer and settings.url:
-            raw_engine = create_async_engine(settings.url, pool_pre_ping=True)
+            raw_engine = get_raw_engine()
             async with raw_engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
-            await raw_engine.dispose()
 
         return True
     except Exception as exc:
@@ -165,7 +195,16 @@ async def close_db() -> None:
     _state.engines.clear()
     _state.sessionmakers.clear()
 
+    for loop, engine in list(_state.raw_engines.items()):
+        logger.info("Disposing raw SQLAlchemy AsyncEngine", loop_id=id(loop))
+        await engine.dispose()
+    _state.raw_engines.clear()
+
     if _state.fallback_engine:
         await _state.fallback_engine.dispose()
         _state.fallback_engine = None
         _state.fallback_sessionmaker = None
+
+    if _state.fallback_raw_engine:
+        await _state.fallback_raw_engine.dispose()
+        _state.fallback_raw_engine = None

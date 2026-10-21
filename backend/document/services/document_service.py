@@ -494,10 +494,32 @@ class DocumentService:
             job_prog = job_step_progress.get(job.current_step.lower(), 10)
             progress = max(progress, job_prog)
 
+        # ARCH-004: Determine active pipeline step.
+        # Downstream stages (CHUNKING, EMBEDDING, VECTOR_SYNC, PROCESSED) must reflect actual document status
+        # and not stale job.current_step="completed" from the initial ingestion phase.
+        doc_status_val = doc.status.value if hasattr(doc.status, "value") else str(doc.status)
+        doc_status_upper = doc_status_val.upper()
+
+        if doc_status_upper == DocumentStatus.READY.value:
+            active_step = "completed"
+        elif doc_status_upper == DocumentStatus.FAILED.value:
+            active_step = job.current_step.lower() if (job and job.current_step) else "failed"
+        elif doc_status_upper in (
+            DocumentStatus.CHUNKING.value,
+            DocumentStatus.EMBEDDING.value,
+            DocumentStatus.VECTOR_SYNC.value,
+            DocumentStatus.PROCESSED.value,
+        ):
+            active_step = doc_status_val.lower()
+        elif job and job.current_step and job.current_step.lower() != "completed":
+            active_step = job.current_step.lower()
+        else:
+            active_step = doc_status_val.lower()
+
         return ProcessingStatusResponse(
             document_id=doc.id,
             status=doc.status,
-            current_step=job.current_step if (job and job.current_step) else doc.status.lower(),
+            current_step=active_step,
             progress_percent=progress,
             retry_count=(job.retry_count or 0) if job else 0,
             error_code=job.error_code if job else None,

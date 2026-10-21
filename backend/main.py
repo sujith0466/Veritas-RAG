@@ -254,6 +254,12 @@ def _register_routes(app: FastAPI) -> None:
 
     from fastapi.responses import Response
 
+    @app.get("/ready", tags=["Health"], include_in_schema=False)
+    async def ready_probe():
+        """Root readiness probe for Kubernetes ingress and load balancers (OBS-001)."""
+        from backend.api.v1.routes.health import readiness
+        return await readiness()
+
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
         return Response(status_code=204)
