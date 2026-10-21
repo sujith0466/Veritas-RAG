@@ -578,6 +578,8 @@ export function AIChatPage() {
         })
       }
     } finally {
+      // CHAT-001: Reset optimistic flag so subsequent fetchSession syncs canonical server message IDs
+      hasOptimisticContent.current = false
       if (streamFrameIdRef.current !== null) {
         cancelAnimationFrame(streamFrameIdRef.current)
         streamFrameIdRef.current = null
@@ -589,6 +591,7 @@ export function AIChatPage() {
   }
 
   useEffect(() => {
+    // SSE-003: Guarded execution against duplicate initial query navigation races
     if (sessionId && location.state?.initialQuery && handledInitialQueryRef.current !== sessionId) {
       handledInitialQueryRef.current = sessionId
       const query = location.state.initialQuery
@@ -596,7 +599,7 @@ export function AIChatPage() {
       executeStream(sessionId, query)
       focusComposer()
     }
-  }, [sessionId, location.state, focusComposer, navigate, location.pathname])
+  }, [sessionId, location.state?.initialQuery, focusComposer, navigate, location.pathname])
 
   const [isIndexing, setIsIndexing] = useState(false)
 

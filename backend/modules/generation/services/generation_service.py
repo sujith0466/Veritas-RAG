@@ -80,9 +80,11 @@ class GroundedGenerationService:
                 prompt = _ANSWER_PROMPT_TEMPLATE.format(
                     query=request.query, evidence_block=evidence_block
                 )
+                llm_start = time.perf_counter()
                 answer_text = self.llm_provider.generate(
                     prompt, max_tokens=request.max_answer_tokens
                 )
+                ttft_ms = round((time.perf_counter() - llm_start) * 1000.0, 2)
             else:
                 # Deterministic mock: use first complete sentence from each evidence chunk
                 # so citation markers follow cleanly after each period (no mid-sentence truncation).
@@ -97,6 +99,14 @@ class GroundedGenerationService:
                         sentence = content[:80].strip().rstrip(".") + "."
                     parts.append(f"{sentence} [{i}]")
                 answer_text = " ".join(parts) if parts else "Insufficient evidence."
+                ttft_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
+
+            # Record TTFT for standard completions (OBS-002)
+            try:
+                from backend.observability.metrics.prometheus import SSE_TTFT_SECONDS
+                SSE_TTFT_SECONDS.observe(ttft_ms / 1000.0)
+            except Exception:
+                pass
 
             # Extract citations from answer markers
             citations = self.citation_extractor.extract(answer_text, evidence_chunks)
@@ -106,7 +116,7 @@ class GroundedGenerationService:
 
             logger.info(
                 f"[{request.correlation_id}] Generation complete. "
-                f"is_grounded={is_grounded} citations={len(citations)} chunks_used={len(evidence_chunks)}"
+                f"is_grounded={is_grounded} citations={len(citations)} chunks_used={len(evidence_chunks)} ttft_ms={ttft_ms}"
             )
 
             duration = time.perf_counter() - start_time
@@ -118,4 +128,5 @@ class GroundedGenerationService:
                 is_fully_grounded=is_grounded,
                 correlation_id=request.correlation_id,
                 evidence_used_count=len(evidence_chunks),
+                ttft_ms=ttft_ms,
             )

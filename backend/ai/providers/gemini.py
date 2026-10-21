@@ -49,7 +49,7 @@ class GeminiProvider(LLMProvider):
                 return f"{request.system_instruction}\n\n{request.prompt}"
             return request.prompt
 
-        contents: list[dict[str, Any]] = []
+        raw_turns: list[dict[str, str]] = []
         first_user_injected = False
         for turn in request.conversation_history:
             if not isinstance(turn, dict):
@@ -62,12 +62,25 @@ class GeminiProvider(LLMProvider):
                 if not first_user_injected and gemini_role == "user" and request.system_instruction:
                     turn_text = f"{request.system_instruction}\n\n{turn_text}"
                     first_user_injected = True
-                contents.append({"role": gemini_role, "parts": [turn_text]})
+                raw_turns.append({"role": gemini_role, "text": turn_text})
 
         current_prompt = request.prompt
         if not first_user_injected and request.system_instruction:
             current_prompt = f"{request.system_instruction}\n\n{current_prompt}"
-        contents.append({"role": "user", "parts": [current_prompt]})
+        raw_turns.append({"role": "user", "text": current_prompt})
+
+        # CHAT-006: Merge consecutive same-role turns so roles strictly alternate
+        contents: list[dict[str, Any]] = []
+        for t in raw_turns:
+            if contents and contents[-1]["role"] == t["role"]:
+                contents[-1]["parts"][0] += f"\n\n{t['text']}"
+            else:
+                contents.append({"role": t["role"], "parts": [t["text"]]})
+
+        # Ensure conversation begins with a user turn as required by Gemini API
+        if contents and contents[0]["role"] != "user":
+            contents.insert(0, {"role": "user", "parts": ["Hello."]})
+
         return contents
 
     async def generate(self, request: LLMRequest) -> LLMResponse:

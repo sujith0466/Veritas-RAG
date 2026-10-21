@@ -75,6 +75,9 @@ class GroundedAnswerDTO(BaseModel):
     evidence_used_count: int = Field(
         ..., description="Number of evidence chunks used in the answer"
     )
+    ttft_ms: float | None = Field(
+        default=None, description="Time to first token or response in milliseconds"
+    )
 
 
 # ---------------------------------------------------------------------------

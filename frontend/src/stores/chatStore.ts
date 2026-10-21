@@ -87,11 +87,13 @@ export const useChatStore = create<ChatState>((set) => ({
         api.get(`/chat/sessions/${id}/messages?limit=100`)
       ])
       const sessionData = sessionRes.data.data
-      sessionData.messages = messagesRes.data.data || []
+      const rawMessages = messagesRes.data.data || []
+      // CHAT-002: Backend returns newest-first; reverse to render chronologically
+      sessionData.messages = [...rawMessages].reverse()
       set({ 
         activeSession: sessionData,
-        hasMoreMessages: sessionData.messages.length >= 100,
-        messageOffset: sessionData.messages.length
+        hasMoreMessages: rawMessages.length >= 100,
+        messageOffset: rawMessages.length
       })
     } catch (error) {
       console.error('Failed to fetch chat session', error)
@@ -107,17 +109,19 @@ export const useChatStore = create<ChatState>((set) => ({
     
     try {
       const { data } = await api.get(`/chat/sessions/${id}/messages?limit=100&offset=${state.messageOffset}`)
-      const newMessages = data.data || []
+      const rawMessages = data.data || []
+      // CHAT-002: Backend returns older batch newest-first; reverse and prepend
+      const olderMessages = [...rawMessages].reverse()
       
       set((prev) => {
         if (!prev.activeSession || prev.activeSession.id !== id) return prev
         return {
           activeSession: {
             ...prev.activeSession,
-            messages: [...newMessages, ...(prev.activeSession.messages || [])]
+            messages: [...olderMessages, ...(prev.activeSession.messages || [])]
           },
-          messageOffset: prev.messageOffset + newMessages.length,
-          hasMoreMessages: newMessages.length >= 100
+          messageOffset: prev.messageOffset + rawMessages.length,
+          hasMoreMessages: rawMessages.length >= 100
         }
       })
     } catch (error) {

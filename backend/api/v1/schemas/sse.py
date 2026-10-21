@@ -2,22 +2,13 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-# Reserved SSE event types
+# Consolidated SSE event types (SSE-002)
 SSEEventType = Literal[
-    "connected",
-    "heartbeat",
-    "progress",
-    "retrieval",
-    "reasoning",
-    "metadata",
-    "citations",
-    "reliability",
-    "citation",
-    "reliability_score",
-    "warning",
-    "error",
-    "done",
-    "chunk", # Standard text chunk
+    "chunk",      # Standard text chunk
+    "progress",   # Pipeline progress update
+    "done",       # Terminal stream completion
+    "error",      # Structured error payload
+    "heartbeat",  # Stream keepalive
 ]
 
 class SSEErrorPayload(BaseModel):

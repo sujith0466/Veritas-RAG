@@ -81,12 +81,16 @@ class StreamingGroundedGenerationService:
         update_interval = 2 # Configurable update interval
 
         import re
+        import time
         citation_pattern = re.compile(r'\[(\d+)\]')
         sentence_pattern = re.compile(r'[.!?]\s')
 
         if self.llm_provider and hasattr(self.llm_provider, "stream"):
             full_text = ""
             chunk_idx = 0
+            pending_citation_buffer = ""
+            stream_start = time.perf_counter()
+            first_token_recorded = False
             try:
                 from backend.ai.interfaces.llm_provider import LLMRequest
 
@@ -106,13 +110,21 @@ class StreamingGroundedGenerationService:
                 )
                 async for delta in self.llm_provider.stream(llm_req):
                     full_text += delta
-                    window_buffer += delta
+                    current_text = pending_citation_buffer + delta
+                    pending_citation_buffer = ""
 
                     citations_delta = []
                     metadata = None
 
-                    # F8.8 Progressive Citation Extraction
+                    # OBS-002: TTFT instrumentation on first token delta
+                    if not first_token_recorded and delta:
+                        first_token_recorded = True
+                        ttft_ms = round((time.perf_counter() - stream_start) * 1000.0, 2)
+                        metadata = {"ttft_ms": ttft_ms}
+
+                    # SCORE-003 & F8.8: Progressive Citation Extraction & Lookahead Buffering
                     if enable_citations:
+                        window_buffer += current_text
                         markers = citation_pattern.findall(window_buffer)
                         for marker_str in markers:
                             marker = int(marker_str)
@@ -127,7 +139,7 @@ class StreamingGroundedGenerationService:
                             else:
                                 # EP8-030: If invalid/hallucinated and not already seen, scrub it
                                 if marker not in seen_markers_local:
-                                    delta = delta.replace(f"[{marker}]", "")
+                                    current_text = current_text.replace(f"[{marker}]", "")
                                     window_buffer = window_buffer.replace(f"[{marker}]", "")
 
                         # Clear buffer up to last marker to avoid rescanning
@@ -136,30 +148,63 @@ class StreamingGroundedGenerationService:
                             last_match = matches[-1]
                             window_buffer = window_buffer[last_match.end():]
 
+                        # Lookahead buffer: hold back trailing partial bracket e.g. '[', '[1', '[[DOC-'
+                        bracket_match = re.search(r'\[[^\]]{0,30}$', current_text)
+                        if bracket_match:
+                            pending_citation_buffer = current_text[bracket_match.start():]
+                            current_text = current_text[:bracket_match.start()]
+
                     # F8.7 Reliability Score Extraction
-                    if enable_reliability and reliability_engine and sentence_pattern.search(delta):
+                    if enable_reliability and reliability_engine and sentence_pattern.search(current_text):
                         sentence_count += 1
                         if sentence_count >= update_interval:
-                                # In a real implementation this would be asyncio.create_task and a callback
-                                # to not block the stream. Here we simulate it async.
-                                score = await reliability_engine.evaluate_incremental(window_buffer, safe_chunks)
-                                reliability_version += 1
-                                metadata = {
-                                    "reliability_score_update": score,
-                                    "reliability_version": reliability_version
-                                }
-                                sentence_count = 0
-                                window_buffer = "" # Reset for next sentence
+                            score = await reliability_engine.evaluate_incremental(window_buffer, safe_chunks)
+                            reliability_version += 1
+                            if metadata is None:
+                                metadata = {}
+                            metadata.update({
+                                "reliability_score_update": score,
+                                "reliability_version": reliability_version
+                            })
+                            sentence_count = 0
+                            window_buffer = "" # Reset for next sentence
 
-                    yield StreamingGenerationChunkDTO(
-                        chunk_index=chunk_idx,
-                        text_delta=delta,
-                        citations_delta=citations_delta,
-                        is_final=False,
-                        correlation_id=request.correlation_id,
-                        wrapper_metadata=metadata
-                    )
-                    chunk_idx += 1
+                    if current_text or citations_delta or metadata:
+                        yield StreamingGenerationChunkDTO(
+                            chunk_index=chunk_idx,
+                            text_delta=current_text,
+                            citations_delta=citations_delta,
+                            is_final=False,
+                            correlation_id=request.correlation_id,
+                            wrapper_metadata=metadata
+                        )
+                        chunk_idx += 1
+
+                # Flush any remaining buffer after stream finishes
+                if pending_citation_buffer:
+                    trailing_text = pending_citation_buffer
+                    pending_citation_buffer = ""
+                    if enable_citations:
+                        markers = citation_pattern.findall(trailing_text)
+                        for marker_str in markers:
+                            marker = int(marker_str)
+                            cit = self.citation_extractor.extract_single(marker, safe_chunks, seen_markers_local)
+                            if cit:
+                                citations_delta.append(cit)
+                            else:
+                                if marker not in seen_markers_local:
+                                    trailing_text = trailing_text.replace(f"[{marker}]", "")
+                    if trailing_text:
+                        yield StreamingGenerationChunkDTO(
+                            chunk_index=chunk_idx,
+                            text_delta=trailing_text,
+                            citations_delta=[],
+                            is_final=False,
+                            correlation_id=request.correlation_id,
+                            wrapper_metadata=None
+                        )
+                        chunk_idx += 1
+
             except asyncio.CancelledError:
                 logger.warning("Streaming generation cancelled", correlation_id=request.correlation_id)
                 raise
@@ -169,24 +214,8 @@ class StreamingGroundedGenerationService:
                     error=str(exc),
                     correlation_id=request.correlation_id,
                 )
-
-                from backend.core.exceptions import LLMProviderException
-
-                error_msg = "\n[Error: Unable to generate a response right now. Please try again shortly.]"
-                if isinstance(exc, LLMProviderException):
-                    if exc.status_code in (429, 502, 503):
-                        error_msg = "\n[Error: AI service is temporarily busy. Please try again in a few moments.]"
-                    elif exc.status_code in (504,) or "timeout" in str(exc).lower():
-                        error_msg = "\n[Error: The request is taking longer than expected. Retrying automatically...]"
-
-                yield StreamingGenerationChunkDTO(
-                    chunk_index=chunk_idx,
-                    text_delta=error_msg,
-                    is_final=True,
-                    correlation_id=request.correlation_id,
-                    is_fully_grounded=False,
-                )
-                return
+                # CHAT-005: Re-raise exception so ChatOrchestrator emits error SSE event and does not charge tokens
+                raise exc
         else:
             from backend.core.exceptions import ApplicationException
             raise ApplicationException(

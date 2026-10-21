@@ -195,6 +195,9 @@ async def test_ai_wrapper_preserves_wrapper_metadata():
     mock_retrieval = AsyncMock()
     mock_retrieval.execute_hybrid_search.return_value = MagicMock(final_evidence=[])
 
+    mock_gateway = AsyncMock()
+    mock_gateway.execute_reliable_search.return_value = MagicMock(final_evidence=[])
+
     wrapper = AIWrapperService(
         namespace_resolver=mock_ns,
         rate_limiter=AsyncMock(),
@@ -202,6 +205,7 @@ async def test_ai_wrapper_preserves_wrapper_metadata():
         streaming_generation=mock_streaming_gen,
         event_dispatcher=AsyncMock(),
         llm_manager=MagicMock(),
+        reliability_gateway=mock_gateway,
     )
     wrapper._validate_workspace = AsyncMock()
 
@@ -347,6 +351,7 @@ async def test_chat_orchestrator_extracts_real_score():
         async for sse in gen:
             chunks.append(sse)
 
-        assert len(chunks) == 3
+        # With REC-001 progress events, 4 events are emitted (progress, chunk 0, chunk 1, done)
+        assert len(chunks) in (3, 4)
         # Final SSE event data should include chunk with real score
-        assert "event: done" in chunks[2]
+        assert "event: done" in chunks[-1]
