@@ -37,6 +37,13 @@ class StreamingGroundedGenerationService:
         self, request: GenerationRequestDTOv2
     ) -> AsyncGenerator[StreamingGenerationChunkDTO, None]:
         """Yield chunks of generated answer and final citations evaluation."""
+        if self.prompt_guard.scan_for_injection(request.query):
+            from backend.modules.security.middleware.evaluators import PolicyViolationError
+            raise PolicyViolationError(
+                "Prompt injection or jailbreak attempt detected in query.",
+                violation_type="prompt_injection",
+            )
+
         if not request.evidence_chunks:
             yield StreamingGenerationChunkDTO(
                 chunk_index=0,
@@ -104,6 +111,7 @@ class StreamingGroundedGenerationService:
                     prompt=request.query,
                     system_instruction=combined_instruction,
                     temperature=request.temperature,
+                    max_output_tokens=request.max_answer_tokens,
                     tenant_id=str(request.tenant_id),
                     workspace_id=str(getattr(request, "workspace_id", request.tenant_id)),
                     conversation_history=getattr(request, "conversation_history", None),

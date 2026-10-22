@@ -38,6 +38,7 @@ def create_celery_app() -> Celery:
             "backend.tasks.emails",
             "backend.tasks.webhooks",
             "backend.tasks.quota",
+            "backend.modules.analytics.workers.quota_alerts",
             "backend.tasks.retention",
             "backend.document.workers.archive",
             "backend.document.workers.watchdog_worker",
@@ -113,7 +114,7 @@ def create_celery_app() -> Celery:
                 "schedule": 86400.0, # Every 24 hours
             },
             "workspace-quota-evaluator": {
-                "task": "backend.tasks.quota.evaluate_workspace_quotas_task",
+                "task": "backend.modules.analytics.workers.quota_alerts.check_quota_threshold_alerts_task",
                 "schedule": 43200.0, # Every 12 hours
             },
             "doc-retention-sweep": {

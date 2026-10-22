@@ -890,6 +890,29 @@ class ChatOrchestrator:
                                 prompt_tok = int(actual_prompt_tokens) if actual_prompt_tokens is not None else max(1, len(query.split()) * 2)
                                 comp_tok = int(actual_comp_tokens) if actual_comp_tokens is not None else max(1, len(full_assistant_text.split()) * 2)
 
+                                # GAP-QTA-01: Resolve dynamic model pricing and total_cost_usd
+                                from backend.modules.analytics.services.pricing import ModelPricingService
+                                pricing_service = ModelPricingService()
+
+                                resolved_model = (
+                                     final_wrapper_metadata.get("model")
+                                     or final_wrapper_metadata.get("model_name")
+                                     or getattr(self.llm_provider, "model_name", None)
+                                     or "default"
+                                )
+                                resolved_provider = (
+                                     final_wrapper_metadata.get("provider")
+                                     or getattr(self.llm_provider, "provider", None)
+                                     or "default"
+                                )
+
+                                cost_result = pricing_service.calculate_cost(
+                                     provider=resolved_provider,
+                                     model_name=resolved_model,
+                                     prompt_tokens=prompt_tok,
+                                     completion_tokens=comp_tok,
+                                )
+
                                 governor = QuotaGovernor()
                                 user_uuid = None
                                 if user_id:
@@ -903,7 +926,17 @@ class ChatOrchestrator:
                                     prompt_tokens=prompt_tok,
                                     completion_tokens=comp_tok,
                                     correlation_id=correlation_id,
+                                    provider=resolved_provider,
+                                    model_name=resolved_model,
+                                    total_cost_usd=cost_result.total_cost_usd,
                                     user_id=user_uuid,
+                                )
+                                logger.info(
+                                    "Recorded durable token usage with pricing",
+                                    workspace_id=str(ws_uuid),
+                                    model=resolved_model,
+                                    total_cost_usd=cost_result.total_cost_usd,
+                                    cost_status=cost_result.cost_status,
                                 )
                             except Exception as q_exc:
                                 logger.warning("Failed recording durable quota usage: %s", q_exc)

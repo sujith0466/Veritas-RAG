@@ -125,13 +125,58 @@ async def handle_chunking_completed(event) -> None:
 
             repo = EmbeddingRepository(session)
             emb_service = EmbeddingService(repository=repo)
+
+            # GAP-QTA-02: Check and pass workspace token quota
+            from backend.modules.analytics.services.quota import QuotaGovernor
+            from backend.modules.embedding.schemas.errors import TokenQuotaExceededError
+            governor = QuotaGovernor()
+            ws_uuid = doc.workspace_id
+            if ws_uuid is None and doc.tenant_id:
+                try:
+                    ws_uuid = uuid.UUID(doc.tenant_id)
+                except Exception:
+                    pass
+
+            quota_settings = await governor.get_quota_settings(
+                workspace_id=ws_uuid,
+                tenant_id=doc.tenant_id,
+                session=session,
+            )
+            max_token_quota = quota_settings.monthly_token_limit if quota_settings else None
+
+            # Verify current usage does not exceed monthly token budget before initiation
+            if ws_uuid and quota_settings and quota_settings.is_hard_enforced:
+                current_used = await governor.get_durable_usage(ws_uuid, session=session)
+                if current_used >= quota_settings.monthly_token_limit:
+                    logger.error(
+                        "Workspace token quota exhausted before embedding initiation (EMB_002)",
+                        workspace_id=str(ws_uuid),
+                        used=current_used,
+                        limit=quota_settings.monthly_token_limit,
+                    )
+                    quota_err = TokenQuotaExceededError(
+                        f"Workspace '{ws_uuid}' has exhausted monthly token budget ({current_used}/{quota_settings.monthly_token_limit}).",
+                        detail={"used": current_used, "quota": quota_settings.monthly_token_limit},
+                    )
+                    await PipelineFailureSynchronizer.record_pipeline_failure(
+                        session=session,
+                        document_id=doc.id,
+                        failing_stage="embedding",
+                        error_code="EMB_002",
+                        error_message=str(quota_err),
+                        exception=quota_err,
+                        tenant_id=doc.tenant_id,
+                        version_id=target_ver_uuid,
+                    )
+                    raise quota_err
             job = await emb_service.initiate_embedding_job(
                 tenant_id=doc.tenant_id,
                 document_id=doc.id,
                 document_version_id=target_ver_uuid,
                 provider=provider,
                 model_name=model_name,
-                force_reembed=False
+                force_reembed=False,
+                max_token_quota=max_token_quota,
             )
             await session.commit()
 

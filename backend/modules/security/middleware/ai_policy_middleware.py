@@ -25,8 +25,11 @@ class PolicyEngine:
         self.redis = get_redis_client()
         self.settings = get_settings()
 
-    async def get_merged_policy(self, tenant_id: UUID, workspace_id: UUID) -> MergedPolicyDTO:
-        if not self.settings.features.enable_ai_policy_engine:
+    async def get_merged_policy(
+        self, tenant_id: UUID | str | None, workspace_id: UUID | str | None = None
+    ) -> MergedPolicyDTO:
+        # If policy engine is disabled or tenant_id is missing, enforce default secure policy
+        if not self.settings.features.enable_ai_policy_engine or not tenant_id:
             return MergedPolicyDTO()
 
         cache_key = f"raguard:policy:{tenant_id}:{workspace_id}"
@@ -101,7 +104,15 @@ class AIPolicyMiddleware:
         self.topic_evaluator = BlockedTopicEvaluator()
         self.pii_evaluator = PIIRedactionEvaluator(DLPEngine())
 
-    async def evaluate_request(self, tenant_id: UUID, workspace_id: UUID, query: str) -> str:
+    async def evaluate_request(
+        self,
+        tenant_id: UUID | str | None,
+        workspace_id: UUID | str | None,
+        query: str,
+    ) -> str:
+        if not query or not query.strip():
+            return query
+
         policy = await self.policy_engine.get_merged_policy(tenant_id, workspace_id)
 
         self.token_evaluator.evaluate(query, policy)

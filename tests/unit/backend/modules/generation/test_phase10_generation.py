@@ -28,8 +28,8 @@ def test_prompt_guard_evidence_formatting_and_filtering():
     formatted, safe_chunks = guard.sanitize_and_format_evidence(chunks)
     assert len(safe_chunks) == 2
     assert "c2" not in [c["chunk_id"] for c in safe_chunks]
-    assert "<evidence_chunk id='1'>" in formatted
-    assert "<evidence_chunk id='2'>" in formatted
+    assert '<evidence_chunk id="1"' in formatted and 'token=' in formatted
+    assert '<evidence_chunk id="2"' in formatted and 'token=' in formatted
     assert "<evidence_chunk id='3'>" not in formatted
 
 

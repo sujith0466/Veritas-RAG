@@ -65,6 +65,19 @@ class EmbeddingService:
         if max_token_quota is not None:
             metrics = await self.repository.get_tenant_metrics(tenant_id)
             used_tokens = metrics.get("total_tokens_consumed", 0)
+            ws_uuid = None
+            try:
+                ws_uuid = uuid.UUID(tenant_id)
+            except Exception:
+                pass
+            if ws_uuid:
+                try:
+                    from backend.modules.analytics.services.quota import QuotaGovernor
+                    used_tokens = await QuotaGovernor().get_durable_usage(
+                        ws_uuid, session=self.repository.session
+                    )
+                except Exception:
+                    pass
             if used_tokens >= max_token_quota:
                 raise TokenQuotaExceededError(
                     f"Tenant '{tenant_id}' has exceeded token budget ({used_tokens}/{max_token_quota}).",
@@ -285,14 +298,51 @@ class EmbeddingService:
                         except RateLimitExceeded:
                             raise RateLimitExceededError("Rate limit exceeded for provider API")
 
+                        # Quota pre-check (GAP-QTA-02 / GAP-QTA-04)
+                        ws_uuid = None
+                        try:
+                            ws_uuid = uuid.UUID(tenant_id)
+                        except Exception:
+                            pass
+                        governor = None
+                        if ws_uuid:
+                            from backend.modules.analytics.services.quota import QuotaGovernor
+                            from backend.modules.embedding.schemas.errors import TokenQuotaExceededError
+                            governor = QuotaGovernor()
+
+                            # Calculate defensible batch token estimate before calling provider (~1 token per 4 chars)
+                            est_batch_tokens = max(1, sum(max(1, len(str(t or "")) // 4) for t in texts))
+
+                            is_exceeded, used, limit, is_hard = await governor.check_quota(
+                                workspace_id=ws_uuid,
+                                tenant_id=tenant_id,
+                                session=self.repository.session,
+                            )
+                            if is_hard and (used + est_batch_tokens > limit):
+                                logger.error(
+                                    "Workspace token budget exhausted during embedding batch (EMB_002)",
+                                    workspace_id=str(ws_uuid),
+                                    used=used,
+                                    estimated_batch=est_batch_tokens,
+                                    limit=limit,
+                                )
+                                raise TokenQuotaExceededError(
+                                    f"Workspace '{ws_uuid}' token quota exceeded: estimated batch {est_batch_tokens} tokens exceeds remaining balance ({used}/{limit}).",
+                                    detail={"used": used, "estimated_batch": est_batch_tokens, "limit": limit, "workspace_id": str(ws_uuid)},
+                                )
+
                         result = await manager.vectorize_batch(texts, batch_size=batch_size)
 
                         provider_used = result.provider_metadata.get("fallback_provider", job.provider) if isinstance(result.provider_metadata, dict) else job.provider
-                        cost = 0.0
-                        if provider_used == "openai":
-                            cost = (result.tokens_consumed / 1000) * 0.00013
-                        elif provider_used == "cohere":
-                            cost = (result.tokens_consumed / 1000) * 0.00010
+                        from backend.modules.analytics.services.pricing import ModelPricingService
+                        pricing_service = ModelPricingService()
+                        cost_res = pricing_service.calculate_cost(
+                            provider=provider_used,
+                            model_name=job.model_name,
+                            prompt_tokens=result.tokens_consumed,
+                            completion_tokens=0,
+                        )
+                        cost = cost_res.total_cost_usd
 
                         step_metrics = {"estimated_cost_usd": cost}
                         fallback_prov = provider_used if provider_used != job.provider else None
@@ -351,6 +401,27 @@ class EmbeddingService:
                         step_metrics_update=step_metrics,
                         fallback_provider=fallback_prov,
                     )
+
+                    # Deduct tokens from workspace usage atomically with idempotent correlation ID (GAP-QTA-02)
+                    if result.tokens_consumed > 0 and ws_uuid:
+                        emb_corr_id = f"emb:{job_id}:{job.document_version_id}:{new_recs[0].chunk_id}"
+                        try:
+                            if governor is None:
+                                from backend.modules.analytics.services.quota import QuotaGovernor
+                                governor = QuotaGovernor()
+                            await governor.record_token_usage(
+                                workspace_id=ws_uuid,
+                                tenant_id=tenant_id,
+                                prompt_tokens=result.tokens_consumed,
+                                completion_tokens=0,
+                                correlation_id=emb_corr_id,
+                                provider=provider_used,
+                                model_name=job.model_name,
+                                total_cost_usd=cost,
+                                session=self.repository.session,
+                            )
+                        except Exception as q_rec_err:
+                            logger.warning("Failed recording embedding token usage", error=str(q_rec_err))
             finally:
                 for lock_ctx in acquired_locks:
                     try:

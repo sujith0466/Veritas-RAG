@@ -231,6 +231,11 @@ PROMPT_INJECTION_DETECTED_TOTAL = Counter(
     "Total number of prompt injection or jailbreak attempts detected.",
 )
 
+RAG_PROMPT_INJECTIONS_DETECTED_TOTAL = Counter(
+    "rag_prompt_injections_detected_total",
+    "Total number of prompt injection or jailbreak attempts detected in RAG pipelines.",
+)
+
 
 # ── Helper Recording Functions ────────────────────────────────────────────────
 
@@ -315,6 +320,7 @@ def record_blocked_prompt(topic: str) -> None:
 
 def record_prompt_injection() -> None:
     PROMPT_INJECTION_DETECTED_TOTAL.inc()
+    RAG_PROMPT_INJECTIONS_DETECTED_TOTAL.inc()
 
 
 # ── 8. Workspace Lifecycle & Retention Metrics ───────────────────────────────

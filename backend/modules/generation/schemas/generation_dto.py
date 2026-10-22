@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.modules.retrieval.schemas.retrieval_dto import RankedEvidenceDTO
@@ -56,6 +58,12 @@ class GenerationRequestDTO(BaseModel):
         le=4096,
         description="Max token budget for the generated answer",
     )
+    workspace_id: uuid.UUID | None = Field(
+        default=None, description="Workspace UUID for quota and policy attribution"
+    )
+    tenant_id: str | None = Field(
+        default=None, description="Tenant string or UUID representation"
+    )
 
 
 class GroundedAnswerDTO(BaseModel):
@@ -111,6 +119,9 @@ class GenerationRequestDTOv2(BaseModel):
     )
     correlation_id: str = Field(..., description="Tracing ID")
     tenant_id: str = Field(..., description="Tenant namespace ID")
+    workspace_id: uuid.UUID | None = Field(
+        default=None, description="Workspace UUID for quota and policy attribution"
+    )
     max_answer_tokens: int = Field(default=1024, ge=64, le=4096)
     temperature: float = Field(
         default=0.1,

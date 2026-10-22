@@ -207,11 +207,15 @@ class QuotaGovernor:
         session: AsyncSession | None = None,
     ) -> HierarchicalQuotaCheckResult:
         """Evaluate hierarchical quota: Workspace Quota AND User Quota."""
+        if requested_tokens is None or not isinstance(requested_tokens, int) or requested_tokens < 0:
+            raise ValueError("requested_tokens must be a non-negative integer.")
+
         # 1. Evaluate Workspace Quota
         ws_quota = await self.get_quota_settings(workspace_id=workspace_id, session=session)
         ws_used = await self.get_durable_usage(workspace_id, session)
 
-        if ws_quota.is_hard_enforced and (ws_used + requested_tokens > ws_quota.monthly_token_limit):
+        is_ws_exhausted = (ws_used >= ws_quota.monthly_token_limit) if requested_tokens == 0 else (ws_used + requested_tokens > ws_quota.monthly_token_limit)
+        if ws_quota.is_hard_enforced and is_ws_exhausted:
             return HierarchicalQuotaCheckResult(
                 is_allowed=False,
                 blocked_by="workspace_quota",
@@ -238,7 +242,8 @@ class QuotaGovernor:
             if u_quota and u_quota.monthly_token_budget is not None:
                 user_limit = u_quota.monthly_token_budget
                 user_used = await self.get_user_durable_usage(workspace_id, user_id, session)
-                if u_quota.is_hard_enforced and (user_used + requested_tokens > user_limit):
+                is_user_exhausted = (user_used >= user_limit) if requested_tokens == 0 else (user_used + requested_tokens > user_limit)
+                if u_quota.is_hard_enforced and is_user_exhausted:
                     return HierarchicalQuotaCheckResult(
                         is_allowed=False,
                         blocked_by="user_quota",

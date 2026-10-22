@@ -179,11 +179,22 @@ class ChunkingService:
 
             # Check for deduplication
             parent_chunk_id = None
-            metadata = dto.metadata_json or {}
+            metadata = dict(dto.metadata_json or {})
 
             if content_hash in existing_chunks:
                 parent_chunk_id = existing_chunks[content_hash]
                 metadata["deduplicated"] = True
+
+            # Ingestion-time security classification (GAP-SEC-04)
+            from backend.modules.generation.services.prompt_guard import PromptGuard
+            guard = getattr(self, "prompt_guard", None) or PromptGuard()
+            has_suspicious_patterns = guard.scan_for_injection(dto.content)
+            metadata["security"] = {
+                "classification": "suspicious" if has_suspicious_patterns else "clean",
+                "has_injection_patterns": has_suspicious_patterns,
+                "scanned_at_ingestion": True,
+                "scanner_version": "1.0",
+            }
 
             entity = DocumentChunk(
                 id=uuid.uuid4(),
