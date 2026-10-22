@@ -42,7 +42,7 @@ class BaseEvent:
         """Serialise event to a plain dict for logging or queuing."""
         return {
             "event_id": self.event_id,
-            "event_type": self.event_type.value,
+            "event_type": self.event_type.value if hasattr(self.event_type, "value") else str(self.event_type),
             "occurred_at": self.occurred_at.isoformat(),
             "correlation_id": self.correlation_id,
         }

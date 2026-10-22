@@ -7,6 +7,7 @@ from backend.models.entities import *
 from backend.models.entities.user import User
 from backend.models.entities.workspace import Workspace
 from backend.models.entities.workspace_member import WorkspaceMember, WorkspaceRole
+from sqlalchemy import text
 from backend.database.engine import get_session_factory, get_engine
 from backend.models.base import BaseModel
 
@@ -16,11 +17,24 @@ import pytest_asyncio
 async def setup_database():
     engine = get_engine()
     async with engine.begin() as conn:
-        await conn.run_sync(BaseModel.metadata.drop_all)
-        await conn.run_sync(BaseModel.metadata.create_all)
+        # Strict fail-closed verification: Ensure we are connected to the isolated test database
+        res = await conn.execute(text("SELECT current_database();"))
+        db_name = res.scalar()
+        if db_name != "raguard_test":
+            raise RuntimeError(f"SAFETY VIOLATION: setup_database target is '{db_name}', expected 'raguard_test'.")
+
+        # Verify schema table presence
+        table_count_res = await conn.execute(
+            text("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+        )
+        table_count = table_count_res.scalar() or 0
+        if table_count == 0:
+            # Fallback for standalone test execution outside run_wp_test_b.ps1
+            import backend.models as models
+            for name in models.__all__:
+                getattr(models, name)
+            await conn.run_sync(BaseModel.metadata.create_all)
     yield
-    async with engine.begin() as conn:
-        await conn.run_sync(BaseModel.metadata.drop_all)
 
 @pytest_asyncio.fixture(scope="function")
 async def isolation_test_data(setup_database):
@@ -32,8 +46,20 @@ async def isolation_test_data(setup_database):
         
         ws_slug_a = f"wsa-{uuid.uuid4().hex[:6]}"
         ws_slug_b = f"wsb-{uuid.uuid4().hex[:6]}"
-        workspace_a = Workspace(name="Workspace A", slug=ws_slug_a, storage_prefix=ws_slug_a, qdrant_namespace=ws_slug_a)
-        workspace_b = Workspace(name="Workspace B", slug=ws_slug_b, storage_prefix=ws_slug_b, qdrant_namespace=ws_slug_b)
+        workspace_a = Workspace(
+            name="Workspace A",
+            slug=ws_slug_a,
+            public_id=f"pub-{ws_slug_a}",
+            storage_prefix=ws_slug_a,
+            qdrant_namespace=ws_slug_a
+        )
+        workspace_b = Workspace(
+            name="Workspace B",
+            slug=ws_slug_b,
+            public_id=f"pub-{ws_slug_b}",
+            storage_prefix=ws_slug_b,
+            qdrant_namespace=ws_slug_b
+        )
         
         session.add_all([user_a, user_b, user_c, workspace_a, workspace_b])
         await session.commit()
@@ -47,6 +73,8 @@ async def isolation_test_data(setup_database):
         member_b = WorkspaceMember(workspace_id=workspace_b.id, user_id=user_b.id, role=WorkspaceRole.OWNER.value)
         
         session.add_all([member_a, member_b])
+        user_a.tenant_id = str(workspace_a.id)
+        user_b.tenant_id = str(workspace_b.id)
         user_a.workspace_name = str(workspace_a.id)
         user_b.workspace_name = str(workspace_b.id)
         

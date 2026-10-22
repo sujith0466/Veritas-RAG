@@ -1,0 +1,102 @@
+# ==============================================================================
+# Veritas-RAG — Disposable Test Infrastructure (Phase 0 / WP-TEST-B)
+# ==============================================================================
+# Purpose: Isolated ephemeral PostgreSQL 15, Redis 7, MinIO & Qdrant containers
+#          for migration verification and integration smoke tests.
+# Scope: Test-only. Completely isolated from development and production volumes.
+# ==============================================================================
+
+name: raguard-test
+
+services:
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: raguard-postgres-test
+    restart: "no"
+    environment:
+      POSTGRES_DB: raguard_test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - raguard_test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d raguard_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 3s
+    networks:
+      - raguard_test_network
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: raguard-redis-test
+    restart: "no"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
+    networks:
+      - raguard_test_network
+
+  minio-test:
+    image: minio/minio:RELEASE.2023-09-07T02-05-02Z
+    container_name: raguard-minio-test
+    restart: "no"
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: minio_test_user
+      MINIO_ROOT_PASSWORD: minio_test_password_only
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - raguard_test_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:9000/minio/health/live || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 3s
+    networks:
+      - raguard_test_network
+
+  qdrant-test:
+    image: qdrant/qdrant:v1.8.2
+    container_name: raguard-qdrant-test
+    restart: "no"
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__TELEMETRY_DISABLED: "true"
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - raguard_test_qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 3s
+    networks:
+      - raguard_test_network
+
+volumes:
+  raguard_test_postgres_data:
+    name: raguard_test_postgres_data
+  raguard_test_minio_data:
+    name: raguard_test_minio_data
+  raguard_test_qdrant_data:
+    name: raguard_test_qdrant_data
+
+networks:
+  raguard_test_network:
+    name: raguard_test_network

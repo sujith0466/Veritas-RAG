@@ -212,6 +212,9 @@ class JWTService:
                     if not resolved_role:
                         resolved_role = row[1]
 
+        if not session and not resolved_workspace_id and getattr(user, "tenant_id", None) and resolved_role != "platform_admin":
+            resolved_workspace_id = str(user.tenant_id)
+
         if not resolved_role:
             resolved_role = getattr(user, "role", "viewer")
 
