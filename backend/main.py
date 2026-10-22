@@ -44,6 +44,8 @@ from backend.core.middleware import (
     CorrelationIDMiddleware,
     ObservabilityMiddleware,
     SecurityHeadersMiddleware,
+    SSEConcurrencyLimiterMiddleware,
+    TrustedProxyMiddleware,
 )
 from backend.observability.tracing import init_tracer
 
@@ -196,7 +198,13 @@ def create_app() -> FastAPI:
     # Order of execution on request:
     #   CORS → CorrelationID → Observability → SecurityHeaders → RequestLogging → Route handler
 
-    # Request/response logging (innermost — has access to correlation ID)
+    # SSE Concurrency Limiter (innermost protection for streaming connections)
+    app.add_middleware(
+        SSEConcurrencyLimiterMiddleware,
+        max_concurrent_streams=settings.security.max_concurrent_sse_streams,
+    )
+
+    # Request/response logging (innermost — has access to correlation ID and client IP)
     app.add_middleware(
         RequestLoggingMiddleware,
         log_requests=settings.logging.log_requests,
@@ -216,6 +224,12 @@ def create_app() -> FastAPI:
 
     # Correlation ID (must run before observability and logging)
     app.add_middleware(CorrelationIDMiddleware)
+
+    # Trusted Proxy Resolution (resolves client_ip from X-Forwarded-For behind verified proxies)
+    app.add_middleware(
+        TrustedProxyMiddleware,
+        trusted_proxies=settings.security.trusted_proxy_networks,
+    )
 
     # CORS — outermost middleware to handle preflight correctly and never drop headers on 500s
     app.add_middleware(

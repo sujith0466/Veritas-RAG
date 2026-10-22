@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request, status
 from structlog import get_logger
 
 from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
+from backend.core.dependencies.rate_limit import RateLimit
 from backend.modules.retrieval.api.dependencies import (
     get_retrieval_orchestrator,
     get_retrieval_repository,
@@ -60,6 +61,7 @@ async def execute_search(
     tenant_id: str = Depends(resolve_tenant),
     correlation_id: str | None = Header(default=None, alias="X-Correlation-ID"),
     orchestrator: RetrievalOrchestrator = Depends(get_retrieval_orchestrator),
+    _rate_limit: None = Depends(RateLimit("retrieval_search", limit=60, window=60, domain="retrieval", key_type="composite", degradation_policy="fail_open")),
 ) -> SuccessResponse[RetrievalResultDTO]:
     """Execute live multi-stage search with RRF fusion and cross-encoder reranking (`ADR-002`)."""
     corr_id = correlation_id or getattr(

@@ -29,6 +29,18 @@ class SecuritySettings(BaseSettings):
     # Rate limiting
     rate_limit_per_minute: int = Field(default=60, alias="RATE_LIMIT_PER_MINUTE")
 
+    # Trusted Proxies (explicit comma-separated CIDRs, IPs, or hostnames)
+    trusted_proxies_str: str = Field(
+        default="127.0.0.1,::1,frontend",
+        alias="TRUSTED_PROXIES",
+    )
+
+    # SSE Stream Concurrency Throttling
+    max_concurrent_sse_streams: int = Field(
+        default=50,
+        alias="MAX_CONCURRENT_SSE_STREAMS",
+    )
+
     # File uploads
     max_upload_size_bytes: int = Field(
         default=52_428_800, alias="MAX_UPLOAD_SIZE_BYTES"
@@ -84,3 +96,44 @@ class SecuritySettings(BaseSettings):
         if isinstance(self.jwt_allowed_verification_algorithms, str):
             return [a.strip() for a in self.jwt_allowed_verification_algorithms.split(",") if a.strip()]
         return ["HS256"]
+
+    @property
+    def trusted_proxy_networks(self) -> list:
+        """Parse trusted proxy entries (CIDRs, IPs, and hostnames).
+
+        Hostnames (e.g. 'frontend') are resolved to IP addresses via DNS.
+        Invalid or unresolvable entries are logged as warnings.
+        If no valid networks are resolved, falls back safely to loopback only.
+        """
+        import ipaddress
+        import socket
+        import structlog
+
+        log = structlog.get_logger(__name__)
+        networks = []
+        for raw in self.trusted_proxies_str.split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            # 1. Direct IP network or IP address
+            try:
+                networks.append(ipaddress.ip_network(raw, strict=False))
+                continue
+            except ValueError:
+                pass
+
+            # 2. Hostname resolution
+            try:
+                _, _, ip_list = socket.gethostbyname_ex(raw)
+                for ip in ip_list:
+                    networks.append(ipaddress.ip_network(f"{ip}/32", strict=False))
+            except (socket.gaierror, socket.herror, OSError) as e:
+                log.warning("trusted_proxy_hostname_resolution_failed", hostname=raw, error=str(e))
+            except Exception as e:
+                log.warning("trusted_proxy_entry_invalid", entry=raw, error=str(e))
+
+        if not networks:
+            log.warning("trusted_proxies_empty_or_unresolved_falling_back_to_loopback")
+            return [ipaddress.ip_network("127.0.0.1/32"), ipaddress.ip_network("::1/128")]
+
+        return networks

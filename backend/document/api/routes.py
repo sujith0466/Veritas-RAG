@@ -28,6 +28,7 @@ from backend.api.v1.schemas.common import ResponseMetadata, SuccessResponse
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import require_role
 from backend.core.dependencies.database import get_db
+from backend.core.dependencies.rate_limit import RateLimit
 from backend.core.permissions.rbac import Role
 from backend.document.schemas import (
     DocumentDetailResponse,
@@ -74,6 +75,7 @@ async def upload_document(
     relative_path: str | None = Form(default=None),
     user: UserContext = Depends(require_role(Role.MEMBER)),
     session: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(RateLimit("document_upload", limit=20, window=60, domain="documents", key_type="composite", degradation_policy="fail_closed")),
 ) -> SuccessResponse[UploadResponse]:
     """Handle synchronous upload screening, storage persistence, and Celery job dispatch."""
     tenant_id, owner_id = _resolve_tenant_and_owner(user)
@@ -600,6 +602,7 @@ async def upload_document_version(
     file: UploadFile = File(...),
     user: UserContext = Depends(require_role(Role.MEMBER)),
     session: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(RateLimit("document_upload_version", limit=20, window=60, domain="documents", key_type="composite", degradation_policy="fail_closed")),
 ) -> SuccessResponse[UploadResponse]:
     """Upload a new version of a document."""
     tenant_id, owner_id = _resolve_tenant_and_owner(user)

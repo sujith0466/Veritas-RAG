@@ -101,6 +101,12 @@ RETRIEVAL_VALIDATION_ERRORS_TOTAL = Counter(
     ["tenant_id", "stage"],
 )
 
+RATE_LIMIT_REDIS_FAILURES_TOTAL = Counter(
+    "rate_limit_redis_failures_total",
+    "Total Redis failures encountered by rate limiters.",
+    ["action", "domain", "policy"],
+)
+
 # ── 3. AI Reliability, Self-Correction & Reflection Metrics ───────────────────
 
 SELF_CORRECTION_RETRIES_TOTAL = Counter(
