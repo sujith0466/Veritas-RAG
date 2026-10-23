@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useAuthStore } from '@/stores/authStore'
 import { healthService } from '@/services/api/healthService'
 import { vectorService } from '@/services/vectorService'
@@ -32,13 +32,20 @@ const STEPS: Step[] = [
 ]
 
 export function AppBootstrap() {
+  const shouldReduceMotion = useReducedMotion()
+
   const [isColdStart] = useState<boolean>(() => {
-    return !sessionStorage.getItem('raguard_bootstrapped')
+    const isBootstrapped = typeof window !== 'undefined' && !!sessionStorage.getItem('raguard_bootstrapped')
+    if (isBootstrapped && typeof window !== 'undefined') {
+      ;(window as any).__VERITAS_BOOTSTRAPPED__ = true
+    }
+    return !isBootstrapped
   })
 
   const authStatus = useAuthStore((s) => s.status)
 
   const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set())
+  const [activeStepId, setActiveStepId] = useState<StepId | null>(STEPS[0].id)
   const [allReady, setAllReady] = useState(false)
   const [activeStepText, setActiveStepText] = useState('Initializing Enterprise AI Infrastructure')
 
@@ -59,49 +66,75 @@ export function AppBootstrap() {
       .catch(() => setVectorReady(true)) // graceful fallback
   }, [isColdStart])
 
+  // Sequentially reveal verified infrastructure stages
   useEffect(() => {
-    if (!isColdStart) return
+    if (!isColdStart || allReady) return
 
-    const newCompleted = new Set<StepId>()
-
-    // Security Layer is bound to authStatus transitioning away from LOADING
     const authResolved = authStatus !== 'LOADING'
-    if (authResolved) {
-      newCompleted.add('security')
-    }
 
-    if (healthReady) {
-      newCompleted.add('knowledge')
-      // Presentational grouping:
-      newCompleted.add('cross_encoder')
-      newCompleted.add('reliability')
-      newCompleted.add('prompt_guard')
-    }
+    // Identify the next pending stage
+    const nextStep = STEPS.find((s) => !completedSteps.has(s.id))
 
-    if (vectorReady) {
-      newCompleted.add('vector')
-      if (healthReady) {
-        newCompleted.add('retrieval') // Grouped with both vector and knowledge
-      }
-    }
-
-    if (authResolved && healthReady && vectorReady) {
-      newCompleted.add('workspace')
-    }
-
-    setCompletedSteps(newCompleted)
-
-    if (newCompleted.size === STEPS.length) {
+    if (!nextStep) {
+      setActiveStepId(null)
       setActiveStepText('Launching Workspace...')
       const t = setTimeout(() => {
         sessionStorage.setItem('raguard_bootstrapped', 'true')
         setAllReady(true)
-      }, 300) // Small breather for UI to settle before fadeout
+      }, shouldReduceMotion ? 100 : 350)
       return () => clearTimeout(t)
-    } else {
-      setActiveStepText('Initializing Enterprise AI Infrastructure')
     }
-  }, [authStatus, healthReady, vectorReady, isColdStart])
+
+    setActiveStepId(nextStep.id)
+
+    // Verify whether the next stage's underlying prerequisite has physically resolved
+    let isEligible = false
+    switch (nextStep.id) {
+      case 'security':
+        isEligible = authResolved
+        break
+      case 'knowledge':
+        isEligible = healthReady
+        break
+      case 'vector':
+        isEligible = vectorReady
+        break
+      case 'retrieval':
+        isEligible = vectorReady && healthReady
+        break
+      case 'cross_encoder':
+      case 'reliability':
+      case 'prompt_guard':
+        isEligible = healthReady
+        break
+      case 'workspace':
+        isEligible = authResolved && healthReady && vectorReady
+        break
+    }
+
+    if (isEligible) {
+      // The initial Security Layer has already spent real elapsed time awaiting network auth resolution.
+      // Once auth is authoritatively resolved, advance it immediately (delay = 0) to avoid perceived hesitation.
+      // All subsequent stages retain their natural 90ms stagger.
+      const delay = shouldReduceMotion || nextStep.id === 'security' ? 0 : 90
+      const timer = setTimeout(() => {
+        setCompletedSteps((prev) => {
+          const updated = new Set(prev)
+          updated.add(nextStep.id)
+          return updated
+        })
+      }, delay)
+      return () => clearTimeout(timer)
+    }
+  }, [
+    isColdStart,
+    allReady,
+    completedSteps,
+    authStatus,
+    healthReady,
+    vectorReady,
+    shouldReduceMotion,
+  ])
 
   // Fallback timeout: force proceed after 6 seconds
   useEffect(() => {
@@ -119,59 +152,105 @@ export function AppBootstrap() {
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresence
+      onExitComplete={() => {
+        if (typeof window !== 'undefined') {
+          ;(window as any).__VERITAS_BOOTSTRAPPED__ = true
+          window.dispatchEvent(new CustomEvent('veritas:bootstrap-complete'))
+        }
+      }}
+    >
       {!allReady && (
         <motion.div
           key="bootstrap-screen"
-          initial={{ opacity: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.6, ease: "easeInOut" }}
-          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#FAFAFA] text-foreground"
+          transition={{
+            duration: shouldReduceMotion ? 0.15 : 0.45,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground select-none"
           aria-live="polite"
         >
-          {/* Layered Translucent Planes / Noise (from 3D background system) */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(99,102,241,0.04),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.04),transparent_50%)] opacity-70 mix-blend-screen" />
+          {/* Subtle Ambient Brand Atmosphere (Deep Teal) */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.035),transparent_65%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.02),transparent_50%)] pointer-events-none" />
           <div className="absolute inset-0 bg-noise opacity-[0.015] mix-blend-multiply pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col items-center w-full max-w-sm px-6">
+          <motion.div
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: shouldReduceMotion ? 0.15 : 0.4,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+            className="relative z-10 flex flex-col items-center w-full max-w-sm px-6"
+          >
             {/* Wordmark */}
-            <h1 className="text-3xl font-semibold tracking-tight mb-2">Veritas RAG</h1>
+            <h1 className="text-3xl font-semibold tracking-tight mb-2 text-foreground">
+              Veritas RAG
+            </h1>
 
             {/* Single supporting line */}
             <motion.p
               key={activeStepText}
-              initial={{ opacity: 0, y: 4 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 3 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-sm font-medium text-muted-foreground mb-12 text-center h-5"
+              transition={{ duration: shouldReduceMotion ? 0.1 : 0.25 }}
+              className="text-sm font-medium text-muted-foreground mb-10 text-center h-5"
             >
               {activeStepText}
             </motion.p>
 
             {/* Sequential Checklist */}
-            <div className="w-full space-y-3">
+            <div className="w-full space-y-2.5">
               {STEPS.map((step) => {
                 const isComplete = completedSteps.has(step.id)
+                const isActive = activeStepId === step.id && !isComplete
+
                 return (
-                  <div key={step.id} className="flex items-center space-x-4">
+                  <div key={step.id} className="flex items-center space-x-3.5">
                     <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-                      <AnimatePresence>
-                        {isComplete && (
+                      <AnimatePresence mode="wait">
+                        {isComplete ? (
                           <motion.div
-                            initial={{ opacity: 0, scale: 0.5 }}
+                            key="complete"
+                            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                            className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center"
                           >
-                            <Check className="w-[18px] h-[18px] text-primary" strokeWidth={2.5} />
+                            <Check className="w-3 h-3 text-primary" strokeWidth={2.5} />
                           </motion.div>
+                        ) : isActive ? (
+                          <motion.div
+                            key="active"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="w-1.5 h-1.5 rounded-full bg-primary/80 animate-pulse"
+                          />
+                        ) : (
+                          <div
+                            key="pending"
+                            className="w-1.5 h-1.5 rounded-full bg-border"
+                          />
                         )}
                       </AnimatePresence>
                     </div>
                     <motion.span
                       initial={{ opacity: 0.4 }}
-                      animate={{ opacity: isComplete ? 1 : 0.4 }}
-                      transition={{ duration: 0.3 }}
-                      className="text-[15px] font-medium tracking-tight text-foreground/80"
+                      animate={{
+                        opacity: isComplete ? 1 : isActive ? 0.85 : 0.4,
+                      }}
+                      transition={{ duration: shouldReduceMotion ? 0.05 : 0.2 }}
+                      className={`text-[14px] font-medium tracking-tight transition-colors duration-200 ${
+                        isComplete
+                          ? 'text-foreground'
+                          : isActive
+                          ? 'text-foreground/90'
+                          : 'text-muted-foreground'
+                      }`}
                     >
                       {step.label}
                     </motion.span>
@@ -182,9 +261,11 @@ export function AppBootstrap() {
 
             {/* Screen Reader Announcement */}
             <div className="sr-only">
-              {allReady ? 'Application initialization complete. Launching workspace.' : `Initializing. ${completedSteps.size} of ${STEPS.length} stages complete.`}
+              {allReady
+                ? 'Application initialization complete. Launching workspace.'
+                : `Initializing. ${completedSteps.size} of ${STEPS.length} stages complete.`}
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>

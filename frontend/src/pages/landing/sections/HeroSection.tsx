@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import { ArrowRight, Sparkles } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { HeroPipeline } from '../components/HeroPipeline'
 import { TrustStrip } from './TrustStrip'
 import { useNavigate } from 'react-router-dom'
@@ -9,19 +10,31 @@ import { AnimatedUnderline } from '@/components/motion/AnimatedUnderline'
 
 import type { Variants } from 'framer-motion'
 
+const isBootstrapped = () => {
+  if (typeof window === 'undefined') return true
+  try {
+    return Boolean(
+      (window as any).__VERITAS_BOOTSTRAPPED__ ||
+      sessionStorage.getItem('raguard_bootstrapped')
+    )
+  } catch {
+    return true
+  }
+}
+
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.12,
-      delayChildren: 0.1,
+      staggerChildren: 0.1,
+      delayChildren: 0.05,
     },
   },
 }
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 24 },
+  hidden: { opacity: 0, y: 20 },
   show: {
     opacity: 1,
     y: 0,
@@ -29,9 +42,40 @@ const itemVariants: Variants = {
   },
 }
 
+const reducedItemVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { duration: 0.15 },
+  },
+}
+
 export function HeroSection() {
   const navigate = useNavigate()
   const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
+  const shouldReduceMotion = useReducedMotion()
+
+  const [isReady, setIsReady] = useState<boolean>(() => isBootstrapped())
+
+  useEffect(() => {
+    if (isReady) return
+
+    const handleComplete = () => {
+      setIsReady(true)
+    }
+
+    window.addEventListener('veritas:bootstrap-complete', handleComplete, { once: true })
+
+    // Safety fallback: reveal after timeout in case bootstrap was skipped or timed out
+    const timer = setTimeout(() => {
+      setIsReady(true)
+    }, 6500)
+
+    return () => {
+      window.removeEventListener('veritas:bootstrap-complete', handleComplete)
+      clearTimeout(timer)
+    }
+  }, [isReady])
 
   const handleLaunch = () => {
     navigate(isAuthenticated ? '/dashboard' : '/auth/login')
@@ -48,12 +92,15 @@ export function HeroSection() {
           {/* ── Left Column: Text & CTAs ── */}
           <motion.div
             className="flex flex-col items-start space-y-7 max-w-2xl"
-            variants={containerVariants}
+            variants={shouldReduceMotion ? {
+              hidden: { opacity: 0 },
+              show: { opacity: 1, transition: { staggerChildren: 0 } },
+            } : containerVariants}
             initial="hidden"
-            animate="show"
+            animate={isReady ? "show" : "hidden"}
           >
             {/* Pill badge */}
-            <motion.div variants={itemVariants}>
+            <motion.div variants={shouldReduceMotion ? reducedItemVariants : itemVariants}>
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-xs font-semibold text-primary shadow-sm">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Trusted AI Infrastructure for Enterprise RAG</span>
@@ -61,7 +108,7 @@ export function HeroSection() {
             </motion.div>
 
             {/* Headline */}
-            <motion.div variants={itemVariants}>
+            <motion.div variants={shouldReduceMotion ? reducedItemVariants : itemVariants}>
               <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-bold tracking-tight text-foreground leading-[1.05]">
                 Build AI You Can{' '}
                 <AnimatedUnderline color="hsl(175 84% 26% / 0.4)">
@@ -71,7 +118,7 @@ export function HeroSection() {
             </motion.div>
 
             {/* Sub-headline */}
-            <motion.div variants={itemVariants}>
+            <motion.div variants={shouldReduceMotion ? reducedItemVariants : itemVariants}>
               <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
                 The unified platform for{' '}
                 <span className="text-foreground font-medium">secure</span>,{' '}
@@ -82,7 +129,7 @@ export function HeroSection() {
             </motion.div>
 
             {/* CTAs */}
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-start gap-3 w-full pt-1">
+            <motion.div variants={shouldReduceMotion ? reducedItemVariants : itemVariants} className="flex flex-col sm:flex-row items-start gap-3 w-full pt-1">
               <MagneticButton
                 variant="primary"
                 onClick={handleLaunch}
@@ -103,7 +150,7 @@ export function HeroSection() {
 
             {/* Social proof numbers */}
             <motion.div
-              variants={itemVariants}
+              variants={shouldReduceMotion ? reducedItemVariants : itemVariants}
               className="flex items-center gap-6 pt-2 border-t border-border/40 w-full"
             >
               {[
@@ -121,9 +168,13 @@ export function HeroSection() {
 
           {/* ── Right Column: Pipeline Visualization ── */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
+            animate={isReady ? { opacity: 1, x: 0 } : { opacity: 0, x: shouldReduceMotion ? 0 : 24 }}
+            transition={
+              shouldReduceMotion
+                ? { duration: 0.15 }
+                : { duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }
+            }
             className="w-full flex items-start justify-center lg:justify-end"
           >
             <HeroPipeline className="w-full max-w-[440px]" />
@@ -134,8 +185,12 @@ export function HeroSection() {
         <motion.div
           className="mt-20 pt-10 border-t border-border/40"
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.9 }}
+          animate={isReady ? { opacity: 1 } : { opacity: 0 }}
+          transition={
+            shouldReduceMotion
+              ? { duration: 0.15 }
+              : { duration: 0.6, delay: 0.45, ease: 'easeOut' }
+          }
         >
           <TrustStrip />
         </motion.div>

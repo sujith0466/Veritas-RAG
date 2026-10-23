@@ -1,5 +1,5 @@
 import { CheckCircle2, XCircle } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { SectionHeading } from '@/components/landing/SectionHeading'
 import { FadeUp } from '@/components/motion/FadeUp'
 import { Stagger } from '@/components/motion/Stagger'
@@ -14,6 +14,18 @@ const COMPARISON_DATA = [
 ]
 
 export function WhyRaguard() {
+  const shouldReduceMotion = useReducedMotion()
+
+  const tradVariants = {
+    hidden: { opacity: 0, x: shouldReduceMotion ? 0 : -10 },
+    show: { opacity: 1, x: 0 },
+  }
+
+  const veritasVariants = {
+    hidden: { opacity: 0, x: shouldReduceMotion ? 0 : 10 },
+    show: { opacity: 1, x: 0 },
+  }
+
   return (
     <section className="py-24 border-t border-border relative overflow-hidden bg-background">
       <div className="container mx-auto px-4 md:px-8 max-w-5xl relative z-10">
@@ -25,49 +37,51 @@ export function WhyRaguard() {
           />
         </FadeUp>
 
-        <div className="grid md:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-border shadow-md">
+        <FadeUp yOffset={20} delay={0.1}>
+          <div className="grid md:grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-border shadow-md">
 
-          {/* Traditional RAG Column */}
-          <div className="bg-surface p-8 md:p-10 border-b md:border-b-0 md:border-r border-border">
-            <h3 className="text-xl font-medium text-muted-foreground mb-8 text-center md:text-left">
-              Traditional RAG
-            </h3>
-            <Stagger className="space-y-6" staggerDelay={0.05}>
-              {COMPARISON_DATA.map((row, i) => (
-                <motion.li
-                  key={`trad-${i}`}
-                  variants={{ hidden: {opacity:0, x:-10}, show: {opacity:1, x:0} }}
-                  className="flex items-center space-x-3 text-muted-foreground"
-                >
-                  <XCircle className="w-5 h-5 opacity-50 shrink-0" />
-                  <span>{row.traditional}</span>
-                </motion.li>
-              ))}
-            </Stagger>
+            {/* Traditional RAG Column */}
+            <div className="bg-surface p-8 md:p-10 border-b md:border-b-0 md:border-r border-border">
+              <h3 className="text-xl font-medium text-muted-foreground mb-8 text-center md:text-left">
+                Traditional RAG
+              </h3>
+              <Stagger className="space-y-6" staggerDelay={0.05}>
+                {COMPARISON_DATA.map((row, i) => (
+                  <motion.li
+                    key={`trad-${i}`}
+                    variants={tradVariants}
+                    className="flex items-center space-x-3 text-muted-foreground"
+                  >
+                    <XCircle className="w-5 h-5 opacity-50 shrink-0" />
+                    <span>{row.traditional}</span>
+                  </motion.li>
+                ))}
+              </Stagger>
+            </div>
+
+            {/* Veritas RAG Column */}
+            <div className="bg-surface-elevated p-8 md:p-10 relative">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent md:hidden" />
+              <h3 className="text-xl font-bold text-foreground mb-8 text-center md:text-left flex items-center justify-center md:justify-start space-x-2">
+                <span className="w-2 h-2 rounded-full bg-primary" />
+                <span>Veritas RAG</span>
+              </h3>
+              <Stagger className="space-y-6" staggerDelay={0.05}>
+                {COMPARISON_DATA.map((row, i) => (
+                  <motion.li
+                    key={`raguard-${i}`}
+                    variants={veritasVariants}
+                    className="flex items-center space-x-3 text-foreground font-medium"
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                    <span>{row.raguard}</span>
+                  </motion.li>
+                ))}
+              </Stagger>
+            </div>
+
           </div>
-
-          {/* Veritas RAG Column */}
-          <div className="bg-surface-elevated p-8 md:p-10 relative">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent md:hidden" />
-            <h3 className="text-xl font-bold text-foreground mb-8 text-center md:text-left flex items-center justify-center md:justify-start space-x-2">
-              <span className="w-2 h-2 rounded-full bg-primary" />
-              <span>Veritas RAG</span>
-            </h3>
-            <Stagger className="space-y-6" staggerDelay={0.05}>
-              {COMPARISON_DATA.map((row, i) => (
-                <motion.li
-                  key={`raguard-${i}`}
-                  variants={{ hidden: {opacity:0, x:10}, show: {opacity:1, x:0} }}
-                  className="flex items-center space-x-3 text-foreground font-medium"
-                >
-                  <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                  <span>{row.raguard}</span>
-                </motion.li>
-              ))}
-            </Stagger>
-          </div>
-
-        </div>
+        </FadeUp>
       </div>
     </section>
   )

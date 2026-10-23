@@ -185,7 +185,8 @@ export function UseCases() {
           </div>
 
           {/* ─── 2x2 Interactive Roles Grid ─── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-14 relative z-10">
+          <FadeUp yOffset={16} delay={0.1}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-14 relative z-10">
             {PERSONAS.map((persona) => {
               const isHovered = activePersonaId === persona.id
               const isAnyHovered = activePersonaId !== null
@@ -315,6 +316,7 @@ export function UseCases() {
               )
             })}
           </div>
+        </FadeUp>
 
           {/* ─── Bottom Alignment Banner ─── */}
           <div className="mt-12 md:mt-16 bg-surface/50 backdrop-blur-xs rounded-2xl p-6 border border-border/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">

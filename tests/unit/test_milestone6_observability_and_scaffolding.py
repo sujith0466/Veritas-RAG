@@ -80,3 +80,38 @@ def test_aud015_api_v2_scaffolding_hygiene():
     assert v2_readme.exists(), "backend/api/v2/README.md must exist to document scaffolding reservation"
     content = v2_readme.read_text(encoding="utf-8")
     assert "reserved for future" in content.lower()
+
+
+@pytest.mark.asyncio
+async def test_startup_validator_database_retry_success():
+    """Verify _validate_database retries upon transient connection error and succeeds on recovery."""
+    validator = StartupValidator()
+    with patch.object(type(validator.settings), 'is_testing', False):
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(side_effect=[
+            OSError(-3, 'Temporary failure in name resolution'),
+            MagicMock()
+        ])
+
+        mock_maker = MagicMock()
+        mock_maker.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_maker.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        with patch('backend.database.engine.get_session_factory', return_value=mock_maker),              patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+            await validator._validate_database()
+            assert mock_session.execute.call_count == 2
+            assert mock_sleep.called
+
+
+@pytest.mark.asyncio
+async def test_startup_validator_redis_retry_success():
+    """Verify _validate_redis retries upon transient error and succeeds on recovery."""
+    validator = StartupValidator()
+    with patch.object(type(validator.settings), 'is_testing', False):
+        mock_redis = AsyncMock()
+        mock_redis.ping = AsyncMock(side_effect=[ConnectionError('Connection refused'), True])
+
+        with patch('backend.cache.client.get_redis_client', return_value=mock_redis),              patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+            await validator._validate_redis()
+            assert mock_redis.ping.call_count == 2
+            assert mock_sleep.called

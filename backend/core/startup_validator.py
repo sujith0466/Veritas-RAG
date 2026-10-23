@@ -111,39 +111,87 @@ class StartupValidator:
         self._pass("Environment Configuration")
 
     async def _validate_database(self) -> None:
-        """Verify database connectivity and basic execution."""
+        """Verify database connectivity and basic execution with retry for transient readiness."""
+        import asyncio
         from backend.database.engine import get_session_factory
         session_maker = get_session_factory()
-        try:
-            async with session_maker() as session:
-                await session.execute(text("SELECT 1"))
-            self._pass("Database connection established")
-        except Exception as e:
-            self._fail(f"Database unavailable: {e}")
+        max_attempts = 1 if self.settings.is_testing else 5
+        delay = 0.0 if self.settings.is_testing else 1.0
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                async with session_maker() as session:
+                    await session.execute(text("SELECT 1"))
+                self._pass("Database connection established")
+                return
+            except Exception as e:
+                if attempt < max_attempts:
+                    logger.warning(
+                        "Database connection check failed during startup validation, retrying...",
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        error=str(e),
+                    )
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 1.5, 4.0)
+                else:
+                    self._fail(f"Database unavailable: {e}")
 
     async def _validate_redis(self) -> None:
-        """Verify Redis connectivity if enabled in deployment."""
+        """Verify Redis connectivity if enabled in deployment with retry for transient readiness."""
         if not self.settings.redis.url:
             return  # Not configured/required
 
+        import asyncio
         from backend.cache.client import get_redis_client
-        try:
-            redis = get_redis_client()
-            await redis.ping()
-            self._pass("Redis connection established")
-        except Exception as e:
-            self._fail(f"Redis unavailable: {e}")
+        max_attempts = 1 if self.settings.is_testing else 5
+        delay = 0.0 if self.settings.is_testing else 1.0
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                redis = get_redis_client()
+                await redis.ping()
+                self._pass("Redis connection established")
+                return
+            except Exception as e:
+                if attempt < max_attempts:
+                    logger.warning(
+                        "Redis connection check failed during startup validation, retrying...",
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        error=str(e),
+                    )
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 1.5, 4.0)
+                else:
+                    self._fail(f"Redis unavailable: {e}")
 
     async def _validate_qdrant(self) -> None:
-        """Verify Qdrant is reachable without mutating data."""
+        """Verify Qdrant is reachable without mutating data with retry for transient readiness."""
+        import asyncio
         from backend.vector_db.client import get_qdrant_client
-        try:
-            client = get_qdrant_client()
-            # Just verify we can fetch collections (read-only)
-            await client.get_collections()
-            self._pass("Qdrant reachable and authenticated")
-        except Exception as e:
-            self._fail(f"Qdrant unavailable or authentication failed: {e}")
+        max_attempts = 1 if self.settings.is_testing else 5
+        delay = 0.0 if self.settings.is_testing else 1.0
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                client = get_qdrant_client()
+                # Just verify we can fetch collections (read-only)
+                await client.get_collections()
+                self._pass("Qdrant reachable and authenticated")
+                return
+            except Exception as e:
+                if attempt < max_attempts:
+                    logger.warning(
+                        "Qdrant connection check failed during startup validation, retrying...",
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        error=str(e),
+                    )
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 1.5, 4.0)
+                else:
+                    self._fail(f"Qdrant unavailable or authentication failed: {e}")
 
     def _validate_embeddings(self) -> None:
         """Verify embedding configuration."""

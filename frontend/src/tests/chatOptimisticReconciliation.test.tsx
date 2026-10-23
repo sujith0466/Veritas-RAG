@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ChatMessageBubble } from '@/pages/chat'
 import type { ChatMessage, ChatSession } from '@/stores/chatStore'
@@ -63,9 +63,10 @@ function OptimisticReconciliationHarness({ onFeedbackCall, simulateOldBug = fals
     setActiveSession({
       id: sessionId,
       title: 'Session Title',
-      workspace_id: 'ws-1',
       tenant_id: 'tenant-1',
       user_id: 'user-1',
+      pinned: false,
+      archived: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       messages: [

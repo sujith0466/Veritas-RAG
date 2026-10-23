@@ -34,11 +34,28 @@ async def init_db() -> None:
                 "Could not connect to test database during init_db", error=str(exc)
             )
     else:
-        # Verify connection by executing a quick check
-        try:
-            from sqlalchemy import text
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-                logger.info("Database connection established successfully")
-        except Exception as exc:
-            logger.warning("Database connection failed during init_db", error=str(exc))
+        # Verify connection by executing a quick check with retry for transient readiness
+        import asyncio
+        from sqlalchemy import text
+
+        max_attempts = 1 if settings.is_testing else 5
+        delay = 0.0 if settings.is_testing else 1.0
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                async with engine.connect() as conn:
+                    await conn.execute(text("SELECT 1"))
+                    logger.info("Database connection established successfully")
+                    return
+            except Exception as exc:
+                if attempt < max_attempts:
+                    logger.warning(
+                        "Database connection failed during init_db, retrying...",
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        error=str(exc),
+                    )
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 1.5, 4.0)
+                else:
+                    logger.warning("Database connection failed during init_db", error=str(exc))
