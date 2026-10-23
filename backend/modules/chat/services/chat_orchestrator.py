@@ -192,6 +192,8 @@ class ChatOrchestrator:
                 indices = [c["chunk_index"] for c in parsed_chunks]
                 if indices != list(range(len(parsed_chunks))):
                     is_valid_buffer = False
+                elif not parsed_chunks[-1].get("is_final", False):
+                    is_valid_buffer = False
             else:
                 is_valid_buffer = False
 

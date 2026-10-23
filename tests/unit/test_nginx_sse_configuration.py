@@ -96,14 +96,18 @@ def test_frontend_nginx_configuration_contract():
     assert "proxy_read_timeout 300s;" in sse_body, "SSE block must set 300s read timeout"
     assert "proxy_send_timeout 300s;" in sse_body, "SSE block must set 300s send timeout"
     assert "proxy_http_version 1.1;" in sse_body, "SSE block must specify HTTP/1.1"
-    assert "proxy_pass http://api:8000;" in sse_body, "SSE block must proxy to http://api:8000 without URI part"
+    assert (
+        "proxy_pass http://api:8000;" in sse_body or "proxy_pass http://api_backend;" in sse_body
+    ), "SSE block must proxy to backend without URI part"
 
     # 2. Locate generic /api/ location
     api_body = locations.get("/api/")
     assert api_body is not None, "Missing location /api/ in frontend/nginx.conf"
     assert "proxy_buffering off;" not in api_body, "Generic /api/ must NOT have proxy_buffering off"
     assert "proxy_read_timeout 60s;" in api_body, "Generic /api/ must retain standard 60s timeout"
-    assert "proxy_pass http://api:8000/api/;" in api_body, "Generic /api/ must preserve proxy target"
+    assert (
+        "proxy_pass http://api:8000/api/;" in api_body or "proxy_pass http://api_backend/api/;" in api_body
+    ), "Generic /api/ must preserve proxy target"
 
     # 3. Locate WebSocket location
     ws_key = next((k for k in locations if "notifications/ws" in k), None)

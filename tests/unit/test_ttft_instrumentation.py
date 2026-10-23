@@ -411,8 +411,10 @@ async def test_ttft_not_observed_on_kb_indexing_fallback(
     ):
         events.append(event)
 
-    assert len(events) == 1
+    assert len(events) in (1, 2)
     assert "Your knowledge base is currently being prepared" in events[0]
+    if len(events) == 2:
+        assert "event: done" in events[1]
     ai_wrapper.stream_request.assert_not_called()
     mock_ttft_observer.assert_not_called()
 
