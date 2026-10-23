@@ -268,7 +268,22 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
         info=llm_info,
     )
 
-    # 5. Celery Workers
+    # 5. Embedding Provider Isolation (WP-3D Preflight Guard)
+    embedding_provider_name = getattr(settings.embeddings, "default_provider", "openai")
+    is_embedding_isolated = embedding_provider_name.lower() in ("local", "mock", "offline")
+    deps["embedding_provider"] = DependencyHealth(
+        name="embedding_provider",
+        status="healthy" if is_embedding_isolated else "degraded",
+        latency_ms=0.0,
+        error=None if is_embedding_isolated else f"Non-isolated external embedding provider: {embedding_provider_name}",
+        info={
+            "default_provider": embedding_provider_name,
+            "is_isolated": is_embedding_isolated,
+            "local_model": getattr(settings.embeddings, "local_model", "all-MiniLM-L6-v2"),
+        },
+    )
+
+    # 6. Celery Workers
     if detailed:
         t0 = time.time()
         celery_info = None

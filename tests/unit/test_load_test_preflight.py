@@ -15,14 +15,18 @@ import pytest
 
 from tests.performance.load.config import LoadTestConfig
 from tests.performance.load.preflight import (
+    MalformedTargetURLError,
     MissingDisposableStoreConfirmationError,
     MissingOperatorMockConfirmationError,
     MissingTargetOptInError,
     PreflightError,
+    ServerEmbeddingIsolationError,
     ServerEnvironmentRejectionError,
     ServerProviderAttestationError,
+    TargetMismatchError,
     run_preflight_checks,
     validate_operator_opt_ins,
+    verify_server_embedding_isolation,
     verify_server_environment,
     verify_server_mock_provider_attestation,
 )
@@ -295,3 +299,151 @@ def test_fully_valid_preflight_permits_harness_initialization_without_load():
     assert result["target_host"] == "http://target-api:8000"
     assert result["environment"] == "development"
     assert result["mock_attested"] is True
+
+
+def test_target_mismatch_between_cli_and_env_aborts():
+    """Verify that disagreement between Locust --host and PERF_TARGET_HOST fails closed."""
+    cfg = LoadTestConfig(
+        host="http://localhost:8001",
+        confirm_target_url=True,
+        confirm_disposable_stores=True,
+        confirm_mock_provider=True,
+    )
+    with pytest.raises(TargetMismatchError, match="Target mismatch detected"):
+        validate_operator_opt_ins(cfg, cli_host="http://localhost:8000")
+
+
+def test_matching_cli_and_env_targets_succeed():
+    """Verify that matching --host and PERF_TARGET_HOST pass validation."""
+    cfg = LoadTestConfig(
+        host="http://localhost:8001/",
+        confirm_target_url=True,
+        confirm_disposable_stores=True,
+        confirm_mock_provider=True,
+    )
+    effective = validate_operator_opt_ins(cfg, cli_host="http://localhost:8001")
+    assert effective == "http://localhost:8001"
+
+
+def test_malformed_target_url_aborts():
+    """Verify that a malformed target URL lacking http/https scheme aborts."""
+    cfg = LoadTestConfig(
+        host="not-a-valid-url",
+        confirm_target_url=True,
+        confirm_disposable_stores=True,
+        confirm_mock_provider=True,
+    )
+    with pytest.raises(MalformedTargetURLError, match="malformed"):
+        validate_operator_opt_ins(cfg)
+
+
+def test_mock_provider_circuit_open_aborts():
+    """Verify that OPEN circuit breaker for mock provider causes preflight abort."""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "status": "unhealthy",
+        "dependencies": [
+            {
+                "name": "llm_provider",
+                "info": {
+                    "circuit_states": {
+                        "mock": "OPEN",
+                    },
+                },
+            }
+        ],
+    }
+    mock_client.get.return_value = mock_resp
+
+    with pytest.raises(ServerProviderAttestationError, match="circuit breaker is OPEN"):
+        verify_server_mock_provider_attestation(
+            "http://target-api:8000",
+            admin_token="valid-admin-token",
+            client=mock_client,
+        )
+
+
+def test_mock_provider_circuit_half_open_accepted():
+    """Verify that HALF_OPEN canary trial state for mock provider is accepted."""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "status": "healthy",
+        "dependencies": [
+            {
+                "name": "llm_provider",
+                "info": {
+                    "circuit_states": {
+                        "mock": "HALF_OPEN",
+                    },
+                },
+            }
+        ],
+    }
+    mock_client.get.return_value = mock_resp
+
+    res = verify_server_mock_provider_attestation(
+        "http://target-api:8000",
+        admin_token="valid-admin-token",
+        client=mock_client,
+    )
+    assert res is True
+
+
+def test_server_embedding_isolation_external_provider_aborts():
+    """Verify that live external embedding provider (OpenAI/Cohere) aborts without override."""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "status": "degraded",
+        "dependencies": [
+            {
+                "name": "embedding_provider",
+                "info": {
+                    "default_provider": "openai",
+                    "is_isolated": False,
+                },
+            }
+        ],
+    }
+    mock_client.get.return_value = mock_resp
+
+    with pytest.raises(ServerEmbeddingIsolationError, match="live external embedding provider"):
+        verify_server_embedding_isolation(
+            "http://target-api:8000",
+            admin_token="valid-admin-token",
+            client=mock_client,
+            allow_unverified=False,
+        )
+
+
+def test_server_embedding_isolation_local_provider_passes():
+    """Verify that local/mock embedding provider passes preflight verification."""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "status": "healthy",
+        "dependencies": [
+            {
+                "name": "embedding_provider",
+                "info": {
+                    "default_provider": "local",
+                    "is_isolated": True,
+                },
+            }
+        ],
+    }
+    mock_client.get.return_value = mock_resp
+
+    res = verify_server_embedding_isolation(
+        "http://target-api:8000",
+        admin_token="valid-admin-token",
+        client=mock_client,
+        allow_unverified=False,
+    )
+    assert res is True

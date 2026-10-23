@@ -27,6 +27,7 @@ class LoadTestConfig:
     confirm_target_url: bool = os.getenv("PERF_CONFIRM_TARGET_URL", "false").lower() == "true"
     confirm_disposable_stores: bool = os.getenv("PERF_CONFIRM_DISPOSABLE_STORES", "false").lower() == "true"
     confirm_mock_provider: bool = os.getenv("PERF_CONFIRM_MOCK_PROVIDER", "false").lower() == "true"
+    confirm_embedding_isolation: bool = os.getenv("PERF_CONFIRM_EMBEDDING_ISOLATION", "false").lower() == "true"
 
     # Attestation Credentials (optional admin token to query trusted detailed health endpoint)
     admin_token: str | None = os.getenv("PERF_ADMIN_TOKEN")

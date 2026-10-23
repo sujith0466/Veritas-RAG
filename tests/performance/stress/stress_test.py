@@ -13,8 +13,11 @@ import asyncio
 import json
 import os
 import subprocess
+import sys
 import time
 from typing import Any
+import urllib.parse
+import argparse
 
 import structlog
 
@@ -168,3 +171,119 @@ class ContainerMemoryWatchdog:
                 )
 
             await asyncio.sleep(self.poll_interval)
+
+
+class StressTestConfigError(Exception):
+    """Raised when stress test CLI arguments or safety configurations are invalid."""
+
+
+def parse_args(args: list[str] | tuple[str, ...] | None = None) -> argparse.Namespace:
+    """Parse and validate command-line arguments for the stress test harness.
+
+    Enforces strict argument parsing (rejects unknown options) and sets up safe defaults.
+    """
+    parser = argparse.ArgumentParser(
+        description="Veritas RAG Saturation & Queue Stress Testing Harness."
+    )
+    parser.add_argument(
+        "--target",
+        type=str,
+        required=True,
+        help="Target base URL of the dedicated benchmark API instance (e.g. http://localhost:8001).",
+    )
+    parser.add_argument(
+        "--container",
+        type=str,
+        default="veritas-rag-api-1",
+        help="Target Docker container name to monitor for memory limit and usage.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Perform preflight and memory discovery validation without generating stress load.",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        default=False,
+        help="Validate container limits and exit immediately without generating traffic.",
+    )
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        default=False,
+        help="Explicit operator authorization required to generate live saturation/stress traffic.",
+    )
+
+    return parser.parse_args(args)
+
+
+def validate_stress_test_config(args: argparse.Namespace) -> dict[str, Any]:
+    """Validate target URL, discover container limits, and enforce safety boundaries.
+
+    Returns:
+        Dictionary summarizing validated stress test configuration.
+
+    Raises:
+        StressTestConfigError: Upon malformed target URL or unmetered container.
+    """
+    target = args.target.strip()
+    parsed = urllib.parse.urlparse(target)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise StressTestConfigError(
+            f"CRITICAL SAFETY ABORT: Malformed target URL '{target}'. "
+            "Must be an HTTP or HTTPS URL with explicit host and port."
+        )
+
+    # Discover container limits (fails closed if unmetered or container not found)
+    try:
+        limit_bytes = discover_container_memory_limit(args.container)
+    except MemoryDiscoveryFailure as exc:
+        raise StressTestConfigError(str(exc)) from exc
+
+    abort_threshold = calculate_memory_abort_threshold(limit_bytes, 0.90)
+
+    return {
+        "target": target,
+        "container": args.container,
+        "memory_limit_bytes": limit_bytes,
+        "abort_threshold_bytes": abort_threshold,
+        "execute_authorized": args.execute,
+    }
+
+
+def main(args: list[str] | tuple[str, ...] | None = None) -> int:
+    """Main CLI entry point for stress testing harness."""
+    parsed_args = parse_args(args)
+
+    try:
+        config = validate_stress_test_config(parsed_args)
+    except Exception as exc:
+        logger.critical("Stress test configuration validation failed", error=str(exc))
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    logger.info(
+        "Stress test configuration validated",
+        target=config["target"],
+        container=config["container"],
+        limit_bytes=config["memory_limit_bytes"],
+        abort_threshold=config["abort_threshold_bytes"],
+    )
+
+    if parsed_args.validate_only or parsed_args.dry_run or not parsed_args.execute:
+        logger.info(
+            "Stress test validation complete. Live traffic not executed (requires explicit --execute flag)."
+        )
+        print("Stress test validation passed (safe dry-run / validate-only mode).")
+        return 0
+
+    # Live traffic generation is strictly gated
+    raise RuntimeError(
+        "Live saturation/stress execution is halted pending separate operator authorization."
+    )
+
+
+if __name__ == "__main__":
+    sys.exit(main())

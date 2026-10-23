@@ -15,8 +15,32 @@ import time
 from typing import Any
 import uuid
 
-from locust import HttpUser, between, events, task
-from locust.runners import MasterRunner
+import httpx
+try:
+    from locust import HttpUser, between, events, task
+    from locust.runners import MasterRunner
+except ImportError:
+    # Graceful fallback when locust is not installed in the local environment (e.g. during unit tests)
+    class HttpUser:  # type: ignore[no-redef]
+        pass
+
+    def between(min_wait: float = 1.0, max_wait: float = 3.0):  # type: ignore[misc]
+        return lambda: min_wait
+
+    def task(weight: int = 1):  # type: ignore[misc]
+        return lambda func: func
+
+    class _MockEventHook:
+        def add_listener(self, func):
+            return func
+
+    class _MockEvents:
+        test_start = _MockEventHook()
+        request = _MockEventHook()
+        test_stop = _MockEventHook()
+
+    events = _MockEvents()  # type: ignore[assignment]
+    MasterRunner = type("MasterRunner", (), {})  # type: ignore[misc,assignment]
 
 from tests.performance.load.config import (
     LoadTestConfig,
@@ -43,12 +67,16 @@ def on_test_start(environment: Any, **kwargs: Any) -> None:
     global _test_start_time, _raw_rest_latencies, _raw_ttft_latencies
     global _total_sse_streams, _dropped_sse_streams, _http_5xx_count, _total_requests
 
-    target_host = environment.host or os.getenv("PERF_TARGET_HOST")
+    cli_host = environment.host
+    env_host = os.getenv("PERF_TARGET_HOST")
+    target_host = cli_host or env_host
     config = LoadTestConfig(host=target_host)
 
     # Fail-closed safety preflight before generating any load traffic
     try:
-        run_preflight_checks(config)
+        run_preflight_checks(config, cli_host=cli_host)
+        if not environment.host and target_host:
+            environment.host = target_host
     except Exception as exc:
         logger.critical("SAFETY PREFLIGHT FAILED: Halting Locust test runner immediately: %s", exc)
         if environment.runner:
@@ -323,3 +351,121 @@ class VeritasUser(HttpUser):
                 doc_resp.success()
             else:
                 doc_resp.failure(f"List documents failed: {doc_resp.status_code}")
+
+
+class CleanupError(Exception):
+    """Raised when benchmark fixture cleanup fails or cannot be executed safely."""
+
+
+def run_targeted_cleanup(
+    host: str | None = None,
+    qa_email: str | None = None,
+    qa_password: str | None = None,
+    run_id: str | None = None,
+    session_ids: list[str] | tuple[str, ...] | None = None,
+    client: httpx.Client | None = None,
+) -> dict[str, Any]:
+    """Safely delete only test-created benchmark sessions for the authenticated QA user.
+
+    Strict ownership and safety isolation:
+    1. Authenticates as the configured QA user (qa@raguard.ai).
+    2. Deletions execute exclusively via authenticated DELETE /api/v1/chat/sessions/{id}.
+       The backend repository enforces tenant and user ownership matching the JWT token.
+    3. If explicit session_ids are provided:
+       Deletes only those specific session IDs.
+    4. If session_ids is None:
+       Fetches GET /api/v1/chat/sessions (which returns only sessions owned by the QA user).
+       Filters sessions whose title matches 'PERF_FIXTURE_' (and run_id if specified).
+    5. Never touches sessions of other users or tenants.
+    6. Fail-closed: raises CleanupError if authentication fails or target cannot be reached.
+    """
+    config = LoadTestConfig(host=host) if host else LoadTestConfig()
+    target_host = host or config.host
+    if not target_host:
+        raise CleanupError("Target host must be specified for targeted cleanup.")
+
+    email = qa_email or config.qa_email
+    password = qa_password or config.qa_password
+    clean_host = target_host.rstrip("/")
+
+    logger.info("Executing targeted benchmark fixture cleanup for %s (email: %s)", clean_host, email)
+
+    should_close_client = False
+    if client is None:
+        client = httpx.Client(timeout=10.0)
+        should_close_client = True
+
+    deleted_sessions: list[str] = []
+    failed_sessions: list[str] = []
+
+    try:
+        # 1. Authenticate as QA User
+        login_url = f"{clean_host}/api/v1/auth/login"
+        try:
+            login_resp = client.post(login_url, json={"email": email, "password": password})
+        except Exception as exc:
+            raise CleanupError(f"Target host unreachable during cleanup: {exc}") from exc
+
+        if login_resp.status_code != 200:
+            raise CleanupError(f"Authentication failed during cleanup: HTTP {login_resp.status_code}")
+
+        token_data = login_resp.json().get("data", {})
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise CleanupError("No access token returned during cleanup authentication.")
+
+        auth_headers = {"Authorization": f"Bearer {access_token}"}
+
+        # 2. Determine target session IDs
+        target_ids: list[str] = []
+        if session_ids:
+            target_ids = list(session_ids)
+        else:
+            # Fetch QA user's sessions
+            list_url = f"{clean_host}/api/v1/chat/sessions"
+            try:
+                list_resp = client.get(list_url, headers=auth_headers)
+            except Exception as exc:
+                raise CleanupError(f"Failed to query chat sessions during cleanup: {exc}") from exc
+
+            if list_resp.status_code != 200:
+                raise CleanupError(f"Failed to list chat sessions during cleanup: HTTP {list_resp.status_code}")
+
+            raw_sessions = list_resp.json().get("data", [])
+            expected_prefix = f"PERF_FIXTURE_{run_id}" if run_id else "PERF_FIXTURE_"
+            for s in raw_sessions:
+                if isinstance(s, dict):
+                    title = str(s.get("title", ""))
+                    sid = s.get("id")
+                    if title.startswith(expected_prefix) and sid:
+                        target_ids.append(sid)
+
+        # 3. Safely delete matching sessions
+        for sid in target_ids:
+            del_url = f"{clean_host}/api/v1/chat/sessions/{sid}"
+            try:
+                del_resp = client.delete(del_url, headers=auth_headers)
+                if del_resp.status_code in (200, 204):
+                    deleted_sessions.append(sid)
+                else:
+                    failed_sessions.append(sid)
+                    logger.warning("Failed to delete fixture session %s: HTTP %s", sid, del_resp.status_code)
+            except Exception as exc:
+                failed_sessions.append(sid)
+                logger.warning("Exception deleting fixture session %s: %s", sid, exc)
+
+        logger.info(
+            "Targeted fixture cleanup completed: deleted=%d, failed=%d",
+            len(deleted_sessions),
+            len(failed_sessions),
+        )
+        return {
+            "status": "COMPLETED",
+            "deleted_count": len(deleted_sessions),
+            "deleted_sessions": deleted_sessions,
+            "failed_count": len(failed_sessions),
+            "failed_sessions": failed_sessions,
+        }
+    finally:
+        if should_close_client:
+            client.close()
