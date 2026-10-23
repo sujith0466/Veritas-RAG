@@ -41,6 +41,7 @@ from backend.core.events import get_dispatcher
 from backend.core.exceptions import get_exception_handlers
 from backend.core.logging import RequestLoggingMiddleware, configure_logging
 from backend.core.middleware import (
+    AdmissionControlMiddleware,
     CorrelationIDMiddleware,
     ObservabilityMiddleware,
     SecurityHeadersMiddleware,
@@ -203,6 +204,9 @@ def create_app() -> FastAPI:
         SSEConcurrencyLimiterMiddleware,
         max_concurrent_streams=settings.security.max_concurrent_sse_streams,
     )
+
+    # Crash-Safe Admission Control Middleware (rejects mutating requests during maintenance)
+    app.add_middleware(AdmissionControlMiddleware)
 
     # Request/response logging (innermost — has access to correlation ID and client IP)
     app.add_middleware(

@@ -70,7 +70,7 @@ def enforce_workspace_quota(
                         mat = payload.get("max_answer_tokens")
                         if not isinstance(mat, int) or mat <= 0:
                             raise HTTPException(
-                                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                                 detail="max_answer_tokens must be a positive integer.",
                             )
                         max_output = mat

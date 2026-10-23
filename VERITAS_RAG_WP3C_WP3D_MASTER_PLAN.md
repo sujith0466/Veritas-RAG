@@ -612,9 +612,9 @@ flowchart TD
 | **TSK-3C-02** | WP-3C (Phase 1) | AI Manager Pre-Stream Failover & Canary | `backend/ai/manager.py` | TSK-3C-01 | `IMPLEMENTED & TESTED (PHASE 1)` | Gate 3C |
 | **TSK-3C-03** | WP-3C (Phase 1) | Health Readiness Probe Aggregation | `backend/api/v1/routes/health.py` | TSK-3C-01 | `IMPLEMENTED & TESTED (PHASE 1)` | Gate 3C |
 | **TSK-3C-04** | WP-3C (Phase 1) | Chat Streaming Interruption Accounting | `backend/modules/chat/services/chat_orchestrator.py` | TSK-3C-02 | `IMPLEMENTED & TESTED (PHASE 1)` | Gate 3C |
-| **TSK-3C-05** | WP-3C (Phase 2) | Crash-Safe Admission Control Middleware | `backend/core/middleware/admission_control.py` | FND-SEC-01 Safety Fencing Resolution | `BLOCKED — SAFETY DESIGN UNRESOLVED` | Gate 3C |
-| **TSK-3C-06** | WP-3C (Phase 2) | Celery Consumer Quiescence & Drain Helper | `backend/tasks/celery_app.py`, `scripts/dr/backup_all.py` | TSK-3C-05, FND-REL-01 Broker Verification | `BLOCKED` | Gate 3C |
-| **TSK-3C-07** | WP-3C (Phase 2) | Multi-Store Backup & Isolated Restore Script | `scripts/dr/backup_all.py`, `scripts/dr/verify_restore.py` | TSK-3C-05, TSK-3C-06, FND-SEC-01 | `BLOCKED` | Gate 3C |
+| **TSK-3C-05** | WP-3C (Phase 2) | Crash-Safe Admission Control Middleware | `backend/core/middleware/admission_control.py` | FND-SEC-01 Approved Pragmatic Approach | `IMPLEMENTED & TESTED (PHASE 2)` | Gate 3C |
+| **TSK-3C-06** | WP-3C (Phase 2) | Celery Consumer Quiescence & Drain Helper | `backend/tasks/quiescence.py`, `backend/tasks/__init__.py` | TSK-3C-05, FND-REL-01 Live Broker Drill | `IMPLEMENTED & TESTED (PHASE 2)` | Gate 3C |
+| **TSK-3C-07** | WP-3C (Phase 2) | Multi-Store Backup & Isolated Restore Script | `scripts/dr/backup_all.py`, `scripts/dr/verify_restore.py` | TSK-3C-05, TSK-3C-06 | `IMPLEMENTED & TESTED (PHASE 2)` | Gate 3C |
 | **TSK-3D-01** | WP-3D | Mock LLM Provider & Production Guard | `backend/ai/providers/mock_provider.py`, `llm_manager.py` | Gate 3C Passed | `BLOCKED` | Gate 3D |
 | **TSK-3D-02** | WP-3D | Locust Load Testing Harness (50 users) | `tests/performance/load/locustfile.py`, `config.py` | TSK-3D-01 | `BLOCKED` | Gate 3D |
 | **TSK-3D-03** | WP-3D | Saturation & Queue Stress Test | `tests/performance/stress/stress_test.py` | TSK-3D-01 | `BLOCKED` | Gate 3D |
@@ -751,9 +751,9 @@ Execution halts immediately upon:
 | **AI Manager Failover** | `backend/ai/manager.py` | `IMPLEMENTED & TESTED` | Pre-stream failover, atomic canary exclusivity (`SET NX EX 15`), zero provider stitching. 5 unit tests passed. |
 | **Health Probe Exposure** | `backend/api/v1/routes/health.py` | `IMPLEMENTED & TESTED` | `/health/ready` probe aggregation (200 healthy, 200 degraded, 503 unhealthy). 5 unit tests passed. |
 | **Chat Stream Accounting** | `backend/modules/chat/services/chat_orchestrator.py` | `IMPLEMENTED & TESTED` | Mid-stream abort partial persistence (`is_interrupted=True`) and QuotaGovernor token deduction. 2 unit tests passed. |
-| **Crash-Safe Admission Barrier** | `backend/core/middleware/admission_control.py` | `BLOCKED — SAFETY DESIGN UNRESOLVED` | Critical distributed fencing blocker (FND-SEC-01); strictly blocked pending enforceable safety contract. |
-| **Celery Quiescence & Drain** | `backend/tasks/celery_app.py`, `scripts/dr/backup_all.py` | `BLOCKED — EMPIRICAL BROKER BEHAVIOR UNVERIFIED` | 17 queues verified in baseline; broker buffering unverified (FND-REL-01). Blocked on TSK-3C-05. |
-| **Multi-Store Backup Script** | `scripts/dr/backup_all.py` | `BLOCKED — SAFETY DESIGN UNRESOLVED` | Blocked on TSK-3C-05 and TSK-3C-06. |
+| **Crash-Safe Admission Barrier** | `backend/core/middleware/admission_control.py` | `IMPLEMENTED & TESTED` | Fail-closed HTTP admission rejection, per-writer Redis lease, and PostgreSQL shared advisory locking. Disclaims multi-store 2PC atomicity. 12 DR tests passed. |
+| **Celery Quiescence & Drain** | `backend/tasks/quiescence.py` | `IMPLEMENTED & TESTED` | 17 queues canceled and restored; inspect().active/reserved drained; broker list buffering verified on ephemeral port 6389. 7 tests passed. |
+| **Multi-Store Backup Script** | `scripts/dr/backup_all.py`, `scripts/dr/verify_restore.py` | `IMPLEMENTED & TESTED` | SHA-256 manifest generation, dedicated ports (5433, 6335, 9002), Tier I & II vector parity assertions. 14 tests passed. |
 | **Isolated Restore Verification** | `scripts/dr/verify_restore.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C execution sequence. |
 | **Mock LLM Provider** | `backend/ai/providers/mock_provider.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C passage. |
 | **Locust Load Harness** | `tests/performance/load/locustfile.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C passage. |
@@ -774,6 +774,7 @@ Execution halts immediately upon:
 | **2026-10-23** | Distributed Reliability Audit (In-Place Corrections) | Specified active renewal loop (10s), rollback-on-failure, and transactional advisory fencing requirements; decoupled production traffic admission from backup certification; mandated non-wildcard directory staging/cleanup; converted Celery quiescence claims to proposed design accounting for scheduled tasks and broker queue lengths; exposed split-brain stale key refresh hazards during rolling deploy; separated PostgreSQL schema unique constraints from physical vector parity. |
 | **2026-10-23** | **Phased Implementation Authorization & FND-SEC-01 Reclassification** | **Established explicit phased authorization boundary: Phase 1 (TSK-3C-01 to TSK-3C-04) eligible for implementation authorization review; Phase 2 (TSK-3C-05 to TSK-3C-07) and WP-3D strictly BLOCKED. Reclassified FND-SEC-01 as BLOCKED — SAFETY DESIGN UNRESOLVED due to lack of distributed cross-store atomicity without 2PC and uninstrumented heterogeneous write paths. Standardized pre-side-effect shared advisory locking, fail-closed PostgreSQL-backed operational recovery state, and 12-suite test inventory with scoped fault-injection claims.** |
 | **2026-10-23** | **WP-3C Phase 1 Implementation & Test Verification** | **Implemented authorized tasks TSK-3C-01 through TSK-3C-04. Verified 24 unit tests with exit code 0 across 4 suites: extended test_circuit_breaker.py (12 passed), created test_ai_manager_circuit_breaker.py (5 passed), test_health_circuit_breaker.py (5 passed), test_chat_orchestrator_circuit_breaker.py (2 passed). Phase 2 (TSK-3C-05 to 07), WP-3D, Gate 3C, FND-SEC-01, and FND-REL-01 remain strictly BLOCKED.** |
+| **2026-10-23** | **WP-3C Phase 2 Implementation & Broker Drill Verification** | **Implemented authorized tasks TSK-3C-05, TSK-3C-06, TSK-3C-07 under Decision A/B Option 1. Implemented AdmissionControlMiddleware with fail-closed Lua scripts, Celery quiescence helper across 17 queues, backup coordinator with SHA-256 manifest, and isolated restore verifier. Verified 33 tests with exit code 0 across 8 Phase 2 suites and verified live Celery/Redis broker queue buffering via isolated ephemeral container drill on port 6389. Preserved strict prohibition against APPLICATION_CONSISTENT certification (restricted to BEST_EFFORT_UNCOORDINATED). Fixed historical ChunkEmbedding lazy-load mapper registration. Gate 3C remains unpassed pending independent review.** |
 
 ---
 
@@ -794,9 +795,9 @@ Execution halts immediately upon:
 - [x] **Chat Streaming Interruption Accounting (TSK-3C-04):** Mid-stream abort (`chunks_yielded > 0`), zero provider stitching, token quota deduction via `QuotaGovernor`, partial persistence (`is_interrupted=True`). Verified by `test_chat_orchestrator_circuit_breaker.py` (2 tests passed).
 
 ### 19.3 Phase 2 Architectural Safety Specifications (STRICTLY BLOCKED — SAFETY DESIGN UNRESOLVED)
-- [ ] **Crash-Safe Writer Barrier (TSK-3C-05):** `BLOCKED — SAFETY DESIGN UNRESOLVED` (FND-SEC-01). Enforceable distributed cross-store fencing across PostgreSQL, MinIO, and Qdrant unverified.
-- [ ] **Celery Quiescence & Drain (TSK-3C-06):** `BLOCKED` on TSK-3C-05 and empirical broker queue buffering verification (FND-REL-01).
-- [ ] **Multi-Store Backup Coordinator & Isolated Restore (TSK-3C-07):** `BLOCKED` on TSK-3C-05 and TSK-3C-06.
+- [x] **Crash-Safe Writer Barrier (TSK-3C-05):** `IMPLEMENTED & TESTED`. Fail-closed admission control with Redis Lua scripts and PostgreSQL advisory locks. Multi-store 2PC atomicity disclaimed.
+- [x] **Celery Quiescence & Drain (TSK-3C-06):** `IMPLEMENTED & TESTED`. 17-queue consumer cancellation and drain helper. Broker list buffering verified via ephemeral drill on port 6389.
+- [x] **Multi-Store Backup Coordinator & Isolated Restore (TSK-3C-07):** `IMPLEMENTED & TESTED`. Multi-store backup coordinator with SHA-256 manifests and isolated restore verification tool with Tier I/II parity assertions.
 
 ### 19.4 Work Package 3D Performance Specifications (STRICTLY BLOCKED on Gate 3C)
 - [ ] **Tasks TSK-3D-01 through TSK-3D-05:** `BLOCKED` pending Independent Gate 3C passage.

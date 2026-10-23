@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base import BaseModel
+from backend.modules.chunking.models.chunk import DocumentChunk  # noqa: F401
 
 
 class ChunkEmbedding(BaseModel):
