@@ -197,34 +197,75 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
         info=storage_res
     )
 
-    # 4. LLM Provider
-    # Lazy import to avoid circular dependencies
+    # 4. LLM Provider & Circuit Breaker Aggregation
     from backend.ai.factory import create_llm_provider
     from backend.ai.interfaces.llm_provider import LLMProvider  # noqa: TC001
+    from backend.modules.reliability.circuit_breaker.engine import CircuitBreakerEngine
+    from backend.modules.reliability.circuit_breaker.states import CircuitState
 
     t0 = time.time()
     llm_info = None
     llm_ok = False
     llm_err = None
+    provider_status = "healthy"
+    provider_states: dict[str, str] = {}
+
+    settings = get_settings()
+    priority_list = getattr(settings.ai, "priority_list", []) or []
+    cb_engine = CircuitBreakerEngine()
+
     try:
-        # get_llm_provider returns the configured provider
-        llm: LLMProvider = create_llm_provider()
-        llm_ok = await llm.health_check()
-        if detailed:
-            # Get class name as provider name
-            llm_info = {
-                "provider_name": llm.__class__.__name__
-            }
+        for p in priority_list:
+            st = await cb_engine.check_state("system", p)
+            provider_states[p] = st.value
+
+        if priority_list:
+            primary_p = priority_list[0]
+            primary_st = provider_states.get(primary_p, CircuitState.CLOSED.value)
+            all_open = all(st == CircuitState.OPEN.value for st in provider_states.values())
+            any_available = any(st != CircuitState.OPEN.value for st in provider_states.values())
+
+            if all_open:
+                provider_status = "unhealthy"
+                llm_ok = False
+                llm_err = "All configured AI providers have tripped circuit breakers (OPEN)"
+            elif primary_st == CircuitState.OPEN.value and any_available:
+                provider_status = "degraded"
+                llm_ok = True
+            else:
+                provider_status = "healthy"
+                llm_ok = True
+        else:
+            provider_status = "healthy"
+            llm_ok = True
+
+        if llm_ok and provider_status != "degraded":
+            try:
+                llm: LLMProvider = create_llm_provider()
+                llm_ok = await llm.health_check()
+                if not llm_ok:
+                    provider_status = "unhealthy"
+            except Exception as exc:
+                llm_err = str(exc)
+                llm_ok = False
+                provider_status = "unhealthy"
+
+        llm_info = {
+            "provider_status": provider_status,
+            "circuit_states": provider_states,
+        }
     except Exception as exc:
         llm_err = str(exc)
+        provider_status = "unhealthy"
+        llm_ok = False
 
     llm_latency = (time.time() - t0) * 1000
     deps["llm_provider"] = DependencyHealth(
         name="llm_provider",
-        status="healthy" if llm_ok else "unhealthy",
+        status=provider_status if (llm_ok or provider_status == "degraded") else "unhealthy",
         latency_ms=round(llm_latency, 2) if llm_ok else None,
         error=llm_err,
-        info=llm_info
+        info=llm_info,
     )
 
     # 5. Celery Workers
@@ -268,16 +309,16 @@ async def _check_dependencies(detailed: bool = False) -> dict[str, DependencyHea
     summary="Readiness probe",
     description=(
         "Readiness probe. Returns 200 when all required dependencies are available. "
-        "Returns 503 when any required dependency (database, cache, qdrant) is unavailable. "
-        "A 503 removes this instance from the load balancer rotation."
+        "Returns 200 with degraded status when primary AI provider is OPEN but fallback is available. "
+        "Returns 503 when any required dependency or all AI providers are unavailable."
     ),
 )
 async def readiness() -> JSONResponse:
-    """Readiness probe — checks dependency availability."""
+    """Readiness probe — checks dependency availability and AI provider circuit breaker aggregation."""
     settings = get_settings()
     deps_dict = await _check_dependencies(detailed=False)
 
-    # PostgreSQL, Redis, Qdrant, Object Storage must be healthy for readiness
+    # Core infra dependencies required for readiness
     required_deps = ["postgresql", "redis", "qdrant", "object_storage"]
     is_ready = True
     for req in required_deps:
@@ -285,15 +326,32 @@ async def readiness() -> JSONResponse:
             is_ready = False
             break
 
+    # AI provider circuit breaker aggregation
+    llm_dep = deps_dict.get("llm_provider")
+    provider_status = "healthy"
+    if llm_dep:
+        if llm_dep.status == "unhealthy":
+            is_ready = False
+            provider_status = "unhealthy"
+        elif llm_dep.status == "degraded":
+            provider_status = "degraded"
+        else:
+            provider_status = "healthy"
+
+    overall_status = "ready" if is_ready else "not_ready"
+    if is_ready and provider_status == "degraded":
+        overall_status = "degraded"
+
     payload = {
-        "status": "ready" if is_ready else "not_ready",
+        "status": overall_status,
         "version": settings.app.version,
         "timestamp": datetime.now(UTC).isoformat(),
+        "provider_status": provider_status,
         "dependencies": {k: v.status for k, v in deps_dict.items()},
     }
 
     if not is_ready:
-        logger.warning("Readiness check failed", dependencies=payload["dependencies"])
+        logger.warning("Readiness check failed", dependencies=payload["dependencies"], provider_status=provider_status)
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content=payload,

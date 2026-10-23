@@ -700,6 +700,8 @@ class ChatOrchestrator:
             raise
         except Exception as e:
             logger.error("AI Wrapper stream failed", error=str(e))
+            if full_assistant_text.strip():
+                is_interrupted = True
 
             from backend.ai.wrapper.service import WorkspaceValidationError
             if isinstance(e, WorkspaceValidationError):
@@ -799,7 +801,7 @@ class ChatOrchestrator:
                     "reliability_score": reliability_score,
                 }
 
-                if is_interrupted and settings.features.enable_partial_persistence:
+                if is_interrupted:
                     metadata.update({
                         "status": "PARTIAL",
                         "is_interrupted": True,
@@ -808,17 +810,12 @@ class ChatOrchestrator:
 
                 if terminal_error:
                     metadata.update({
-                        "status": "ERROR",
+                        "status": "PARTIAL" if is_interrupted else "ERROR",
                         "error": terminal_error
                     })
 
-                # Only write to DB if we got text without terminal errors, or if partial persistence is enabled on interruption
-                should_persist = False
-                if not terminal_error:
-                    if full_assistant_text.strip() and not is_interrupted:
-                        should_persist = True
-                    elif is_interrupted and settings.features.enable_partial_persistence and full_assistant_text.strip():
-                        should_persist = True
+                # TSK-3C-04: Persist partial message on mid-stream interruption
+                should_persist = bool(full_assistant_text.strip())
 
                 if should_persist:
                     async def _persist():
@@ -843,9 +840,14 @@ class ChatOrchestrator:
                     except Exception as p_exc:
                         logger.error("Failed to persist assistant chat message within timeout", error=str(p_exc))
 
-            # 4. Analytics & Quota Usage
-            if not is_interrupted and not terminal_error:
-                outcome = "SUCCESS" if is_grounded else "UNGROUNDED"
+            # 4. Analytics & Quota Usage (TSK-3C-04: Deduct quota on stream interruption)
+            should_record_quota = bool(full_assistant_text.strip()) or (not is_interrupted and not terminal_error)
+            if should_record_quota:
+                outcome = (
+                    "INTERRUPTED"
+                    if is_interrupted
+                    else ("ERROR" if terminal_error else ("SUCCESS" if is_grounded else "UNGROUNDED"))
+                )
                 try:
                     from backend.modules.analytics.models.query_analytics import (
                         QueryAnalyticsRecord,
@@ -894,15 +896,16 @@ class ChatOrchestrator:
                                 from backend.modules.analytics.services.pricing import ModelPricingService
                                 pricing_service = ModelPricingService()
 
+                                llm_prov = getattr(self, "llm_provider", None)
                                 resolved_model = (
                                      final_wrapper_metadata.get("model")
                                      or final_wrapper_metadata.get("model_name")
-                                     or getattr(self.llm_provider, "model_name", None)
+                                     or getattr(llm_prov, "model_name", None)
                                      or "default"
                                 )
                                 resolved_provider = (
                                      final_wrapper_metadata.get("provider")
-                                     or getattr(self.llm_provider, "provider", None)
+                                     or getattr(llm_prov, "provider", None)
                                      or "default"
                                 )
 
