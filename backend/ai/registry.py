@@ -39,12 +39,14 @@ class ProviderRegistry:
         """Retrieve the provider class for the given name without instantiating it."""
         if not cls._registry:
             from backend.ai.providers.gemini import GeminiProvider
+            from backend.ai.providers.mock_provider import MockLLMProvider
             from backend.ai.providers.openrouter import OpenRouterProvider
             from backend.ai.providers.v1_engine.provider import V1EngineProvider
 
             cls.register("gemini", GeminiProvider)
             cls.register("openrouter", OpenRouterProvider)
             cls.register("v1_engine", V1EngineProvider)
+            cls.register("mock", MockLLMProvider)
         return cls._registry.get(name.strip().lower())
 
     @classmethod

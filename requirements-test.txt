@@ -1,0 +1,2 @@
+# Veritas RAG - Work Package 3D Performance Testing Dependencies
+locust>=2.24.0,<2.30.0

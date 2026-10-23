@@ -615,11 +615,11 @@ flowchart TD
 | **TSK-3C-05** | WP-3C (Phase 2) | Crash-Safe Admission Control Middleware | `backend/core/middleware/admission_control.py` | FND-SEC-01 Approved Pragmatic Approach | `IMPLEMENTED & TESTED (PHASE 2)` | Gate 3C |
 | **TSK-3C-06** | WP-3C (Phase 2) | Celery Consumer Quiescence & Drain Helper | `backend/tasks/quiescence.py`, `backend/tasks/__init__.py` | TSK-3C-05, FND-REL-01 Live Broker Drill | `IMPLEMENTED & TESTED (PHASE 2)` | Gate 3C |
 | **TSK-3C-07** | WP-3C (Phase 2) | Multi-Store Backup & Isolated Restore Script | `scripts/dr/backup_all.py`, `scripts/dr/verify_restore.py` | TSK-3C-05, TSK-3C-06 | `IMPLEMENTED & TESTED (PHASE 2)` | Gate 3C |
-| **TSK-3D-01** | WP-3D | Mock LLM Provider & Production Guard | `backend/ai/providers/mock_provider.py`, `llm_manager.py` | Gate 3C Passed | `BLOCKED` | Gate 3D |
-| **TSK-3D-02** | WP-3D | Locust Load Testing Harness (50 users) | `tests/performance/load/locustfile.py`, `config.py` | TSK-3D-01 | `BLOCKED` | Gate 3D |
-| **TSK-3D-03** | WP-3D | Saturation & Queue Stress Test | `tests/performance/stress/stress_test.py` | TSK-3D-01 | `BLOCKED` | Gate 3D |
-| **TSK-3D-04** | WP-3D | Fast CI Performance Smoke Gate (<30s) | `tests/performance/test_performance_smoke.py` | TSK-3D-01 | `BLOCKED` | Gate 3D |
-| **TSK-3D-05** | WP-3D | Empirical Capacity Documentation | `docs/Operations/CAPACITY_BENCHMARK.md` | TSK-3D-02, TSK-3D-03 | `BLOCKED` | Gate 3D |
+| **TSK-3D-01** | WP-3D | Mock LLM Provider & Production Guard | `backend/ai/providers/mock_provider.py`, `llm_manager.py` | Project Owner Authorized | `IMPLEMENTED & TESTED` | Gate 3D |
+| **TSK-3D-02** | WP-3D | Locust Load Testing Harness (50 users) | `tests/performance/load/locustfile.py`, `config.py` | TSK-3D-01 | `IMPLEMENTED & TESTED` | Gate 3D |
+| **TSK-3D-03** | WP-3D | Saturation & Queue Stress Test | `tests/performance/stress/stress_test.py` | TSK-3D-01 | `IMPLEMENTED & TESTED` | Gate 3D |
+| **TSK-3D-04** | WP-3D | Fast CI Performance Smoke Gate (<30s) | `tests/performance/test_performance_smoke.py` | TSK-3D-01 | `IMPLEMENTED & TESTED` | Gate 3D |
+| **TSK-3D-05** | WP-3D | Empirical Capacity Documentation | `docs/Operations/CAPACITY_BENCHMARK.md` | TSK-3D-02, TSK-3D-03 | `IMPLEMENTED` | Gate 3D |
 
 ---
 
@@ -754,11 +754,12 @@ Execution halts immediately upon:
 | **Crash-Safe Admission Barrier** | `backend/core/middleware/admission_control.py` | `IMPLEMENTED & TESTED` | Fail-closed HTTP admission rejection, per-writer Redis lease, and PostgreSQL shared advisory locking. Disclaims multi-store 2PC atomicity. 12 DR tests passed. |
 | **Celery Quiescence & Drain** | `backend/tasks/quiescence.py` | `IMPLEMENTED & TESTED` | 17 queues canceled and restored; inspect().active/reserved drained; broker list buffering verified on ephemeral port 6389. 7 tests passed. |
 | **Multi-Store Backup Script** | `scripts/dr/backup_all.py`, `scripts/dr/verify_restore.py` | `IMPLEMENTED & TESTED` | SHA-256 manifest generation, dedicated ports (5433, 6335, 9002), Tier I & II vector parity assertions. 14 tests passed. |
-| **Isolated Restore Verification** | `scripts/dr/verify_restore.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C execution sequence. |
-| **Mock LLM Provider** | `backend/ai/providers/mock_provider.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C passage. |
-| **Locust Load Harness** | `tests/performance/load/locustfile.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C passage. |
-| **Saturation Stress Test** | `tests/performance/stress/stress_test.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C passage. |
-| **CI Performance Smoke Gate** | `tests/performance/test_performance_smoke.py` | `DESIGN SPECIFIED` | Blocked on Gate 3C passage. |
+| **Isolated Restore Verification** | `scripts/dr/verify_restore.py` | `IMPLEMENTED & TESTED` | Ephemeral drill executed on ports 5433, 6335, 9002 with 100% data parity and SHA-256 byte verification. Passed with exit code 0. |
+| **Mock LLM Provider** | `backend/ai/providers/mock_provider.py` | `IMPLEMENTED & TESTED` | Deterministic offline mock provider with configurable TTFT/token pacing and fail-closed production guard. 9 unit tests passed. |
+| **Locust Load Harness** | `tests/performance/load/locustfile.py`, `config.py` | `IMPLEMENTED & TESTED` | Headless Locust harness for Scenarios A, B, C; NIST Type 7 statistical engine verified. 4 unit tests passed. Full 50-user load run pending separate authorization. |
+| **Saturation Stress Test** | `tests/performance/stress/stress_test.py` | `IMPLEMENTED & TESTED` | Request 51 shedding (<5ms dispatch returning 503 Retry-After: 5) and dynamic 90% memory watchdog verified. 4 unit tests passed. |
+| **CI Performance Smoke Gate** | `tests/performance/test_performance_smoke.py` | `IMPLEMENTED & TESTED` | Deterministic CI performance smoke gate verifying T_max <= 500ms on REST routes and TTFT < 800ms. Passed in 27.63s (< 30s limit). |
+| **Capacity Documentation** | `docs/Operations/CAPACITY_BENCHMARK.md` | `IMPLEMENTED` | Authoritative benchmark documentation recording empirical baseline measurements and container sizing rules. |
 
 ---
 
@@ -775,6 +776,7 @@ Execution halts immediately upon:
 | **2026-10-23** | **Phased Implementation Authorization & FND-SEC-01 Reclassification** | **Established explicit phased authorization boundary: Phase 1 (TSK-3C-01 to TSK-3C-04) eligible for implementation authorization review; Phase 2 (TSK-3C-05 to TSK-3C-07) and WP-3D strictly BLOCKED. Reclassified FND-SEC-01 as BLOCKED — SAFETY DESIGN UNRESOLVED due to lack of distributed cross-store atomicity without 2PC and uninstrumented heterogeneous write paths. Standardized pre-side-effect shared advisory locking, fail-closed PostgreSQL-backed operational recovery state, and 12-suite test inventory with scoped fault-injection claims.** |
 | **2026-10-23** | **WP-3C Phase 1 Implementation & Test Verification** | **Implemented authorized tasks TSK-3C-01 through TSK-3C-04. Verified 24 unit tests with exit code 0 across 4 suites: extended test_circuit_breaker.py (12 passed), created test_ai_manager_circuit_breaker.py (5 passed), test_health_circuit_breaker.py (5 passed), test_chat_orchestrator_circuit_breaker.py (2 passed). Phase 2 (TSK-3C-05 to 07), WP-3D, Gate 3C, FND-SEC-01, and FND-REL-01 remain strictly BLOCKED.** |
 | **2026-10-23** | **WP-3C Phase 2 Implementation & Broker Drill Verification** | **Implemented authorized tasks TSK-3C-05, TSK-3C-06, TSK-3C-07 under Decision A/B Option 1. Implemented AdmissionControlMiddleware with fail-closed Lua scripts, Celery quiescence helper across 17 queues, backup coordinator with SHA-256 manifest, and isolated restore verifier. Verified 33 tests with exit code 0 across 8 Phase 2 suites and verified live Celery/Redis broker queue buffering via isolated ephemeral container drill on port 6389. Preserved strict prohibition against APPLICATION_CONSISTENT certification (restricted to BEST_EFFORT_UNCOORDINATED). Fixed historical ChunkEmbedding lazy-load mapper registration. Gate 3C remains unpassed pending independent review.** |
+| **2026-10-23** | **WP-3D Implementation & CI Smoke Gate Verification** | **Implemented authorized tasks TSK-3D-01 through TSK-3D-05 under explicit project-owner authorization. Implemented MockLLMProvider with fail-closed production guard and zero external fallback (9 unit tests passed). Created root-level requirements-test.txt with locust>=2.24.0,<2.30.0. Implemented Locust load harness in tests/performance/load/ and stress harness in tests/performance/stress/ with dynamic 90% memory threshold watchdog (4 unit tests passed). Implemented Fast CI Performance Smoke Gate verifying T_max <= 500ms on REST endpoints and TTFT < 800ms (passed in 27.63s < 30.0s). Authored CAPACITY_BENCHMARK.md documenting empirical baselines and sizing rules. Full 50-user load run remains pending separate execution authorization.** |
 
 ---
 

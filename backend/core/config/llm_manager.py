@@ -13,6 +13,7 @@ class LLMManagerSettings(BaseSettings):
     )
     primary_provider: str = Field(default="openrouter", alias="PRIMARY_LLM_PROVIDER")
     fallback_provider: str = Field(default="gemini", alias="FALLBACK_LLM_PROVIDER")
+    mock_llm_provider: bool = Field(default=False, alias="MOCK_LLM_PROVIDER")
 
     max_retries: int = Field(default=3, alias="LLM_MAX_RETRIES")
     retry_initial_delay: float = Field(default=1.0, alias="LLM_RETRY_INITIAL_DELAY")
@@ -30,7 +31,15 @@ class LLMManagerSettings(BaseSettings):
 
     @property
     def priority_list(self) -> list[str]:
-        """Return clean list of provider names in priority order."""
+        """Return clean list of provider names in priority order.
+
+        When mock_llm_provider is True, strictly restricts the priority list exclusively
+        to ['mock'] to guarantee zero silent fallback to billable external providers (OpenRouter, Gemini)
+        during performance, stress, and load testing runs.
+        """
+        if self.mock_llm_provider:
+            return ["mock"]
+
         if not self.provider_priority_raw:
             # Fallback if raw priority list is empty
             return [
