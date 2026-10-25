@@ -72,12 +72,12 @@ export function WorkspaceActivityChart({
   }, [points, pathD])
 
   return (
-    <Card className="border border-border/60 bg-card/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm">
+    <Card className="border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm">
       <CardHeader className="pb-3 border-b border-border/30">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
                 <TrendingUp className="w-4 h-4" />
               </div>
               <CardTitle className="text-base font-semibold text-foreground">
@@ -137,8 +137,8 @@ export function WorkspaceActivityChart({
               >
                 <defs>
                   <linearGradient id="reliabilityGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.0" />
+                    <stop offset="0%" stopColor="#45AFA2" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#45AFA2" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
 
@@ -185,7 +185,7 @@ export function WorkspaceActivityChart({
                   <motion.path
                     d={pathD}
                     fill="none"
-                    stroke="#06b6d4"
+                    stroke="#45AFA2"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -204,8 +204,8 @@ export function WorkspaceActivityChart({
                     r={hoveredPoint?.date === pt.item.date ? 5 : 3.5}
                     className={`transition-all duration-150 cursor-pointer ${
                       hoveredPoint?.date === pt.item.date
-                        ? 'fill-cyan-400 stroke-background stroke-2'
-                        : 'fill-cyan-500 hover:fill-cyan-300'
+                        ? 'fill-primary stroke-background stroke-2'
+                        : 'fill-primary hover:brightness-125'
                     }`}
                     onMouseEnter={() => setHoveredPoint(pt.item)}
                     onMouseLeave={() => setHoveredPoint(null)}
@@ -217,7 +217,7 @@ export function WorkspaceActivityChart({
               {hoveredPoint && (
                 <div className="absolute top-2 right-4 bg-popover/90 backdrop-blur-md border border-border px-3 py-1.5 rounded-lg shadow-lg text-xs font-mono">
                   <div className="text-muted-foreground text-[10px]">{hoveredPoint.date}</div>
-                  <div className="text-cyan-400 font-bold">
+                  <div className="text-primary font-bold">
                     Score: {hoveredPoint.average_score.toFixed(1)}%
                   </div>
                 </div>

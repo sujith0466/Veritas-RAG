@@ -52,10 +52,10 @@ export const knowledgeHealthService = {
   },
 
   async getStalenessReport(workspaceId: string): Promise<StalenessReportDTO> {
-    return get<StalenessReportDTO>(`/knowledge-base/staleness/report`, { workspace_id: workspaceId })
+    return get<StalenessReportDTO>(`/workspaces/${workspaceId}/knowledge-base/staleness/report`)
   },
 
   async executeBulkRemediation(workspaceId: string, payload: any): Promise<any> {
-    return post<any>(`/knowledge-base/staleness/remediate?workspace_id=${workspaceId}`, payload)
+    return post<any>(`/workspaces/${workspaceId}/knowledge-base/staleness/remediate`, payload)
   },
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
@@ -15,6 +15,11 @@ import { PageHeader } from '@/components/common/PageHeader'
 import { ReportExportDialog } from '@/components/analytics/ReportExportDialog'
 import { analyticsService } from '@/services/analyticsService'
 import { workspaceTabPanelVariants } from '@/motion'
+import { useAuthStore, selectUser } from '@/stores/authStore'
+import {
+  getReliabilityPreferences,
+  saveReliabilityPreferences,
+} from '@/utils/reliabilityPreferences'
 import type {
   QueryTraceDetailDTO,
   QuerySandboxResponseDTO,
@@ -81,12 +86,45 @@ export function ReliabilityDashboardPage() {
     setSearchParams(next)
   }
 
-  // Filters & Pagination
-  const [timeInterval, setTimeInterval] = useState<'hourly' | 'daily' | 'weekly'>('daily')
+  const user = useAuthStore(selectUser)
+  const userId = user?.id || null
+  const prevUserIdRef = useRef<string | null>(userId)
+
+  // Filters & Pagination initialized from user preferences
+  const [timeInterval, setTimeInterval] = useState<'hourly' | 'daily' | 'weekly'>(() => {
+    const initialUser = useAuthStore.getState().user
+    return getReliabilityPreferences(initialUser?.id).interval
+  })
   const [page, setPage] = useState(1)
   const [outcomeFilter, setOutcomeFilter] = useState<string | undefined>(undefined)
-  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(() => {
+    const initialUser = useAuthStore.getState().user
+    return getReliabilityPreferences(initialUser?.id).liveSync
+  })
   const [isExportOpen, setIsExportOpen] = useState(false)
+
+  // Synchronize state when authenticated user identity changes (e.g. login/logout/user-switch)
+  useEffect(() => {
+    if (userId !== prevUserIdRef.current) {
+      prevUserIdRef.current = userId
+      const prefs = getReliabilityPreferences(userId)
+      setTimeInterval(prefs.interval)
+      setAutoRefresh(prefs.liveSync)
+      setPage(1)
+    }
+  }, [userId])
+
+  const handleTimeIntervalChange = (t: 'hourly' | 'daily' | 'weekly') => {
+    setTimeInterval(t)
+    setPage(1)
+    saveReliabilityPreferences(userId, { interval: t })
+  }
+
+  const handleAutoRefreshToggle = () => {
+    const nextVal = !autoRefresh
+    setAutoRefresh(nextVal)
+    saveReliabilityPreferences(userId, { liveSync: nextVal })
+  }
 
   const queryClient = useQueryClient()
 
@@ -197,10 +235,7 @@ export function ReliabilityDashboardPage() {
             {(['hourly', 'daily', 'weekly'] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => {
-                  setTimeInterval(t)
-                  setPage(1)
-                }}
+                onClick={() => handleTimeIntervalChange(t)}
                 className={`px-3 py-1.5 rounded-md text-xs font-semibold capitalize transition-colors ${
                   timeInterval === t
                     ? 'bg-primary text-primary-foreground shadow-sm'
@@ -214,7 +249,7 @@ export function ReliabilityDashboardPage() {
 
           {/* Auto refresh button */}
           <button
-            onClick={() => setAutoRefresh(!autoRefresh)}
+            onClick={handleAutoRefreshToggle}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               autoRefresh
                 ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'

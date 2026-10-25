@@ -61,7 +61,7 @@ export function UnansweredQueriesCard({ startTime, endTime }: UnansweredQueriesC
     }
     if (norm.includes('RETRIES')) {
       return (
-        <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20 text-[10px] font-mono">
+        <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px] font-mono">
           Max Retries
         </Badge>
       )
@@ -80,7 +80,7 @@ export function UnansweredQueriesCard({ startTime, endTime }: UnansweredQueriesC
       transition={{ duration: shouldReduceMotion ? 0.1 : 0.35, delay: 0.15 }}
       className="h-full"
     >
-      <Card className="h-full flex flex-col border border-border/60 bg-card/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm hover:border-border transition-colors">
+      <Card className="h-full flex flex-col border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm hover:border-border transition-colors">
         <CardHeader className="pb-3 border-b border-border/30">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">

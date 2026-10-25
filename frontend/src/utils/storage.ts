@@ -43,4 +43,7 @@ export const STORAGE_KEYS = {
   THEME: 'theme_preference',
   SIDEBAR_COLLAPSED: 'sidebar_collapsed',
   SESSION_HINT: 'session_active',
+  DASHBOARD_PREFERENCES: 'dashboard_preferences',
+  WORKSPACE_ANALYTICS_PREFERENCES: 'workspace_analytics_preferences',
+  RELIABILITY_PREFERENCES: 'reliability_preferences',
 } as const

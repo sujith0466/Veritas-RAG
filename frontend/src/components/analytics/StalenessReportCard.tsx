@@ -56,7 +56,7 @@ export function StalenessReportCard() {
       transition={{ duration: shouldReduceMotion ? 0.1 : 0.35, delay: 0.25 }}
       className="h-full"
     >
-      <Card className="h-full flex flex-col border border-border/60 bg-card/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm hover:border-border transition-colors">
+      <Card className="h-full flex flex-col border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm hover:border-border transition-colors">
         <CardHeader className="pb-3 border-b border-border/30">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">

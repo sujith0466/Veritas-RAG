@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/common/Badge'
 import { Button } from '@/components/common/Button'
 import {
-  Table,
   TableHeader,
   TableBody,
   TableRow,
@@ -63,22 +62,22 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
   const getStatusBadge = (outcome: string) => {
     switch (outcome) {
       case 'SUCCESS':
-        return <Badge variant="success" className="text-[10px]">SUCCESS</Badge>
+        return <Badge variant="success" className="text-[10px] font-semibold">SUCCESS</Badge>
       case 'CLARIFICATION_REQUIRED':
-        return <Badge variant="default" className="text-[10px] bg-sky-500/10 text-sky-400 border-sky-500/20">CLARIFICATION</Badge>
+        return <Badge variant="default" className="text-[10px] bg-sky-500/10 text-sky-400 border-sky-500/20 font-semibold">CLARIFICATION</Badge>
       case 'ABORTED_HALLUCINATION':
-        return <Badge variant="destructive" className="text-[10px]">HALLUCINATION</Badge>
+        return <Badge variant="destructive" className="text-[10px] font-semibold">HALLUCINATION</Badge>
       case 'ABORTED_LOW_CONFIDENCE':
-        return <Badge variant="warning" className="text-[10px]">LOW CONFIDENCE</Badge>
+        return <Badge variant="warning" className="text-[10px] font-semibold">LOW CONFIDENCE</Badge>
       case 'POLICY_VIOLATION':
-        return <Badge variant="destructive" className="text-[10px]">POLICY BLOCK</Badge>
+        return <Badge variant="destructive" className="text-[10px] font-semibold">POLICY BLOCK</Badge>
       default:
-        return <Badge variant="subtle" className="text-[10px]">{outcome}</Badge>
+        return <Badge variant="subtle" className="text-[10px] font-semibold">{outcome}</Badge>
     }
   }
 
   return (
-    <Card className="bg-card/60 backdrop-blur-md border border-border/70 shadow-sm flex flex-col">
+    <Card className="bg-card/70 backdrop-blur-md border border-border/70 hover:border-border/90 transition-all duration-200 shadow-sm flex flex-col">
       <CardHeader className="pb-3 border-b border-border/40">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
@@ -100,7 +99,7 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
                 placeholder="Search queries by text..."
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-background/60 border border-border/60 rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full bg-background/60 border border-border/60 rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/60 transition-colors"
               />
             </div>
 
@@ -109,7 +108,7 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
               <select
                 value={statusFilter}
                 onChange={(e) => onStatusFilterChange(e.target.value)}
-                className="bg-transparent text-foreground text-xs focus:outline-none cursor-pointer pr-1 [color-scheme:light] dark:[color-scheme:dark]"
+                className="bg-transparent text-foreground text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary/50 rounded cursor-pointer pr-1 [color-scheme:light] dark:[color-scheme:dark]"
                 aria-label="Filter by outcome"
               >
                 {STATUS_FILTERS.map((f) => (
@@ -134,53 +133,53 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
-            <div className="h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center mb-2">
+            <div className="h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center mb-2.5 border border-border/40">
               <FileText className="h-5 w-5 text-muted-foreground" />
             </div>
             <p className="text-sm font-semibold text-foreground">No Query Executions Recorded ({timeWindow.toUpperCase()})</p>
-            <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm leading-relaxed">
               No executions matched your search or selected time window. Expand the window or execute queries in chat.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <Table>
+            <table className="w-full caption-bottom text-sm">
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[38%]">Query Text</TableHead>
-                  <TableHead>Outcome</TableHead>
-                  <TableHead>Reliability</TableHead>
-                  <TableHead>Latency</TableHead>
-                  <TableHead>Retries</TableHead>
-                  <TableHead className="text-right">Timestamp</TableHead>
-                  <TableHead className="text-right">Forensics</TableHead>
+                <TableRow className="hover:bg-transparent border-b border-border/40">
+                  <TableHead className="w-[38%] font-semibold text-xs text-muted-foreground">Query Text</TableHead>
+                  <TableHead className="font-semibold text-xs text-muted-foreground">Outcome</TableHead>
+                  <TableHead className="font-semibold text-xs text-muted-foreground">Reliability</TableHead>
+                  <TableHead className="font-semibold text-xs text-muted-foreground">Latency</TableHead>
+                  <TableHead className="font-semibold text-xs text-muted-foreground">Retries</TableHead>
+                  <TableHead className="text-right font-semibold text-xs text-muted-foreground">Timestamp</TableHead>
+                  <TableHead className="text-right font-semibold text-xs text-muted-foreground">Forensics</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((item) => (
-                  <TableRow key={item.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-medium max-w-[260px] truncate" title={item.query_text}>
+                  <TableRow key={item.id} className="hover:bg-muted/40 transition-colors duration-150 border-b border-border/30">
+                    <TableCell className="font-medium max-w-[260px] truncate text-foreground" title={item.query_text}>
                       {item.query_text}
                     </TableCell>
                     <TableCell>{getStatusBadge(item.outcome)}</TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="font-mono text-xs tabular-nums">
                       {item.reliability_score !== null
                         ? `${(item.reliability_score * 100).toFixed(0)}%`
                         : item.confidence_score !== null
                         ? `${(item.confidence_score * 100).toFixed(0)}%`
                         : 'N/A'}
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
+                    <TableCell className="font-mono text-xs tabular-nums text-muted-foreground">
                       {item.duration_ms ? `${Math.round(item.duration_ms).toLocaleString()}ms` : 'N/A'}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="font-mono text-xs tabular-nums">
                       {item.retry_attempts > 0 ? (
                         <span className="text-amber-400 font-semibold">{item.retry_attempts}x</span>
                       ) : (
                         <span className="text-muted-foreground">0</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground text-xs font-mono">
+                    <TableCell className="text-right text-muted-foreground text-xs font-mono tabular-nums">
                       {new Date(item.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -191,23 +190,23 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
                         variant="ghost"
                         size="sm"
                         onClick={() => onInspectTrace(item.id)}
-                        className="text-[11px] h-7 px-2 text-primary hover:text-primary/80 gap-1"
+                        className="group text-[11px] h-7 px-2 text-primary hover:text-primary/80 gap-1 transition-colors"
                       >
                         Inspect
-                        <ArrowRight className="h-3 w-3" />
+                        <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform duration-150" />
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </table>
           </div>
         )}
 
         {/* Pagination Bar */}
         {total > pageSize && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/40 text-xs text-muted-foreground">
-            <span>
+            <span className="tabular-nums">
               Showing {Math.min(total, (page - 1) * pageSize + 1)} to{' '}
               {Math.min(total, page * pageSize)} of {total.toLocaleString()} records
             </span>
@@ -218,10 +217,11 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
                 onClick={() => onPageChange(page - 1)}
                 disabled={page <= 1}
                 className="h-7 px-2"
+                aria-label="Previous page"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <span className="px-2 font-mono">
+              <span className="px-2 font-mono tabular-nums">
                 {page} / {totalPages}
               </span>
               <Button
@@ -230,6 +230,7 @@ export const ExecutionFlightRecorder: React.FC<ExecutionFlightRecorderProps> = (
                 onClick={() => onPageChange(page + 1)}
                 disabled={page >= totalPages}
                 className="h-7 px-2"
+                aria-label="Next page"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>

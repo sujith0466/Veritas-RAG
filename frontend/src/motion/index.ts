@@ -5,7 +5,7 @@
  * Components import from here — never define inline variants.
  */
 
-import type { Variants, Transition } from 'framer-motion'
+import type { Variants, Transition, TargetAndTransition } from 'framer-motion'
 
 // ─── Spring Presets ────────────────────────────────────────────────────────────
 
@@ -84,6 +84,44 @@ export const workspaceCardItemVariants: Variants = {
     y: 0,
     transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
   },
+}
+
+/** Dashboard analytical tier group container for coordinated staggered reveal */
+export const dashboardAnalyticalGroupVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.08,
+    },
+  },
+}
+
+/** Dashboard analytical child card item for refined entrance */
+export const dashboardAnalyticalItemVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.22, ease: [0.4, 0, 0.2, 1] },
+  },
+}
+
+/** Dashboard forensic flight recorder entrance variants */
+export const dashboardFlightRecorderVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.22, ease: [0.4, 0, 0.2, 1] },
+  },
+}
+
+/** Subtle enterprise card hover elevation */
+export const dashboardCardHover: TargetAndTransition = {
+  y: -2,
+  transition: { duration: 0.18, ease: 'easeOut' },
 }
 
 /** Workspace tab panel cross-fade for seamless section switching */

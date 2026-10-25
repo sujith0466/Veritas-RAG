@@ -13,17 +13,27 @@ export default {
         foreground: 'hsl(var(--foreground))',
         surface: 'hsl(var(--surface))',
         'surface-elevated': 'hsl(var(--surface-elevated))',
+        card: {
+          DEFAULT: 'hsl(var(--surface))',
+          foreground: 'hsl(var(--foreground))',
+        },
         border: 'hsl(var(--border))',
         'border-subtle': 'hsl(var(--border-subtle))',
         muted: 'hsl(var(--muted))',
         'muted-foreground': 'hsl(var(--muted-foreground))',
-        // Brand accent colors
+        // Brand & Tertiary accent colors
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
           hover: 'hsl(var(--primary-hover))',
           subtle: 'hsl(var(--primary-subtle))',
         },
+        champagne: {
+          DEFAULT: 'hsl(var(--accent-champagne, 38 31% 57%))',
+          foreground: 'hsl(var(--primary-foreground))',
+          subtle: 'hsl(var(--accent-champagne-subtle, 38 31% 57% / 0.15))',
+        },
+        'warm-neutral': 'hsl(var(--warm-neutral, 39 28% 79%))',
         // Semantic status colors
         success: {
           DEFAULT: 'hsl(var(--success))',

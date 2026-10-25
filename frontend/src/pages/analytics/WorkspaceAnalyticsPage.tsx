@@ -1,8 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageTransition } from '@/components/layouts'
 import { analyticsService } from '@/services/analyticsService'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useAuthStore, selectUser } from '@/stores/authStore'
+import {
+  getWorkspaceAnalyticsPreferences,
+  saveWorkspaceAnalyticsPreferences,
+} from '@/utils/workspaceAnalyticsPreferences'
 
 import {
   WorkspaceAnalyticsHeader,
@@ -18,9 +23,29 @@ import {
 export function WorkspaceAnalyticsPage() {
   const queryClient = useQueryClient()
   const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
+  const user = useAuthStore(selectUser)
+  const userId = user?.id || null
+  const prevUserIdRef = useRef<string | null>(userId)
 
-  const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>('30d')
+  const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>(() => {
+    const initialUser = useAuthStore.getState().user
+    return getWorkspaceAnalyticsPreferences(initialUser?.id).timeRange
+  })
   const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date())
+
+  // Synchronize state when authenticated user identity changes (e.g. login/logout/user-switch)
+  useEffect(() => {
+    if (userId !== prevUserIdRef.current) {
+      prevUserIdRef.current = userId
+      const prefs = getWorkspaceAnalyticsPreferences(userId)
+      setTimeRange(prefs.timeRange)
+    }
+  }, [userId])
+
+  const handleTimeRangeChange = (range: AnalyticsTimeRange) => {
+    setTimeRange(range)
+    saveWorkspaceAnalyticsPreferences(userId, { timeRange: range })
+  }
 
   // Compute start_time & end_time ISO strings based on timeRange
   const { startTime, endTime } = useMemo(() => {
@@ -128,7 +153,7 @@ export function WorkspaceAnalyticsPage() {
         {/* 1. Header with Context, Time Range Controls, and Refresh */}
         <WorkspaceAnalyticsHeader
           timeRange={timeRange}
-          onTimeRangeChange={setTimeRange}
+          onTimeRangeChange={handleTimeRangeChange}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
           lastUpdated={lastUpdated}

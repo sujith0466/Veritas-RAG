@@ -1,13 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import {
+  dashboardAnalyticalGroupVariants,
+  dashboardAnalyticalItemVariants,
+  dashboardFlightRecorderVariants,
+} from '@/motion'
 import { PageTransition } from '@/components/layouts'
 import { ErrorState } from '@/components/common/ErrorState'
 import { dashboardService } from '@/services/dashboardService'
+import { useAuthStore, selectUser } from '@/stores/authStore'
+import {
+  getDashboardPreferences,
+  saveDashboardPreferences,
+  validateAutoRefreshInterval,
+  type DashboardTimeWindow,
+} from '@/utils/dashboardPreferences'
 import type { CommandCenterDTO, QueryExecutionLedgerDTO } from '@/types'
 import {
   CommandCenterHeader,
   ExecutiveKpiGrid,
-  SystemHealthRadar,
   RetrievalLatencyRadar,
   KnowledgePipelineCard,
   OperationalAlertsBanner,
@@ -18,10 +29,43 @@ import {
 export function DashboardPage() {
   const shouldReduceMotion = useReducedMotion()
   const hasLoadedInitialDataRef = useRef(false)
-  const [timeWindow, setTimeWindow] = useState<'1h' | '24h' | '7d' | '30d' | 'all'>('24h')
-  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0)
+  const isFetchingRef = useRef(false)
+  const isMountedRef = useRef(true)
+
+  const user = useAuthStore(selectUser)
+  const userId = user?.id || null
+  const prevUserIdRef = useRef<string | null>(userId)
+
+  // Initialize timeWindow and autoRefreshInterval from stored user preferences
+  const [timeWindow, setTimeWindow] = useState<DashboardTimeWindow>(() => {
+    const initialUser = useAuthStore.getState().user
+    return getDashboardPreferences(initialUser?.id).timeWindow
+  })
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(() => {
+    const initialUser = useAuthStore.getState().user
+    return getDashboardPreferences(initialUser?.id).autoRefreshInterval
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Track mount status for race-condition and cleanup safety
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  // Synchronize state when authenticated user identity changes (e.g. login/logout/user-switch)
+  useEffect(() => {
+    if (userId !== prevUserIdRef.current) {
+      prevUserIdRef.current = userId
+      const prefs = getDashboardPreferences(userId)
+      setTimeWindow(prefs.timeWindow)
+      setAutoRefreshInterval(prefs.autoRefreshInterval)
+      setPage(1)
+    }
+  }, [userId])
 
   // Command Center Telemetry State
   const [commandCenter, setCommandCenter] = useState<CommandCenterDTO | null>(null)
@@ -37,9 +81,16 @@ export function DashboardPage() {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null)
 
   // Fetch telemetry and ledger data
-  const loadDashboardData = useCallback(async () => {
-    setIsLoading(true)
+  const loadDashboardData = useCallback(async (isSilent = false) => {
+    // Prevent overlapping requests
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+
+    if (!isSilent) {
+      setIsLoading(true)
+    }
     setError(null)
+
     try {
       const [ccData, ledgerData] = await Promise.all([
         dashboardService.getCommandCenter(timeWindow),
@@ -51,20 +102,27 @@ export function DashboardPage() {
           search: search.trim() || undefined,
         }),
       ])
-      setCommandCenter(ccData)
-      setLedger(ledgerData)
-      hasLoadedInitialDataRef.current = true
+      if (isMountedRef.current) {
+        setCommandCenter(ccData)
+        setLedger(ledgerData)
+        hasLoadedInitialDataRef.current = true
+      }
     } catch (err) {
       console.error('Failed to load command center telemetry:', err)
-      setError('Unable to fetch command center metrics. Please check network connection and try again.')
+      if (isMountedRef.current && (!isSilent || !hasLoadedInitialDataRef.current)) {
+        setError('Unable to fetch command center metrics. Please check network connection and try again.')
+      }
     } finally {
-      setIsLoading(false)
+      if (isMountedRef.current) {
+        setIsLoading(false)
+      }
+      isFetchingRef.current = false
     }
   }, [timeWindow, page, search, statusFilter])
 
   // Initial load and filter change trigger
   useEffect(() => {
-    loadDashboardData()
+    loadDashboardData(false)
   }, [loadDashboardData])
 
   // Auto-refresh timer interval
@@ -72,11 +130,30 @@ export function DashboardPage() {
     if (autoRefreshInterval <= 0) return
 
     const timer = setInterval(() => {
-      loadDashboardData()
+      loadDashboardData(true)
     }, autoRefreshInterval * 1000)
 
     return () => clearInterval(timer)
   }, [autoRefreshInterval, loadDashboardData])
+
+  // Persisted time-window changer
+  const handleTimeWindowChange = (w: DashboardTimeWindow) => {
+    setTimeWindow(w)
+    setPage(1)
+    saveDashboardPreferences(userId, { timeWindow: w })
+  }
+
+  // Persisted auto-refresh interval changer
+  const handleAutoRefreshChange = (interval: number) => {
+    const validInterval = validateAutoRefreshInterval(interval)
+    setAutoRefreshInterval(validInterval)
+    saveDashboardPreferences(userId, { autoRefreshInterval: validInterval })
+  }
+
+  // Manual refresh handler
+  const handleManualRefresh = () => {
+    loadDashboardData(false)
+  }
 
   // Reset page to 1 when search or status filter changes
   const handleSearchChange = (newSearch: string) => {
@@ -93,18 +170,21 @@ export function DashboardPage() {
     <PageTransition variant="workspace">
       <div className="space-y-6 pb-12 max-w-7xl mx-auto">
         {/* ZONE 1: Command Center Header */}
-        <CommandCenterHeader
-          timeWindow={timeWindow}
-          onTimeWindowChange={(w) => {
-            setTimeWindow(w)
-            setPage(1)
-          }}
-          autoRefreshInterval={autoRefreshInterval}
-          onAutoRefreshChange={setAutoRefreshInterval}
-          isLoading={isLoading}
-          onRefresh={loadDashboardData}
-          systemStatus={commandCenter?.system_health.status || 'OPERATIONAL'}
-        />
+        <motion.div
+          initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <CommandCenterHeader
+            timeWindow={timeWindow}
+            onTimeWindowChange={handleTimeWindowChange}
+            autoRefreshInterval={autoRefreshInterval}
+            onAutoRefreshChange={handleAutoRefreshChange}
+            isLoading={isLoading}
+            onRefresh={handleManualRefresh}
+            systemStatus={commandCenter?.system_health.status || 'OPERATIONAL'}
+          />
+        </motion.div>
 
         {error ? (
           <div className="py-8">
@@ -133,72 +213,58 @@ export function DashboardPage() {
               </div>
             ) : null}
 
-            {/* ZONE 3 & ZONE 4: Subsystem Health & Latency Decomposition */}
+            {/* ZONE 3: Core Analytical Telemetry (Balanced 3-Column Coordinated Reveal) */}
             {commandCenter ? (
               <motion.div
-                initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, delay: 0.08, ease: [0.4, 0, 0.2, 1] }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+                variants={shouldReduceMotion ? undefined : dashboardAnalyticalGroupVariants}
+                initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : 'hidden'}
+                animate="visible"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
-                <div className="lg:col-span-6">
-                  <SystemHealthRadar
-                    systemHealth={commandCenter.system_health}
-                    activeTenants={commandCenter.kpis.active_tenants}
-                    activeWorkspaces={commandCenter.kpis.active_workspaces}
-                    isLoading={isLoading}
-                  />
-                </div>
-
-                <div className="lg:col-span-6">
+                <motion.div
+                  variants={shouldReduceMotion ? undefined : dashboardAnalyticalItemVariants}
+                  className="col-span-1"
+                >
                   <RetrievalLatencyRadar
                     latency={commandCenter.latency_percentiles}
                     outcomes={commandCenter.outcomes}
                     isLoading={isLoading}
                   />
-                </div>
-              </motion.div>
-            ) : isLoading ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse">
-                <div className="lg:col-span-6 h-64 rounded-lg border border-border/60 bg-card/40" />
-                <div className="lg:col-span-6 h-64 rounded-lg border border-border/60 bg-card/40" />
-              </div>
-            ) : null}
+                </motion.div>
 
-            {/* ZONE 4 & ZONE 5: Knowledge Pipeline Health & Safety Interventions */}
-            {commandCenter ? (
-              <motion.div
-                initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, delay: 0.12, ease: [0.4, 0, 0.2, 1] }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-6"
-              >
-                <div className="lg:col-span-7">
+                <motion.div
+                  variants={shouldReduceMotion ? undefined : dashboardAnalyticalItemVariants}
+                  className="col-span-1"
+                >
                   <KnowledgePipelineCard
                     knowledge={commandCenter.knowledge_health}
                     isLoading={isLoading}
                   />
-                </div>
+                </motion.div>
 
-                <div className="lg:col-span-5">
+                <motion.div
+                  variants={shouldReduceMotion ? undefined : dashboardAnalyticalItemVariants}
+                  className="col-span-1 md:col-span-2 lg:col-span-1"
+                >
                   <OperationalAlertsBanner
                     alerts={commandCenter.alerts}
                     isLoading={isLoading}
                   />
-                </div>
+                </motion.div>
               </motion.div>
             ) : isLoading ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse">
-                <div className="lg:col-span-7 h-52 rounded-lg border border-border/60 bg-card/40" />
-                <div className="lg:col-span-5 h-52 rounded-lg border border-border/60 bg-card/40" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+                <div className="col-span-1 h-72 rounded-lg border border-border/60 bg-card/40" />
+                <div className="col-span-1 h-72 rounded-lg border border-border/60 bg-card/40" />
+                <div className="col-span-1 md:col-span-2 lg:col-span-1 h-72 rounded-lg border border-border/60 bg-card/40" />
               </div>
             ) : null}
 
-            {/* ZONE 6: Interactive Execution Flight Recorder & Audit Ledger */}
+            {/* ZONE 4: Interactive Execution Flight Recorder & Audit Ledger */}
             <motion.div
-              initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : { opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, delay: 0.16, ease: [0.4, 0, 0.2, 1] }}
+              variants={shouldReduceMotion ? undefined : dashboardFlightRecorderVariants}
+              initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : 'hidden'}
+              animate="visible"
             >
               <ExecutionFlightRecorder
                 items={ledger?.items || []}
@@ -218,7 +284,7 @@ export function DashboardPage() {
           </>
         )}
 
-        {/* ZONE 7: Execution Trace Drawer */}
+        {/* ZONE 5: Execution Trace Drawer */}
         <ExecutionTraceDrawer
           queryId={selectedTraceId}
           onClose={() => setSelectedTraceId(null)}

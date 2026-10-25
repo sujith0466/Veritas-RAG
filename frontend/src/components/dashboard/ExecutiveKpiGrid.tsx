@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { workspaceCardGroupVariants, workspaceCardItemVariants } from '@/motion'
+import { workspaceCardGroupVariants, workspaceCardItemVariants, dashboardCardHover } from '@/motion'
 import { Activity, FileText, Zap, ShieldAlert } from 'lucide-react'
 import { Card, CardContent } from '@/components/common/Card'
 import type { CommandKpisDTO, CommandReliabilityTrendPointDTO } from '@/types'
@@ -23,7 +23,7 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
   const shouldReduceMotion = useReducedMotion()
   const hasQueries = kpis.total_queries > 0
 
-  // Lightweight native SVG sparkline generator
+  // Lightweight native SVG sparkline generator with real-data path animation
   const renderSparkline = () => {
     if (!trendPoints || trendPoints.length < 2) return null
     const minVal = Math.min(...trendPoints.map((p) => p.reliability))
@@ -42,7 +42,7 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
 
     return (
       <svg width={width} height={height} className="overflow-visible" aria-hidden="true">
-        <polyline
+        <motion.polyline
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -50,6 +50,9 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
           strokeLinejoin="round"
           className="text-primary/80"
           points={points}
+          initial={shouldAnimate && !shouldReduceMotion ? { pathLength: 0, opacity: 0 } : false}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         />
       </svg>
     )
@@ -83,7 +86,7 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
           ? `Avg Confidence: ${(kpis.avg_confidence_score * 100).toFixed(1)}%`
           : 'Zero query activity recorded',
       icon: FileText,
-      color: 'text-sky-500 bg-sky-500/10 border-sky-500/20',
+      color: 'text-champagne bg-champagne/10 border-champagne/20',
       valueColor: 'text-foreground',
       extra: renderSparkline(),
     },
@@ -118,7 +121,7 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
         : '0.0%',
       subtitle: `${kpis.hallucination_prevention_count} safety interventions triggered`,
       icon: ShieldAlert,
-      color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20',
+      color: 'text-primary bg-primary/10 border-primary/20',
       valueColor: 'text-foreground',
     },
   ]
@@ -134,10 +137,11 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
         <motion.div
           key={c.title}
           variants={shouldReduceMotion ? undefined : workspaceCardItemVariants}
+          whileHover={shouldReduceMotion ? undefined : dashboardCardHover}
           className="h-full"
         >
           <Card
-            className="relative overflow-hidden bg-card/60 backdrop-blur-md border border-border/70 hover:border-border transition-all duration-200 shadow-sm h-full"
+            className="relative overflow-hidden bg-card/70 backdrop-blur-md border border-border/70 hover:border-border/90 hover:shadow-xs transition-all duration-200 h-full"
           >
             <CardContent className="p-5">
               <div className="flex items-center justify-between pb-3">
@@ -150,7 +154,7 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
               </div>
 
               <div className="flex items-baseline justify-between gap-2">
-                <span className={`text-2xl sm:text-3xl font-extrabold font-mono tracking-tight ${c.valueColor}`}>
+                <span className={`text-2xl sm:text-3xl font-extrabold font-mono tabular-nums tracking-tight ${c.valueColor}`}>
                   {c.value}
                 </span>
                 {c.extra && <div className="shrink-0">{c.extra}</div>}

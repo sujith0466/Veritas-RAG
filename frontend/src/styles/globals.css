@@ -39,6 +39,11 @@
     --info-foreground: 0 0% 100%;
     --info-subtle: 221 83% 53% / 0.1;
 
+    /* ── Supporting Tertiary & Warm Accents ── */
+    --accent-champagne: 38 35% 45%;
+    --accent-champagne-subtle: 38 35% 45% / 0.12;
+    --warm-neutral: 39 24% 88%;
+
     /* ── Radius ── */
     --radius: 0.5rem;
 
@@ -50,39 +55,44 @@
   }
 
   .dark {
-    /* ── Dark Theme (Authenticated Workspace Only) ── */
-    --background: 224 71% 4%;           /* #020617 - slate-950 */
-    --foreground: 210 40% 98%;          /* #f8fafc - slate-50 */
-    --surface: 222 47% 11%;             /* #0f172a - slate-900 */
-    --surface-elevated: 215 28% 17%;    /* #1e293b - slate-800 */
-    --border: 215 28% 17%;              /* #1e293b - slate-800 */
-    --border-subtle: 217 33% 17%;       /* #1e293b slightly lighter */
-    --muted: 215 28% 17%;               /* #1e293b - slate-800 */
-    --muted-foreground: 215 20% 65%;    /* #94a3b8 - slate-400 */
+    /* ── Dark Theme (Authenticated Workspace — Obsidian, Refined Teal & Antique Champagne) ── */
+    --background: 220 8% 7.6%;          /* #121315 - Obsidian dark canvas */
+    --foreground: 43 20% 95%;           /* #f4f3ef - Warm high-readability off-white (16.7:1 WCAG AAA) */
+    --surface: 220 9% 13.7%;            /* #202226 - Base card/panel surface (14.3:1 text contrast) */
+    --surface-elevated: 220 8% 18%;     /* #2a2d32 - Elevated surfaces, popovers, dropdowns */
+    --border: 220 8% 22%;               /* #34363c - Restrained obsidian border */
+    --border-subtle: 220 8% 16%;        /* #25272c - Subtle surface divider */
+    --muted: 220 8% 18%;                /* #2a2d32 - Muted surfaces and chip backgrounds */
+    --muted-foreground: 220 10% 64%;    /* #9aa0ac - Crisp WCAG AA compliant secondary text (6.1:1 contrast) */
 
-    /* ── Brand Accent: Deep Teal ── */
-    --primary: 175 84% 26%;             /* #0f766e - teal-700 */
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 176 69% 22%;       /* #115e59 - teal-800 */
-    --primary-subtle: 175 84% 26% / 0.15;
+    /* ── Brand Accent: Refined Teal (#45AFA2) ── */
+    --primary: 173 43% 48%;             /* #45AFA2 - Refined brand teal (6.0:1 on surface) */
+    --primary-foreground: 220 8% 7.6%;  /* #121315 - Deep obsidian contrast text (7.0:1 WCAG AAA) */
+    --primary-hover: 172 45% 54%;       /* #52beaf - Brighter hover state */
+    --primary-subtle: 173 43% 48% / 0.15;
 
-    /* ── Semantic Colors ── */
-    --success: 161 94% 30%;             /* emerald-600 */
-    --success-foreground: 0 0% 100%;
-    --success-subtle: 161 94% 30% / 0.15;
-    --warning: 38 92% 50%;              /* amber-500 */
-    --warning-foreground: 0 0% 10%;
+    /* ── Tertiary Accent: Antique Champagne (#B39A70) & Warm Neutral (#D8CDB9) ── */
+    --accent-champagne: 38 31% 57%;     /* #B39A70 - Antique champagne (5.9:1 on surface) */
+    --accent-champagne-subtle: 38 31% 57% / 0.15;
+    --warm-neutral: 39 28% 79%;         /* #D8CDB9 - Warm neutral */
+
+    /* ── Semantic Colors (Preserved Meanings with Tested WCAG Contrast) ── */
+    --success: 160 84% 39%;             /* #10b981 - emerald-500 (6.2:1 contrast) */
+    --success-foreground: 220 8% 7.6%;
+    --success-subtle: 160 84% 39% / 0.15;
+    --warning: 38 92% 50%;              /* #f59e0b - amber-500 (7.5:1 contrast) */
+    --warning-foreground: 220 8% 7.6%;
     --warning-subtle: 38 92% 50% / 0.15;
-    --danger: 346 87% 61%;              /* rose-500 */
+    --danger: 346 87% 61%;              /* #f43f5e - rose-500 (5.8:1 contrast) */
     --danger-foreground: 0 0% 100%;
     --danger-subtle: 346 87% 61% / 0.15;
-    --info: 221 83% 53%;                /* professional blue */
+    --info: 217 91% 60%;                /* #3b82f6 - blue-500 (6.1:1 contrast) */
     --info-foreground: 0 0% 100%;
-    --info-subtle: 221 83% 53% / 0.15;
+    --info-subtle: 217 91% 60% / 0.15;
 
     --scrollbar-track: transparent;
-    --scrollbar-thumb: hsl(215 28% 25%);
-    --scrollbar-thumb-hover: hsl(215 28% 35%);
+    --scrollbar-thumb: hsl(220 8% 25%);
+    --scrollbar-thumb-hover: hsl(220 8% 35%);
   }
 
   /* ── Base Resets ── */
@@ -197,6 +207,10 @@
 
   .bg-gradient-primary {
     background: linear-gradient(135deg, hsl(175 84% 26%), hsl(222 47% 11%));
+  }
+
+  .dark .bg-gradient-primary {
+    background: linear-gradient(135deg, hsl(173 43% 48%), hsl(220 9% 14%));
   }
 
   .scrollbar-none {

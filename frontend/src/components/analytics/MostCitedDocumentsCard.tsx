@@ -36,11 +36,11 @@ export function MostCitedDocumentsCard({ startTime, endTime }: MostCitedDocument
       transition={{ duration: shouldReduceMotion ? 0.1 : 0.35, delay: 0.2 }}
       className="h-full"
     >
-      <Card className="h-full flex flex-col border border-border/60 bg-card/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm hover:border-border transition-colors">
+      <Card className="h-full flex flex-col border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm hover:border-border transition-colors">
         <CardHeader className="pb-3 border-b border-border/30">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <div className="p-1.5 rounded-lg bg-champagne/10 text-champagne border border-champagne/20">
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
@@ -97,7 +97,7 @@ export function MostCitedDocumentsCard({ startTime, endTime }: MostCitedDocument
             </div>
           ) : !data || data.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center border border-dashed border-border/40 rounded-xl bg-background/30">
-              <FileText className="w-8 h-8 text-indigo-400/50 mb-2" />
+              <FileText className="w-8 h-8 text-champagne/50 mb-2" />
               <p className="text-xs font-semibold text-foreground">No citation records in this window</p>
               <p className="text-[11px] text-muted-foreground mt-1 max-w-xs">
                 As chat queries retrieve and cite knowledge chunks, top assets will be indexed here.
@@ -139,7 +139,7 @@ export function MostCitedDocumentsCard({ startTime, endTime }: MostCitedDocument
                     {/* Proportional visual meter */}
                     <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
                       <motion.div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                        className="h-full bg-gradient-to-r from-champagne to-champagne/50 rounded-full"
                         initial={shouldReduceMotion ? { width: `${percentage}%` } : { width: 0 }}
                         animate={{ width: `${percentage}%` }}
                         transition={{ duration: shouldReduceMotion ? 0 : 0.5, delay: i * 0.04 }}

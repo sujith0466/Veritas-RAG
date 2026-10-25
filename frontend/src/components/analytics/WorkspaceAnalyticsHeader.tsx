@@ -1,7 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion'
-import { RefreshCw, Calendar, ShieldCheck } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/common/Button'
-import { Badge } from '@/components/common/Badge'
 
 export type AnalyticsTimeRange = '24h' | '7d' | '30d' | '90d' | 'all'
 
@@ -29,8 +28,8 @@ export function WorkspaceAnalyticsHeader({
   onRefresh,
   isRefreshing,
   lastUpdated,
-  workspaceName = 'Active Workspace',
-  workspaceStatus = 'ACTIVE',
+  workspaceName: _workspaceName = 'Active Workspace',
+  workspaceStatus: _workspaceStatus = 'ACTIVE',
 }: WorkspaceAnalyticsHeaderProps) {
   const shouldReduceMotion = useReducedMotion()
 
@@ -44,31 +43,6 @@ export function WorkspaceAnalyticsHeader({
       {/* Top row: Context & Title */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge
-              variant="outline"
-              className="bg-primary/5 text-primary border-primary/20 text-xs px-2.5 py-0.5 font-medium flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-              <span>Workspace Intelligence</span>
-            </Badge>
-
-            <span className="text-muted-foreground/40 hidden sm:inline">•</span>
-
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-              <span>Scope:</span>
-              <span className="text-foreground font-semibold">{workspaceName}</span>
-              <span
-                className={`inline-block w-2 h-2 rounded-full ${
-                  workspaceStatus.toUpperCase() === 'ACTIVE'
-                    ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
-                    : 'bg-amber-500'
-                }`}
-                title={`Status: ${workspaceStatus}`}
-              />
-            </div>
-          </div>
-
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <span>Knowledge Reliability & Intelligence</span>
           </h1>
@@ -85,7 +59,7 @@ export function WorkspaceAnalyticsHeader({
           <div
             role="group"
             aria-label="Analytics time range filter"
-            className="flex items-center bg-card/80 dark:bg-slate-900/80 p-1 rounded-xl border border-border/60 shadow-sm"
+            className="flex items-center bg-card/80 dark:bg-surface/80 p-1 rounded-xl border border-border/60 shadow-sm"
           >
             {TIME_RANGE_OPTIONS.map((opt) => {
               const isSelected = timeRange === opt.id
@@ -123,7 +97,7 @@ export function WorkspaceAnalyticsHeader({
             size="sm"
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="h-9 px-3 gap-2 bg-card/80 dark:bg-slate-900/80 border-border/60 hover:bg-muted/60"
+            className="h-9 px-3 gap-2 bg-card/80 dark:bg-surface/80 border-border/60 hover:bg-muted/60"
             title="Refresh analytics data"
             aria-label="Refresh workspace analytics"
           >
@@ -138,11 +112,7 @@ export function WorkspaceAnalyticsHeader({
       </div>
 
       {/* Supporting meta row */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground/80 pt-1">
-        <div className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground/60" />
-          <span>Active filter: <strong className="text-foreground">{TIME_RANGE_OPTIONS.find(o => o.id === timeRange)?.label}</strong></span>
-        </div>
+      <div className="flex items-center justify-end text-xs text-muted-foreground/80 pt-1">
         <div className="flex items-center gap-1 text-[11px]">
           <span>Telemetry synced at:</span>
           <span className="font-mono text-muted-foreground font-medium">{formatLastUpdated(lastUpdated)}</span>

@@ -21,7 +21,7 @@ interface KpiItemProps {
   unit?: string
   description: string
   icon: React.ReactNode
-  accentColor: 'blue' | 'emerald' | 'purple' | 'cyan'
+  accentColor: 'champagne' | 'emerald' | 'teal' | 'primary'
   sparklineData?: number[]
   isLoading: boolean
   isError: boolean
@@ -58,8 +58,8 @@ export function ExecutiveKpiGrid({
         title="Active Users"
         value={overview?.active_users ?? 0}
         description="Users engaging with RAG chat in period"
-        icon={<Users className="w-5 h-5 text-blue-400" />}
-        accentColor="blue"
+        icon={<Users className="w-5 h-5 text-champagne" />}
+        accentColor="champagne"
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
@@ -82,8 +82,8 @@ export function ExecutiveKpiGrid({
         title="Total Invocations"
         value={overview?.total_queries ?? 0}
         description="RAG retrieval and generation requests"
-        icon={<Activity className="w-5 h-5 text-purple-400" />}
-        accentColor="purple"
+        icon={<Activity className="w-5 h-5 text-primary" />}
+        accentColor="teal"
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
@@ -94,8 +94,8 @@ export function ExecutiveKpiGrid({
         title="Grounded Reliability"
         value={reliabilityValue.val}
         description={reliabilityValue.desc}
-        icon={<ShieldCheck className="w-5 h-5 text-cyan-400" />}
-        accentColor="cyan"
+        icon={<ShieldCheck className="w-5 h-5 text-primary" />}
+        accentColor="primary"
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
@@ -115,29 +115,29 @@ function KpiCard({
   onRetry,
 }: KpiItemProps) {
   const accentStyles = {
-    blue: {
-      border: 'hover:border-blue-500/40',
-      glow: 'group-hover:shadow-[0_0_25px_rgba(59,130,246,0.12)]',
-      iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      bar: 'bg-gradient-to-r from-blue-500 to-indigo-500',
+    champagne: {
+      border: 'hover:border-champagne/40',
+      glow: 'group-hover:shadow-[0_0_20px_rgba(179,154,112,0.12)]',
+      iconBg: 'bg-champagne/10 text-champagne border-champagne/20',
+      bar: 'bg-gradient-to-r from-champagne/90 to-champagne/40',
     },
     emerald: {
       border: 'hover:border-emerald-500/40',
-      glow: 'group-hover:shadow-[0_0_25px_rgba(16,185,129,0.12)]',
+      glow: 'group-hover:shadow-[0_0_20px_rgba(16,185,129,0.12)]',
       iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
       bar: 'bg-gradient-to-r from-emerald-500 to-teal-500',
     },
-    purple: {
-      border: 'hover:border-purple-500/40',
-      glow: 'group-hover:shadow-[0_0_25px_rgba(168,85,247,0.12)]',
-      iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      bar: 'bg-gradient-to-r from-purple-500 to-violet-500',
+    teal: {
+      border: 'hover:border-primary/40',
+      glow: 'group-hover:shadow-[0_0_20px_rgba(69,175,162,0.12)]',
+      iconBg: 'bg-primary/10 text-primary border-primary/20',
+      bar: 'bg-gradient-to-r from-primary to-primary/50',
     },
-    cyan: {
-      border: 'hover:border-cyan-500/40',
-      glow: 'group-hover:shadow-[0_0_25px_rgba(6,182,212,0.12)]',
-      iconBg: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-      bar: 'bg-gradient-to-r from-cyan-500 to-blue-500',
+    primary: {
+      border: 'hover:border-primary/40',
+      glow: 'group-hover:shadow-[0_0_20px_rgba(69,175,162,0.12)]',
+      iconBg: 'bg-primary/10 text-primary border-primary/20',
+      bar: 'bg-gradient-to-r from-primary to-emerald-500/80',
     },
   }[accentColor]
 
@@ -147,7 +147,7 @@ function KpiCard({
       className="group"
     >
       <Card
-        className={`relative h-full overflow-hidden border border-border/60 bg-card/60 dark:bg-slate-900/60 backdrop-blur-xl transition-all duration-300 ${accentStyles.border} ${accentStyles.glow} rounded-2xl`}
+        className={`relative h-full overflow-hidden border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl transition-all duration-300 ${accentStyles.border} ${accentStyles.glow} rounded-2xl`}
       >
         {/* Subtle top accent highlight */}
         <div className={`h-1 w-full ${accentStyles.bar}`} />
