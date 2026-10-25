@@ -122,6 +122,11 @@ class FolderService:
         self.dispatcher = dispatcher
         self.repo = FolderRepository(session)
 
+    @property
+    def repository(self) -> FolderRepository:
+        """Alias for repo to support retention worker contract."""
+        return self.repo
+
     async def _check_rate_limits(self, workspace_id: uuid.UUID, actor_id: uuid.UUID):
         client = get_redis_client()
         user_key = f"rate:ws:{workspace_id}:user:{actor_id}:folder_create"

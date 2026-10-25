@@ -803,3 +803,25 @@ Our academic and engineering contribution is the **holistic integration of a Sel
 
 ---
 **VERITAS-RAG PROJECT HANDBOOK — READY FOR PROJECT REVIEW & VIVA DEFENSE**
+
+---
+
+## 27. PRODUCTION HARDENING & ENTERPRISE CONCURRENCY (OCTOBER 2026)
+
+### 1. Celery Worker Python 3.13 Asyncio Concurrency Stability
+- **Problem:** Python 3.13 enforces strict event loop lifecycles; Celery daemon workers utilizing standard asyncio loops experienced loop termination crashes during document watchdog tasks.
+- **Remediation:** Refactored `processing_job_worker.py` and `watchdog_worker.py` to use safe isolated loop lifecycles (`asyncio.new_event_loop()` paired with try/finally loop termination and graceful SIGTERM handling).
+- **Verification:** Certified with dedicated test suites (`test_processing_job_worker.py`, `test_watchdog_worker.py`).
+
+### 2. Folder Deletion Document Retention Safeguards
+- **Problem:** Deleting a folder previously caused an aggressive cascading deletion that severed document records regardless of workspace retention rules.
+- **Remediation:** Updated `folder_service.py` and `backend/tasks/folders.py` to detach folder hierarchies while preserving compliance-controlled document entities.
+- **Verification:** Verified via `test_folder_tasks.py`.
+
+### 3. Frontend Bootstrap & Session Restoration Acceleration
+- **Cold Startup Latency:** Removed an artificial 1,500ms client-side `setTimeout` in `AppBootstrap.tsx` that previously delayed readiness transitions. In local container network testing, health-check stage resolution dropped from ~1,550ms to ~24–50ms once this delay was removed. In production environments, total end-to-end startup latency depends on actual network conditions, client-server RTT, and service health rather than artificial client waits.
+- **Centered Non-Blocking Presentation:** Relocated bootstrap status card to the center of the viewport with subtle pulse animations and full `prefers-reduced-motion` fallbacks without modal backdrops.
+- **Auth Request Deduplication:** Implemented in-flight promise sharing in `AuthProvider.tsx` and `authStore.ts`, eliminating duplicate sequential network requests to `/api/v1/auth/me`, `/api/v1/users/me`, and `/api/v1/workspaces/current`.
+- **Zero-Latency Avatar Hydration:** Cached user initials and avatar URL in local session storage for synchronous rendering during navbar mount.
+- **Polling Elimination:** Replaced continuous document polling with event-driven and window-focus invalidation.
+- **Dashboard Motion:** Coordinated Framer Motion entrance with staggered metric cards and retrieval latency radar animations.

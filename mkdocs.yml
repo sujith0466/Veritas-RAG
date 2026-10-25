@@ -1,9 +1,9 @@
-site_name: RAGuard AI
-site_description: Enterprise Retrieval-Augmented Generation Reliability Platform
-site_author: RAGuard Contributors
-site_url: https://docs.raguard.ai
-repo_url: https://github.com/your-org/raguard
-repo_name: your-org/raguard
+site_name: Veritas RAG
+site_description: Enterprise Knowledge Reliability Platform using Self-Correcting Retrieval-Augmented Generation
+site_author: Veritas RAG Contributors
+site_url: https://docs.veritas-rag.ai
+repo_url: https://github.com/sujith0466/Veritas-RAG
+repo_name: sujith0466/Veritas-RAG
 edit_uri: edit/main/docs/
 
 theme:
@@ -41,30 +41,31 @@ markdown_extensions:
 
 nav:
   - Home:
-    - Overview: PROJECT_OVERVIEW.md
-    - Installation: INSTALLATION_GUIDE.md
-    - Configuration: CONFIGURATION_GUIDE.md
-    - Architecture: SYSTEM_ARCHITECTURE.md
-  - Guides:
-    - User Guide: USER_GUIDE.md
-    - Operator Guide: OPERATOR_GUIDE.md
-    - Admin Guide: ADMIN_GUIDE.md
-    - Developer Guide: DEVELOPER_GUIDE.md
-    - API Quickstart: developer/API_QUICKSTART.md
-    - Architecture Walkthrough: developer/ARCHITECTURE_WALKTHROUGH.md
-    - Coding Standards: developer/CODING_STANDARDS.md
-    - Debugging Guide: developer/DEBUGGING_GUIDE.md
-    - Onboarding: developer/ONBOARDING_CHECKLIST.md
-  - Infrastructure & Security:
-    - Deployment: DEPLOYMENT_GUIDE.md
-    - Security: SECURITY_GUIDE.md
-    - Observability: OBSERVABILITY_GUIDE.md
-    - Database: DATABASE_DOCUMENTATION.md
+    - Complete Project Handbook: VERITAS_RAG_COMPLETE_PROJECT_HANDBOOK.md
+    - Documentation Index: DOCUMENTATION_INDEX.md
+    - High-Level Architecture: Architecture/high-level-architecture.md
+    - System Design: Architecture/SYSTEM_DESIGN.md
+  - Architecture:
+    - System Architecture: Architecture/ARCHITECTURE.md
+    - Document Processing Pipeline: Architecture/DOCUMENT_PROCESSING.md
+    - Hybrid Retrieval Strategy: Architecture/HYBRID_RETRIEVAL.md
+    - Database Architecture: Architecture/DATABASE_ARCHITECTURE.md
+    - Observability Architecture: Architecture/OBSERVABILITY_ARCHITECTURE.md
+    - Security Architecture: Security/SECURITY_ARCHITECTURE.md
+  - Operations & Guides:
+    - User Guide: User/user-guide.md
+    - Admin Guide: User/admin-guide.md
+    - Deployment Guide: Operations/deployment-guide.md
+    - Configuration Guide: Operations/CONFIGURATION_GUIDE.md
+    - Monitoring & Observability: Operations/MONITORING.md
+    - Troubleshooting Guide: User/troubleshooting-guide.md
+    - Testing & Verification Guide: Validation/TESTING_GUIDE.md
   - API & References:
-    - API Reference: API_REFERENCE.md
-    - Troubleshooting: TROUBLESHOOTING_GUIDE.md
-    - FAQ: FAQ.md
-  - Community:
+    - API Reference: API/API_REFERENCE.md
+    - FAQ: User/faq.md
+    - Feature Matrix: Portfolio/feature-matrix.md
+    - Roadmap: Roadmap/ROADMAP.md
+  - Community & Governance:
     - Code of Conduct: ../CODE_OF_CONDUCT.md
-    - Contributing: ../CONTRIBUTING.md
+    - Contributing Guidelines: ../CONTRIBUTING.md
     - Security Policy: ../SECURITY.md

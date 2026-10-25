@@ -39,6 +39,6 @@
 | Vector DB | Qdrant | Dense embedding search |
 | Relational DB | PostgreSQL 15 | Structured data |
 | Cache | Redis 7 | State, quotas, dedup |
-| Background | Celery (optional) | Async task processing |
+| Background | Celery 5.4+ | Async tasks, ingestion, watchdog & folder retention |
 | Monitoring | Prometheus + Grafana | Metrics |
 | Tracing | OpenTelemetry | Distributed traces |

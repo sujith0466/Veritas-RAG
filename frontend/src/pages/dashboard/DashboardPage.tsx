@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { PageTransition } from '@/components/layouts'
 import { ErrorState } from '@/components/common/ErrorState'
 import { dashboardService } from '@/services/dashboardService'
@@ -15,6 +16,8 @@ import {
 } from '@/components/dashboard'
 
 export function DashboardPage() {
+  const shouldReduceMotion = useReducedMotion()
+  const hasLoadedInitialDataRef = useRef(false)
   const [timeWindow, setTimeWindow] = useState<'1h' | '24h' | '7d' | '30d' | 'all'>('24h')
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -50,6 +53,7 @@ export function DashboardPage() {
       ])
       setCommandCenter(ccData)
       setLedger(ledgerData)
+      hasLoadedInitialDataRef.current = true
     } catch (err) {
       console.error('Failed to load command center telemetry:', err)
       setError('Unable to fetch command center metrics. Please check network connection and try again.')
@@ -119,6 +123,7 @@ export function DashboardPage() {
                 trendPoints={commandCenter.reliability_trend}
                 timeWindow={timeWindow}
                 isLoading={isLoading}
+                shouldAnimate={!hasLoadedInitialDataRef.current}
               />
             ) : isLoading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
@@ -130,7 +135,12 @@ export function DashboardPage() {
 
             {/* ZONE 3 & ZONE 4: Subsystem Health & Latency Decomposition */}
             {commandCenter ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <motion.div
+                initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22, delay: 0.08, ease: [0.4, 0, 0.2, 1] }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+              >
                 <div className="lg:col-span-6">
                   <SystemHealthRadar
                     systemHealth={commandCenter.system_health}
@@ -147,7 +157,7 @@ export function DashboardPage() {
                     isLoading={isLoading}
                   />
                 </div>
-              </div>
+              </motion.div>
             ) : isLoading ? (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse">
                 <div className="lg:col-span-6 h-64 rounded-lg border border-border/60 bg-card/40" />
@@ -157,7 +167,12 @@ export function DashboardPage() {
 
             {/* ZONE 4 & ZONE 5: Knowledge Pipeline Health & Safety Interventions */}
             {commandCenter ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <motion.div
+                initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22, delay: 0.12, ease: [0.4, 0, 0.2, 1] }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+              >
                 <div className="lg:col-span-7">
                   <KnowledgePipelineCard
                     knowledge={commandCenter.knowledge_health}
@@ -171,7 +186,7 @@ export function DashboardPage() {
                     isLoading={isLoading}
                   />
                 </div>
-              </div>
+              </motion.div>
             ) : isLoading ? (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse">
                 <div className="lg:col-span-7 h-52 rounded-lg border border-border/60 bg-card/40" />
@@ -180,20 +195,26 @@ export function DashboardPage() {
             ) : null}
 
             {/* ZONE 6: Interactive Execution Flight Recorder & Audit Ledger */}
-            <ExecutionFlightRecorder
-              items={ledger?.items || []}
-              total={ledger?.total || 0}
-              page={page}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              search={search}
-              onSearchChange={handleSearchChange}
-              statusFilter={statusFilter}
-              onStatusFilterChange={handleStatusFilterChange}
-              onInspectTrace={(queryId) => setSelectedTraceId(queryId)}
-              isLoading={isLoading}
-              timeWindow={timeWindow}
-            />
+            <motion.div
+              initial={shouldReduceMotion || hasLoadedInitialDataRef.current ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, delay: 0.16, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <ExecutionFlightRecorder
+                items={ledger?.items || []}
+                total={ledger?.total || 0}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                search={search}
+                onSearchChange={handleSearchChange}
+                statusFilter={statusFilter}
+                onStatusFilterChange={handleStatusFilterChange}
+                onInspectTrace={(queryId) => setSelectedTraceId(queryId)}
+                isLoading={isLoading}
+                timeWindow={timeWindow}
+              />
+            </motion.div>
           </>
         )}
 

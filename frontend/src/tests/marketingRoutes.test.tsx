@@ -44,9 +44,23 @@ describe('Marketing Navigation & Shell Verification', () => {
 
       // 3. Confirm navigation links
       expect(screen.getByRole('link', { name: 'Platform' })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Security' })).toBeInTheDocument()
       expect(screen.getByRole('link', { name: 'Features' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Security' })).toBeInTheDocument()
       expect(screen.getByRole('link', { name: 'Architecture' })).toBeInTheDocument()
+    })
+
+    it('renders navigation links in exact order: Platform -> Features -> Security -> Architecture', () => {
+      render(
+        <MemoryRouter>
+          <Navbar />
+        </MemoryRouter>
+      )
+
+      const links = screen.getAllByRole('link').filter(l =>
+        ['Platform', 'Features', 'Security', 'Architecture'].includes(l.textContent || '')
+      )
+      const labels = links.map(l => l.textContent)
+      expect(labels.slice(0, 4)).toEqual(['Platform', 'Features', 'Security', 'Architecture'])
     })
   })
 

@@ -1,4 +1,6 @@
 import React from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { workspaceCardGroupVariants, workspaceCardItemVariants } from '@/motion'
 import { Activity, FileText, Zap, ShieldAlert } from 'lucide-react'
 import { Card, CardContent } from '@/components/common/Card'
 import type { CommandKpisDTO, CommandReliabilityTrendPointDTO } from '@/types'
@@ -8,6 +10,7 @@ interface ExecutiveKpiGridProps {
   trendPoints: CommandReliabilityTrendPointDTO[]
   timeWindow: string
   isLoading: boolean
+  shouldAnimate?: boolean
 }
 
 export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
@@ -15,7 +18,9 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
   trendPoints,
   timeWindow,
   isLoading,
+  shouldAnimate = false,
 }) => {
+  const shouldReduceMotion = useReducedMotion()
   const hasQueries = kpis.total_queries > 0
 
   // Lightweight native SVG sparkline generator
@@ -119,35 +124,45 @@ export const ExecutiveKpiGrid: React.FC<ExecutiveKpiGridProps> = ({
   ]
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <motion.div
+      variants={shouldReduceMotion ? undefined : workspaceCardGroupVariants}
+      initial={shouldAnimate && !shouldReduceMotion ? 'hidden' : false}
+      animate="visible"
+      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+    >
       {cards.map((c) => (
-        <Card
+        <motion.div
           key={c.title}
-          className="relative overflow-hidden bg-card/60 backdrop-blur-md border border-border/70 hover:border-border transition-all duration-200 shadow-sm"
+          variants={shouldReduceMotion ? undefined : workspaceCardItemVariants}
+          className="h-full"
         >
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between pb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {c.title}
-              </span>
-              <div className={`p-2 rounded-lg border ${c.color}`}>
-                <c.icon className="h-4 w-4" />
+          <Card
+            className="relative overflow-hidden bg-card/60 backdrop-blur-md border border-border/70 hover:border-border transition-all duration-200 shadow-sm h-full"
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between pb-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {c.title}
+                </span>
+                <div className={`p-2 rounded-lg border ${c.color}`}>
+                  <c.icon className="h-4 w-4" />
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-baseline justify-between gap-2">
-              <span className={`text-2xl sm:text-3xl font-extrabold font-mono tracking-tight ${c.valueColor}`}>
-                {c.value}
-              </span>
-              {c.extra && <div className="shrink-0">{c.extra}</div>}
-            </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className={`text-2xl sm:text-3xl font-extrabold font-mono tracking-tight ${c.valueColor}`}>
+                  {c.value}
+                </span>
+                {c.extra && <div className="shrink-0">{c.extra}</div>}
+              </div>
 
-            <p className="text-xs text-muted-foreground mt-2 truncate font-medium">
-              {c.subtitle}
-            </p>
-          </CardContent>
-        </Card>
+              <p className="text-xs text-muted-foreground mt-2 truncate font-medium">
+                {c.subtitle}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   )
 }

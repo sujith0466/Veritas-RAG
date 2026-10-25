@@ -233,5 +233,4 @@ def sweep_stale_pipeline_documents_task(self):
                 await session.commit()
                 logger.info("Watchdog sweep recovered stuck pipeline documents", count=count)
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(_run())
+    return asyncio.run(_run())

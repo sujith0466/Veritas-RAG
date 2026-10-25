@@ -7,17 +7,40 @@ import { authService } from '@/services/auth/authService'
 import { ApiError } from '@/types'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setStatus, setAuth, clearAuth, setErrorAuth, token } = useAuthStore()
+  const { setStatus, setAuth, clearAuth, setErrorAuth, token, status } = useAuthStore()
   const initialMount = useRef(true)
+  const isMountedRef = useRef(true)
+  const authSeqRef = useRef(0)
+  const initializedTokenRef = useRef<string | null | undefined>(undefined)
+  const isInitializingRef = useRef(false)
 
   useEffect(() => {
-    let mounted = true
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
+  useEffect(() => {
     async function initializeAuth() {
       // Do not race against OAuthCallbackPage when processing OAuth redirect
-      if (window.location.pathname.startsWith('/auth/callback')) {
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/auth/callback')) {
         return
       }
+
+      // If already unauthenticated and token is null, do not re-run refresh (prevents post-logout re-trigger)
+      if (!token && status === 'UNAUTHENTICATED' && !initialMount.current) {
+        initializedTokenRef.current = null
+        return
+      }
+
+      // If this exact token is already in-flight or fully established, skip duplicate execution
+      if (token && token === initializedTokenRef.current && (isInitializingRef.current || status === 'AUTHENTICATED')) {
+        return
+      }
+
+      const seq = ++authSeqRef.current
+      isInitializingRef.current = true
 
       try {
         if (initialMount.current) {
@@ -30,13 +53,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!currentToken) {
           try {
             currentToken = await authService.refresh()
-            // Temporarily store token for apiClient interceptor
+            if (!isMountedRef.current || seq !== authSeqRef.current) return
+
+            // Record this token as recognized BEFORE updating Zustand store
+            // to prevent the subsequent re-render from launching a duplicate initializeAuth run
+            initializedTokenRef.current = currentToken
             useAuthStore.setState({ token: currentToken })
           } catch (e: any) {
-            if (!mounted) return
+            if (!isMountedRef.current || seq !== authSeqRef.current) return
 
             // Server authoritatively rejected session (cookie missing, expired, revoked)
             if (e instanceof ApiError && e.status === 401) {
+              initializedTokenRef.current = null
               clearAuth()
               return
             }
@@ -54,10 +82,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             })
             return
           }
+        } else {
+          initializedTokenRef.current = currentToken
         }
+
+        if (!isMountedRef.current || seq !== authSeqRef.current) return
 
         // We have a token in memory, sync with backend
         const userContext = await authService.fetchBackendProfile()
+        if (!isMountedRef.current || seq !== authSeqRef.current) return
 
         // WS-A7: Server-authoritative workspace context resolution
         if (userContext.tenant_id) {
@@ -65,15 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           useWorkspaceStore.getState().resetWorkspaceResolution()
         }
+        if (!isMountedRef.current || seq !== authSeqRef.current) return
 
-        if (mounted && currentToken) {
+        if (currentToken) {
           setAuth(userContext, currentToken)
         }
       } catch (error) {
-        if (mounted) {
+        if (isMountedRef.current && seq === authSeqRef.current) {
           useWorkspaceStore.getState().resetWorkspaceResolution()
-          if (token) {
-            setErrorAuth(token, {
+          if (token || initializedTokenRef.current) {
+            setErrorAuth(token || (initializedTokenRef.current as string), {
               code: 'BACKEND_UNAVAILABLE',
               message: 'Failed to synchronize profile with backend.',
               retryable: true,
@@ -83,52 +117,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearAuth()
           }
         }
+      } finally {
+        if (seq === authSeqRef.current) {
+          isInitializingRef.current = false
+        }
       }
     }
 
     initializeAuth()
+  }, [clearAuth, setAuth, setStatus, token, status])
 
-    // F2.4: Listen to BroadcastChannel for cross-tab logout and demo role synchronization
+  // F2.4: Listen to BroadcastChannel for cross-tab logout and demo role synchronization
+  useEffect(() => {
     const channel = new BroadcastChannel('auth_sync')
     channel.onmessage = async (event) => {
       if (event.data?.type === 'LOGOUT') {
-        if (mounted) {
+        if (isMountedRef.current) {
+          authSeqRef.current++
+          initializedTokenRef.current = null
           clearAuth()
           useWorkspaceStore.getState().resetWorkspaceResolution()
         }
       } else if (event.data?.type === 'TOKEN_REFRESHED' && event.data?.token) {
-        if (mounted) {
+        if (isMountedRef.current) {
           try {
-            // Adopt token refreshed by another tab and sync profile
+            const seq = ++authSeqRef.current
+            initializedTokenRef.current = event.data.token
             useAuthStore.setState({ token: event.data.token })
             const userContext = await authService.fetchBackendProfile()
+            if (!isMountedRef.current || seq !== authSeqRef.current) return
             if (userContext.tenant_id) {
               await useWorkspaceStore.getState().fetchCurrentWorkspace()
             } else {
               useWorkspaceStore.getState().resetWorkspaceResolution()
             }
-            if (mounted) {
-              setAuth(userContext, event.data.token)
-            }
+            if (!isMountedRef.current || seq !== authSeqRef.current) return
+            setAuth(userContext, event.data.token)
           } catch (e) {
             console.warn('Cross-tab token refresh sync failed:', e)
           }
         }
       } else if (event.data?.type === 'DEMO_ROLE_SWITCHED' || event.data?.type === 'DEMO_ROLE_RESET') {
-        if (mounted) {
+        if (isMountedRef.current) {
           try {
-            // Silently refresh token and update profile across open tabs
+            const seq = ++authSeqRef.current
             const refreshedToken = await authService.refresh()
+            if (!isMountedRef.current || seq !== authSeqRef.current) return
+            initializedTokenRef.current = refreshedToken
             useAuthStore.setState({ token: refreshedToken })
             const userContext = await authService.fetchBackendProfile()
+            if (!isMountedRef.current || seq !== authSeqRef.current) return
             if (userContext.tenant_id) {
               await useWorkspaceStore.getState().fetchCurrentWorkspace()
             } else {
               useWorkspaceStore.getState().resetWorkspaceResolution()
             }
-            if (mounted) {
-              setAuth(userContext, refreshedToken)
-            }
+            if (!isMountedRef.current || seq !== authSeqRef.current) return
+            setAuth(userContext, refreshedToken)
           } catch (e) {
             console.warn('Cross-tab demo sync failed:', e)
           }
@@ -137,10 +182,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => {
-      mounted = false
       channel.close()
     }
-  }, [clearAuth, setAuth, setStatus, token])
+  }, [clearAuth, setAuth])
 
   return (
     <AuthContext.Provider value={null}>

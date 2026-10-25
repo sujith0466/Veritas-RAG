@@ -186,6 +186,12 @@ export const authService = {
   },
 
   async fetchBackendProfile(): Promise<UserContext> {
+    // Concurrently initiate extended profile request alongside authoritative /auth/me fetch
+    const extendedProfilePromise = apiClient.get('/users/me').catch((error) => {
+      console.warn('Failed to fetch extended user profile:', error)
+      return null
+    })
+
     let authContext: UserContext | null = null
     for (let i = 0; i < 3; i++) {
       try {
@@ -199,18 +205,13 @@ export const authService = {
 
     if (!authContext) throw new Error('Failed to fetch user context')
 
-    try {
-      const response = await apiClient.get('/users/me')
-      return {
-        ...authContext,
-        ...response.data,
-        role: authContext.role,
-        demo_role_switcher_enabled: authContext.demo_role_switcher_enabled,
-        demo_simulated: authContext.demo_simulated,
-      }
-    } catch (error) {
-      console.error('Failed to fetch extended user profile:', error)
-      return authContext
+    const extendedResponse = await extendedProfilePromise
+    return {
+      ...authContext,
+      ...(extendedResponse?.data || {}),
+      role: authContext.role,
+      demo_role_switcher_enabled: authContext.demo_role_switcher_enabled,
+      demo_simulated: authContext.demo_simulated,
     }
   },
 

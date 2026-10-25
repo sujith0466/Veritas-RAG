@@ -51,8 +51,10 @@ export function AuthBranding({
           <img
             src="/veritas-rag-icon-light.png"
             alt="Veritas RAG"
+            width={56}
+            height={56}
             className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl object-contain shadow-sm border border-border/50 dark:hidden"
-            loading="eager"
+            decoding="async"
             draggable={false}
           />
 
@@ -60,8 +62,10 @@ export function AuthBranding({
           <img
             src="/veritas-rag-icon-dark.png"
             alt="Veritas RAG"
+            width={56}
+            height={56}
             className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl object-contain shadow-sm border border-border/50 hidden dark:block"
-            loading="eager"
+            decoding="async"
             draggable={false}
           />
         </div>
@@ -71,8 +75,10 @@ export function AuthBranding({
           <img
             src="/veritas-rag-logo.png"
             alt="Veritas RAG"
+            width={200}
+            height={80}
             className="h-10 sm:h-12 w-auto max-w-[200px] sm:max-w-[220px] object-contain dark:hidden"
-            loading="eager"
+            decoding="async"
             draggable={false}
           />
 
@@ -81,8 +87,10 @@ export function AuthBranding({
             <img
               src="/veritas-rag-icon-dark.png"
               alt="Veritas RAG"
+              width={40}
+              height={40}
               className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl object-contain shadow-sm border border-border/50"
-              loading="eager"
+              decoding="async"
               draggable={false}
             />
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-sans">

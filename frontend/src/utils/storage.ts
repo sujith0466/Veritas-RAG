@@ -42,4 +42,5 @@ export const storage = {
 export const STORAGE_KEYS = {
   THEME: 'theme_preference',
   SIDEBAR_COLLAPSED: 'sidebar_collapsed',
+  SESSION_HINT: 'session_active',
 } as const

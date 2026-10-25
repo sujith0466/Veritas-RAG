@@ -4,11 +4,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { LogOut, Settings, LayoutDashboard } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { getAssetUrl } from '@/api/client'
+import { cn } from '@/utils/cn'
 
 export function UserMenu() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [imageFailed, setImageFailed] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -19,6 +21,7 @@ export function UserMenu() {
 
   useEffect(() => {
     setImageFailed(false)
+    setImageLoaded(false)
   }, [avatarUrl])
 
   // Precedence:
@@ -40,16 +43,24 @@ export function UserMenu() {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors overflow-hidden">
-          {avatarUrl && !imageFailed ? (
+        <button
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors overflow-hidden"
+          aria-label="User menu"
+        >
+          {/* Always render initials fallback so there is zero layout shift or empty frame while image loads */}
+          <span className="text-sm font-semibold select-none">{initials}</span>
+
+          {avatarUrl && !imageFailed && (
             <img
               src={avatarUrl}
               alt="Avatar"
-              className="h-full w-full object-cover"
+              className={cn(
+                "absolute inset-0 h-full w-full object-cover transition-opacity duration-200",
+                imageLoaded ? "opacity-100" : "opacity-0"
+              )}
+              onLoad={() => setImageLoaded(true)}
               onError={() => setImageFailed(true)}
             />
-          ) : (
-            <span className="text-sm font-semibold">{initials}</span>
           )}
         </button>
       </DropdownMenu.Trigger>

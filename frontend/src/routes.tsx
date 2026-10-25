@@ -3,7 +3,13 @@ import { createBrowserRouter, Navigate, Outlet, useLocation, useSearchParams } f
 import { Suspense } from 'react'
 import { lazyRetry } from '@/utils/lazyRetry'
 import { AppProvider } from '@/providers/AppProvider'
-import { AuthLayout, DashboardLayout, LandingLayout, AdminLayout } from '@/components/layouts'
+
+// Lazy-loaded Shell Layouts to prevent monolithic entry bundle bloating
+const LandingLayout = lazyRetry(() => import('@/components/layouts/LandingLayout').then(m => ({ default: m.LandingLayout })), 'LandingLayout')
+const AuthLayout = lazyRetry(() => import('@/components/layouts/AuthLayout').then(m => ({ default: m.AuthLayout })), 'AuthLayout')
+const DashboardLayout = lazyRetry(() => import('@/components/layouts/DashboardLayout').then(m => ({ default: m.DashboardLayout })), 'DashboardLayout')
+const AdminLayout = lazyRetry(() => import('@/components/layouts/AdminLayout').then(m => ({ default: m.AdminLayout })), 'AdminLayout')
+
 const LandingPage = lazyRetry(() => import('@/pages/landing/LandingPage').then(m => ({ default: m.LandingPage })), 'LandingPage')
 
 // Marketing Pages
@@ -346,7 +352,13 @@ export const router = createBrowserRouter([
               // Admin Portal (Epic 12)
               {
                 path: 'admin',
-                element: <ProtectedRoute adminOnly><AdminLayout /></ProtectedRoute>,
+                element: (
+                  <ProtectedRoute adminOnly>
+                    <Suspense fallback={<SuspenseFallback />}>
+                      <AdminLayout />
+                    </Suspense>
+                  </ProtectedRoute>
+                ),
                 children: [
                   { index: true, element: <Navigate to="workspace" replace /> },
                   { path: 'workspace', element: <WorkspaceSettings /> },

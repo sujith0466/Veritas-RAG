@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AuthStatus, UserContext, AuthError } from '@/types'
+import { storage, STORAGE_KEYS } from '@/utils/storage'
 
 interface AuthStoreState {
   status: AuthStatus
@@ -28,14 +29,18 @@ export const useAuthStore = create<AuthStoreState & AuthStoreActions>()((set) =>
 
   setStatus: (status) => set({ status }),
 
-  setAuth: (user, token) =>
-    set({ status: 'AUTHENTICATED', user, token, error: undefined }),
+  setAuth: (user, token) => {
+    storage.set(STORAGE_KEYS.SESSION_HINT, true)
+    return set({ status: 'AUTHENTICATED', user, token, error: undefined })
+  },
 
   setToken: (token) =>
     set({ token, status: 'AUTHENTICATED', error: undefined }),
 
-  clearAuth: () =>
-    set({ ...initialState, status: 'UNAUTHENTICATED' }),
+  clearAuth: () => {
+    storage.remove(STORAGE_KEYS.SESSION_HINT)
+    return set({ ...initialState, status: 'UNAUTHENTICATED' })
+  },
 
   setErrorAuth: (token, error) =>
     set({ status: 'ERROR', user: null, token, error }),

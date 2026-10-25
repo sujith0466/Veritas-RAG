@@ -169,4 +169,39 @@ describe('Workstream 1: UserMenu Navigation Deduping', () => {
       expect(screen.getByText('C')).toBeInTheDocument()
     })
   })
+
+  it('renders stable placeholder initials immediately with reserved dimensions while avatar image loads', () => {
+    useAuthStore.setState({
+      user: {
+        id: 'usr-nav-6',
+        email: 'dan@veritas.rag',
+        username: 'dan_ops',
+        avatar_url: '/api/v1/storage/avatars/usr-nav-6/photo.jpeg',
+        role: 'member' as any,
+      } as any,
+      token: 'mock-jwt-token',
+      status: 'AUTHENTICATED',
+    })
+
+    render(
+      <MemoryRouter>
+        <UserMenu />
+      </MemoryRouter>
+    )
+
+    // Button trigger has reserved dimensions h-9 w-9
+    const trigger = screen.getByRole('button', { name: /user menu/i })
+    expect(trigger).toHaveClass('h-9', 'w-9', 'relative')
+
+    // Initial is present immediately as base text (no blank state)
+    expect(screen.getByText('D')).toBeInTheDocument()
+
+    // Avatar image is mounted with initial opacity-0 overlay
+    const img = screen.getByRole('img', { name: /avatar/i })
+    expect(img).toHaveClass('opacity-0')
+
+    // On successful load, transitions to opacity-100
+    fireEvent.load(img)
+    expect(img).toHaveClass('opacity-100')
+  })
 })

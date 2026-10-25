@@ -7,12 +7,14 @@ import { Button } from '@/components/common/Button'
 import { MagneticButton } from '@/components/motion/MagneticButton'
 import { useAuthStore } from '@/stores/authStore'
 import { UserMenu } from '@/components/navigation/UserMenu'
+import { storage, STORAGE_KEYS } from '@/utils/storage'
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [hoveredLink, setHoveredLink] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string>('')
+  const [hasSessionHint] = useState(() => storage.get<boolean>(STORAGE_KEYS.SESSION_HINT, false))
 
   const status = useAuthStore((s) => s.status)
   const isAuthenticated = status === 'AUTHENTICATED'
@@ -27,8 +29,8 @@ export function Navbar() {
       setScrolled(window.scrollY > 70)
 
       // Update active section
-      const sections = ['platform', 'security', 'features', 'architecture']
-      for (const section of sections.reverse()) {
+      const sections = ['platform', 'features', 'security', 'architecture']
+      for (const section of [...sections].reverse()) {
         const el = document.getElementById(section)
         if (el && window.scrollY >= (el.offsetTop - 100)) {
           setActiveSection(section)
@@ -68,8 +70,8 @@ export function Navbar() {
 
   const navLinks = [
     { label: 'Platform', href: 'platform' },
-    { label: 'Security', href: 'security' },
     { label: 'Features', href: 'features' },
+    { label: 'Security', href: 'security' },
     { label: 'Architecture', href: 'architecture' },
   ]
 
@@ -141,7 +143,11 @@ export function Navbar() {
         {/* Actions */}
         <div className="hidden md:flex items-center space-x-4">
           {isResolvingAuth ? (
-            <div className="h-10 w-36 rounded-full bg-surface-elevated/50 animate-pulse border border-border/40" />
+            hasSessionHint ? (
+              <div className="h-9 w-9 rounded-full bg-surface-elevated/50 animate-pulse border border-border/40" />
+            ) : (
+              <div className="h-10 w-36 rounded-full bg-surface-elevated/50 animate-pulse border border-border/40" />
+            )
           ) : !isAuthenticated ? (
             <MagneticButton variant="primary" onClick={handleLaunch} className="text-sm font-semibold h-10 px-6 rounded-full shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
               Launch Workspace

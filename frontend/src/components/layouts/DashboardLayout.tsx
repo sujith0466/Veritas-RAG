@@ -20,21 +20,67 @@ export function DashboardLayout() {
   }, [location])
 
   useEffect(() => {
+    let mounted = true
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let inFlight = false
+
     const checkStatus = async () => {
+      if (inFlight || !mounted || (typeof document !== 'undefined' && document.hidden)) {
+        return
+      }
+      inFlight = true
       try {
         const { documentService } = await import('@/services/documentService')
         const docs = await documentService.listDocuments(1, 100)
-        const processing = docs.items.some(d => d.status === 'processing' || d.status === 'pending')
-        const processedCount = docs.items.filter(d => d.status === 'processed').length
+        if (!mounted) return
+
+        const processing = docs.items.some(
+          (d) => d.status === 'processing' || d.status === 'pending'
+        )
+        const processedCount = docs.items.filter((d) => d.status === 'processed').length
         setIsIndexing(processing)
         setDocStats({ total: docs.items.length, processed: processedCount })
+
+        // Adaptive polling:
+        // - If actively indexing/processing: poll every 3 seconds to keep progress responsive.
+        // - If idle: back off to 30 seconds to prevent unnecessary background server queries.
+        if (mounted) {
+          const nextDelay = processing ? 3000 : 30000
+          timer = setTimeout(checkStatus, nextDelay)
+        }
       } catch (e) {
-        // ignore
+        if (mounted) {
+          // On network/service hiccup, back off gracefully
+          timer = setTimeout(checkStatus, 30000)
+        }
+      } finally {
+        inFlight = false
       }
     }
+
     checkStatus()
-    const interval = setInterval(checkStatus, 3000)
-    return () => clearInterval(interval)
+
+    // Resume immediately when tab becomes visible or on custom document activity
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (timer) clearTimeout(timer)
+        checkStatus()
+      }
+    }
+    const handleActivity = () => {
+      if (timer) clearTimeout(timer)
+      checkStatus()
+    }
+
+    window.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('veritas:document-activity', handleActivity)
+
+    return () => {
+      mounted = false
+      if (timer) clearTimeout(timer)
+      window.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('veritas:document-activity', handleActivity)
+    }
   }, [])
 
   return (

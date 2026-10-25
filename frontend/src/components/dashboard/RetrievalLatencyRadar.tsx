@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Clock, PieChart } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/common/Card'
 import type { CommandLatencyPercentilesDTO, CommandOutcomesBreakdownDTO } from '@/types'
@@ -14,6 +15,7 @@ export const RetrievalLatencyRadar: React.FC<RetrievalLatencyRadarProps> = ({
   outcomes,
   isLoading,
 }) => {
+  const shouldReduceMotion = useReducedMotion()
   const percentiles = [
     { label: 'P50 Median', value: latency.p50_ms, target: '< 1.5s' },
     { label: 'P90 Percentile', value: latency.p90_ms, target: '< 5s' },
@@ -70,11 +72,13 @@ export const RetrievalLatencyRadar: React.FC<RetrievalLatencyRadarProps> = ({
                   </div>
                 </div>
                 <div className="h-2 w-full bg-muted/60 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 rounded-full ${
+                  <motion.div
+                    initial={shouldReduceMotion ? false : { width: 0 }}
+                    animate={{ width: `${barWidth}%` }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    className={`h-full rounded-full ${
                       ms < 2000 ? 'bg-emerald-500' : ms < 10000 ? 'bg-amber-500' : 'bg-rose-500'
                     }`}
-                    style={{ width: `${barWidth}%` }}
                   />
                 </div>
               </div>
@@ -94,10 +98,34 @@ export const RetrievalLatencyRadar: React.FC<RetrievalLatencyRadarProps> = ({
 
           {/* Stacked Progress Bar */}
           <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
-            <div className="bg-emerald-500 h-full transition-all" style={{ width: `${successPct}%` }} title={`Success: ${outcomes.success_count}`} />
-            <div className="bg-sky-500 h-full transition-all" style={{ width: `${clarifPct}%` }} title={`Clarifications: ${outcomes.clarification_count}`} />
-            <div className="bg-amber-500 h-full transition-all" style={{ width: `${abortPct}%` }} title={`Aborted/Intervened: ${outcomes.aborted_hallucination_count + outcomes.aborted_low_confidence_count}`} />
-            <div className="bg-slate-600 h-full transition-all" style={{ width: `${otherPct}%` }} title="Other / Unclassified" />
+            <motion.div
+              initial={shouldReduceMotion ? false : { width: 0 }}
+              animate={{ width: `${successPct}%` }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-emerald-500 h-full"
+              title={`Success: ${outcomes.success_count}`}
+            />
+            <motion.div
+              initial={shouldReduceMotion ? false : { width: 0 }}
+              animate={{ width: `${clarifPct}%` }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-sky-500 h-full"
+              title={`Clarifications: ${outcomes.clarification_count}`}
+            />
+            <motion.div
+              initial={shouldReduceMotion ? false : { width: 0 }}
+              animate={{ width: `${abortPct}%` }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-amber-500 h-full"
+              title={`Aborted/Intervened: ${outcomes.aborted_hallucination_count + outcomes.aborted_low_confidence_count}`}
+            />
+            <motion.div
+              initial={shouldReduceMotion ? false : { width: 0 }}
+              animate={{ width: `${otherPct}%` }}
+              transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-slate-600 h-full"
+              title="Other / Unclassified"
+            />
           </div>
 
           {/* Legend */}

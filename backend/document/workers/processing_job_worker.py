@@ -43,5 +43,4 @@ def requeue_stale_jobs(self):
                 await session.commit()
                 print(f"Requeued {count} stale jobs")
 
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run())
+    return asyncio.run(run())

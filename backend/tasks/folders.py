@@ -45,8 +45,7 @@ async def _invalidate_batch(workspace_id: uuid.UUID, folder_ids: list[uuid.UUID]
 )
 def cascade_soft_delete_subtree(self, folder_id: str, workspace_id: str, deleted_by_user_id: str, deleted_at: str):
     """Sync wrapper for async task."""
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_cascade_soft_delete_subtree(self, folder_id, workspace_id, deleted_by_user_id, deleted_at))
+    return asyncio.run(_cascade_soft_delete_subtree(self, folder_id, workspace_id, deleted_by_user_id, deleted_at))
 
 
 async def _cascade_soft_delete_subtree(self, folder_id: str, workspace_id: str, deleted_by_user_id: str, deleted_at: str):
@@ -141,8 +140,7 @@ async def _cascade_soft_delete_subtree(self, folder_id: str, workspace_id: str, 
     reject_on_worker_lost=True,
 )
 def cascade_restore_subtree(self, folder_id: str, workspace_id: str, actor_id: str):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_cascade_restore_subtree(self, folder_id, workspace_id, actor_id))
+    return asyncio.run(_cascade_restore_subtree(self, folder_id, workspace_id, actor_id))
 
 
 async def _cascade_restore_subtree(self, folder_id: str, workspace_id: str, actor_id: str):
@@ -226,8 +224,7 @@ async def _cascade_restore_subtree(self, folder_id: str, workspace_id: str, acto
     queue="folders.critical"
 )
 def cascade_move_subtree(self, source_id: str, workspace_id: str, old_path_prefix: str, new_path_prefix: str, depth_delta: int, actor_id: str):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_cascade_move_subtree(self, source_id, workspace_id, old_path_prefix, new_path_prefix, depth_delta, actor_id))
+    return asyncio.run(_cascade_move_subtree(self, source_id, workspace_id, old_path_prefix, new_path_prefix, depth_delta, actor_id))
 
 async def _cascade_move_subtree(self, source_id: str, workspace_id: str, old_path_prefix: str, new_path_prefix: str, depth_delta: int, actor_id: str):
     ws_uuid = uuid.UUID(workspace_id)
@@ -320,8 +317,7 @@ async def _cascade_move_subtree(self, source_id: str, workspace_id: str, old_pat
     queue="folders.purge"
 )
 def hard_delete_folder_subtree(self, folder_id: str, workspace_id: str):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_hard_delete_folder_subtree(self, folder_id, workspace_id))
+    return asyncio.run(_hard_delete_folder_subtree(self, folder_id, workspace_id))
 
 async def _hard_delete_folder_subtree(self, folder_id: str, workspace_id: str):
     ws_uuid = uuid.UUID(workspace_id)
@@ -404,22 +400,16 @@ async def _hard_delete_folder_subtree(self, folder_id: str, workspace_id: str):
     default_retry_delay=60,
 )
 def run_folder_retention_cron(self):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_run_folder_retention_cron(self))
+    return asyncio.run(_run_folder_retention_cron(self))
 
 async def _run_folder_retention_cron(self):
+    from backend.core.events.dispatcher import EventDispatcher
     from backend.services.folder.retention_worker import FolderRetentionWorker
     from backend.services.folder_service import FolderService
 
     async with SessionLocal() as session:
-        # We need a proper folder service instantiation, assuming we can inject or create it
-        # Actually FolderService takes a session. Let's create it.
-        from backend.core.events.dispatcher import EventDispatcher
-        from backend.repositories.folder_repository import FolderRepository
-
-        repo = FolderRepository(session)
         dispatcher = EventDispatcher()
-        service = FolderService(session=session, repo=repo, dispatcher=dispatcher)
+        service = FolderService(session=session, dispatcher=dispatcher)
 
         worker = FolderRetentionWorker(folder_service=service)
         result = await worker.run_retention_cleanup(session, limit=50)
