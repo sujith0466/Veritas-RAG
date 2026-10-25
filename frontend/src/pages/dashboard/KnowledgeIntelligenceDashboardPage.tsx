@@ -34,7 +34,7 @@ import {
 import { dashboardService } from '@/services/dashboardService'
 import { knowledgeHealthService } from '@/services/knowledgeHealthService'
 import type { KnowledgeIntelligenceSummaryDTO } from '@/types'
-import { listContainerVariants, listItemVariants, cardHover } from '@/motion'
+import { workspaceCardGroupVariants, workspaceCardItemVariants } from '@/motion'
 
 export function KnowledgeIntelligenceDashboardPage() {
   const [data, setData] = useState<KnowledgeIntelligenceSummaryDTO | null>(null)
@@ -150,7 +150,7 @@ export function KnowledgeIntelligenceDashboardPage() {
   const isSyncing = data?.parity_audit_status?.includes('SYNCING')
 
   return (
-    <PageTransition>
+    <PageTransition variant="workspace">
       {/* Top Header & Global Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -249,13 +249,13 @@ export function KnowledgeIntelligenceDashboardPage() {
         <>
           {/* Top 4 KPI Cards */}
           <motion.div
-            variants={listContainerVariants}
+            variants={workspaceCardGroupVariants}
             initial="hidden"
             animate="visible"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
           >
             {/* Card 1: Documents & Health */}
-            <MotionCard variants={listItemVariants} whileHover={cardHover} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm">
+            <MotionCard variants={workspaceCardItemVariants} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm transition-colors hover:border-border/80">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Documents Ingestion & Pass Rate
@@ -307,7 +307,7 @@ export function KnowledgeIntelligenceDashboardPage() {
             </MotionCard>
 
             {/* Card 2: Knowledge Chunks */}
-            <MotionCard variants={listItemVariants} whileHover={cardHover} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm">
+            <MotionCard variants={workspaceCardItemVariants} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm transition-colors hover:border-border/80">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Knowledge Chunks
@@ -333,7 +333,7 @@ export function KnowledgeIntelligenceDashboardPage() {
             </MotionCard>
 
             {/* Card 3: Vector Embeddings & Token Budget */}
-            <MotionCard variants={listItemVariants} whileHover={cardHover} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm">
+            <MotionCard variants={workspaceCardItemVariants} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm transition-colors hover:border-border/80">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Vector Embeddings & Tokens
@@ -365,7 +365,7 @@ export function KnowledgeIntelligenceDashboardPage() {
             </MotionCard>
 
             {/* Card 4: Qdrant Cluster Parity */}
-            <MotionCard variants={listItemVariants} whileHover={cardHover} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm">
+            <MotionCard variants={workspaceCardItemVariants} className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm transition-colors hover:border-border/80">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Qdrant Vector Parity
@@ -409,7 +409,7 @@ export function KnowledgeIntelligenceDashboardPage() {
           </motion.div>
 
           {/* Section: Real Qdrant Cluster Parity Diagnostics Card */}
-          <motion.div variants={listItemVariants} initial="hidden" animate="visible" className="mb-6">
+          <motion.div variants={workspaceCardItemVariants} initial="hidden" animate="visible" className="mb-6">
             <Card className={`shadow-card border ${
               hasMismatch ? 'border-amber-500/40 bg-amber-500/[0.03]' : 'border-border/60 bg-card/60'
             }`}>
@@ -522,13 +522,13 @@ export function KnowledgeIntelligenceDashboardPage() {
 
           {/* Middle Grid: Chunk Strategies & Stage Latencies */}
           <motion.div
-            variants={listContainerVariants}
+            variants={workspaceCardGroupVariants}
             initial="hidden"
             animate="visible"
             className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6"
           >
             {/* Strategy Breakdown Card */}
-            <MotionCard variants={listItemVariants} className="lg:col-span-6 shadow-card border-border/50 bg-card/60 backdrop-blur-sm flex flex-col">
+            <MotionCard variants={workspaceCardItemVariants} className="lg:col-span-6 shadow-card border-border/50 bg-card/60 backdrop-blur-sm flex flex-col">
               <CardHeader className="border-b border-border/40 pb-4 shrink-0">
                 <CardTitle className="flex items-center justify-between">
                   <span className="text-base font-bold">Semantic Strategy Distribution</span>
@@ -599,7 +599,7 @@ export function KnowledgeIntelligenceDashboardPage() {
             </MotionCard>
 
             {/* Pipeline Stage Benchmarks */}
-            <MotionCard variants={listItemVariants} className="lg:col-span-6 shadow-card border-border/50 bg-card/60 backdrop-blur-sm flex flex-col">
+            <MotionCard variants={workspaceCardItemVariants} className="lg:col-span-6 shadow-card border-border/50 bg-card/60 backdrop-blur-sm flex flex-col">
               <CardHeader className="border-b border-border/40 pb-4 shrink-0">
                 <CardTitle className="flex items-center justify-between">
                   <span className="text-base font-bold">Ingestion Pipeline SLA Benchmarks</span>
@@ -671,7 +671,7 @@ export function KnowledgeIntelligenceDashboardPage() {
           </motion.div>
 
           {/* Section: Recent Cluster Health & Parity Audits */}
-          <motion.div variants={listItemVariants} initial="hidden" animate="visible">
+          <motion.div variants={workspaceCardItemVariants} initial="hidden" animate="visible">
             <Card className="shadow-card border-border/50 bg-card/60 backdrop-blur-sm">
               <CardHeader className="border-b border-border/40 pb-4">
                 <div className="flex items-center justify-between">

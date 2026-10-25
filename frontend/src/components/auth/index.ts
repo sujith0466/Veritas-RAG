@@ -2,6 +2,7 @@ export * from './LogoutConfirmDialog'
 
 export * from './AuthForms'
 export * from './AuthArchitecturalPipeline'
+export * from './AuthBranding'
 export * from './AIAssistant'
 export * from './RoleSelector'
 export * from './PasswordStrength'

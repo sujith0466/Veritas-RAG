@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { workspaceCardGroupVariants, workspaceCardItemVariants } from '@/motion'
 import { adminService, TenantQuota, WorkspaceUsage, WorkspaceUserQuota } from '@/services/adminService'
 import { workspaceSettingsService, WorkspaceSettingsData } from '@/services/workspaceSettingsService'
 import { useAuthStore } from '@/stores/authStore'
@@ -462,13 +463,14 @@ export function QuotaBillingPage() {
       </AnimatePresence>
 
       {/* Main Resource Cards */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <motion.div
+        variants={workspaceCardGroupVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid gap-6 md:grid-cols-2"
+      >
         {/* Token Consumption */}
-        <motion.div
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-        >
+        <motion.div variants={workspaceCardItemVariants}>
           <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors bg-card relative overflow-hidden">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 bg-primary/10 rounded-xl text-primary border border-primary/20">
@@ -532,11 +534,7 @@ export function QuotaBillingPage() {
         </motion.div>
 
         {/* Query Consumption */}
-        <motion.div
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.05 }}
-        >
+        <motion.div variants={workspaceCardItemVariants}>
           <Card className="p-6 border border-border/80 shadow-xs hover:border-border transition-colors bg-card relative overflow-hidden">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-400 border border-indigo-500/20">
@@ -579,15 +577,16 @@ export function QuotaBillingPage() {
             </div>
           </Card>
         </motion.div>
-      </div>
+      </motion.div>
 
       {/* Governance & Capacity Breakdown */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <motion.div
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.1 }}
-        >
+      <motion.div
+        variants={workspaceCardGroupVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid gap-6 md:grid-cols-3"
+      >
+        <motion.div variants={workspaceCardItemVariants}>
           <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors bg-card">
             <div className="flex items-center gap-2 mb-2">
               <Database className="h-4 w-4 text-primary" />
@@ -600,11 +599,7 @@ export function QuotaBillingPage() {
           </Card>
         </motion.div>
 
-        <motion.div
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.15 }}
-        >
+        <motion.div variants={workspaceCardItemVariants}>
           <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors bg-card">
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-4 w-4 text-primary" />
@@ -617,11 +612,7 @@ export function QuotaBillingPage() {
           </Card>
         </motion.div>
 
-        <motion.div
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.2 }}
-        >
+        <motion.div variants={workspaceCardItemVariants}>
           <Card className="p-5 border border-border/80 shadow-xs hover:border-border transition-colors bg-card">
             <div className="flex items-center gap-2 mb-2">
               <Server className="h-4 w-4 text-primary" />
@@ -636,7 +627,7 @@ export function QuotaBillingPage() {
             <p className="text-xs text-muted-foreground mt-1">Automatic throttling on budget depletion</p>
           </Card>
         </motion.div>
-      </div>
+      </motion.div>
 
       {/* Team Member Token Quotas & Usage Breakdown */}
       {canEditLimits && (

@@ -1,9 +1,10 @@
 import React from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Users, FileText, Activity, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card, CardContent } from '@/components/common/Card'
 import { Skeleton } from '@/components/common/Skeleton'
 import { Button } from '@/components/common/Button'
+import { workspaceCardGroupVariants, workspaceCardItemVariants } from '@/motion'
 import type { WorkspaceOverviewDTO, SuccessRateDTO } from '@/types'
 
 interface ExecutiveKpiGridProps {
@@ -25,7 +26,6 @@ interface KpiItemProps {
   isLoading: boolean
   isError: boolean
   onRetry: () => void
-  delayIndex: number
 }
 
 export function ExecutiveKpiGrid({
@@ -47,7 +47,12 @@ export function ExecutiveKpiGrid({
   }, [successRate])
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <motion.div
+      variants={workspaceCardGroupVariants}
+      initial="hidden"
+      animate="visible"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+    >
       {/* 1. Active Users */}
       <KpiCard
         title="Active Users"
@@ -58,7 +63,6 @@ export function ExecutiveKpiGrid({
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
-        delayIndex={0}
       />
 
       {/* 2. Knowledge Documents */}
@@ -71,7 +75,6 @@ export function ExecutiveKpiGrid({
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
-        delayIndex={1}
       />
 
       {/* 3. Total Queries */}
@@ -84,7 +87,6 @@ export function ExecutiveKpiGrid({
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
-        delayIndex={2}
       />
 
       {/* 4. Grounded Reliability Rate */}
@@ -97,9 +99,8 @@ export function ExecutiveKpiGrid({
         isLoading={isLoading}
         isError={isError}
         onRetry={onRetry}
-        delayIndex={3}
       />
-    </div>
+    </motion.div>
   )
 }
 
@@ -112,10 +113,7 @@ function KpiCard({
   isLoading,
   isError,
   onRetry,
-  delayIndex,
 }: KpiItemProps) {
-  const shouldReduceMotion = useReducedMotion()
-
   const accentStyles = {
     blue: {
       border: 'hover:border-blue-500/40',
@@ -145,9 +143,7 @@ function KpiCard({
 
   return (
     <motion.div
-      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: shouldReduceMotion ? 0.1 : 0.35, delay: shouldReduceMotion ? 0 : delayIndex * 0.08 }}
+      variants={workspaceCardItemVariants}
       className="group"
     >
       <Card

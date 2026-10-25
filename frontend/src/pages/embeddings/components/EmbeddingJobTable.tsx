@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { motion } from 'framer-motion'
 import {
   Play,
   RefreshCw,
@@ -227,10 +226,8 @@ export function EmbeddingJobTable({
                 const progress = job.progress_percentage || 0
 
                 return (
-                  <motion.tr
+                  <tr
                     key={job.job_id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
                     className="hover:bg-border/30 transition-colors"
                   >
                     <td className="p-3 pl-5 font-mono text-[11px]">
@@ -299,7 +296,7 @@ export function EmbeddingJobTable({
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
-                  </motion.tr>
+                  </tr>
                 )
               })}
             </tbody>

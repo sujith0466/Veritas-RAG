@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { RoleSelector, AIAssistant, AdminRegisterForm, UserRegisterForm, type AIAssistantState } from '@/components/auth'
+import { RoleSelector, AuthBranding, AdminRegisterForm, UserRegisterForm, type AIAssistantState } from '@/components/auth'
 import { ArrowLeft, MailCheck } from 'lucide-react'
 
 export function RegisterPage() {
@@ -40,8 +40,8 @@ export function RegisterPage() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <div className="mb-4 w-full flex justify-center relative z-20">
-        <AIAssistant state={aiState} />
+      <div className="mb-6 w-full flex justify-center relative z-20">
+        <AuthBranding state={aiState} />
       </div>
 
       <div className="w-full relative">

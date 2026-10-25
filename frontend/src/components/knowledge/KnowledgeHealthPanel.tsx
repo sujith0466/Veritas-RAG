@@ -90,8 +90,9 @@ export function KnowledgeHealthPanel() {
     <div className="space-y-8">
       {error && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
           className="flex items-center justify-between rounded-lg border border-danger/40 bg-danger/10 p-4 text-sm text-danger dark:bg-danger/20"
         >
           <div className="flex items-center gap-3">

@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { motion } from 'framer-motion'
 import { Eye, ChevronRight, Layers, ArrowLeftRight } from 'lucide-react'
 import { Button } from '@/components/common'
 import type { ChunkResponse } from '@/types'
@@ -68,10 +67,8 @@ export function ChunkListTable({
               const hasPrev = Boolean(chunk.previous_chunk_id)
               const hasNext = Boolean(chunk.next_chunk_id)
               return (
-                <motion.tr
+                <tr
                   key={chunk.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
                   className="hover:bg-border/40 transition-colors group"
                 >
                   <td className="py-3 px-4 font-mono font-bold text-indigo-400 text-xs">
@@ -127,7 +124,7 @@ export function ChunkListTable({
                       <Eye className="w-4 h-4" />
                     </Button>
                   </td>
-                </motion.tr>
+                </tr>
               )
             })}
           </tbody>

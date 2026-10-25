@@ -57,6 +57,46 @@ export const pageFadeVariants: Variants = {
   exit: { opacity: 0, transition: transitions.fast },
 }
 
+/** Restrained enterprise workspace page transition */
+export const workspacePageVariants: Variants = {
+  initial: { opacity: 0, y: 6 },
+  enter: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] } },
+  exit: { opacity: 0, transition: { duration: 0.12, ease: 'easeOut' } },
+}
+
+/** Workspace card group container for subtle staggered reveal */
+export const workspaceCardGroupVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04,
+      delayChildren: 0.02,
+    },
+  },
+}
+
+/** Workspace card child item for restrained reveal */
+export const workspaceCardItemVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.2, ease: [0.4, 0, 0.2, 1] },
+  },
+}
+
+/** Workspace tab panel cross-fade for seamless section switching */
+export const workspaceTabPanelVariants: Variants = {
+  initial: { opacity: 0.88, y: 3 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.15, ease: 'easeOut' },
+  },
+  exit: { opacity: 0, transition: { duration: 0.08 } },
+}
+
 // ─── Common Element Variants ──────────────────────────────────────────────────
 
 export const fadeVariants: Variants = {

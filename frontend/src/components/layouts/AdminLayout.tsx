@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { workspacePageVariants } from '@/motion'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/stores/authStore'
 import { Button } from '@/components/common/Button'
@@ -282,7 +283,16 @@ export function AdminLayout() {
         {/* Content Viewport */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 lg:p-10">
           <div className="max-w-6xl mx-auto">
-            <Outlet />
+            <motion.div
+              key={location.pathname}
+              variants={shouldReduceMotion ? undefined : workspacePageVariants}
+              initial="initial"
+              animate="enter"
+              exit="exit"
+              className="w-full"
+            >
+              <Outlet />
+            </motion.div>
           </div>
         </main>
       </div>

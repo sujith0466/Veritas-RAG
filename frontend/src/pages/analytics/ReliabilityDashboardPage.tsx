@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
 import {
   RefreshCw,
   FileText,
@@ -13,6 +14,7 @@ import { PageTransition } from '@/components/layouts'
 import { PageHeader } from '@/components/common/PageHeader'
 import { ReportExportDialog } from '@/components/analytics/ReportExportDialog'
 import { analyticsService } from '@/services/analyticsService'
+import { workspaceTabPanelVariants } from '@/motion'
 import type {
   QueryTraceDetailDTO,
   QuerySandboxResponseDTO,
@@ -181,7 +183,7 @@ export function ReliabilityDashboardPage() {
   ]
 
   return (
-    <PageTransition>
+    <PageTransition variant="workspace">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <PageHeader
@@ -267,65 +269,72 @@ export function ReliabilityDashboardPage() {
       </div>
 
       {/* Tab Panels */}
-      {activeTab === 'overview' && (
-        <OverviewTab
-          latestScore={latestScore}
-          latestMovingAvg={latestMovingAvg}
-          successRate={successRate}
-          latency={latency}
-          relTrends={relTrends}
-          historyItems={historyItems}
-          historyTotal={historyTotal}
-          page={page}
-          pageSize={20}
-          isLoading={isLoading}
-          outcomeFilter={outcomeFilter}
-          selectedTraceId={selectedTraceId}
-          onPageChange={(newPage) => setPage(newPage)}
-          onOutcomeFilterChange={(outcome) => {
-            setOutcomeFilter(outcome)
-            setPage(1)
-          }}
-          onSelectTrace={(corrId) => handleOpenTrace(corrId)}
-        />
-      )}
+      <motion.div
+        key={activeTab}
+        variants={workspaceTabPanelVariants}
+        initial="initial"
+        animate="animate"
+      >
+          {activeTab === 'overview' && (
+            <OverviewTab
+              latestScore={latestScore}
+              latestMovingAvg={latestMovingAvg}
+              successRate={successRate}
+              latency={latency}
+              relTrends={relTrends}
+              historyItems={historyItems}
+              historyTotal={historyTotal}
+              page={page}
+              pageSize={20}
+              isLoading={isLoading}
+              outcomeFilter={outcomeFilter}
+              selectedTraceId={selectedTraceId}
+              onPageChange={(newPage) => setPage(newPage)}
+              onOutcomeFilterChange={(outcome) => {
+                setOutcomeFilter(outcome)
+                setPage(1)
+              }}
+              onSelectTrace={(corrId) => handleOpenTrace(corrId)}
+            />
+          )}
 
-      {activeTab === 'trends' && (
-        <TrendsPerformanceTab
-          relTrends={relTrends}
-          trends={trends}
-          confidence={confidence}
-          successRate={successRate}
-          searchAnalytics={searchAnalytics}
-          isLoading={isLoading}
-        />
-      )}
+          {activeTab === 'trends' && (
+            <TrendsPerformanceTab
+              relTrends={relTrends}
+              trends={trends}
+              confidence={confidence}
+              successRate={successRate}
+              searchAnalytics={searchAnalytics}
+              isLoading={isLoading}
+            />
+          )}
 
-      {activeTab === 'explorer' && (
-        <QueryExplorerTab
-          items={historyItems}
-          total={historyTotal}
-          page={page}
-          pageSize={20}
-          isLoading={isLoading}
-          outcomeFilter={outcomeFilter}
-          selectedTraceId={selectedTraceId}
-          onPageChange={(newPage) => setPage(newPage)}
-          onOutcomeFilterChange={(outcome) => {
-            setOutcomeFilter(outcome)
-            setPage(1)
-          }}
-          onSelectTrace={(corrId) => handleOpenTrace(corrId)}
-        />
-      )}
+          {activeTab === 'explorer' && (
+            <QueryExplorerTab
+              items={historyItems}
+              total={historyTotal}
+              page={page}
+              pageSize={20}
+              isLoading={isLoading}
+              outcomeFilter={outcomeFilter}
+              selectedTraceId={selectedTraceId}
+              onPageChange={(newPage) => setPage(newPage)}
+              onOutcomeFilterChange={(outcome) => {
+                setOutcomeFilter(outcome)
+                setPage(1)
+              }}
+              onSelectTrace={(corrId) => handleOpenTrace(corrId)}
+            />
+          )}
 
-      {activeTab === 'sandbox' && (
-        <DiagnosticSandboxTab
-          onInspectTrace={(res: QuerySandboxResponseDTO) =>
-            handleOpenTrace(res.correlation_id, res.trace_detail)
-          }
-        />
-      )}
+          {activeTab === 'sandbox' && (
+            <DiagnosticSandboxTab
+              onInspectTrace={(res: QuerySandboxResponseDTO) =>
+                handleOpenTrace(res.correlation_id, res.trace_detail)
+              }
+            />
+          )}
+        </motion.div>
 
       {/* Forensic Trace Drawer (Accessible from any tab, deep-linkable) */}
       <ForensicTraceDrawer

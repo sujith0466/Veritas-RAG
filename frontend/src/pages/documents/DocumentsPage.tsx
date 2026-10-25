@@ -341,7 +341,7 @@ export function DocumentsPage() {
   ]
 
   return (
-    <PageTransition className="space-y-8 pb-12">
+    <PageTransition variant="workspace" className="space-y-8 pb-12">
       <PageHeader
         title="Document Intelligence & Knowledge Store"
         description="Enterprise-grade document ingestion, OCR density extraction, vector sync, resilient retry, and lifecycle management."

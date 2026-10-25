@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { RoleSelector, AIAssistant, LoginForm, WorkspaceLoader, type AIAssistantState } from '@/components/auth'
+import { RoleSelector, AuthBranding, LoginForm, WorkspaceLoader, type AIAssistantState } from '@/components/auth'
 import { ArrowLeft } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
@@ -49,8 +49,8 @@ export function LoginPage() {
 
   return (
     <div className="flex flex-col items-center w-full">
-      <div className="mb-4 w-full flex justify-center relative z-20">
-        <AIAssistant state={aiState} />
+      <div className="mb-6 w-full flex justify-center relative z-20">
+        <AuthBranding state={aiState} />
       </div>
 
       <div className="w-full relative">

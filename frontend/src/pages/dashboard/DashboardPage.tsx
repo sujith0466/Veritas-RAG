@@ -86,7 +86,7 @@ export function DashboardPage() {
   }
 
   return (
-    <PageTransition>
+    <PageTransition variant="workspace">
       <div className="space-y-6 pb-12 max-w-7xl mx-auto">
         {/* ZONE 1: Command Center Header */}
         <CommandCenterHeader
@@ -113,17 +113,23 @@ export function DashboardPage() {
         ) : (
           <>
             {/* ZONE 2: Executive Reliability & KPI Intelligence */}
-            {commandCenter && (
+            {commandCenter ? (
               <ExecutiveKpiGrid
                 kpis={commandCenter.kpis}
                 trendPoints={commandCenter.reliability_trend}
                 timeWindow={timeWindow}
                 isLoading={isLoading}
               />
-            )}
+            ) : isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-32 rounded-lg border border-border/60 bg-card/40" />
+                ))}
+              </div>
+            ) : null}
 
             {/* ZONE 3 & ZONE 4: Subsystem Health & Latency Decomposition */}
-            {commandCenter && (
+            {commandCenter ? (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className="lg:col-span-6">
                   <SystemHealthRadar
@@ -142,10 +148,15 @@ export function DashboardPage() {
                   />
                 </div>
               </div>
-            )}
+            ) : isLoading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse">
+                <div className="lg:col-span-6 h-64 rounded-lg border border-border/60 bg-card/40" />
+                <div className="lg:col-span-6 h-64 rounded-lg border border-border/60 bg-card/40" />
+              </div>
+            ) : null}
 
             {/* ZONE 4 & ZONE 5: Knowledge Pipeline Health & Safety Interventions */}
-            {commandCenter && (
+            {commandCenter ? (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className="lg:col-span-7">
                   <KnowledgePipelineCard
@@ -161,7 +172,12 @@ export function DashboardPage() {
                   />
                 </div>
               </div>
-            )}
+            ) : isLoading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pulse">
+                <div className="lg:col-span-7 h-52 rounded-lg border border-border/60 bg-card/40" />
+                <div className="lg:col-span-5 h-52 rounded-lg border border-border/60 bg-card/40" />
+              </div>
+            ) : null}
 
             {/* ZONE 6: Interactive Execution Flight Recorder & Audit Ledger */}
             <ExecutionFlightRecorder

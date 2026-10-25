@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, PageHeader } from '@/components/common'
 import { PageTransition } from '@/components/layouts'
+import { workspaceTabPanelVariants } from '@/motion'
 import { ChunksStageView } from '@/pages/chunks'
 import { EmbeddingsStageView } from '@/pages/embeddings'
 import { VectorsStageView } from '@/pages/vectors'
@@ -93,7 +94,7 @@ export function KnowledgeProcessingPage() {
   const currentTab = STAGE_TABS.find((t) => t.id === activeStage) || STAGE_TABS[0]
 
   return (
-    <PageTransition className="space-y-8 pb-16">
+    <PageTransition variant="workspace" className="space-y-8 pb-16">
       {/* Page Header */}
       <PageHeader
         title="Knowledge Processing"
@@ -279,139 +280,146 @@ export function KnowledgeProcessingPage() {
         aria-labelledby={`tab-${activeStage}`}
         className="space-y-6"
       >
-        {activeStage === 'overview' && (
-          <div className="space-y-8">
-            {/* Contextual Pipeline Visualizer (KP-06) */}
-            <PipelineVisualizer onSelectStage={handleSelectStage} activeStage={activeStage} />
+        <motion.div
+          key={activeStage}
+          variants={workspaceTabPanelVariants}
+          initial="initial"
+          animate="animate"
+        >
+          {activeStage === 'overview' && (
+              <div className="space-y-8">
+                {/* Contextual Pipeline Visualizer (KP-06) */}
+                <PipelineVisualizer onSelectStage={handleSelectStage} activeStage={activeStage} />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Card 1 */}
-              <Card className="border-border/80 bg-surface/60 backdrop-blur-sm shadow-sm flex flex-col justify-between">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
-                      Stage 01
-                    </span>
-                    <Layers className="w-5 h-5 text-indigo-400" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Card 1 */}
+                  <Card className="border-border/80 bg-surface/60 backdrop-blur-sm shadow-sm flex flex-col justify-between">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-400">
+                          Stage 01
+                        </span>
+                        <Layers className="w-5 h-5 text-indigo-400" />
+                      </div>
+                      <CardTitle className="text-base text-foreground mt-2">Chunking Foundation</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">
+                        Content-aware splitting algorithms (`recursive`, `markdown`, `sentence`, `code`) ensuring structured boundaries.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectStage('chunks')}
+                        className="w-full justify-between text-xs border-border/80 hover:bg-indigo-500/10 hover:text-indigo-400"
+                      >
+                        <span>Inspect Chunks</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 2 */}
+                  <Card className="border-border/80 bg-surface/60 backdrop-blur-sm shadow-sm flex flex-col justify-between">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                          Stage 02
+                        </span>
+                        <Cpu className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <CardTitle className="text-base text-foreground mt-2">Vector Embeddings</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">
+                        Batch embedding orchestration with token quota consumption tracking and model provider rotation.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectStage('embeddings')}
+                        className="w-full justify-between text-xs border-border/80 hover:bg-amber-500/10 hover:text-amber-400"
+                      >
+                        <span>View Embedding Jobs</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 3 */}
+                  <Card className="border-border/80 bg-surface/60 backdrop-blur-sm shadow-sm flex flex-col justify-between">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                          Stage 03
+                        </span>
+                        <Database className="w-5 h-5 text-emerald-400" />
+                      </div>
+                      <CardTitle className="text-base text-foreground mt-2">Vector Storage (Qdrant)</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">
+                        Multi-tenant collection topology, strict payload filter indexing, and point parity synchronization.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectStage('vectors')}
+                        className="w-full justify-between text-xs border-border/80 hover:bg-emerald-500/10 hover:text-emerald-400"
+                      >
+                        <span>Manage Collections</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Architecture Info Notice */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3 text-xs text-foreground">
+                  <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <strong className="font-semibold text-primary">Unified Processing Architecture (KP-01)</strong>
+                    <p className="text-muted-foreground text-[11px] leading-relaxed">
+                      This workspace provides unified orchestration for all downstream knowledge transformations.
+                      Stage workspaces (Chunks, Embeddings, Vectors, Activity) are seamlessly integrated here,
+                      preserving backward-compatible route aliases for legacy navigation.
+                    </p>
                   </div>
-                  <CardTitle className="text-base text-foreground mt-2">Chunking Foundation</CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground">
-                    Content-aware splitting algorithms (`recursive`, `markdown`, `sentence`, `code`) ensuring structured boundaries.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSelectStage('chunks')}
-                    className="w-full justify-between text-xs border-border/80 hover:bg-indigo-500/10 hover:text-indigo-400"
-                  >
-                    <span>Inspect Chunks</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Card 2 */}
-              <Card className="border-border/80 bg-surface/60 backdrop-blur-sm shadow-sm flex flex-col justify-between">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-                      Stage 02
-                    </span>
-                    <Cpu className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <CardTitle className="text-base text-foreground mt-2">Vector Embeddings</CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground">
-                    Batch embedding orchestration with token quota consumption tracking and model provider rotation.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSelectStage('embeddings')}
-                    className="w-full justify-between text-xs border-border/80 hover:bg-amber-500/10 hover:text-amber-400"
-                  >
-                    <span>View Embedding Jobs</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Card 3 */}
-              <Card className="border-border/80 bg-surface/60 backdrop-blur-sm shadow-sm flex flex-col justify-between">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-                      Stage 03
-                    </span>
-                    <Database className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <CardTitle className="text-base text-foreground mt-2">Vector Storage (Qdrant)</CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground">
-                    Multi-tenant collection topology, strict payload filter indexing, and point parity synchronization.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSelectStage('vectors')}
-                    className="w-full justify-between text-xs border-border/80 hover:bg-emerald-500/10 hover:text-emerald-400"
-                  >
-                    <span>Manage Collections</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Architecture Info Notice */}
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3 text-xs text-foreground">
-              <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <strong className="font-semibold text-primary">Unified Processing Architecture (KP-01)</strong>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  This workspace provides unified orchestration for all downstream knowledge transformations.
-                  Stage workspaces (Chunks, Embeddings, Vectors, Activity) are seamlessly integrated here,
-                  preserving backward-compatible route aliases for legacy navigation.
-                </p>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {activeStage === 'chunks' && <ChunksStageView />}
+            {activeStage === 'chunks' && <ChunksStageView />}
 
-        {activeStage === 'embeddings' && <EmbeddingsStageView />}
+            {activeStage === 'embeddings' && <EmbeddingsStageView />}
 
-        {activeStage === 'vectors' && <VectorsStageView />}
+            {activeStage === 'vectors' && <VectorsStageView />}
 
-        {activeStage === 'activity' && (
-          <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-primary" />
-                  Pipeline Processing Activity
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Cross-stage task history and asynchronous Celery pipeline execution status.
-                </p>
-              </div>
-              <Badge variant="outline" className="border-primary/30 text-primary">
-                Activity Log
-              </Badge>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/50 p-4 text-xs text-muted-foreground leading-relaxed">
-              <p>
-                Comprehensive cross-stage background jobs and event audit logs across chunking,
-                embedding, and vector synchronization pipelines will appear here.
-              </p>
-            </div>
-          </Card>
-        )}
+            {activeStage === 'activity' && (
+              <Card className="border-border/80 bg-surface/60 backdrop-blur-sm p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-primary" />
+                      Pipeline Processing Activity
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Cross-stage task history and asynchronous Celery pipeline execution status.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="border-primary/30 text-primary">
+                    Activity Log
+                  </Badge>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-background/50 p-4 text-xs text-muted-foreground leading-relaxed">
+                  <p>
+                    Comprehensive cross-stage background jobs and event audit logs across chunking,
+                    embedding, and vector synchronization pipelines will appear here.
+                  </p>
+                </div>
+              </Card>
+            )}
+          </motion.div>
       </section>
     </PageTransition>
   )

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { motion, useReducedMotion } from 'framer-motion'
+import { PageTransition } from '@/components/layouts'
 import { analyticsService } from '@/services/analyticsService'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 
@@ -16,7 +16,6 @@ import {
 } from '@/components/analytics'
 
 export function WorkspaceAnalyticsPage() {
-  const shouldReduceMotion = useReducedMotion()
   const queryClient = useQueryClient()
   const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
 
@@ -124,59 +123,56 @@ export function WorkspaceAnalyticsPage() {
   }
 
   return (
-    <motion.div
-      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: shouldReduceMotion ? 0.1 : 0.35 }}
-      className="container max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8"
-    >
-      {/* 1. Header with Context, Time Range Controls, and Refresh */}
-      <WorkspaceAnalyticsHeader
-        timeRange={timeRange}
-        onTimeRangeChange={setTimeRange}
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        lastUpdated={lastUpdated}
-        workspaceName={currentWorkspace?.name || 'Primary Workspace'}
-        workspaceStatus={currentWorkspace?.status || 'ACTIVE'}
-      />
+    <PageTransition variant="workspace">
+      <div className="container max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+        {/* 1. Header with Context, Time Range Controls, and Refresh */}
+        <WorkspaceAnalyticsHeader
+          timeRange={timeRange}
+          onTimeRangeChange={setTimeRange}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+          lastUpdated={lastUpdated}
+          workspaceName={currentWorkspace?.name || 'Primary Workspace'}
+          workspaceStatus={currentWorkspace?.status || 'ACTIVE'}
+        />
 
-      {/* 2. Executive KPI Summary Grid (Active Users, Docs, Queries, Grounded Reliability) */}
-      <ExecutiveKpiGrid
-        overview={overviewData}
-        successRate={successRateData}
-        isLoading={isOverviewLoading || isSuccessRateLoading}
-        isError={isOverviewError || isSuccessRateError}
-        onRetry={() => {
-          refetchOverview()
-          refetchSuccessRate()
-        }}
-      />
+        {/* 2. Executive KPI Summary Grid (Active Users, Docs, Queries, Grounded Reliability) */}
+        <ExecutiveKpiGrid
+          overview={overviewData}
+          successRate={successRateData}
+          isLoading={isOverviewLoading || isSuccessRateLoading}
+          isError={isOverviewError || isSuccessRateError}
+          onRetry={() => {
+            refetchOverview()
+            refetchSuccessRate()
+          }}
+        />
 
-      {/* 3. Activity & Grounding Reliability Telemetry */}
-      <WorkspaceActivityChart
-        trends={trendsData}
-        latency={latencyData}
-        isLoading={isTrendsLoading || isLatencyLoading}
-        isError={isTrendsError || isLatencyError}
-        onRetry={() => {
-          refetchTrends()
-          refetchLatency()
-        }}
-      />
+        {/* 3. Activity & Grounding Reliability Telemetry */}
+        <WorkspaceActivityChart
+          trends={trendsData}
+          latency={latencyData}
+          isLoading={isTrendsLoading || isLatencyLoading}
+          isError={isTrendsError || isLatencyError}
+          onRetry={() => {
+            refetchTrends()
+            refetchLatency()
+          }}
+        />
 
-      {/* 4. Topic Intelligence & Unanswered Query Forensics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PopularTopicsCard startTime={startTime} endTime={endTime} />
-        <UnansweredQueriesCard startTime={startTime} endTime={endTime} />
+        {/* 4. Topic Intelligence & Unanswered Query Forensics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PopularTopicsCard startTime={startTime} endTime={endTime} />
+          <UnansweredQueriesCard startTime={startTime} endTime={endTime} />
+        </div>
+
+        {/* 5. Most Cited Knowledge Assets & Document Staleness Matrix */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MostCitedDocumentsCard startTime={startTime} endTime={endTime} />
+          <StalenessReportCard />
+        </div>
       </div>
-
-      {/* 5. Most Cited Knowledge Assets & Document Staleness Matrix */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MostCitedDocumentsCard startTime={startTime} endTime={endTime} />
-        <StalenessReportCard />
-      </div>
-    </motion.div>
+    </PageTransition>
   )
 }
 export default WorkspaceAnalyticsPage
