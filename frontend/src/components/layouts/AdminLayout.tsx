@@ -10,7 +10,6 @@ import {
   X,
   ArrowLeft,
   ChevronRight,
-  ShieldCheck,
   Building2,
   CheckCircle2,
 } from 'lucide-react'
@@ -156,10 +155,31 @@ export function AdminLayout() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-sm">Admin Console</span>
-          </div>
+          <Link
+            to="/"
+            aria-label="Veritas RAG Home - Return to landing page"
+            className="flex items-center gap-2 group outline-none focus-visible:ring-2 focus-visible:ring-primary rounded p-0.5"
+          >
+            <div className="relative h-5 w-5 shrink-0 flex items-center justify-center">
+              <img
+                src="/veritas-rag-icon-light.png"
+                alt="Veritas RAG"
+                width={20}
+                height={20}
+                className="h-5 w-5 object-contain dark:hidden"
+                decoding="async"
+              />
+              <img
+                src="/veritas-rag-icon-dark.png"
+                alt="Veritas RAG"
+                width={20}
+                height={20}
+                className="h-5 w-5 object-contain hidden dark:block"
+                decoding="async"
+              />
+            </div>
+            <span className="font-semibold text-sm group-hover:text-primary transition-colors">Admin Console</span>
+          </Link>
         </div>
 
         <Button
@@ -195,10 +215,32 @@ export function AdminLayout() {
               className="md:hidden fixed inset-y-0 left-0 z-40 w-72 bg-card border-r border-border p-5 flex flex-col shadow-2xl"
             >
               <div className="flex items-center justify-between pb-4 border-b border-border/60 mb-4">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                  <span className="font-bold text-base">Administration</span>
-                </div>
+                <Link
+                  to="/"
+                  onClick={() => setMobileOpen(false)}
+                  aria-label="Veritas RAG Home - Return to landing page"
+                  className="flex items-center gap-2 group outline-none focus-visible:ring-2 focus-visible:ring-primary rounded p-0.5"
+                >
+                  <div className="relative h-6 w-6 shrink-0 flex items-center justify-center">
+                    <img
+                      src="/veritas-rag-icon-light.png"
+                      alt="Veritas RAG"
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 object-contain dark:hidden"
+                      decoding="async"
+                    />
+                    <img
+                      src="/veritas-rag-icon-dark.png"
+                      alt="Veritas RAG"
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 object-contain hidden dark:block"
+                      decoding="async"
+                    />
+                  </div>
+                  <span className="font-bold text-base group-hover:text-primary transition-colors">Administration</span>
+                </Link>
                 <Button
                   variant="ghost"
                   size="sm"

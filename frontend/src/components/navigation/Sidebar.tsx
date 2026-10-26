@@ -107,9 +107,29 @@ export function Sidebar() {
       className="relative z-40 hidden h-screen flex-col border-r border-border/60 bg-surface/40 backdrop-blur-xl md:flex shrink-0"
     >
       <div className="flex h-14 items-center justify-between px-4 border-b border-border/50">
-        <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
-            <Shield className="h-4 w-4 text-primary" />
+        <Link
+          to="/"
+          aria-label="Veritas RAG Home"
+          title="Veritas RAG Home - Return to landing page"
+          className="flex items-center gap-2.5 overflow-hidden min-w-0 group rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 p-0.5"
+        >
+          <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg overflow-hidden transition-transform group-hover:scale-105">
+            <img
+              src="/veritas-rag-icon-light.png"
+              alt="Veritas RAG"
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain dark:hidden"
+              decoding="async"
+            />
+            <img
+              src="/veritas-rag-icon-dark.png"
+              alt="Veritas RAG"
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain hidden dark:block"
+              decoding="async"
+            />
           </div>
           <AnimatePresence initial={false}>
             {!sidebarCollapsed && (
@@ -120,13 +140,13 @@ export function Sidebar() {
                 exit="collapsed"
                 className="overflow-hidden min-w-0"
               >
-                <div className="font-bold text-sm text-foreground whitespace-nowrap tracking-tight">
+                <div className="font-bold text-sm text-foreground whitespace-nowrap tracking-tight group-hover:text-primary transition-colors">
                   Veritas RAG
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </Link>
       </div>
 
       <button

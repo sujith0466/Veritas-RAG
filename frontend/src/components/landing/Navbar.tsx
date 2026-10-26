@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Shield, Menu, X, LogOut } from 'lucide-react'
+import { Menu, X, LogOut } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/common/Button'
 import { MagneticButton } from '@/components/motion/MagneticButton'
@@ -90,9 +90,25 @@ export function Navbar() {
           href="#"
           onClick={(e) => handleScrollTo(e, '')}
           className="flex items-center space-x-2.5 group outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md p-1"
+          aria-label="Veritas RAG Home"
         >
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-primary/60 text-primary-foreground shadow-[0_0_15px_hsl(var(--primary)/0.5)] flex items-center justify-center group-hover:scale-105 transition-transform">
-            <Shield className="w-5 h-5" />
+          <div className="relative w-8 h-8 shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+            <img
+              src="/veritas-rag-icon-light.png"
+              alt="Veritas RAG"
+              width={32}
+              height={32}
+              className="w-8 h-8 object-contain dark:hidden"
+              decoding="async"
+            />
+            <img
+              src="/veritas-rag-icon-dark.png"
+              alt="Veritas RAG"
+              width={32}
+              height={32}
+              className="w-8 h-8 object-contain hidden dark:block"
+              decoding="async"
+            />
           </div>
           <span className="font-bold text-xl tracking-tight text-foreground group-hover:text-primary transition-colors">
             Veritas <span className="font-light text-muted-foreground">RAG</span>
