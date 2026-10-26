@@ -80,7 +80,7 @@ export const MessageActionBar: React.FC<MessageActionBarProps> = ({
         role="toolbar"
         aria-label={ariaLabel}
         className={cn(
-          'flex items-center gap-0.5 rounded-lg border border-border/40 bg-surface/80 p-0.5 backdrop-blur-sm shadow-xs',
+          'flex items-center gap-0.5',
           className
         )}
       >

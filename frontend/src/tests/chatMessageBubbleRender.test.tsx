@@ -507,7 +507,7 @@ describe('REC-004: ChatMessageBubble Rendering Optimization Regression Suite', (
       const textarea = screen.getByRole('textbox', { name: 'Edit your message' })
       fireEvent.change(textarea, { target: { value: 'Updated prompt from user' } })
 
-      const saveBtn = screen.getByRole('button', { name: 'Save & Submit' })
+      const saveBtn = screen.getByRole('button', { name: 'Send' })
       fireEvent.click(saveBtn)
 
       await waitFor(() => {

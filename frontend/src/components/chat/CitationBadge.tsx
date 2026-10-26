@@ -42,7 +42,7 @@ export function CitationBadge({ citation }: CitationBadgeProps) {
             [{citation.citation_index}]
           </button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs text-xs space-y-1.5 z-50 p-3 bg-surface/95 dark:bg-slate-900/95 backdrop-blur-md border border-border/80 shadow-lg rounded-xl">
+        <TooltipContent side="top" className="max-w-xs text-xs space-y-1.5 z-50 p-3 bg-surface/95 dark:bg-surface-elevated/95 backdrop-blur-md border border-border/80 shadow-lg rounded-xl">
           <div className="flex items-center gap-1.5 font-semibold text-foreground truncate pb-1.5 border-b border-border/50 text-[11px]">
             <FileText className="h-3 w-3 text-primary shrink-0" />
             <span className="truncate">{displayName}</span>

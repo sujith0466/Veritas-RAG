@@ -9,6 +9,14 @@ export interface UseVoiceInputOptions {
 
 export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const { onTranscriptChange, onError } = options
+  const onTranscriptChangeRef = useRef(onTranscriptChange)
+  const onErrorRef = useRef(onError)
+
+  useEffect(() => {
+    onTranscriptChangeRef.current = onTranscriptChange
+    onErrorRef.current = onError
+  }, [onTranscriptChange, onError])
+
   const [state, setState] = useState<VoiceInputState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [interimTranscript, setInterimTranscript] = useState('')
@@ -21,7 +29,15 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const analyserRef = useRef<AnalyserNode | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const isManuallyStoppingRef = useRef(false)
+  const hasFatalErrorRef = useRef(false)
+  const restartCountRef = useRef(0)
+  const restartTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isMountedRef = useRef(true)
+
+  // Accumulation across natural speech pause auto-restarts
+  const sessionFinalPrefixRef = useRef('')
   const finalAccumulatedRef = useRef('')
+  const interimAccumulatedRef = useRef('')
 
   const isSupported = typeof window !== 'undefined' && (
     'SpeechRecognition' in window || 'webkitSpeechRecognition' in window
@@ -62,11 +78,18 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       audioContextRef.current = null
     }
 
-    setVolumes([0.1, 0.1, 0.1, 0.1, 0.1])
+    if (isMountedRef.current) {
+      setVolumes([0.1, 0.1, 0.1, 0.1, 0.1])
+    }
   }, [])
 
   const cleanupAll = useCallback(() => {
     cleanupAudio()
+
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current)
+      restartTimerRef.current = null
+    }
 
     if (recognitionRef.current) {
       try {
@@ -105,7 +128,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       const dataArray = new Uint8Array(bufferLength)
 
       const updateVolumes = () => {
-        if (!analyserRef.current) return
+        if (!analyserRef.current || !isMountedRef.current) return
         analyserRef.current.getByteFrequencyData(dataArray)
 
         // Sample 5 frequency bands across the spectrum
@@ -122,22 +145,29 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
       animationFrameRef.current = requestAnimationFrame(updateVolumes)
     } catch (_) {
-      // AudioContext failure (e.g. headless/unsupported) falls back to default visualizer animation
+      // AudioContext failure falls back gracefully
     }
   }, [])
 
   const startRecording = useCallback(async () => {
+    // If a session was already active or stopping, clean up completely first
+    cleanupAll()
+
     setErrorMessage(null)
     setInterimTranscript('')
     setFinalTranscript('')
+    sessionFinalPrefixRef.current = ''
     finalAccumulatedRef.current = ''
+    interimAccumulatedRef.current = ''
     isManuallyStoppingRef.current = false
+    hasFatalErrorRef.current = false
+    restartCountRef.current = 0
 
     if (!isSupported) {
       const msg = 'Speech recognition is not supported in this browser.'
       setErrorMessage(msg)
       setState('error')
-      onError?.(msg)
+      onErrorRef.current?.(msg)
       return
     }
 
@@ -147,19 +177,22 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     if (navigator.mediaDevices?.getUserMedia) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        if (isManuallyStoppingRef.current || !isMountedRef.current) {
+          // Cancelled while waiting for permission/stream
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
         mediaStreamRef.current = stream
         startAudioAnalysis(stream)
       } catch (err: any) {
-        let msg = 'Microphone access was denied. Please allow microphone permissions.'
-        if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-          msg = 'No microphone device found on your system.'
-        }
-        setErrorMessage(msg)
-        setState('error')
-        cleanupAudio()
-        onError?.(msg)
-        return
+        if (isManuallyStoppingRef.current || !isMountedRef.current) return
+        console.warn('Audio visualization stream unavailable, continuing with speech recognition', err)
       }
+    }
+
+    if (isManuallyStoppingRef.current || !isMountedRef.current) {
+      cleanupAudio()
+      return
     }
 
     try {
@@ -173,96 +206,182 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       recognition.maxAlternatives = 1
 
       recognition.onstart = () => {
-        setState('recording')
+        if (isMountedRef.current && !isManuallyStoppingRef.current) {
+          setState('recording')
+        }
       }
 
       recognition.onresult = (event: any) => {
-        let interim = ''
-        let currentFinal = finalAccumulatedRef.current
+        if (isManuallyStoppingRef.current) return
 
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        let interim = ''
+        let currentInstanceFinal = ''
+
+        for (let i = 0; i < event.results.length; i++) {
           const transcriptSegment = event.results[i][0]?.transcript || ''
           if (event.results[i].isFinal) {
-            currentFinal = currentFinal ? `${currentFinal.trim()} ${transcriptSegment.trim()}` : transcriptSegment.trim()
-            finalAccumulatedRef.current = currentFinal
+            currentInstanceFinal = currentInstanceFinal
+              ? `${currentInstanceFinal.trim()} ${transcriptSegment.trim()}`
+              : transcriptSegment.trim()
           } else {
             interim += transcriptSegment
           }
         }
 
-        setInterimTranscript(interim)
-        setFinalTranscript(currentFinal)
-        onTranscriptChange?.(interim, currentFinal)
+        // Combine with previously committed sessions (across natural pauses)
+        const prefix = sessionFinalPrefixRef.current.trim()
+        const fullFinal = prefix
+          ? (currentInstanceFinal ? `${prefix} ${currentInstanceFinal.trim()}` : prefix)
+          : currentInstanceFinal.trim()
+
+        finalAccumulatedRef.current = fullFinal
+        interimAccumulatedRef.current = interim
+
+        // Reset restart counter upon receiving valid speech
+        restartCountRef.current = 0
+
+        if (isMountedRef.current) {
+          setInterimTranscript(interim)
+          setFinalTranscript(fullFinal)
+        }
+        onTranscriptChangeRef.current?.(interim, fullFinal)
       }
 
       recognition.onerror = (event: any) => {
         if (isManuallyStoppingRef.current) return
 
-        let msg = 'An error occurred during voice recognition.'
-        if (event.error === 'not-allowed') {
-          msg = 'Microphone permission denied.'
-        } else if (event.error === 'no-speech') {
-          msg = 'No speech detected.'
-        } else if (event.error === 'audio-capture') {
-          msg = 'No microphone available.'
-        } else if (event.error === 'network') {
-          msg = 'Network error occurred during speech recognition.'
+        // Aborted is an expected lifecycle outcome when stopped/cancelled
+        if (event.error === 'aborted') {
+          return
         }
 
-        // 'no-speech' can occur normally on pauses; for fatal errors update state
-        if (event.error !== 'no-speech') {
-          setErrorMessage(msg)
-          setState('error')
-          onError?.(msg)
+        let msg = 'An error occurred during voice recognition.'
+        let isFatal = false
+
+        if (event.error === 'not-allowed') {
+          msg = 'Microphone permission denied.'
+          isFatal = true
+        } else if (event.error === 'service-not-allowed') {
+          msg = 'Speech recognition service is not allowed or unavailable.'
+          isFatal = true
+        } else if (event.error === 'audio-capture') {
+          msg = 'No microphone available.'
+          isFatal = true
+        } else if (event.error === 'network') {
+          msg = 'Network error occurred during speech recognition.'
+          isFatal = true
+        } else if (event.error === 'no-speech') {
+          msg = 'No speech detected.'
+          isFatal = false // Non-fatal pause
+        } else if (event.error === 'language-not-supported') {
+          msg = 'Speech language is not supported.'
+          isFatal = true
+        } else if (event.error === 'bad-grammar') {
+          msg = 'Speech grammar error occurred.'
+          isFatal = true
+        }
+
+        if (isFatal) {
+          hasFatalErrorRef.current = true
           cleanupAudio()
+          if (isMountedRef.current) {
+            setErrorMessage(msg)
+            setState('error')
+          }
+          onErrorRef.current?.(msg)
         }
       }
 
       recognition.onend = () => {
-        cleanupAudio()
-        setState('idle')
+        if (isManuallyStoppingRef.current || hasFatalErrorRef.current || !isMountedRef.current) {
+          cleanupAudio()
+          if (isMountedRef.current && !hasFatalErrorRef.current) {
+            setState('idle')
+          }
+          return
+        }
+
+        // Preserve finalized text accumulated before pause
+        if (finalAccumulatedRef.current) {
+          sessionFinalPrefixRef.current = finalAccumulatedRef.current
+        }
+
+        // Auto-restart recognition across natural pauses if under restart budget
+        if (restartCountRef.current < 5) {
+          restartCountRef.current += 1
+          try {
+            recognition.start()
+          } catch (_) {
+            cleanupAudio()
+            if (isMountedRef.current) {
+              setState('idle')
+            }
+          }
+        } else {
+          // Exceeded restart budget without speech; cleanly finish session
+          cleanupAudio()
+          if (isMountedRef.current) {
+            setState('idle')
+          }
+        }
       }
 
       recognition.start()
     } catch (err: any) {
       const msg = 'Failed to initialize voice recognition.'
-      setErrorMessage(msg)
-      setState('error')
       cleanupAudio()
-      onError?.(msg)
+      if (isMountedRef.current) {
+        setErrorMessage(msg)
+        setState('error')
+      }
+      onErrorRef.current?.(msg)
     }
-  }, [isSupported, startAudioAnalysis, cleanupAudio, onError, onTranscriptChange])
+  }, [isSupported, startAudioAnalysis, cleanupAudio, cleanupAll])
 
   const stopRecording = useCallback((): string => {
     isManuallyStoppingRef.current = true
-    setState('idle')
 
-    const finalized = (
-      finalAccumulatedRef.current
-        ? `${finalAccumulatedRef.current.trim()} ${interimTranscript.trim()}`
-        : interimTranscript.trim()
-    ).trim()
+    // Compute complete finalized transcript synchronously from refs
+    const finalPart = finalAccumulatedRef.current.trim()
+    const interimPart = interimAccumulatedRef.current.trim()
+    const finalized = (finalPart ? (interimPart ? `${finalPart} ${interimPart}` : finalPart) : interimPart).trim()
 
     cleanupAll()
-    setInterimTranscript('')
-    setFinalTranscript('')
+
+    sessionFinalPrefixRef.current = ''
     finalAccumulatedRef.current = ''
+    interimAccumulatedRef.current = ''
+
+    if (isMountedRef.current) {
+      setState('idle')
+      setInterimTranscript('')
+      setFinalTranscript('')
+    }
 
     return finalized
-  }, [interimTranscript, cleanupAll])
+  }, [cleanupAll])
 
   const cancelRecording = useCallback(() => {
     isManuallyStoppingRef.current = true
-    setState('idle')
+
     cleanupAll()
-    setInterimTranscript('')
-    setFinalTranscript('')
+
+    sessionFinalPrefixRef.current = ''
     finalAccumulatedRef.current = ''
+    interimAccumulatedRef.current = ''
+
+    if (isMountedRef.current) {
+      setState('idle')
+      setInterimTranscript('')
+      setFinalTranscript('')
+    }
   }, [cleanupAll])
 
   // Guaranteed cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true
     return () => {
+      isMountedRef.current = false
       cleanupAll()
     }
   }, [cleanupAll])

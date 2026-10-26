@@ -27,7 +27,7 @@ export function VoiceVisualizer({ volumes, isListening, className }: VoiceVisual
             className={cn(
               'w-1 rounded-full transition-[height] duration-100 ease-out',
               isListening
-                ? 'bg-emerald-500 dark:bg-emerald-400'
+                ? 'bg-primary dark:bg-primary'
                 : 'bg-muted-foreground/40'
             )}
           />

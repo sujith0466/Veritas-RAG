@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Send } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { cn } from '@/utils/cn'
 
@@ -78,7 +78,7 @@ export const MessageEditInput: React.FC<MessageEditInputProps> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.15 }}
       className={cn(
-        'flex flex-col gap-2.5 w-full rounded-xl border border-border/80 bg-surface/95 dark:bg-slate-900/90 p-3 shadow-md backdrop-blur-sm',
+        'flex flex-col gap-2.5 w-full rounded-xl border border-border/80 bg-surface/95 dark:bg-surface-elevated/95 dark:border-border/80 p-3 shadow-md backdrop-blur-sm',
         className
       )}
     >
@@ -117,7 +117,8 @@ export const MessageEditInput: React.FC<MessageEditInputProps> = ({
           size="sm"
           onClick={handleSubmit}
           disabled={!content.trim() || isSubmitting || disabled}
-          className="text-xs h-7 px-3 gap-1.5 font-medium"
+          aria-label="Send"
+          className="inline-flex items-center gap-1.5 text-xs h-7 px-3 font-medium bg-primary text-primary-foreground hover:bg-primary-hover shadow-xs"
         >
           {isSubmitting ? (
             <>
@@ -125,7 +126,10 @@ export const MessageEditInput: React.FC<MessageEditInputProps> = ({
               <span>Updating...</span>
             </>
           ) : (
-            <span>Save & Submit</span>
+            <>
+              <span>Send</span>
+              <Send className="h-3.5 w-3.5" />
+            </>
           )}
         </Button>
       </div>

@@ -147,8 +147,13 @@ export function AIChatPage() {
   })
 
   // Chat #10 Scroll Architecture State & Refs
+  const shouldReduceMotion = useReducedMotion()
   const isScrolledUpRef = useRef(false)
+  const isProgrammaticScrollRef = useRef(false)
+  const programmaticScrollTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false)
+  const [isComposerFocused, setIsComposerFocused] = useState(false)
   const rafIdRef = useRef<number | null>(null)
   const [composerHeight, setComposerHeight] = useState<number>(115)
   const composerContainerRef = useRef<HTMLDivElement>(null)
@@ -156,6 +161,8 @@ export function AIChatPage() {
   const sentinelRef = useRef<HTMLDivElement>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+
+  const isCompact = isUserScrolledUp && !isComposerFocused && !isListening && !input.trim() && messages.length > 0
 
   // AUD-014: Stream token buffering refs to coalesce high-frequency SSE re-renders into rAF batches
   const streamFrameIdRef = useRef<number | null>(null)
@@ -196,16 +203,46 @@ export function AIChatPage() {
     const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const shouldBeInstant = instant || prefersReducedMotion
 
+    isProgrammaticScrollRef.current = true
     isScrolledUpRef.current = false
     setShowScrollToBottom(false)
+    setIsUserScrolledUp(false)
+
+    if (programmaticScrollTimerRef.current) {
+      clearTimeout(programmaticScrollTimerRef.current)
+      programmaticScrollTimerRef.current = null
+    }
 
     if (shouldBeInstant) {
       container.scrollTop = container.scrollHeight
+      requestAnimationFrame(() => {
+        if (container) container.scrollTop = container.scrollHeight
+        isProgrammaticScrollRef.current = false
+      })
     } else {
       container.scrollTo({
         top: container.scrollHeight,
         behavior: 'smooth'
       })
+
+      // As composer transitions/expands (220ms), ensure follow-through reaches actual bottom
+      const step1 = setTimeout(() => {
+        if (container) {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+          })
+        }
+      }, 120)
+
+      programmaticScrollTimerRef.current = setTimeout(() => {
+        clearTimeout(step1)
+        if (container) {
+          container.scrollTop = container.scrollHeight
+        }
+        isProgrammaticScrollRef.current = false
+        programmaticScrollTimerRef.current = null
+      }, 350)
     }
   }, [])
 
@@ -232,6 +269,10 @@ export function AIChatPage() {
         cancelAnimationFrame(streamFrameIdRef.current)
         streamFrameIdRef.current = null
         flushScheduledRef.current = false
+      }
+      if (programmaticScrollTimerRef.current) {
+        clearTimeout(programmaticScrollTimerRef.current)
+        programmaticScrollTimerRef.current = null
       }
     }
   }, [])
@@ -266,6 +307,7 @@ export function AIChatPage() {
       }
       isScrolledUpRef.current = false
       setShowScrollToBottom(false)
+      setIsUserScrolledUp(false)
     }
 
     return () => {
@@ -302,23 +344,38 @@ export function AIChatPage() {
     }
   }, [messages, isStreaming, scheduleScrollToBottom])
 
-  // Controlled Textarea Auto-Resize (min 44px, max 160px)
+  // Controlled Textarea Auto-Resize (min 38px, max 160px when expanded)
   useEffect(() => {
     if (textareaRef.current) {
+      if (isCompact || isListening) {
+        textareaRef.current.style.height = ''
+        return
+      }
       textareaRef.current.style.height = 'auto'
       const scrollH = textareaRef.current.scrollHeight
-      const targetH = Math.min(Math.max(scrollH, 44), 160)
+      const targetH = Math.min(Math.max(scrollH, 38), 160)
       textareaRef.current.style.height = `${targetH}px`
     }
-  }, [input])
+  }, [input, isCompact, isListening])
 
   const focusComposer = useCallback(() => {
+    const focusAndPlaceCursor = () => {
+      const el = textareaRef.current
+      if (el) {
+        el.focus()
+        const len = el.value.length
+        try {
+          el.setSelectionRange(len, len)
+        } catch (_) {
+          // ignore in unsupported input types
+        }
+      }
+    }
     requestAnimationFrame(() => {
-      textareaRef.current?.focus()
+      focusAndPlaceCursor()
+      requestAnimationFrame(focusAndPlaceCursor)
     })
-    setTimeout(() => {
-      textareaRef.current?.focus()
-    }, 0)
+    setTimeout(focusAndPlaceCursor, 50)
   }, [])
 
   // Chat #6: New Query Auto-Focus
@@ -330,12 +387,21 @@ export function AIChatPage() {
   }, [sessionId, location.state?.autoFocus, focusComposer])
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isProgrammaticScrollRef.current) return
+
     const target = e.currentTarget
     const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight
     const isAway = distanceFromBottom > 80
 
     isScrolledUpRef.current = isAway
     setShowScrollToBottom(isAway)
+
+    // Scroll-aware hysteresis for compact composer (avoids small jitter/streaming noise)
+    if (distanceFromBottom > 160) {
+      setIsUserScrolledUp(true)
+    } else if (distanceFromBottom < 60) {
+      setIsUserScrolledUp(false)
+    }
   }
 
   // F9.3 Native Infinite Scroll
@@ -730,14 +796,15 @@ export function AIChatPage() {
     if (isStreaming) return
     originalInputRef.current = input
     await startRecording()
-    focusComposer()
-  }, [isStreaming, input, startRecording, focusComposer])
+  }, [isStreaming, input, startRecording])
 
   const handleStopVoice = useCallback(() => {
     const finalSpeech = stopRecording()
-    const prefix = originalInputRef.current ? `${originalInputRef.current.trim()} ` : ''
-    const finalCombined = `${prefix}${finalSpeech}`.trim()
-    setInput(finalCombined)
+    if (finalSpeech) {
+      const prefix = originalInputRef.current ? `${originalInputRef.current.trim()} ` : ''
+      const finalCombined = `${prefix}${finalSpeech}`.trim()
+      setInput(finalCombined)
+    }
     focusComposer()
   }, [stopRecording, focusComposer])
 
@@ -747,18 +814,21 @@ export function AIChatPage() {
     focusComposer()
   }, [cancelRecording, focusComposer])
 
-  // Global Escape key listener during active recording
+  // Global Enter and Escape key listener during active recording
   useEffect(() => {
     if (!isListening) return
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
         handleCancelVoice()
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        handleStopVoice()
       }
     }
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [isListening, handleCancelVoice])
+  }, [isListening, handleCancelVoice, handleStopVoice])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Escape' && isListening) {
@@ -778,7 +848,7 @@ export function AIChatPage() {
   }
 
   return (
-    <div className="relative flex flex-1 min-h-0 flex-col bg-background backdrop-blur-xl shadow-sm rounded-xl border border-border/60 mx-2 my-2 sm:mx-4 sm:my-3 overflow-hidden">
+    <div className="relative flex flex-1 min-h-0 flex-col bg-background overflow-hidden w-full h-full">
       <h1 className="sr-only">Enterprise AI Chat</h1>
 
       {/* Chat Messages Area (Full Canvas Scroll) */}
@@ -786,7 +856,7 @@ export function AIChatPage() {
         ref={chatContainerRef}
         onScroll={handleScroll}
         data-testid="chat-messages-container"
-        className="absolute inset-0 overflow-y-auto px-3 pt-4 sm:px-6 md:px-8 sm:pt-6 space-y-6"
+        className="absolute inset-0 overflow-y-auto px-4 pt-4 sm:px-6 md:px-8 sm:pt-6 space-y-6"
       >
         {messages.length > 0 && hasMoreMessages && (
           <div ref={sentinelRef} className="h-4 w-full flex items-center justify-center">
@@ -796,12 +866,12 @@ export function AIChatPage() {
 
         {messages.length === 0 ? (
           <div className="flex min-h-full flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-8 py-8">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
-              <Sparkles className="h-8 w-8 text-primary" />
+            <div className="h-14 w-14 rounded-2xl bg-primary/10 dark:bg-primary/15 flex items-center justify-center border border-primary/25 shadow-xs">
+              <Sparkles className="h-7 w-7 text-primary" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-medium text-foreground">How can I help you today?</h3>
-              <p className="text-muted-foreground text-sm">Veritas RAG is connected to your enterprise knowledge base. You can ask questions about policies, procedures, and internal documentation.</p>
+              <h3 className="text-xl font-semibold tracking-tight text-foreground font-sans">Veritas Enterprise Intelligence</h3>
+              <p className="text-muted-foreground text-sm max-w-lg leading-relaxed">Enterprise knowledge synthesis with verified grounding. Query internal policies, architecture specifications, and compliance records with source attribution.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
@@ -814,7 +884,7 @@ export function AIChatPage() {
                 <button
                   key={q}
                   onClick={() => handleSubmit(q)}
-                  className="p-4 rounded-xl border border-border/80 dark:border-white/[0.08] bg-surface/90 dark:bg-slate-900/60 hover:bg-muted/50 dark:hover:bg-slate-800/60 hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left group flex flex-col justify-between gap-3 pointer-events-auto shadow-sm cursor-pointer"
+                  className="p-4 rounded-xl border border-border/80 dark:border-border/60 bg-surface/90 dark:bg-[#1a1b1e] hover:bg-muted/50 dark:hover:bg-surface-elevated hover:border-primary/40 dark:hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left group flex flex-col justify-between gap-3 pointer-events-auto shadow-xs cursor-pointer"
                 >
                   <div className="flex items-center justify-between w-full">
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-primary uppercase font-mono">
@@ -866,10 +936,14 @@ export function AIChatPage() {
             >
               <button
                 type="button"
-                onClick={() => scrollToBottom(false)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  scrollToBottom(false)
+                }}
                 aria-label="Scroll to bottom"
                 title="Scroll to bottom"
-                className="group flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-foreground bg-white/45 dark:bg-slate-950/40 backdrop-blur-md border border-black/[0.08] dark:border-white/[0.12] shadow-sm hover:shadow-md hover:border-primary/50 hover:bg-white/60 dark:hover:bg-slate-900/50 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+                className="group flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-foreground bg-white/70 dark:bg-[#18191c]/80 backdrop-blur-xl border border-border/70 dark:border-white/10 shadow-md hover:shadow-lg hover:border-primary/50 hover:bg-white/90 dark:hover:bg-[#202226]/90 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
               >
                 <ChevronDown className="h-4 w-4 text-primary group-hover:translate-y-0.5 motion-reduce:group-hover:translate-y-0 transition-transform" />
               </button>
@@ -877,7 +951,15 @@ export function AIChatPage() {
           )}
         </AnimatePresence>
 
-        <div ref={composerContainerRef} className="w-full max-w-3xl pointer-events-auto relative">
+        <motion.div
+          ref={composerContainerRef}
+          layout={!shouldReduceMotion}
+          transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+          className={cn(
+            "pointer-events-auto relative w-full transition-all duration-200",
+            isCompact ? "max-w-md sm:max-w-lg" : "max-w-3xl"
+          )}
+        >
           <AnimatePresence>
             {isStreaming && (
               <motion.div
@@ -890,7 +972,7 @@ export function AIChatPage() {
                 <button
                   type="button"
                   onClick={() => abortControllerRef.current?.abort()}
-                  className="group relative flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium text-foreground bg-white/50 dark:bg-slate-950/40 backdrop-blur-2xl backdrop-saturate-200 border border-slate-900/[0.08] dark:border-white/15 shadow-[0_4px_20px_rgba(0,0,0,0.08),inset_0_1px_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35),inset_0_1px_1px_0_rgba(255,255,255,0.15)] hover:border-primary/50 hover:bg-white/70 dark:hover:bg-slate-900/60 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+                  className="group relative flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium text-foreground bg-white/70 dark:bg-[#18191c]/75 backdrop-blur-xl border border-border/80 dark:border-white/10 shadow-sm hover:border-primary/50 hover:bg-white/90 dark:hover:bg-[#202226]/90 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
                   aria-label="Stop generating response"
                 >
                   <span className="relative flex h-2 w-2">
@@ -904,40 +986,50 @@ export function AIChatPage() {
           </AnimatePresence>
           <form
             onSubmit={handleSubmit}
+            onClick={() => {
+              if (isCompact) {
+                setIsComposerFocused(true)
+                focusComposer()
+              }
+            }}
             className={cn(
-              "group relative flex items-end rounded-2xl border bg-white/45 hover:bg-white/55 focus-within:bg-white/65 dark:bg-slate-950/40 dark:hover:bg-slate-950/50 dark:focus-within:bg-slate-950/60 backdrop-blur-md transition-all duration-200 overflow-hidden shadow-xs hover:shadow-sm focus-within:shadow-md",
+              "group relative rounded-2xl border transition-all duration-200 overflow-hidden",
+              "bg-white/60 dark:bg-[#18191c]/60 backdrop-blur-xl",
+              "border-border/70 dark:border-white/10 shadow-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.36)]",
+              "hover:border-border dark:hover:border-white/15",
               isListening
-                ? "border-emerald-500/50 dark:border-emerald-500/40 ring-2 ring-emerald-500/20 dark:ring-emerald-500/25 shadow-md"
-                : "border-black/[0.08] hover:border-black/[0.12] dark:border-white/[0.10] dark:hover:border-white/[0.16] focus-within:border-primary/50 dark:focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 dark:focus-within:ring-primary/20"
+                ? "border-primary/60 dark:border-primary/60 ring-1 ring-primary/25 shadow-md"
+                : "focus-within:border-primary/50 dark:focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/25",
+              isCompact ? "cursor-pointer" : ""
             )}
           >
-            {/* Top Specular Glass Reflection Edge */}
-            <div
-              className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/50 dark:via-white/15 to-transparent pointer-events-none"
-              aria-hidden="true"
-            />
+            {isListening ? (
+              <div className="flex items-center w-full px-3.5 py-2 sm:px-4 sm:py-2.5 gap-3 min-h-[46px]">
+                {/* Listening Pulse Indicator & Waveform Visualizer */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
+                  </span>
+                  <VoiceVisualizer volumes={volumes} isListening={isListening} />
+                </div>
 
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={isListening ? "Listening... Speak now" : "Message Veritas RAG..."}
-              aria-label="Message Veritas RAG"
-              className={cn(
-                "w-full resize-none bg-transparent py-2.5 pl-4 sm:pl-5 text-sm outline-none placeholder:text-muted-foreground/60 max-h-40 min-h-[44px] leading-relaxed text-foreground",
-                isListening ? "pr-28 sm:pr-32" : "pr-20 sm:pr-24"
-              )}
-              rows={1}
-            />
+                {/* Real-time speech transcript or placeholder */}
+                <div className="flex-1 min-w-0">
+                  {input.trim() ? (
+                    <p className="text-foreground text-sm font-medium truncate select-none leading-normal">
+                      {input}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground/75 italic select-none text-xs sm:text-sm animate-pulse">
+                      Listening... Speak now
+                    </p>
+                  )}
+                </div>
 
-            {/* Elevated Primary Action Dock */}
-            <div className="absolute right-2 bottom-1.5 flex items-center gap-1.5">
-              <TooltipProvider delayDuration={200}>
-                {isListening ? (
-                  <>
-                    <VoiceVisualizer volumes={volumes} isListening={isListening} />
-
+                {/* Primary Voice Actions: Cancel & Done */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <TooltipProvider delayDuration={200}>
                     {/* Cancel Recording */}
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -946,7 +1038,7 @@ export function AIChatPage() {
                           onClick={handleCancelVoice}
                           aria-label="Cancel dictation"
                           title="Cancel dictation"
-                          className="flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.08] active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-destructive cursor-pointer"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-muted/80 dark:hover:bg-muted/80 active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-destructive cursor-pointer"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -964,7 +1056,7 @@ export function AIChatPage() {
                           onClick={handleStopVoice}
                           aria-label="Stop dictation and insert text"
                           title="Stop dictation and insert text"
-                          className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 dark:bg-emerald-500 text-white shadow-[0_2px_10px_rgba(16,185,129,0.4)] hover:bg-emerald-500 dark:hover:bg-emerald-400 active:scale-95 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
+                          className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover active:scale-95 transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
                         >
                           <Check className="h-4 w-4 stroke-[2.5]" />
                         </button>
@@ -973,9 +1065,41 @@ export function AIChatPage() {
                         <p className="text-xs">Done dictating</p>
                       </TooltipContent>
                     </Tooltip>
-                  </>
-                ) : (
-                  <>
+                  </TooltipProvider>
+                </div>
+              </div>
+            ) : (
+              <div className={cn(
+                "flex w-full transition-all duration-150",
+                isCompact
+                  ? "items-center py-1.5 px-3 gap-2"
+                  : "items-end py-1.5 pl-4 sm:pl-5 pr-2 gap-2"
+              )}>
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => setIsComposerFocused(true)}
+                  onBlur={() => setIsComposerFocused(false)}
+                  placeholder={isCompact ? "Ask a question..." : "Message Veritas RAG..."}
+                  aria-label="Message Veritas RAG"
+                  className={cn(
+                    "flex-1 min-w-0 resize-none bg-transparent placeholder:text-muted-foreground/60 text-foreground transition-all duration-150",
+                    "border-none outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 ring-offset-0 focus:ring-offset-0 focus-visible:ring-offset-0",
+                    isCompact
+                      ? "py-1 pl-1 pr-1 text-xs sm:text-sm h-7 max-h-7 leading-normal overflow-hidden cursor-pointer"
+                      : "py-1.5 pr-2 text-sm min-h-[38px] max-h-40 leading-relaxed"
+                  )}
+                  rows={1}
+                />
+
+                {/* Primary Action Dock */}
+                <div className={cn(
+                  "flex items-center gap-1.5 shrink-0 transition-all duration-150",
+                  isCompact ? "self-center" : "self-end mb-1"
+                )}>
+                  <TooltipProvider delayDuration={200}>
                     {/* Voice Input Trigger */}
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -986,13 +1110,14 @@ export function AIChatPage() {
                           aria-label="Dictate query"
                           title="Dictate query"
                           className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                            "flex items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                            isCompact ? "h-7 w-7" : "h-8 w-8",
                             isStreaming
                               ? "text-muted-foreground/30 bg-transparent cursor-not-allowed"
                               : "text-muted-foreground hover:text-foreground hover:bg-muted/80 active:scale-95 cursor-pointer"
                           )}
                         >
-                          <Mic className="h-4 w-4" />
+                          <Mic className={isCompact ? "h-3.5 w-3.5" : "h-4 w-4"} />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top">
@@ -1009,23 +1134,26 @@ export function AIChatPage() {
                       aria-label="Send message"
                       title="Send message"
                       className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        "flex items-center justify-center rounded-xl transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        isCompact ? "h-7 w-7" : "h-8 w-8",
                         !input.trim() || isStreaming
-                          ? "text-muted-foreground/30 bg-muted/40 dark:bg-white/[0.04] border border-transparent cursor-not-allowed"
+                          ? "text-muted-foreground/30 bg-muted/40 dark:bg-muted/20 border border-transparent cursor-not-allowed"
                           : "bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover active:scale-95 cursor-pointer"
                       )}
                     >
-                      <Send className="h-4 w-4" />
+                      <Send className={isCompact ? "h-3.5 w-3.5" : "h-4 w-4"} />
                     </motion.button>
-                  </>
-                )}
-              </TooltipProvider>
-            </div>
+                  </TooltipProvider>
+                </div>
+              </div>
+            )}
           </form>
-          <div className="text-center mt-2 text-[11px] text-muted-foreground/70 font-medium tracking-tight pointer-events-none select-none">
-            AI responses may be inaccurate. Verify citations before use.
-          </div>
-        </div>
+          {!isCompact && (
+            <div className="text-center mt-2 text-[11px] text-muted-foreground/70 font-medium tracking-tight pointer-events-none select-none transition-opacity duration-200">
+              AI responses may be inaccurate. Verify citations before use.
+            </div>
+          )}
+        </motion.div>
       </div>
 
       <ShareModal
@@ -1130,8 +1258,13 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
   const isRetrieving = !isUser && isStreaming && !processedMessage
 
   return (
-    <div className={`group flex w-full ${isUser ? 'justify-end' : 'justify-start'} mx-auto max-w-4xl`}>
-      <div className={`flex gap-3 sm:gap-4 max-w-[88%] sm:max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={cn("group flex w-full mx-auto max-w-4xl", isUser ? "justify-end" : "justify-start")}>
+      <div className={cn(
+        "flex gap-3 sm:gap-4 items-start",
+        isUser
+          ? "flex-row-reverse max-w-[85%] sm:max-w-[78%] md:max-w-[72%] ml-auto"
+          : "flex-row w-full max-w-full"
+      )}>
 
         {/* Avatar */}
         <div className="shrink-0 mt-1">
@@ -1141,7 +1274,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
         </div>
 
         {/* Content */}
-        <div className={`flex flex-col gap-1.5 ${isUser ? 'items-end' : 'items-start'} min-w-0 w-full`}>
+        <div className={cn("flex flex-col gap-1.5 min-w-0", isUser ? "items-end w-auto" : "items-start w-full")}>
           {isUser && isEditing ? (
             <MessageEditInput
               initialContent={message.message}
@@ -1155,11 +1288,11 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
               <div className={cn(
                 "relative text-sm leading-relaxed transition-all",
                 isUser
-                  ? "px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl rounded-tr-sm bg-emerald-50/80 border border-emerald-200/80 text-foreground shadow-[0_1px_2px_rgba(16,185,129,0.06)] dark:bg-emerald-950/40 dark:border-emerald-800/40 dark:text-emerald-50 dark:shadow-none"
+                  ? "px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl rounded-tr-sm bg-emerald-50/80 border border-emerald-200/80 text-foreground shadow-[0_1px_2px_rgba(16,185,129,0.06)] dark:bg-surface-elevated dark:border-border/80 dark:text-foreground dark:shadow-xs"
                   : "px-1 py-1 sm:px-1.5 sm:py-1.5 bg-transparent border-0 shadow-none text-foreground"
               )}>
                 {isRetrieving ? (
-                  <div className="flex items-center gap-2.5 py-1 text-muted-foreground text-xs font-medium" role="status" aria-live="polite">
+                  <div className="inline-flex items-center gap-2.5 py-1.5 px-3 rounded-lg border border-border/60 bg-surface/80 dark:bg-surface-elevated/80 text-muted-foreground text-xs font-medium backdrop-blur-xs" role="status" aria-live="polite">
                     <div className="flex items-center gap-1">
                       <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                       <span className="h-1.5 w-1.5 rounded-full bg-primary/80 animate-pulse [animation-delay:200ms]" />
@@ -1173,7 +1306,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                   <div className={cn(
                     "prose prose-sm max-w-none leading-relaxed",
                     isUser
-                      ? "text-foreground dark:text-emerald-50 dark:prose-invert prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0"
+                      ? "text-foreground dark:text-foreground dark:prose-invert prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0"
                       : "dark:prose-invert text-foreground prose-p:my-2 prose-p:first:mt-0 prose-p:last:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-headings:tracking-tight prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5"
                   )}>
                     <ReactMarkdown
@@ -1194,7 +1327,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                               {...props}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={isUser ? "underline underline-offset-2 font-medium text-emerald-800 dark:text-emerald-300 hover:opacity-80 transition-opacity" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
+                              className={isUser ? "underline underline-offset-2 font-medium text-emerald-800 dark:text-primary hover:opacity-80 transition-opacity" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
                             >
                               {children}
                             </a>
@@ -1211,7 +1344,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                               className={cn(
                                 "rounded font-mono text-[12px] font-medium px-1.5 py-0.5",
                                 isUser
-                                  ? "bg-emerald-500/10 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200 border border-emerald-500/20"
+                                  ? "bg-emerald-500/10 text-emerald-900 dark:bg-muted/80 dark:text-foreground border border-emerald-500/20 dark:border-border/50"
                                   : "bg-muted/80 text-primary dark:text-teal-300 border border-border/50"
                               )}
                               {...props}
@@ -1225,7 +1358,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                             <table className="min-w-full divide-y divide-border/60 text-xs">{children}</table>
                           </div>
                         ),
-                        thead: ({ children }) => <thead className="bg-muted/50 font-semibold text-foreground">{children}</thead>,
+                        thead: ({ children }) => <thead className="bg-muted/50 dark:bg-surface-elevated font-semibold text-foreground">{children}</thead>,
                         th: ({ children }) => <th className="px-3 py-2 text-left font-semibold text-foreground">{children}</th>,
                         td: ({ children }) => <td className="px-3 py-2 border-t border-border/40 text-foreground/90">{children}</td>,
                         blockquote: ({ children }) => (
@@ -1260,7 +1393,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
 
           {/* Metadata & Actions (Assistant only) */}
           {!isUser && !isStreaming && (message.reliability_score !== undefined || message.citations?.length || processedMessage) && (
-            <div className="flex flex-wrap items-center justify-between gap-2.5 px-1 pt-0.5 w-full">
+            <div className="flex flex-wrap items-center justify-start gap-2.5 px-1 pt-0.5 w-full">
               {/* F9.4 Badge & Tooltip Rendering */}
               {message.reliability_score !== undefined && (
                 <TooltipProvider delayDuration={200}>
@@ -1283,7 +1416,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                         </Badge>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs text-xs p-2.5 bg-surface/95 dark:bg-slate-900/95 backdrop-blur-md border border-border/80 shadow-lg rounded-xl">
+                    <TooltipContent side="top" className="max-w-xs text-xs p-2.5 bg-surface/95 dark:bg-surface-elevated/95 backdrop-blur-md border border-border/80 shadow-lg rounded-xl">
                       <p className="leading-relaxed">
                         {message.reliability_score >= 0.8
                           ? 'The AI is highly confident in this response based on the provided enterprise context.'
@@ -1304,7 +1437,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                   onFeedback={handleFeedback}
                   onShare={handleShare}
                   disabled={disabled || isStreaming}
-                  className="ml-auto"
+                  className="opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity"
                 />
               )}
             </div>

@@ -72,7 +72,7 @@ describe('WS-C C3 & C5: MessageEditInput & ShareModal', () => {
         />
       )
 
-      const saveButton = screen.getByRole('button', { name: 'Save & Submit' })
+      const saveButton = screen.getByRole('button', { name: 'Send' })
       expect(saveButton).toBeDisabled()
     })
   })
