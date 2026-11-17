@@ -9,10 +9,13 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 class SendInvitationRequest(BaseModel):
     """Payload for creating and sending a workspace invitation."""
 
-    email: EmailStr = Field(..., description="Target recipient email address to invite")
+    email: EmailStr | None = Field(
+        default=None,
+        description="Target recipient email address to invite. If omitted, generates a reusable invitation link.",
+    )
     role: str = Field(
         default="MEMBER",
-        description="Target workspace role ('ADMIN', 'MEMBER', 'VIEWER')",
+        description="Target workspace role ('MEMBER' only)",
     )
     custom_message: str | None = Field(
         default=None,
@@ -22,13 +25,15 @@ class SendInvitationRequest(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, v: str) -> str:
-        return v.strip().lower()
+    def normalize_email(cls, v: str | None) -> str | None:
+        if v is not None:
+            return v.strip().lower()
+        return None
 
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str) -> str:
-        allowed = {"ADMIN", "MEMBER", "VIEWER"}
+        allowed = {"MEMBER"}
         role_upper = v.strip().upper()
         if role_upper not in allowed:
             raise ValueError(f"Invalid role '{v}'. Allowed roles: {allowed}")
@@ -52,7 +57,7 @@ class WorkspaceInvitationData(BaseModel):
 
     id: uuid.UUID
     workspace_id: uuid.UUID
-    email: str
+    email: str | None = None
     role: str
     status: str
     invited_by_user_id: uuid.UUID | None = None
@@ -130,3 +135,26 @@ class AcceptInvitationResponse(BaseModel):
     success: bool = True
     message: str = "Workspace invitation accepted successfully."
     data: AcceptInvitationData
+
+
+class WorkspaceInvitationRedemptionData(BaseModel):
+    """Sanitized DTO for invitation redemption log entry."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    invitation_id: uuid.UUID
+    workspace_id: uuid.UUID
+    user_id: uuid.UUID
+    redeemed_at: datetime.datetime
+    ip_address: str | None = None
+    user_agent: str | None = None
+
+
+class WorkspaceInvitationActivityResponse(BaseModel):
+    """Response payload for invitation redemption activity log."""
+
+    success: bool = True
+    total: int
+    items: list[WorkspaceInvitationRedemptionData]
+

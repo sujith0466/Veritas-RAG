@@ -248,6 +248,17 @@ class JoinCodeStoragePayload(BaseModel):
     max_uses: int | None = None
     current_uses: int = 0
 
+    @field_validator("default_role")
+    @classmethod
+    def validate_default_role(cls, v: str) -> str:
+        role_upper = v.strip().upper() if v else "MEMBER"
+        if role_upper not in {"MEMBER"}:
+            raise ValueError(
+                f"Join code default role must be 'MEMBER', got '{v}'. "
+                "Setting elevated roles ('OWNER', 'ADMIN') or legacy roles ('VIEWER') is prohibited."
+            )
+        return role_upper
+
 
 # ── 2. Master Settings Document ──────────────────────────────────────────────
 

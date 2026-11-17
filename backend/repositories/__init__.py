@@ -14,6 +14,8 @@ from .workspace import WorkspaceRepository
 from .workspace_member import WorkspaceMemberRepository
 from .workspace_settings import WorkspaceSettingsRepository
 from .workspace_settings_history import WorkspaceSettingsHistoryRepository
+from .workspace_former_owner_departure import WorkspaceFormerOwnerDepartureRepository
+from .workspace_ownership_transfer import WorkspaceOwnershipTransferRepository
 
 __all__ = [
     "AuditLogRepository",
@@ -25,6 +27,8 @@ __all__ = [
     "WorkspaceMemberRepository",
     "WorkspaceSettingsRepository",
     "WorkspaceSettingsHistoryRepository",
+    "WorkspaceFormerOwnerDepartureRepository",
+    "WorkspaceOwnershipTransferRepository",
     "FeatureFlagRepository",
     "FeatureFlagWorkspaceRuleRepository",
     "FeatureFlagHistoryRepository",

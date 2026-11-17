@@ -47,6 +47,7 @@ class ReportMetadataDTO(BaseModel):
     report_id: str = Field(..., description="Unique report ID")
     report_type: str = Field(..., description="Report type identifier")
     title: str = Field(..., description="Human-readable report title")
+    tenant_id: str | None = Field(None, description="Workspace tenant identifier")
     generated_at: datetime = Field(..., description="Timestamp of generation")
     date_range_label: str = Field(..., description="Human-readable date range string")
     status: str = Field("READY", description="Report status (READY, FAILED)")

@@ -37,14 +37,19 @@ class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
         return list(result.scalars().all())
 
     async def get_membership(
-        self, workspace_id: uuid.UUID, user_id: uuid.UUID, include_suspended: bool = True
+        self,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID,
+        include_suspended: bool = True,
+        include_deleted: bool = False,
     ) -> WorkspaceMember | None:
         """Fetch a user's membership in a specific workspace."""
         conditions = [
             self.model_class.workspace_id == workspace_id,
             self.model_class.user_id == user_id,
-            self.model_class.is_deleted == False,
         ]
+        if not include_deleted:
+            conditions.append(self.model_class.is_deleted == False)
         if not include_suspended:
             conditions.append(self.model_class.status == MemberStatus.ACTIVE.value)
 
@@ -55,6 +60,7 @@ class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
                 selectinload(self.model_class.invited_by),
             )
             .where(*conditions)
+            .order_by(self.model_class.is_deleted.asc(), self.model_class.created_at.desc())
         )
         result = await self.session.execute(stmt)
         return result.scalars().first()
@@ -124,6 +130,20 @@ class WorkspaceMemberRepository(BaseRepository[WorkspaceMember]):
             self.model_class.workspace_id == workspace_id,
             self.model_class.role == WorkspaceRole.OWNER.value,
             self.model_class.status == MemberStatus.ACTIVE.value,
+            self.model_class.is_deleted == False,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
+
+    async def count_non_deleted_owners(self, workspace_id: uuid.UUID) -> int:
+        """
+        Count total non-deleted owners matching the database invariant predicate:
+        role = 'OWNER' AND is_deleted = false.
+        Includes both ACTIVE and SUSPENDED owners.
+        """
+        stmt = select(func.count(self.model_class.id)).where(
+            self.model_class.workspace_id == workspace_id,
+            self.model_class.role == WorkspaceRole.OWNER.value,
             self.model_class.is_deleted == False,
         )
         result = await self.session.execute(stmt)

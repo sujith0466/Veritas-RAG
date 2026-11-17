@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Sequence
 import uuid
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.entities.notification import Notification
@@ -17,9 +17,29 @@ class NotificationRepository(BaseRepository[Notification]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, Notification)
 
+    @staticmethod
+    def _build_isolation_filter(tenant_id: uuid.UUID | None, user_id: uuid.UUID):
+        """Construct tenant and user isolation predicate supporting user-scoped notifications."""
+        nil_uuid = uuid.UUID("00000000-0000-0000-0000-000000000000")
+        if not tenant_id or tenant_id == nil_uuid:
+            return and_(
+                Notification.user_id == user_id,
+                Notification.tenant_id.is_(None),
+            )
+        return or_(
+            and_(
+                Notification.tenant_id == tenant_id,
+                or_(Notification.user_id == user_id, Notification.user_id.is_(None)),
+            ),
+            and_(
+                Notification.tenant_id.is_(None),
+                Notification.user_id == user_id,
+            ),
+        )
+
     async def create_notification(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         title: str,
         message: str,
         user_id: uuid.UUID | None = None,
@@ -48,7 +68,7 @@ class NotificationRepository(BaseRepository[Notification]):
 
     async def list_notifications(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
         category: str | None = None,
         unread_only: bool = False,
@@ -57,9 +77,8 @@ class NotificationRepository(BaseRepository[Notification]):
     ) -> tuple[Sequence[Notification], int]:
         """Fetch paginated notifications with tenant and user isolation."""
         base_filters = [
-            Notification.tenant_id == tenant_id,
             Notification.is_deleted.is_(False),
-            or_(Notification.user_id == user_id, Notification.user_id.is_(None)),
+            self._build_isolation_filter(tenant_id, user_id),
         ]
 
         if category:
@@ -87,15 +106,14 @@ class NotificationRepository(BaseRepository[Notification]):
 
     async def get_unread_count(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> int:
         """Return the total count of unread active notifications."""
         stmt = select(func.count(Notification.id)).where(
-            Notification.tenant_id == tenant_id,
             Notification.is_deleted.is_(False),
             Notification.is_read.is_(False),
-            or_(Notification.user_id == user_id, Notification.user_id.is_(None)),
+            self._build_isolation_filter(tenant_id, user_id),
         )
         count = (await self.session.execute(stmt)).scalar()
         return count or 0
@@ -103,15 +121,14 @@ class NotificationRepository(BaseRepository[Notification]):
     async def mark_as_read(
         self,
         notification_id: uuid.UUID,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> Notification | None:
         """Mark a single authorized notification as read."""
         stmt = select(Notification).where(
             Notification.id == notification_id,
-            Notification.tenant_id == tenant_id,
             Notification.is_deleted.is_(False),
-            or_(Notification.user_id == user_id, Notification.user_id.is_(None)),
+            self._build_isolation_filter(tenant_id, user_id),
         )
         result = await self.session.execute(stmt)
         notification = result.scalar_one_or_none()
@@ -125,17 +142,16 @@ class NotificationRepository(BaseRepository[Notification]):
 
     async def mark_all_as_read(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> int:
         """Mark all unread active notifications for this user as read."""
         stmt = (
             update(Notification)
             .where(
-                Notification.tenant_id == tenant_id,
                 Notification.is_deleted.is_(False),
                 Notification.is_read.is_(False),
-                or_(Notification.user_id == user_id, Notification.user_id.is_(None)),
+                self._build_isolation_filter(tenant_id, user_id),
             )
             .values(
                 is_read=True,
@@ -150,15 +166,14 @@ class NotificationRepository(BaseRepository[Notification]):
     async def dismiss_notification(
         self,
         notification_id: uuid.UUID,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> bool:
         """Soft-delete an authorized notification."""
         stmt = select(Notification).where(
             Notification.id == notification_id,
-            Notification.tenant_id == tenant_id,
             Notification.is_deleted.is_(False),
-            or_(Notification.user_id == user_id, Notification.user_id.is_(None)),
+            self._build_isolation_filter(tenant_id, user_id),
         )
         result = await self.session.execute(stmt)
         notification = result.scalar_one_or_none()

@@ -43,6 +43,19 @@ class WorkspaceRepository(BaseRepository[Workspace]):
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
+    async def get_by_id_for_update(self, workspace_id: uuid.UUID) -> Workspace | None:
+        """Fetch a workspace record with pessimistic row lock (SELECT ... FOR UPDATE)."""
+        stmt = (
+            select(self.model_class)
+            .where(
+                self.model_class.id == workspace_id,
+                self.model_class.is_deleted == False,
+            )
+            .with_for_update()
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
+
     async def update_provisioning_status(
         self, workspace_id: uuid.UUID, status: ProvisioningStatus
     ) -> Workspace | None:

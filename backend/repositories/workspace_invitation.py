@@ -4,6 +4,7 @@ Handles persistence, lookup, row locking, and batch expiration for WorkspaceInvi
 """
 
 import datetime
+from typing import Any
 import uuid
 
 from sqlalchemy import func, select, update
@@ -128,15 +129,18 @@ class WorkspaceInvitationRepository(BaseRepository[WorkspaceInvitation]):
         self,
         workspace_id: uuid.UUID,
         status: str | None = None,
+        creator_user_id: uuid.UUID | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[WorkspaceInvitation], int]:
-        """Paginated list of invitations for a workspace with total count and query-time expiration filtering."""
+        """Paginated list of invitations for a workspace, strictly filtered by creator when supplied."""
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         base_filters = [
             self.model_class.workspace_id == workspace_id,
             self.model_class.is_deleted == False,
         ]
+        if creator_user_id:
+            base_filters.append(self.model_class.invited_by_user_id == creator_user_id)
         if status:
             base_filters.append(self.model_class.status == status)
             if status.upper() == InvitationStatus.PENDING.value:
@@ -163,6 +167,42 @@ class WorkspaceInvitationRepository(BaseRepository[WorkspaceInvitation]):
         items = list(result.scalars().all())
 
         return items, total
+
+    async def record_redemption(
+        self,
+        invitation_id: uuid.UUID,
+        workspace_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Any:
+        """Records an immutable redemption entry in workspace_invitation_redemptions."""
+        from backend.models.entities.workspace_invitation import WorkspaceInvitationRedemption
+        redemption = WorkspaceInvitationRedemption(
+            id=uuid.uuid4(),
+            invitation_id=invitation_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            redeemed_at=datetime.datetime.now(datetime.timezone.utc),
+        )
+        self.session.add(redemption)
+        await self.session.flush()
+        return redemption
+
+    async def list_redemptions(
+        self,
+        invitation_id: uuid.UUID,
+    ) -> list[Any]:
+        """Lists all redemption entries for an invitation link."""
+        from backend.models.entities.workspace_invitation import WorkspaceInvitationRedemption
+        stmt = (
+            select(WorkspaceInvitationRedemption)
+            .where(
+                WorkspaceInvitationRedemption.invitation_id == invitation_id,
+                WorkspaceInvitationRedemption.is_deleted == False,
+            )
+            .order_by(WorkspaceInvitationRedemption.redeemed_at.desc())
+        )
+        res = await self.session.execute(stmt)
+        return list(res.scalars().all())
 
     async def count_pending_in_workspace(self, workspace_id: uuid.UUID) -> int:
         """Count total active, non-expired pending invitations in a workspace."""

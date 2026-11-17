@@ -3,25 +3,40 @@
 import datetime
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.models.entities.workspace_member import WorkspaceRole
+
+ASSIGNABLE_WORKSPACE_ROLES: set[str] = {
+    WorkspaceRole.ADMIN.value,
+    WorkspaceRole.MEMBER.value,
+}
 
 
 class UpdateMemberRoleRequest(BaseModel):
     """Payload for modifying a member's role."""
 
-    role: str = Field(..., description="Target workspace role (e.g. 'OWNER', 'ADMIN', 'MEMBER', 'VIEWER')")
+    role: str = Field(..., description="Target workspace role ('ADMIN' or 'MEMBER')")
     dry_run: bool = Field(default=False, description="If true, validates role change without persisting")
 
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str) -> str:
-        role_upper = v.strip().upper()
-        allowed = {r.value for r in WorkspaceRole}
-        if role_upper not in allowed:
-            raise ValueError(f"Invalid workspace role '{v}'. Allowed roles: {allowed}")
-        return role_upper
+        if not isinstance(v, str):
+            raise ValueError("Role must be a string")
+        if v not in ASSIGNABLE_WORKSPACE_ROLES:
+            if v == "OWNER":
+                raise ValueError("Direct assignment or promotion to OWNER is not permitted.")
+            if v == "VIEWER":
+                raise ValueError("Role VIEWER is deprecated and cannot be assigned.")
+            if v.strip().upper() in ASSIGNABLE_WORKSPACE_ROLES:
+                raise ValueError(
+                    f"Noncanonical role value '{v}'. Role must be uppercase and without whitespace."
+                )
+            raise ValueError(
+                f"Invalid workspace role '{v}'. Allowed assignable roles: {sorted(ASSIGNABLE_WORKSPACE_ROLES)}"
+            )
+        return v
 
 
 class BulkMemberActionRequest(BaseModel):
@@ -39,6 +54,25 @@ class BulkMemberActionRequest(BaseModel):
         if act_lower not in allowed:
             raise ValueError(f"Invalid action '{v}'. Allowed actions: {allowed}")
         return act_lower
+
+    @model_validator(mode="after")
+    def validate_bulk_action(self) -> "BulkMemberActionRequest":
+        if self.action == "update_role":
+            if not self.role:
+                raise ValueError("Field 'role' is required when action is 'update_role'")
+            if self.role not in ASSIGNABLE_WORKSPACE_ROLES:
+                if self.role == "OWNER":
+                    raise ValueError("Direct assignment or promotion to OWNER is not permitted in bulk operations.")
+                if self.role == "VIEWER":
+                    raise ValueError("Role VIEWER is deprecated and cannot be assigned in bulk operations.")
+                if self.role.strip().upper() in ASSIGNABLE_WORKSPACE_ROLES:
+                    raise ValueError(
+                        f"Noncanonical role value '{self.role}'. Role must be uppercase and without whitespace."
+                    )
+                raise ValueError(
+                    f"Invalid workspace role '{self.role}'. Allowed assignable roles: {sorted(ASSIGNABLE_WORKSPACE_ROLES)}"
+                )
+        return self
 
 
 class WorkspaceMemberUserData(BaseModel):
@@ -64,6 +98,7 @@ class WorkspaceMemberData(BaseModel):
     user_id: uuid.UUID
     role: str
     status: str
+    is_former_owner: bool = False
     invited_by_user_id: uuid.UUID | None = None
     joined_at: datetime.datetime | None = None
     last_active_at: datetime.datetime | None = None
@@ -71,6 +106,13 @@ class WorkspaceMemberData(BaseModel):
     created_at: datetime.datetime
     updated_at: datetime.datetime
     user: WorkspaceMemberUserData | None = None
+
+    @field_validator("is_former_owner", mode="before")
+    @classmethod
+    def default_is_former_owner(cls, v: object) -> bool:
+        if v is None:
+            return False
+        return bool(v)
 
 
 class WorkspaceMemberResponse(BaseModel):

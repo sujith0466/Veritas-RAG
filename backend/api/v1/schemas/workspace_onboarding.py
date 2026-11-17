@@ -283,7 +283,7 @@ class JoinCodeSettingsPatchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool | None = Field(default=None, description="Enable or disable join code entry")
-    default_role: str | None = Field(default=None, description="Updated default role ('MEMBER', 'VIEWER')")
+    default_role: str | None = Field(default=None, description="Updated default role ('MEMBER')")
     require_approval: bool | None = Field(default=None, description="Require admin approval for entrants")
     max_uses: int | None = Field(default=None, ge=1, le=10000, description="Maximum number of allowable uses")
     expires_in_days: int | None = Field(
@@ -299,8 +299,11 @@ class JoinCodeSettingsPatchRequest(BaseModel):
         if v is None:
             return None
         role_upper = v.strip().upper()
-        if role_upper not in {"MEMBER", "VIEWER"}:
-            raise ValueError("Join code default role must be 'MEMBER' or 'VIEWER'.")
+        if role_upper not in {"MEMBER"}:
+            raise ValueError(
+                f"Join code default role must be 'MEMBER', got '{v}'. "
+                "Setting elevated roles ('OWNER', 'ADMIN') or legacy roles ('VIEWER') is prohibited."
+            )
         return role_upper
 
     @field_validator("expires_in_days")

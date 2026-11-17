@@ -10,7 +10,16 @@ from .sso_identity import SSOIdentity
 from .user import User
 from .user_session import UserSession
 from .workspace import ProvisioningStatus, Workspace, WorkspaceStatus
-from .workspace_invitation import InvitationStatus, WorkspaceInvitation
+from .workspace_invitation import (
+    InvitationStatus,
+    WorkspaceInvitation,
+    WorkspaceInvitationRedemption,
+)
+from .workspace_join_code import (
+    WorkspaceJoinCode,
+    WorkspaceJoinCodeRedemption,
+)
+from .notification_outbox import NotificationOutbox
 from .workspace_member import WorkspaceMember
 from .workspace_settings import WorkspaceSettings
 from .notification_delivery_log import NotificationDeliveryLog
@@ -21,6 +30,19 @@ from .workspace_access_request import (
     WorkspaceAccessRequest,
 )
 from .workspace_webhook import WorkspaceWebhook
+from .workspace_ownership_transfer import (
+    TransferStatus,
+    WorkspaceOwnershipTransfer,
+)
+from .workspace_former_owner_departure import (
+    FormerOwnerDepartureType,
+    WorkspaceFormerOwnerDeparture,
+)
+from .secure_vault import (
+    ActionNonce,
+    OfficerSigningKey,
+    RedactionExecutionFence,
+)
 
 __all__ = [
     "AuditLog",
@@ -41,6 +63,10 @@ __all__ = [
     "FeatureFlagHistory",
     "WorkspaceInvitation",
     "InvitationStatus",
+    "WorkspaceInvitationRedemption",
+    "WorkspaceJoinCode",
+    "WorkspaceJoinCodeRedemption",
+    "NotificationOutbox",
     "WorkspaceAccessRequest",
     "AccessRequestStatus",
     "AccessRequestType",
@@ -50,4 +76,11 @@ __all__ = [
     "NotificationCategory",
     "NotificationSeverity",
     "WorkspaceWebhook",
+    "WorkspaceOwnershipTransfer",
+    "TransferStatus",
+    "WorkspaceFormerOwnerDeparture",
+    "FormerOwnerDepartureType",
+    "OfficerSigningKey",
+    "ActionNonce",
+    "RedactionExecutionFence",
 ]

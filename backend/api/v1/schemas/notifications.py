@@ -11,7 +11,7 @@ class NotificationDTO(BaseModel):
     """Data transfer object for in-app notification representation."""
 
     id: uuid.UUID
-    tenant_id: uuid.UUID
+    tenant_id: uuid.UUID | None = None
     user_id: uuid.UUID | None = None
     category: str
     severity: str

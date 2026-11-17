@@ -3,7 +3,7 @@ import enum
 from typing import Any
 import uuid
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -14,6 +14,7 @@ from backend.models.base import BaseModel
 class MemberStatus(str, enum.Enum):
     ACTIVE = "ACTIVE"
     SUSPENDED = "SUSPENDED"
+    TRANSFER_PENDING = "TRANSFER_PENDING"
 
 
 class WorkspaceRole(str, enum.Enum):
@@ -57,6 +58,22 @@ class WorkspaceMember(BaseModel):
 
     __tablename__ = "workspace_members"
 
+    __table_args__ = (
+        Index(
+            "uq_workspace_members_active_user",
+            "workspace_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text("is_deleted = false"),
+        ),
+        Index(
+            "uq_workspace_members_active_owner",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("role = 'OWNER' AND is_deleted = false"),
+        ),
+    )
+
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
@@ -70,6 +87,9 @@ class WorkspaceMember(BaseModel):
         index=True,
     )
     role: Mapped[str] = mapped_column(String(50), nullable=False)  # "OWNER", "ADMIN", "MEMBER", "VIEWER"
+    is_former_owner: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     status: Mapped[str] = mapped_column(
         String(50), default=MemberStatus.ACTIVE.value, nullable=False
     )
