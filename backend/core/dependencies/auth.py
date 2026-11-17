@@ -78,6 +78,17 @@ def require_workspace() -> Callable[..., Coroutine[Any, Any, UserContext]]:
         if not user_context.tenant_id:
             from fastapi import HTTPException
             raise HTTPException(status_code=403, detail="Active workspace required. Please create or join a workspace.")
+        user_role_str = ""
+        if hasattr(user_context, "role"):
+            user_role_str = str(user_context.role).upper()
+            if user_role_str.startswith("ROLE."):
+                user_role_str = user_role_str.split(".", 1)[1]
+        if user_role_str in ("PLATFORM_SUPPORT", "PLATFORM_AUDITOR"):
+            from fastapi import HTTPException, status
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Platform diagnostic roles are strictly excluded from workspace session and chat access.",
+            )
         return user_context
     return _workspace_guard
 

@@ -272,7 +272,7 @@ class AuthService:
                 email=email_normalized,
                 is_verified=True, # Trust OIDC email verification
                 verified_at=datetime.datetime.now(datetime.UTC),
-                role="admin",
+                role="viewer",
                 is_active=True
             )
             self.session.add(user)
@@ -280,6 +280,10 @@ class AuthService:
 
         elif not user.is_active:
             raise AuthenticationException("Account is disabled. Please contact support.")
+        elif not user.is_verified:
+            # Sync email verification if existing user logs in with verified Google email
+            user.is_verified = True
+            user.verified_at = datetime.datetime.now(datetime.UTC)
 
         # Check if SSOIdentity already exists
         stmt = select(SSOIdentity).where(SSOIdentity.provider == provider, SSOIdentity.provider_user_id == provider_user_id)

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from backend.cache.client import get_cache as _get_cache
 from backend.database.engine import get_async_session
@@ -109,7 +109,88 @@ async def get_workspace_provisioning_service(
 async def get_workspace_management_service(
     workspace_repo: WorkspaceRepository = Depends(get_workspace_repository),
     workspace_member_repo: WorkspaceMemberRepository = Depends(get_workspace_member_repository),
+    session: AsyncSession = Depends(get_async_session),
+    request: Request = None,
 ) -> WorkspaceManagementService:
+    from backend.core.dependencies.auth import get_optional_user
+    user = None
+    if request is not None:
+        user = await get_optional_user(request)
+        if user is None and hasattr(request, "state"):
+            user = getattr(request.state, "user_context", None)
+
+    user_role_str = ""
+    if user is not None and hasattr(user, "role"):
+        user_role_str = str(user.role).upper()
+        if user_role_str.startswith("ROLE."):
+            user_role_str = user_role_str.split(".", 1)[1]
+
+    if user_role_str == "PLATFORM_AUDITOR":
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform Auditor is not authorized to access workspace configuration or metadata.",
+        )
+
+    if user_role_str == "PLATFORM_SUPPORT":
+        from fastapi import HTTPException, status
+        if request is not None and request.method not in ("GET", "HEAD", "OPTIONS"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Platform Support is strictly read-only and cannot mutate workspaces.",
+            )
+        if request is not None:
+            from backend.core.permissions.guards import validate_diagnostic_ticket, record_diagnostic_access
+            ticket_id = request.headers.get("X-Justification-Ticket-ID")
+            ticket = validate_diagnostic_ticket(ticket_id)
+
+            target_ws_id = None
+            if hasattr(request, "path_params") and "workspace_id" in request.path_params:
+                try:
+                    import uuid
+                    target_ws_id = uuid.UUID(str(request.path_params["workspace_id"]))
+                except (ValueError, TypeError):
+                    pass
+
+            if session is not None:
+                await record_diagnostic_access(
+                    session=session,
+                    user_id=user.id,
+                    user_role="PLATFORM_SUPPORT",
+                    action="DIAGNOSTIC_WORKSPACE_METADATA_READ",
+                    resource_type="workspace",
+                    resource_id=str(target_ws_id) if target_ws_id else "",
+                    ticket_id=ticket,
+                    tenant_id=target_ws_id,
+                )
+
+            class _DiagnosticWorkspaceMemberRepoProxy:
+                def __init__(self, real_repo, diagnostic_user_id):
+                    self._real_repo = real_repo
+                    self._diagnostic_user_id = str(diagnostic_user_id)
+
+                async def get_membership(self, workspace_id, user_id, *args, **kwargs):
+                    real_member = await self._real_repo.get_membership(workspace_id, user_id, *args, **kwargs)
+                    if real_member is not None:
+                        return real_member
+                    if str(user_id) == self._diagnostic_user_id:
+                        import uuid
+                        from backend.models.entities.workspace_member import WorkspaceMember, MemberStatus
+                        return WorkspaceMember(
+                            id=uuid.uuid4(),
+                            workspace_id=workspace_id,
+                            user_id=user_id,
+                            role="MEMBER",
+                            status=MemberStatus.ACTIVE.value,
+                            is_deleted=False,
+                        )
+                    return None
+
+                def __getattr__(self, name):
+                    return getattr(self._real_repo, name)
+
+            return WorkspaceManagementService(workspace_repo, _DiagnosticWorkspaceMemberRepoProxy(workspace_member_repo, user.id))
+
     return WorkspaceManagementService(workspace_repo, workspace_member_repo)
 
 from backend.services.workspace.membership_service import WorkspaceMembershipService

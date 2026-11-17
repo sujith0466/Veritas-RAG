@@ -16,6 +16,7 @@ import uuid
 import bcrypt
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -27,7 +28,10 @@ from backend.models.entities.workspace_invitation import (
     InvitationStatus,
     WorkspaceInvitation,
 )
-from backend.models.entities.workspace_member import WorkspaceMember
+from backend.models.entities.workspace_member import (
+    MemberStatus,
+    WorkspaceMember,
+)
 from backend.repositories.workspace import WorkspaceRepository
 from backend.repositories.workspace_invitation import WorkspaceInvitationRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
@@ -221,6 +225,28 @@ class WorkspaceInvitationService:
         self.rate_limiter = rate_limiter or _rate_limiter
         self.user_repo = user_repo
 
+    @staticmethod
+    def _is_active_member_unique_conflict(e: IntegrityError) -> bool:
+        """
+        Check if an IntegrityError corresponds strictly to the active-membership
+        partial unique index 'uq_workspace_members_active_user'.
+        """
+        orig = getattr(e, "orig", None)
+        if orig is not None:
+            # 1. asyncpg PostgresError constraint attribute
+            constraint = getattr(orig, "constraint_name", None)
+            if constraint == "uq_workspace_members_active_user":
+                return True
+
+            # 2. psycopg2 / psycopg3 diagnostic attribute
+            diag = getattr(orig, "diag", None)
+            if diag and getattr(diag, "constraint_name", None) == "uq_workspace_members_active_user":
+                return True
+
+        # 3. String representation inspection (covers asyncpg, psycopg, test mocks, and generic wrappers)
+        err_msg = f"{str(e)} {str(orig or '')}".lower()
+        return "uq_workspace_members_active_user" in err_msg
+
     async def _resolve_ttl_days(self, workspace_id: uuid.UUID) -> int:
         """Fetch configured invitation TTL from WorkspaceSettings, clamped [1, 30], defaulting to 7."""
         settings = await self.settings_repo.get_by_workspace_id(workspace_id)
@@ -234,22 +260,44 @@ class WorkspaceInvitationService:
         return 7
 
     async def _verify_actor_permission(
-        self, workspace_id: uuid.UUID, actor_id: uuid.UUID, target_role: str
+        self,
+        workspace_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        target_role: str | None = None,
     ) -> WorkspaceMember:
-        """Ensure actor is an active OWNER/ADMIN and target role <= actor role."""
+        """Ensure actor is an active OWNER/ADMIN and target role meets policy hierarchy."""
         member = await self.member_repo.get_membership(workspace_id, actor_id)
         if not member:
             raise InvitationUnauthorizedError("Actor is not a member of this workspace.")
 
         actor_role = member.role.upper()
-        target_role_upper = target_role.upper()
-
         if actor_role not in ["OWNER", "ADMIN"]:
             raise InvitationUnauthorizedError("Only workspace OWNER or ADMIN can manage invitations.")
 
-        # Role hierarchy check: ADMIN cannot invite OWNER
-        if actor_role == "ADMIN" and target_role_upper == "OWNER":
-            raise InvitationUnauthorizedError("ADMIN cannot invite a user to the OWNER role.")
+        if target_role is not None:
+            target_role_upper = target_role.upper()
+
+            # Prevent workspace VIEWER invitations
+            if target_role_upper == "VIEWER":
+                raise InvitationUnauthorizedError("Workspace VIEWER invitations are not supported.")
+
+            # Prohibit direct OWNER invitations
+            if target_role_upper == "OWNER":
+                if actor_role == "ADMIN":
+                    raise InvitationUnauthorizedError("ADMIN cannot invite a user to the OWNER role.")
+                raise InvitationUnauthorizedError("Direct invitations to the OWNER role are prohibited.")
+
+            # Role hierarchy check: ADMIN may invite MEMBER only
+            if actor_role == "ADMIN" and target_role_upper != "MEMBER":
+                raise InvitationUnauthorizedError("ADMIN can only invite users with the MEMBER role.")
+
+            # Direct invitations to the ADMIN role are prohibited across all actors (DEC-03, Directive D-12)
+            if target_role_upper == "ADMIN":
+                raise InvitationUnauthorizedError("Direct invitations to the ADMIN role are prohibited.")
+
+            # All invitations grant MEMBER only initially (DEC-03, Directive D-12)
+            if target_role_upper != "MEMBER":
+                raise InvitationUnauthorizedError("Invitations can only grant the MEMBER role.")
 
         return member
 
@@ -409,12 +457,19 @@ class WorkspaceInvitationService:
             )
 
         # 2. Validate actor permissions
-        await self._verify_actor_permission(workspace_id, actor_id, "VIEWER")
+        actor_member = await self._verify_actor_permission(workspace_id, actor_id, None)
 
         # 3. Retrieve invitation
         invitation = await self.invitation_repo.get_by_id(invitation_id, workspace_id)
         if not invitation:
             raise InvitationNotFoundError("Invitation not found in this workspace.")
+
+        # Directive D-13 & Q6: Creator-only resend / token rotation
+        if invitation.invited_by_user_id is not None and invitation.invited_by_user_id != actor_id:
+            raise InvitationUnauthorizedError("Only the creator of the invitation can resend or regenerate it.")
+
+        if actor_member.role.upper() == "ADMIN" and invitation.role.upper() != "MEMBER":
+            raise InvitationUnauthorizedError("ADMIN cannot manage invitations for the ADMIN role.")
 
         if invitation.status != InvitationStatus.PENDING.value:
             raise InvitationInvalidStateError(
@@ -531,11 +586,18 @@ class WorkspaceInvitationService:
                 f"Workspace is {workspace.status}. Cannot revoke invitations."
             )
 
-        await self._verify_actor_permission(workspace_id, actor_id, "VIEWER")
+        actor_member = await self._verify_actor_permission(workspace_id, actor_id, None)
 
         invitation = await self.invitation_repo.get_by_id(invitation_id, workspace_id)
         if not invitation:
             raise InvitationNotFoundError("Invitation not found in this workspace.")
+
+        # Directive D-13: Creator-only revocation (OWNER revokes own only; ADMIN revokes own only)
+        if invitation.invited_by_user_id != actor_id:
+            raise InvitationUnauthorizedError("Only the creator of the invitation can revoke it.")
+
+        if actor_member.role.upper() == "ADMIN" and invitation.role.upper() != "MEMBER":
+            raise InvitationUnauthorizedError("ADMIN cannot manage invitations for the ADMIN role.")
 
         if invitation.status != InvitationStatus.PENDING.value:
             raise InvitationInvalidStateError(
@@ -737,59 +799,124 @@ class WorkspaceInvitationService:
             raise InvitationInvalidStateError(f"Invitation is already {invitation.status}.")
 
         # 5. Email Normalization & Ownership validation
-        user_email = user_context.email.strip().lower()
-        invite_email = invitation.email.strip().lower()
-        if user_email != invite_email:
-            audit_log = AuditLog(
-                action="workspace.invitation.accept_failed",
-                user_id=user_context.id,
-                resource_type="WORKSPACE_INVITATION",
-                resource_id=str(invitation.id),
-                details={
-                    "workspace_id": str(workspace_id),
-                    "reason": "Email mismatch",
-                    "user_email": user_email,
-                    "target_email": invite_email,
-                },
-                status="failure",
-            )
-            session.add(audit_log)
-            await session.flush()
-            await session.commit()
-            raise InvitationUnauthorizedError(
-                "Logged in user email does not match the invitation recipient."
-            )
+        is_legacy_bound = getattr(invitation, "is_legacy_bound", False)
+        user_email = user_context.email.strip().lower() if getattr(user_context, "email", None) else ""
+        invite_email = invitation.email.strip().lower() if invitation.email else None
+
+        # For legacy invitations or single-use bound links, enforce strict email matching
+        if is_legacy_bound and invite_email:
+            if user_email != invite_email:
+                audit_log = AuditLog(
+                    action="workspace.invitation.accept_failed",
+                    user_id=user_context.id,
+                    resource_type="WORKSPACE_INVITATION",
+                    resource_id=str(invitation.id),
+                    details={
+                        "workspace_id": str(workspace_id),
+                        "reason": "Email mismatch",
+                        "user_email": user_email,
+                        "target_email": invite_email,
+                    },
+                    status="failure",
+                )
+                session.add(audit_log)
+                await session.flush()
+                await session.commit()
+                raise InvitationUnauthorizedError(
+                    "Logged in user email does not match the invitation recipient."
+                )
+
+        # 5b. Lifecycle Admission Control (T-3.C): Acquire User FOR SHARE
+        from backend.core.security.admission import validate_user_admission_for_share, UserAdmissionDeniedError
+        try:
+            await validate_user_admission_for_share(session, user_context.id)
+        except UserAdmissionDeniedError as e:
+            raise InvitationConflictError(
+                "Cannot accept invitation: user account is inactive, deleted, or deactivating."
+            ) from e
 
         # 6. Existing membership check
         existing_member = await self.member_repo.get_membership(workspace_id, user_context.id)
         if existing_member:
-            invitation.status = InvitationStatus.ACCEPTED.value
-            invitation.accepted_at = now_utc
-            invitation.version += 1
-            session.add(invitation)
-            await session.flush()
-            await session.commit()
-            raise InvitationConflictError("You are already a member of this workspace.")
+            is_active = (existing_member.status == MemberStatus.ACTIVE.value) and not existing_member.is_deleted
+            if is_active and not is_legacy_bound:
+                # Correction C6: Idempotent repeat redemption for active member clicking reusable link
+                return {
+                    "status": "ALREADY_MEMBER",
+                    "message": "You are already an active member of this workspace.",
+                    "workspace_id": str(workspace_id),
+                    "role": existing_member.role,
+                    "member_id": existing_member.id,
+                }
+            elif is_active and is_legacy_bound:
+                invitation.status = InvitationStatus.ACCEPTED.value
+                invitation.accepted_at = now_utc
+                invitation.version += 1
+                session.add(invitation)
+                await session.flush()
+                await session.commit()
+                raise InvitationConflictError("You are already a member of this workspace.")
+            else:
+                raise InvitationConflictError("You are already a member of this workspace.")
+
+        # 6b. Check creator eligibility (Scenario B admission validation)
+        if invitation.invited_by_user_id:
+            from backend.models.entities.user import User
+            creator_user = await session.get(User, invitation.invited_by_user_id)
+            if (
+                creator_user is None
+                or getattr(creator_user, "is_active", True) is False
+                or getattr(creator_user, "is_deleted", False) is True
+            ):
+                raise InvitationInvalidStateError("The inviting administrator is no longer active.")
+            creator_member = await self.member_repo.get_membership(workspace_id, invitation.invited_by_user_id)
+            if (
+                not creator_member
+                or creator_member.status != MemberStatus.ACTIVE.value
+                or getattr(creator_member, "is_deleted", False) is True
+                or (creator_member.role and str(creator_member.role).upper() not in ("OWNER", "ADMIN"))
+            ):
+                raise InvitationInvalidStateError("The inviting administrator is no longer eligible.")
 
         # 7. Atomic state transition & Member creation
-        invitation.status = InvitationStatus.ACCEPTED.value
-        invitation.accepted_at = now_utc
+        if is_legacy_bound:
+            invitation.status = InvitationStatus.ACCEPTED.value
+            invitation.accepted_at = now_utc
+        else:
+            # Reusable multi-user link (Decision Q2): remains valid for subsequent users
+            try:
+                await self.invitation_repo.record_redemption(invitation.id, workspace_id, user_context.id)
+            except Exception as ex:
+                logger.warning("Could not record redemption ledger row", error=str(ex))
+
         invitation.version += 1
         session.add(invitation)
 
-        from backend.models.entities.workspace_member import MemberStatus
+        # Enforce unconditional server-side assignment: role = "MEMBER" (Decision D-2.5, Package T-2.B)
+        # Defense-in-depth: Never derive membership role from untrusted, legacy, or elevated stored invitation role.
+        authoritative_role = "MEMBER"
+
+        attribution_snapshot = {
+            "origin": "invitation",
+            "creator_user_id": str(invitation.invited_by_user_id) if invitation.invited_by_user_id else None,
+            "invitation_id": str(invitation.id),
+            "redeemed_at": now_utc.isoformat(),
+        }
         member = WorkspaceMember(
             workspace_id=workspace_id,
             user_id=user_context.id,
-            role=invitation.role,
+            role=authoritative_role,
             status=MemberStatus.ACTIVE.value,
             invited_by_user_id=invitation.invited_by_user_id,
+            member_metadata={"attribution_snapshot": attribution_snapshot},
             joined_at=now_utc,
+            is_deleted=False,
             version=1,
         )
         session.add(member)
 
         # 8. Record audit log
+        invitation_id = str(invitation.id)
         audit_log = AuditLog(
             action="workspace.invitation.accepted",
             user_id=user_context.id,
@@ -797,27 +924,50 @@ class WorkspaceInvitationService:
             resource_id=str(member.id),
             details={
                 "workspace_id": str(workspace_id),
-                "invitation_id": str(invitation.id),
-                "role": invitation.role,
+                "invitation_id": invitation_id,
+                "role": authoritative_role,
                 "email": invite_email,
             },
             status="success",
         )
         session.add(audit_log)
 
-        await session.flush()
-        await session.commit()
+        # 8b. Transaction commit with duplicate active-membership conflict handling (Package T-2.A)
+        try:
+            await session.flush()
+            await session.commit()
+        except IntegrityError as e:
+            await session.rollback()
+            if self._is_active_member_unique_conflict(e):
+                logger.warning(
+                    "Concurrent invitation acceptance collision detected on uq_workspace_members_active_user; transaction rolled back",
+                    workspace_id=str(workspace_id),
+                    user_id=str(user_context.id),
+                    invitation_id=invitation_id,
+                    error=str(e),
+                )
+                raise InvitationConflictError("You are already an active member of this workspace.") from e
+
+            # Re-raise any unrelated database integrity failure without misclassifying as duplicate membership conflict
+            logger.error(
+                "Unhandled database integrity violation during invitation acceptance; transaction rolled back",
+                workspace_id=str(workspace_id),
+                user_id=str(user_context.id),
+                invitation_id=invitation_id,
+                error=str(e),
+            )
+            raise
 
         # 9. Emit domain event
         if self.event_dispatcher:
             await self.event_dispatcher.publish(
                 WorkspaceInvitationAcceptedEvent(
                     workspace_id=str(workspace_id),
-                    invitation_id=str(invitation.id),
+                    invitation_id=invitation_id,
                     member_id=str(member.id),
                     user_id=str(user_context.id),
                     email=invite_email,
-                    role=invitation.role,
+                    role=authoritative_role,
                 )
             )
 
@@ -825,7 +975,7 @@ class WorkspaceInvitationService:
             "success": True,
             "workspace_id": workspace_id,
             "workspace_name": workspace.name,
-            "role": invitation.role,
+            "role": authoritative_role,
             "member_id": member.id,
         }
 
@@ -837,14 +987,37 @@ class WorkspaceInvitationService:
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[WorkspaceInvitation], int]:
-        """List paginated workspace invitations for an authorized admin."""
-        await self._verify_actor_permission(workspace_id, actor_id, "VIEWER")
+        """List paginated workspace invitations, strictly scoped to creator (Decision Q6)."""
+        await self._verify_actor_permission(workspace_id, actor_id, None)
         return await self.invitation_repo.list_by_workspace(
             workspace_id=workspace_id,
             status=status,
+            creator_user_id=actor_id,
             skip=skip,
             limit=limit,
         )
+
+    async def get_invitation(
+        self,
+        workspace_id: uuid.UUID,
+        invitation_id: uuid.UUID,
+        actor_id: uuid.UUID,
+    ) -> WorkspaceInvitation:
+        """Retrieves invitation detail, strictly enforcing creator-only visibility (Decision Q6)."""
+        invitation = await self.invitation_repo.get_by_id(invitation_id, workspace_id)
+        if not invitation or invitation.invited_by_user_id != actor_id:
+            raise InvitationNotFoundError("Invitation not found.")
+        return invitation
+
+    async def list_invitation_redemptions(
+        self,
+        workspace_id: uuid.UUID,
+        invitation_id: uuid.UUID,
+        actor_id: uuid.UUID,
+    ) -> list[Any]:
+        """Lists redemptions for calling creator's invitation link (Decision Q6)."""
+        invitation = await self.get_invitation(workspace_id, invitation_id, actor_id)
+        return await self.invitation_repo.list_redemptions(invitation.id)
 
     async def run_expiration_cleanup(self, session: AsyncSession) -> int:
         """Hourly background worker logic: batch marks expired PENDING invitations as EXPIRED."""

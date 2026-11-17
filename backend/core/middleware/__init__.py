@@ -9,6 +9,7 @@ from .admission_control import (
 from .concurrency import SSEConcurrencyLimiterMiddleware
 from .correlation import CorrelationIDMiddleware
 from .observability import ObservabilityMiddleware
+from .provisioning_guard import WorkspaceProvisioningGuardMiddleware
 from .proxy import TrustedProxyMiddleware
 from .security_headers import SecurityHeadersMiddleware
 
@@ -19,6 +20,7 @@ __all__ = [
     "SecurityHeadersMiddleware",
     "SSEConcurrencyLimiterMiddleware",
     "TrustedProxyMiddleware",
+    "WorkspaceProvisioningGuardMiddleware",
     "acquire_snapshot_barrier_exclusive",
     "acquire_snapshot_barrier_shared",
     "release_snapshot_barrier_exclusive",

@@ -67,6 +67,11 @@ class WorkspaceMembershipConflictError(WorkspaceJoiningError):
     pass
 
 
+class WorkspaceMembershipSuspendedError(WorkspaceMembershipConflictError):
+    """Raised when an existing suspended member attempts join-code redemption or open join."""
+    pass
+
+
 class WorkspaceJoinIntentMismatchError(WorkspaceJoiningError):
     """Raised when invitation token workspace does not match the target workspace ID."""
     pass
@@ -240,25 +245,97 @@ class WorkspaceJoiningService:
         join_code: str,
     ) -> JoinWorkspaceData:
         """Mode 2: Join via protected Workspace ID + Join Code."""
+        # Lifecycle Admission Control (T3C-DEC-3): User FOR SHARE
+        from backend.core.security.admission import validate_user_admission_for_share, UserAdmissionDeniedError
+        try:
+            await validate_user_admission_for_share(session, user_id)
+        except UserAdmissionDeniedError as e:
+            raise WorkspaceMembershipConflictError(
+                "Unable to join workspace. User account is inactive, deleted, or deactivating."
+            ) from e
+
         ws = await self._resolve_workspace(workspace_identifier)
 
-        # Check existing active membership
-        existing = await self.member_repo.get_membership(ws.id, user_id)
-        if existing and existing.status == MemberStatus.ACTIVE.value:
-            raise WorkspaceMembershipConflictError("User is already an active member of this workspace.")
+        # Check existing membership state (never silently reactivate or overwrite stored role)
+        try:
+            existing = await self.member_repo.get_membership(
+                ws.id, user_id, include_suspended=True, include_deleted=True
+            )
+        except TypeError:
+            existing = await self.member_repo.get_membership(ws.id, user_id)
+
+        if existing:
+            if existing.status == MemberStatus.ACTIVE.value and not getattr(existing, "is_deleted", False):
+                raise WorkspaceMembershipConflictError("User is already an active member of this workspace.")
+            if existing.status == MemberStatus.SUSPENDED.value:
+                raise WorkspaceMembershipSuspendedError(
+                    "Unable to join workspace. Account status does not permit join-code redemption. Contact your workspace administrator."
+                )
+            if getattr(existing, "is_deleted", False):
+                raise WorkspaceMembershipConflictError(
+                    "Unable to join workspace. Account status does not permit join-code redemption. Contact your workspace administrator."
+                )
+            raise WorkspaceMembershipConflictError(
+                "Unable to join workspace. Existing membership status does not permit joining with this code."
+            )
 
         # Cryptographically validate candidate code against stored verifier
-        is_valid, err_reason, default_role = await self.join_code_service.validate_join_code_candidate(
+        validation_res = await self.join_code_service.validate_join_code_candidate(
             session=session,
             workspace_id=ws.id,
             candidate_code=join_code,
+            return_record=True,
         )
+        code_record = None
+        if isinstance(validation_res, (list, tuple)) and len(validation_res) == 4:
+            is_valid, err_reason, default_role, code_record = validation_res
+        else:
+            is_valid, err_reason, default_role = validation_res
+
         if not is_valid:
             raise WorkspaceJoinCodeInvalidError(err_reason or "Invalid join code.")
 
+        candidate_code_id = code_record.id if code_record else None
+        creator_id = code_record.created_by_user_id if code_record else None
+
+        # Post-lock creator eligibility revalidation
+        if creator_id:
+            from backend.models.entities.user import User
+            creator_user = await session.get(User, creator_id)
+            if not creator_user or not creator_user.is_active or creator_user.is_deleted:
+                raise WorkspaceJoinCodeInvalidError("Join code creator is no longer active.")
+            creator_member = await self.member_repo.get_membership(ws.id, creator_id)
+            if (
+                not creator_member
+                or creator_member.status != MemberStatus.ACTIVE.value
+                or creator_member.is_deleted
+                or (creator_member.role and creator_member.role.upper() not in ("OWNER", "ADMIN"))
+            ):
+                raise WorkspaceJoinCodeInvalidError("Join code creator is no longer an eligible administrator.")
+            # Locked Creator Identity Consistency (Section 13.3)
+            if code_record.created_by_user_id != creator_id:
+                raise WorkspaceJoinCodeInvalidError("Creator identity mutated in-flight; admission aborted.")
+
+        # Enforce role ceiling: join-code self-service default role is strictly capped at MEMBER
+        sanitized_role = default_role.upper() if default_role else "MEMBER"
+        if sanitized_role not in ("MEMBER",):
+            logger.warning(
+                "Attempted join-code redemption with elevated default role; capping at MEMBER",
+                configured_role=default_role,
+                workspace_id=str(ws.id),
+                user_id=str(user_id),
+            )
+            sanitized_role = "MEMBER"
+
         # Check workspace join code policy for require_approval
         ws_settings = await self.settings_repo.get_by_workspace_id(ws.id)
-        if ws_settings and getattr(ws_settings, "join_code_require_approval", False):
+        require_approval = False
+        if ws_settings and hasattr(ws_settings, "settings_json") and isinstance(ws_settings.settings_json, dict):
+            require_approval = bool(ws_settings.settings_json.get("join_code_require_approval", False))
+        elif ws_settings and isinstance(getattr(ws_settings, "join_code_require_approval", None), bool):
+            require_approval = bool(ws_settings.join_code_require_approval)
+
+        if require_approval:
             from backend.models.entities.workspace_access_request import (
                 AccessRequestStatus,
                 AccessRequestType,
@@ -280,7 +357,7 @@ class WorkspaceJoiningService:
                 user_id=user_id,
                 request_type=AccessRequestType.JOIN_APPROVAL.value,
                 current_role=None,
-                requested_role=default_role,
+                requested_role=sanitized_role,
                 status=AccessRequestStatus.PENDING.value,
                 reason="Joined via Join Code (requires administrator approval)",
             )
@@ -297,7 +374,7 @@ class WorkspaceJoiningService:
                 details={
                     "workspace_id": str(ws.id),
                     "request_type": "JOIN_APPROVAL",
-                    "role": default_role,
+                    "role": sanitized_role,
                     "joining_mode": "JOIN_CODE",
                 },
                 status="success",
@@ -310,36 +387,58 @@ class WorkspaceJoiningService:
                 "User submitted join approval request via Join Code",
                 workspace_id=str(ws.id),
                 user_id=str(user_id),
-                role=default_role,
+                role=sanitized_role,
             )
 
             return JoinWorkspaceData(
                 workspace_id=ws.id,
                 workspace_name=ws.name,
-                role=default_role,
+                role=sanitized_role,
                 status="PENDING_APPROVAL",
                 member_id=uuid.uuid4(),
             )
 
-        if existing:
-            existing.status = MemberStatus.ACTIVE.value
-            existing.role = default_role
-            existing.is_deleted = False
-            member = existing
-        else:
-            member = WorkspaceMember(
-                id=uuid.uuid4(),
-                workspace_id=ws.id,
-                user_id=user_id,
-                role=default_role,
-                status=MemberStatus.ACTIVE.value,
-            )
-            session.add(member)
+        # Create brand-new membership record (never mutate an existing record)
+        now_utc = datetime.now(UTC)
+        attribution_snapshot = {
+            "origin": "join_code",
+            "creator_user_id": str(creator_id) if creator_id else None,
+            "join_code_id": str(candidate_code_id) if candidate_code_id else None,
+            "redeemed_at": now_utc.isoformat(),
+        }
+        member_meta = {"attribution_snapshot": attribution_snapshot}
 
+        member = WorkspaceMember(
+            id=uuid.uuid4(),
+            workspace_id=ws.id,
+            user_id=user_id,
+            role=sanitized_role,
+            status=MemberStatus.ACTIVE.value,
+            invited_by_user_id=creator_id,
+            member_metadata=member_meta,
+            version=1,
+        )
+        session.add(member)
         await session.flush()
 
-        # Increment usage counter
-        await self.join_code_service.record_join_code_usage(session, ws.id)
+        # Insert redemption ledger record if code_id exists
+        if candidate_code_id:
+            from backend.models.entities.workspace_join_code import WorkspaceJoinCodeRedemption
+            redemption = WorkspaceJoinCodeRedemption(
+                id=uuid.uuid4(),
+                join_code_id=candidate_code_id,
+                workspace_id=ws.id,
+                user_id=user_id,
+                redeemed_at=now_utc,
+            )
+            session.add(redemption)
+            await session.flush()
+
+        # Increment usage counter with actual code_id
+        if candidate_code_id is not None:
+            await self.join_code_service.record_join_code_usage(session, ws.id, code_id=candidate_code_id)
+        else:
+            await self.join_code_service.record_join_code_usage(session, ws.id)
 
         # Audit log with zero secret leakage
         audit_log = AuditLog(
@@ -350,7 +449,7 @@ class WorkspaceJoiningService:
             resource_id=str(member.id),
             details={
                 "workspace_id": str(ws.id),
-                "role": default_role,
+                "role": sanitized_role,
                 "joining_mode": "JOIN_CODE",
             },
             status="success",
@@ -363,13 +462,13 @@ class WorkspaceJoiningService:
             "User successfully joined workspace via Join Code",
             workspace_id=str(ws.id),
             user_id=str(user_id),
-            role=default_role,
+            role=sanitized_role,
         )
 
         return JoinWorkspaceData(
             workspace_id=ws.id,
             workspace_name=ws.name,
-            role=default_role,
+            role=sanitized_role,
             status="ACTIVE",
             member_id=member.id,
         )
@@ -382,6 +481,15 @@ class WorkspaceJoiningService:
         workspace_identifier: str,
     ) -> JoinWorkspaceData:
         """Mode 1: Join via open Workspace ID (open_join=True)."""
+        # Lifecycle Admission Control (T3C-DEC-3): User FOR SHARE
+        from backend.core.security.admission import validate_user_admission_for_share, UserAdmissionDeniedError
+        try:
+            await validate_user_admission_for_share(session, user_id)
+        except UserAdmissionDeniedError as e:
+            raise WorkspaceMembershipConflictError(
+                "Unable to join workspace. User account is inactive, deleted, or deactivating."
+            ) from e
+
         ws = await self._resolve_workspace(workspace_identifier)
 
         settings = await self.settings_repo.get_by_workspace_id(ws.id)
@@ -396,25 +504,49 @@ class WorkspaceJoiningService:
                 "This workspace does not permit open self-service joining. A valid Join Code or invitation is required."
             )
 
-        existing = await self.member_repo.get_membership(ws.id, user_id)
-        if existing and existing.status == MemberStatus.ACTIVE.value:
-            raise WorkspaceMembershipConflictError("User is already an active member of this workspace.")
+        # Check existing membership state (never silently reactivate or overwrite stored role)
+        try:
+            existing = await self.member_repo.get_membership(
+                ws.id, user_id, include_suspended=True, include_deleted=True
+            )
+        except TypeError:
+            existing = await self.member_repo.get_membership(ws.id, user_id)
 
         if existing:
-            existing.status = MemberStatus.ACTIVE.value
-            existing.role = default_role
-            existing.is_deleted = False
-            member = existing
-        else:
-            member = WorkspaceMember(
-                id=uuid.uuid4(),
-                workspace_id=ws.id,
-                user_id=user_id,
-                role=default_role,
-                status=MemberStatus.ACTIVE.value,
+            if existing.status == MemberStatus.ACTIVE.value and not getattr(existing, "is_deleted", False):
+                raise WorkspaceMembershipConflictError("User is already an active member of this workspace.")
+            if existing.status == MemberStatus.SUSPENDED.value:
+                raise WorkspaceMembershipSuspendedError(
+                    "Unable to join workspace. Account status does not permit open joining. Contact your workspace administrator."
+                )
+            if getattr(existing, "is_deleted", False):
+                raise WorkspaceMembershipConflictError(
+                    "Unable to join workspace. Account status does not permit open joining. Contact your workspace administrator."
+                )
+            raise WorkspaceMembershipConflictError(
+                "Unable to join workspace. Existing membership status does not permit joining."
             )
-            session.add(member)
 
+        # Enforce role ceiling: open self-service join default role is strictly capped at MEMBER
+        sanitized_role = default_role.upper() if default_role else "MEMBER"
+        if sanitized_role not in ("MEMBER",):
+            logger.warning(
+                "Attempted open join with elevated default role; capping at MEMBER",
+                configured_role=default_role,
+                workspace_id=str(ws.id),
+                user_id=str(user_id),
+            )
+            sanitized_role = "MEMBER"
+
+        member = WorkspaceMember(
+            id=uuid.uuid4(),
+            workspace_id=ws.id,
+            user_id=user_id,
+            role=sanitized_role,
+            status=MemberStatus.ACTIVE.value,
+            version=1,
+        )
+        session.add(member)
         await session.flush()
 
         audit_log = AuditLog(
@@ -425,7 +557,7 @@ class WorkspaceJoiningService:
             resource_id=str(member.id),
             details={
                 "workspace_id": str(ws.id),
-                "role": default_role,
+                "role": sanitized_role,
                 "joining_mode": "OPEN",
             },
             status="success",
@@ -438,13 +570,13 @@ class WorkspaceJoiningService:
             "User successfully joined workspace via open join policy",
             workspace_id=str(ws.id),
             user_id=str(user_id),
-            role=default_role,
+            role=sanitized_role,
         )
 
         return JoinWorkspaceData(
             workspace_id=ws.id,
             workspace_name=ws.name,
-            role=default_role,
+            role=sanitized_role,
             status="ACTIVE",
             member_id=member.id,
         )

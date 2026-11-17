@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Header, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -377,10 +377,17 @@ async def export_enterprise_report(
     auth: AnalyticsAuth,
 ) -> SuccessResponse[ReportMetadataDTO]:
     """Generate an SLA compliance, reliability audit, or knowledge health report using ReportLab PDF."""
-    if request_dto.tenant_id == "default":
-        request_dto.tenant_id = str(auth.tenant_id)
+    effective_tenant = str(auth.workspace_id or auth.tenant_id)
+    if request_dto.tenant_id in ("default", "", None):
+        request_dto.tenant_id = effective_tenant
+    elif str(request_dto.tenant_id) != effective_tenant:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Cannot export reports for another workspace.",
+        )
 
     buffer_bytes, metadata = await service.generate_report(request=request_dto, db=db)
+    metadata.tenant_id = effective_tenant
     _report_cache[metadata.report_id] = (buffer_bytes, metadata)
     return SuccessResponse(data=metadata, metadata=_build_metadata(request_ctx))
 
@@ -396,7 +403,8 @@ async def list_generated_reports(
     auth: AnalyticsAuth,
 ) -> SuccessResponse[list[ReportMetadataDTO]]:
     """Return metadata for all recently generated audit and compliance reports."""
-    reports = [meta for _, meta in _report_cache.values()]
+    effective_tenant = str(auth.workspace_id or auth.tenant_id)
+    reports = [meta for _, meta in _report_cache.values() if meta.tenant_id == effective_tenant]
     reports.sort(key=lambda r: r.generated_at, reverse=True)
     return SuccessResponse(data=reports, metadata=_build_metadata(request_ctx))
 
@@ -412,13 +420,18 @@ async def download_generated_report(
 ):
     """Download the generated PDF or JSON report file."""
     if report_id not in _report_cache:
-        from fastapi import HTTPException
-
         raise HTTPException(
-            status_code=404, detail=f"Report '{report_id}' not found or expired."
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Report '{report_id}' not found or expired."
         )
 
     buffer_bytes, metadata = _report_cache[report_id]
+    effective_tenant = str(auth.workspace_id or auth.tenant_id)
+    if metadata.tenant_id != effective_tenant:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Cannot download report belonging to another workspace.",
+        )
+
     media_type = (
         "application/pdf" if metadata.report_type != "json" else "application/json"
     )

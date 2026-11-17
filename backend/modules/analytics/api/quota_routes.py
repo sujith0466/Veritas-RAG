@@ -56,8 +56,11 @@ async def get_quota(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Forbidden: Requires workspace Admin or Owner role.",
                 )
-    elif auth.tenant_id != tenant_id and not is_platform_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot access quota of another tenant.")
+    elif not is_platform_admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid workspace identifier format: must be a valid UUID.",
+        )
 
     governor = QuotaGovernor()
     quota = await governor.get_quota_settings(workspace_id=ws_uuid, tenant_id=tenant_id, session=session)
@@ -101,8 +104,11 @@ async def update_quota(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Forbidden: Requires workspace Owner or Admin role to update quotas.",
                 )
-    elif auth.tenant_id != tenant_id and not is_platform_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot update quota of another tenant.")
+    elif not is_platform_admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid workspace identifier format: must be a valid UUID.",
+        )
 
     repo = QuotaRepository(session)
     quota = await repo.get_by_tenant_id(tenant_id)
@@ -164,7 +170,6 @@ async def get_workspace_usage(
             require_role(
                 Role.OWNER,
                 Role.ADMIN,
-                Role.ANALYST,
                 Role.PLATFORM_ADMIN,
                 Role.PLATFORM_SUPPORT,
                 Role.PLATFORM_AUDITOR,
@@ -174,7 +179,16 @@ async def get_workspace_usage(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ):
     """Fetch real durable workspace token and query usage metrics."""
-    await get_workspace_member_or_raise(workspace_id, auth, session)
+    user_role = Role.from_str(auth.role) if isinstance(auth.role, str) else auth.role
+    is_platform_role = user_role in (Role.PLATFORM_ADMIN, Role.PLATFORM_SUPPORT, Role.PLATFORM_AUDITOR)
+    if not is_platform_role:
+        member = await get_workspace_member_or_raise(workspace_id, auth, session)
+        member_role = (member.role or "").strip().upper() if member else ""
+        if member_role not in ("OWNER", "ADMIN"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Requires workspace Admin or Owner role.",
+            )
 
     usage_repo = UsageRepository(session)
     period_start = usage_repo.get_current_period_start()

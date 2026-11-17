@@ -99,9 +99,11 @@ class AccessRequestService:
         if type_upper not in [AccessRequestType.ROLE_ELEVATION.value, AccessRequestType.JOIN_APPROVAL.value]:
             raise AccessRequestInvalidStateError(f"Invalid access request type: {request_type}")
 
-        requested_role_upper = requested_role.upper()
-        if requested_role_upper not in [WorkspaceRole.ADMIN.value, WorkspaceRole.MEMBER.value, WorkspaceRole.VIEWER.value]:
-            raise AccessRequestInvalidStateError(f"Invalid requested role: {requested_role}")
+        requested_role_upper = (requested_role or "").strip().upper()
+        if requested_role_upper != WorkspaceRole.MEMBER.value:
+            raise AccessRequestInvalidStateError(
+                f"Invalid requested role: {requested_role}. Only MEMBER requests are permitted."
+            )
 
         # 2. Check for existing active pending request of the same type
         existing_pending = await self.access_repo.get_active_pending(workspace_id, actor_id, type_upper)
@@ -215,6 +217,11 @@ class AccessRequestService:
         now_utc = datetime.now(UTC)
 
         # 4. Handle request type semantics
+        if (req.requested_role or "").strip().upper() != WorkspaceRole.MEMBER.value:
+            raise AccessRequestInvalidStateError(
+                f"Cannot approve request with non-MEMBER role '{req.requested_role}'."
+            )
+
         if req.request_type == AccessRequestType.ROLE_ELEVATION.value:
             # Revalidate member row under row lock
             member = await self.member_repo.get_membership_for_update(workspace_id, req.user_id)
@@ -235,6 +242,15 @@ class AccessRequestService:
             session.add(member)
 
         elif req.request_type == AccessRequestType.JOIN_APPROVAL.value:
+            # Lifecycle Admission Control (T-3.C): Acquire User FOR SHARE
+            from backend.core.security.admission import validate_user_admission_for_share, UserAdmissionDeniedError
+            try:
+                await validate_user_admission_for_share(session, req.user_id)
+            except UserAdmissionDeniedError as e:
+                raise AccessRequestConflictError(
+                    "Cannot approve access request: target user account is inactive or deleted."
+                ) from e
+
             # Revalidate user is not already an active member
             existing_member = await self.member_repo.get_membership(workspace_id, req.user_id)
             if existing_member and existing_member.status == MemberStatus.ACTIVE.value:

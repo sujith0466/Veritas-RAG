@@ -1,12 +1,15 @@
+import inspect
 import re
 import secrets
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.entities.audit_log import AuditLog
+from backend.models.entities.user import User
 from backend.models.entities.workspace import ProvisioningStatus, Workspace, WorkspaceStatus
-from backend.models.entities.workspace_member import WorkspaceMember
+from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember, WorkspaceRole
 from backend.models.entities.workspace_settings import WorkspaceSettings
 from backend.repositories.workspace import WorkspaceRepository
 from backend.repositories.workspace_member import WorkspaceMemberRepository
@@ -55,6 +58,19 @@ class WorkspaceProvisioningService:
         if not effective_owner_id:
             raise ValueError("Either owner_user_id or user_id must be provided")
 
+        # 0. Acquire exclusive row lock on target owner user and revalidate active lifecycle state (WP-T3C-5 / R6-F02)
+        user_stmt = select(User).where(User.id == effective_owner_id).with_for_update()
+        exec_res = await session.execute(user_stmt)
+        if hasattr(exec_res, "scalar_one_or_none"):
+            target_user = exec_res.scalar_one_or_none()
+            if inspect.isawaitable(target_user):
+                target_user = await target_user
+        else:
+            target_user = None
+
+        if target_user is None or target_user.is_active is False or target_user.is_deleted is True:
+            raise ValueError(f"Cannot provision workspace: target owner user not found, inactive, or deleted: {effective_owner_id}")
+
         # 1. Generate unique deterministic slug
         slug = await self._generate_slug(name)
 
@@ -93,13 +109,16 @@ class WorkspaceProvisioningService:
         member = WorkspaceMember(
             workspace_id=workspace_id,
             user_id=effective_owner_id,
-            role="OWNER"
+            role=WorkspaceRole.OWNER.value,
+            status=MemberStatus.ACTIVE.value,
+            is_deleted=False,
         )
         session.add(member)
 
         audit_log = AuditLog(
+            tenant_id=workspace_id,
             action="WORKSPACE_CREATED",
-            user_id=owner_user_id,
+            user_id=effective_owner_id,
             resource_type="WORKSPACE",
             resource_id=str(workspace_id),
             details={"name": name, "slug": slug},

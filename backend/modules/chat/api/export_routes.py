@@ -40,6 +40,11 @@ async def _verify_workspace_access(
     """
     from backend.core.permissions.rbac import Role
     user_role = Role.from_str(str(user.role))
+    if user_role in (Role.PLATFORM_SUPPORT, Role.PLATFORM_AUDITOR):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform diagnostic roles are strictly excluded from chat exports.",
+        )
     if user_role == Role.PLATFORM_ADMIN or getattr(user, "is_platform_admin", False):
         return
 

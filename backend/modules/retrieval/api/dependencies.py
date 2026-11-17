@@ -7,7 +7,7 @@ multi-tenant namespace resolution.
 
 from typing import Any
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.dependencies.auth import get_optional_user
@@ -33,6 +33,16 @@ def resolve_tenant(
     tenant_id = getattr(user, "tenant_id", None)
     if not user or not tenant_id or str(tenant_id) == "None":
         raise HTTPException(status_code=401, detail="Missing workspace context")
+    user_role_str = ""
+    if hasattr(user, "role"):
+        user_role_str = str(user.role).upper()
+        if user_role_str.startswith("ROLE."):
+            user_role_str = user_role_str.split(".", 1)[1]
+    if user_role_str in ("PLATFORM_SUPPORT", "PLATFORM_AUDITOR"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform diagnostic roles are strictly excluded from retrieval access.",
+        )
     return str(tenant_id)
 
 

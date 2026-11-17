@@ -19,6 +19,7 @@ from backend.api.v1.schemas.workspace_settings import (
     get_default_workspace_settings,
 )
 from backend.models.entities.audit_log import AuditLog
+from backend.models.entities.workspace_member import WorkspaceRole
 from backend.models.entities.workspace_settings import WorkspaceSettings
 from backend.models.entities.workspace_settings_history import WorkspaceSettingsHistory
 from backend.repositories.workspace import WorkspaceRepository
@@ -45,6 +46,83 @@ IMMUTABLE_KEYS = {
 }
 
 CACHE_TTL_SECONDS = 3600  # 1 hour
+
+# Whitelist of settings allowed for ADMIN modification (DEC-05)
+# Routine settings: display name, support contact email, notification preferences, default member join role, user interface theme presets
+ROUTINE_SETTINGS_CATEGORIES: set[str] = set()
+
+ROUTINE_SETTINGS_KEYS: dict[str, set[str]] = {
+    "general": {"default_language", "timezone", "date_format"},
+    "notifications": {"email_notifications_enabled", "alert_on_quota_threshold_pct"},
+    "join_code": {"is_enabled", "default_role", "require_approval", "expires_at", "max_uses"},
+}
+
+# Explicit sensitive paths / categories strictly restricted to OWNER (DEC-05 / Section 3.2 Branding Security)
+# SAML/SSO configuration, webhook signing secrets, IP allowlists, data retention policies, audit export destinations, billing subscription plans, branding
+SENSITIVE_CATEGORIES = {
+    "security",
+    "ai",
+    "rag",
+    "storage",
+    "integrations",
+    "limits",
+    "api",
+    "staleness",
+    "custom_extensions",
+    "branding",
+}
+
+SENSITIVE_FIELD_PATHS = {
+    ("general", "retention_days"),
+    ("notifications", "slack_webhook_url"),
+    ("join_code", "code_hash"),
+    ("join_code", "code_encrypted"),
+}
+
+
+def _mask_sensitive_settings(settings_dict: dict[str, Any]) -> dict[str, Any]:
+    """Return a deep copy of settings with sensitive secrets masked for non-owner actors."""
+    masked = deepcopy(settings_dict)
+    if "notifications" in masked and isinstance(masked["notifications"], dict):
+        if masked["notifications"].get("slack_webhook_url"):
+            masked["notifications"]["slack_webhook_url"] = "********"
+    if "join_code" in masked and isinstance(masked["join_code"], dict):
+        if masked["join_code"].get("code_hash"):
+            masked["join_code"]["code_hash"] = None
+        if masked["join_code"].get("code_encrypted"):
+            masked["join_code"]["code_encrypted"] = None
+    return masked
+
+
+def _validate_admin_settings_whitelist(patch_data: dict[str, Any]) -> None:
+    """Validate that an ADMIN actor only modifies routine settings (DEC-05).
+    
+    If any sensitive category or field is included in patch_data, raises WorkspaceUnauthorizedError.
+    """
+    for category, val in patch_data.items():
+        if category in IMMUTABLE_KEYS:
+            continue
+        if category in SENSITIVE_CATEGORIES:
+            raise WorkspaceUnauthorizedError(
+                f"Only workspace OWNER can modify sensitive category '{category}'."
+            )
+        if category not in ROUTINE_SETTINGS_KEYS and category not in ROUTINE_SETTINGS_CATEGORIES:
+            raise WorkspaceUnauthorizedError(
+                f"Only workspace OWNER can modify setting category '{category}'."
+            )
+        if isinstance(val, dict):
+            allowed_subkeys = ROUTINE_SETTINGS_KEYS.get(category)
+            if allowed_subkeys:  # Non-empty set means only specific keys are allowed
+                for subkey, subval in val.items():
+                    if (category, subkey) in SENSITIVE_FIELD_PATHS or subkey not in allowed_subkeys:
+                        raise WorkspaceUnauthorizedError(
+                            f"Only workspace OWNER can modify sensitive setting '{category}.{subkey}'."
+                        )
+                    if category == "join_code" and subkey == "default_role":
+                        if str(subval).strip().upper() != "MEMBER":
+                            raise WorkspaceUnauthorizedError(
+                                f"Join code default_role must be 'MEMBER', cannot be '{subval}'."
+                            )
 
 
 def _compute_settings_hash(settings_dict: dict[str, Any]) -> str:
@@ -161,10 +239,12 @@ class WorkspaceSettingsService:
     ) -> WorkspaceSettings:
         """Fetch workspace settings with Redis read-through caching."""
         # 1. Authorization check
+        actor_role = None
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
             if not member:
                 raise WorkspaceNotFoundError("Workspace not found or access denied.")
+            actor_role = (member.role or "").strip().upper()
 
         # 2. Check Redis Cache
         cache_key = f"workspace:{workspace_id}:settings"
@@ -196,6 +276,15 @@ class WorkspaceSettingsService:
             await session.commit()
             await session.refresh(settings)
 
+        # 4. Mask sensitive secrets for non-owner actors (DEC-05)
+        if not is_platform_admin and actor_role != "OWNER":
+            if hasattr(session, "expunge"):
+                try:
+                    session.expunge(settings)
+                except Exception:
+                    pass
+            settings.settings_json = _mask_sensitive_settings(settings.settings_json)
+
         return settings
 
     async def patch_settings(
@@ -209,6 +298,7 @@ class WorkspaceSettingsService:
     ) -> WorkspaceSettings:
         """Deep merge, validate entire document against schema, compute hash, and save snapshot."""
         # 1. Authorization check (Owner or Admin)
+        member_role = None
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
             if not member:
@@ -216,6 +306,8 @@ class WorkspaceSettingsService:
             member_role = (member.role or "").strip().upper()
             if member_role not in ["OWNER", "ADMIN"]:
                 raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can modify settings.")
+            if member_role == "ADMIN":
+                _validate_admin_settings_whitelist(patch_data)
 
         # 2. Get current settings with row lock
         settings = await self.settings_repo.get_by_workspace_id_for_update(workspace_id)
@@ -342,6 +434,15 @@ class WorkspaceSettingsService:
             details={"version": new_version}
         ))
 
+        # 11. Mask sensitive secrets for non-owner actors (DEC-05)
+        if not is_platform_admin and member_role != "OWNER":
+            if hasattr(session, "expunge"):
+                try:
+                    session.expunge(settings)
+                except Exception:
+                    pass
+            settings.settings_json = _mask_sensitive_settings(settings.settings_json)
+
         return settings
 
     async def reset_settings(
@@ -354,6 +455,21 @@ class WorkspaceSettingsService:
         is_platform_admin: bool = False,
     ) -> WorkspaceSettings:
         """Reset settings (entire document or specific category) to defaults."""
+        if not is_platform_admin:
+            member = await self.member_repo.get_membership(workspace_id, user_id)
+            if not member:
+                raise WorkspaceNotFoundError("Workspace not found or access denied.")
+            actor_role = (member.role or "").strip().upper()
+            if actor_role not in ["OWNER", "ADMIN"]:
+                raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can reset settings.")
+            if actor_role == "ADMIN":
+                if category is None:
+                    raise WorkspaceUnauthorizedError("Only workspace OWNER can reset all settings.")
+                if category not in ROUTINE_SETTINGS_CATEGORIES:
+                    raise WorkspaceUnauthorizedError(
+                        f"Only workspace OWNER can reset sensitive category '{category}'."
+                    )
+
         defaults = get_default_workspace_settings()
         if category:
             if category not in defaults:
@@ -382,12 +498,12 @@ class WorkspaceSettingsService:
         is_platform_admin: bool = False,
     ) -> dict[str, Any]:
         """Import settings with optional dry_run validation."""
-        # 1. Authorization check
+        # 1. Authorization check: Importing entire settings document is strictly restricted to OWNER (DEC-05)
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
             member_role = (member.role or "").strip().upper() if member else ""
-            if not member or member_role not in ["OWNER", "ADMIN"]:
-                raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can import settings.")
+            if not member or member_role != "OWNER":
+                raise WorkspaceUnauthorizedError("Only workspace OWNER can import settings.")
 
         # 2. Deep merge with defaults or existing
         settings = await self.settings_repo.get_by_workspace_id(workspace_id)
@@ -512,8 +628,8 @@ class WorkspaceSettingsService:
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
             member_role = (member.role or "").strip().upper() if member else ""
-            if not member or member_role not in ["OWNER", "ADMIN"]:
-                raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can stage branding preview.")
+            if not member or member_role != WorkspaceRole.OWNER.value:
+                raise WorkspaceUnauthorizedError("Only workspace OWNER can stage branding preview.")
 
         # Validate branding dictionary structure
         from backend.api.v1.schemas.workspace_settings import BrandingSettings
@@ -556,6 +672,12 @@ class WorkspaceSettingsService:
         is_platform_admin: bool = False,
     ) -> WorkspaceSettings:
         """Atomically commit branding settings and clear draft preview."""
+        if not is_platform_admin:
+            member = await self.member_repo.get_membership(workspace_id, user_id)
+            member_role = (member.role or "").strip().upper() if member else ""
+            if not member or member_role != WorkspaceRole.OWNER.value:
+                raise WorkspaceUnauthorizedError("Only workspace OWNER can publish branding.")
+
         # 1. Update settings via patch_settings
         updated_settings = await self.patch_settings(
             session=session,
@@ -606,8 +728,8 @@ class WorkspaceSettingsService:
         if not is_platform_admin:
             member = await self.member_repo.get_membership(workspace_id, user_id)
             member_role = (member.role or "").strip().upper() if member else ""
-            if not member or member_role not in ["OWNER", "ADMIN"]:
-                raise WorkspaceUnauthorizedError("Only workspace OWNER or ADMIN can rollback branding.")
+            if not member or member_role != WorkspaceRole.OWNER.value:
+                raise WorkspaceUnauthorizedError("Only workspace OWNER can rollback branding.")
 
         history_records = await self.history_repo.list_by_workspace_id(workspace_id, limit=100)
         target_record = next((h for h in history_records if h.version == target_version), None)

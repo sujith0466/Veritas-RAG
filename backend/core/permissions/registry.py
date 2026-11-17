@@ -199,13 +199,13 @@ class PermissionRegistry:
             Permission.BILLING_INVOICES_READ.value,
         }
 
-        # Platform Roles
+        # Platform Roles (DEC-11: Least Privilege Diagnostic Scoping)
         platform_admin_perms: set[str] = set(all_perms)
-        platform_support_perms: set[str] = set(viewer_perms) | {
-            Permission.AUDIT_LOGS_READ.value,
+        platform_support_perms: set[str] = {
+            Permission.WORKSPACE_READ.value,
+            Permission.USERS_MEMBER_LIST.value,
             Permission.VIEW_DETAILED_HEALTH.value,
             Permission.FEATURE_FLAGS_READ.value,
-            Permission.USERS_MEMBER_LIST.value,
         }
         platform_auditor_perms: set[str] = {
             Permission.AUDIT_LOGS_READ.value,

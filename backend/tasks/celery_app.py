@@ -42,6 +42,8 @@ def create_celery_app() -> Celery:
             "backend.tasks.retention",
             "backend.document.workers.archive",
             "backend.document.workers.watchdog_worker",
+            "backend.tasks.join_code_notifications",
+            "backend.tasks.ownership_transfers",
         ],
     )
 
@@ -131,6 +133,36 @@ def create_celery_app() -> Celery:
                 "task": "backend.modules.vector.workers.tasks.reconcile_superseded_vectors_task",
                 "schedule": 3600.0, # Every 1 hour
                 "options": {"queue": "indexing"},
+            },
+            "join-code-expiration-evaluator": {
+                "task": "join_codes.evaluate_expirations",
+                "schedule": 900.0, # Every 15 minutes
+                "options": {"queue": "default"},
+            },
+            "notification-outbox-dispatcher": {
+                "task": "join_codes.dispatch_outbox",
+                "schedule": 60.0, # Every 1 minute
+                "options": {"queue": "default"},
+            },
+            "sweep-expired-ownership-transfers": {
+                "task": "backend.tasks.ownership_transfers.sweep_expired_ownership_transfers",
+                "schedule": 900.0, # Every 15 minutes
+                "options": {"queue": "default"},
+            },
+            "sweep-unresponsive-former-owners": {
+                "task": "backend.tasks.ownership_transfers.sweep_unresponsive_former_owners",
+                "schedule": 900.0, # Every 15 minutes
+                "options": {"queue": "default"},
+            },
+            "sweep-automatic-role-fallbacks": {
+                "task": "backend.tasks.ownership_transfers.sweep_automatic_role_fallbacks",
+                "schedule": 900.0, # Every 15 minutes
+                "options": {"queue": "default"},
+            },
+            "sweep-role-decision-reminders": {
+                "task": "backend.tasks.ownership_transfers.sweep_role_decision_reminders",
+                "schedule": 3600.0, # Every 1 hour
+                "options": {"queue": "default"},
             },
         },
     )
