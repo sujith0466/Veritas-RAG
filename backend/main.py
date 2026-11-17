@@ -47,6 +47,7 @@ from backend.core.middleware import (
     SecurityHeadersMiddleware,
     SSEConcurrencyLimiterMiddleware,
     TrustedProxyMiddleware,
+    WorkspaceProvisioningGuardMiddleware,
 )
 from backend.observability.tracing import init_tracer
 
@@ -213,6 +214,9 @@ def create_app() -> FastAPI:
         RequestLoggingMiddleware,
         log_requests=settings.logging.log_requests,
     )
+
+    # Workspace Provisioning Guard (WP-10 / Option 2: locks unready workspaces with HTTP 423)
+    app.add_middleware(WorkspaceProvisioningGuardMiddleware)
 
     # JWT Authentication middleware (protects routes, checks blocklist)
     app.add_middleware(JWTAuthenticationMiddleware)

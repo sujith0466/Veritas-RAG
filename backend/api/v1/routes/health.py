@@ -18,13 +18,16 @@ from datetime import UTC, datetime
 import time
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.auth.context import UserContext
 from backend.core.config import get_settings
-from backend.core.dependencies.auth import require_role
+from backend.core.dependencies.auth import get_current_user, require_role
+from backend.core.dependencies.database import get_db
+from backend.core.permissions.guards import record_diagnostic_access, validate_diagnostic_ticket
 from backend.core.permissions.rbac import Role
 
 from ..schemas.common import DependencyHealth, DetailedHealthResponse, HealthStatus
@@ -381,16 +384,39 @@ async def readiness() -> JSONResponse:
 @router.get(
     "/detailed",
     response_model=DetailedHealthResponse,
-    summary="Detailed health (admin)",
+    summary="Detailed health (admin & diagnostic)",
     description=(
         "Full dependency health breakdown. "
-        "Requires PLATFORM_ADMIN role via authentication and authorization dependencies."
+        "Allows PLATFORM_ADMIN directly, and PLATFORM_SUPPORT / PLATFORM_AUDITOR with ticket enforcement (WP-7 / DEC-11)."
     ),
 )
 async def detailed_health(
-    _user: UserContext = Depends(require_role(Role.PLATFORM_ADMIN)),
+    request: Request,
+    _user: UserContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
 ) -> DetailedHealthResponse:
-    """Full dependency breakdown for operator dashboards."""
+    """Full dependency breakdown for operator dashboards and authorized diagnostic access."""
+    user_role = Role.from_str(str(_user.role))
+    if user_role == Role.PLATFORM_ADMIN:
+        pass  # Platform admin has direct operator access
+    elif user_role in (Role.PLATFORM_SUPPORT, Role.PLATFORM_AUDITOR):
+        raw_ticket = request.headers.get("X-Justification-Ticket-ID")
+        ticket_id = validate_diagnostic_ticket(raw_ticket)
+        await record_diagnostic_access(
+            session=session,
+            user_id=_user.id,
+            user_role=user_role.value,
+            action="DIAGNOSTIC_HEALTH_READ",
+            resource_type="health",
+            resource_id="detailed",
+            ticket_id=ticket_id,
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions for detailed health telemetry.",
+        )
+
     settings = get_settings()
     deps_dict = await _check_dependencies(detailed=True)
     deps = list(deps_dict.values())

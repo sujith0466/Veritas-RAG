@@ -17,8 +17,10 @@ from backend.api.v1.schemas.workspace_invitation import (
     SendInvitationRequest,
     VerifyInvitationData,
     VerifyInvitationResponse,
+    WorkspaceInvitationActivityResponse,
     WorkspaceInvitationData,
     WorkspaceInvitationListResponse,
+    WorkspaceInvitationRedemptionData,
     WorkspaceInvitationResponse,
 )
 from backend.core.auth.context import UserContext
@@ -139,6 +141,77 @@ async def list_workspace_invitations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred while listing workspace invitations.",
         )
+
+
+@workspace_invitations_router.get(
+    "/{invitation_id}",
+    response_model=WorkspaceInvitationResponse,
+    summary="Get workspace invitation details",
+)
+async def get_workspace_invitation(
+    workspace_id: uuid.UUID,
+    invitation_id: uuid.UUID,
+    current_user: UserContext = Depends(get_current_user),
+    service: WorkspaceInvitationService = Depends(get_workspace_invitation_service),
+) -> WorkspaceInvitationResponse:
+    """Gets details for an invitation created by the current user (strict creator-only visibility)."""
+    try:
+        invitation = await service.get_invitation(
+            workspace_id=workspace_id,
+            invitation_id=invitation_id,
+            actor_id=current_user.user_id,
+        )
+        return WorkspaceInvitationResponse(
+            success=True,
+            message="Workspace invitation retrieved successfully.",
+            data=WorkspaceInvitationData.model_validate(invitation),
+        )
+    except InvitationNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvitationUnauthorizedError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found.")
+    except Exception as e:
+        logger.exception("Unexpected error getting workspace invitation", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while retrieving the workspace invitation.",
+        )
+
+
+@workspace_invitations_router.get(
+    "/{invitation_id}/activity",
+    response_model=WorkspaceInvitationActivityResponse,
+    summary="Get invitation redemption activity",
+)
+async def get_invitation_activity(
+    workspace_id: uuid.UUID,
+    invitation_id: uuid.UUID,
+    current_user: UserContext = Depends(get_current_user),
+    service: WorkspaceInvitationService = Depends(get_workspace_invitation_service),
+) -> WorkspaceInvitationActivityResponse:
+    """Retrieves redemption activity log for a creator's invitation."""
+    try:
+        redemptions = await service.list_invitation_redemptions(
+            workspace_id=workspace_id,
+            invitation_id=invitation_id,
+            actor_id=current_user.user_id,
+        )
+        return WorkspaceInvitationActivityResponse(
+            success=True,
+            total=len(redemptions),
+            items=[WorkspaceInvitationRedemptionData.model_validate(r) for r in redemptions],
+        )
+    except InvitationNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except InvitationUnauthorizedError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found.")
+    except Exception as e:
+        logger.exception("Unexpected error retrieving invitation activity", exc_info=e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while retrieving invitation activity.",
+        )
+
 
 
 @workspace_invitations_router.post(

@@ -522,7 +522,7 @@ async def update_workspace(
 
     try:
         user_role = Role.from_str(str(current_user.role))
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         workspace = await management_service.update_workspace(
             session=session,
             workspace_id=workspace_id,
@@ -975,7 +975,7 @@ async def get_workspace_settings(
     """Retrieve full validated workspace settings document."""
     try:
         user_role = Role.from_str(str(current_user.role))
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         settings = await settings_service.get_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1023,7 +1023,7 @@ async def patch_workspace_settings(
             detail="Only workspace OWNER or ADMIN can modify settings.",
         )
     try:
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         settings = await settings_service.patch_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1081,7 +1081,7 @@ async def reset_workspace_settings(
             detail="Only workspace OWNER or ADMIN can modify settings.",
         )
     try:
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         settings = await settings_service.reset_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1134,7 +1134,7 @@ async def export_workspace_settings(
     """Export complete workspace configuration with metadata."""
     try:
         user_role = Role.from_str(str(current_user.role))
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         settings = await settings_service.get_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1182,7 +1182,7 @@ async def import_workspace_settings(
             detail="Only workspace OWNER or ADMIN can import settings.",
         )
     try:
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         result = await settings_service.import_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1226,7 +1226,7 @@ async def get_workspace_settings_history(
     """Retrieve version history snapshots for workspace settings."""
     try:
         user_role = Role.from_str(str(current_user.role))
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         history = await settings_service.get_history(
             workspace_id=workspace_id,
             user_id=current_user.id,
@@ -1277,7 +1277,8 @@ async def get_workspace_branding(
 ) -> WorkspaceBrandingResponse:
     """Fetch resolved branding configuration with compiled CSS variables and Tailwind tokens."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         branding_data = await settings_service.get_resolved_branding(
             session=session,
             workspace_id=workspace_id,
@@ -1313,7 +1314,8 @@ async def stage_branding_preview(
 ) -> WorkspaceBrandingResponse:
     """Stage draft branding configuration in Redis without affecting production."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         preview_data = await settings_service.stage_branding_preview(
             workspace_id=workspace_id,
             user_id=current_user.id,
@@ -1351,7 +1353,8 @@ async def publish_branding(
 ) -> WorkspaceBrandingResponse:
     """Publish and commit branding configuration, invalidating CDN/browser cache."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         await settings_service.publish_branding(
             session=session,
             workspace_id=workspace_id,
@@ -1401,7 +1404,8 @@ async def rollback_branding(
 ) -> WorkspaceBrandingResponse:
     """Rollback workspace branding to a specific historical snapshot."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         await settings_service.rollback_branding(
             session=session,
             workspace_id=workspace_id,
@@ -1451,7 +1455,8 @@ async def diff_workspace_branding(
 ) -> WorkspaceBrandingDiffResponse:
     """Compare branding properties across two historical snapshots."""
     try:
-        is_platform_admin = current_user.role == Role.ADMIN
+        user_role = Role.from_str(str(current_user.role))
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         diff_data = await settings_service.diff_branding(
             workspace_id=workspace_id,
             user_id=current_user.id,
@@ -1502,7 +1507,7 @@ async def get_join_code_settings(
             detail="Only workspace OWNER or ADMIN can manage join code settings.",
         )
     try:
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         return await join_code_service.get_join_code_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1586,7 +1591,7 @@ async def patch_join_code_settings(
             detail="Only workspace OWNER or ADMIN can manage join code settings.",
         )
     try:
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         return await join_code_service.patch_join_code_settings(
             session=session,
             workspace_id=workspace_id,
@@ -1637,7 +1642,7 @@ async def generate_join_code(
             detail="Only workspace OWNER or ADMIN can manage join code settings.",
         )
     try:
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         return await join_code_service.generate_new_join_code(
             session=session,
             workspace_id=workspace_id,
@@ -1690,7 +1695,7 @@ async def regenerate_join_code(
             detail="Only workspace OWNER or ADMIN can manage join code settings.",
         )
     try:
-        is_platform_admin = user_role in (Role.ADMIN, Role.PLATFORM_ADMIN, Role.OWNER)
+        is_platform_admin = user_role == Role.PLATFORM_ADMIN
         return await join_code_service.generate_new_join_code(
             session=session,
             workspace_id=workspace_id,

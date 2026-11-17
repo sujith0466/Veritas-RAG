@@ -112,13 +112,15 @@ from backend.services.notification.notification_service import NotificationServi
 import uuid
 
 
-def _to_uuid(val: Any) -> uuid.UUID:
+def _to_uuid(val: Any) -> uuid.UUID | None:
+    if not val:
+        return None
     if isinstance(val, uuid.UUID):
         return val
     try:
         return uuid.UUID(str(val))
     except (ValueError, TypeError):
-        return uuid.UUID("00000000-0000-0000-0000-000000000000")
+        return None
 
 
 @router.get("", response_model=NotificationListResponse)

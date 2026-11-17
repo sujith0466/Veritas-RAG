@@ -47,7 +47,7 @@ class NotificationService:
 
     async def create_and_publish(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         title: str,
         message: str,
         user_id: uuid.UUID | None = None,
@@ -75,33 +75,34 @@ class NotificationService:
         dto = NotificationDTO.model_validate(notification)
 
         # Real-time WebSocket push via Redis Pub/Sub
-        try:
-            redis = get_redis_client()
-            if redis:
-                channel = f"workspace:{tenant_id}:notifications"
-                payload = {
-                    "type": f"NOTIFICATION_{category}",
-                    "id": str(dto.id),
-                    "tenant_id": str(dto.tenant_id),
-                    "user_id": str(dto.user_id) if dto.user_id else None,
-                    "category": dto.category,
-                    "severity": dto.severity,
-                    "title": dto.title,
-                    "message": dto.message,
-                    "action_url": dto.action_url,
-                    "payload": dto.payload_json or {},
-                    "is_read": dto.is_read,
-                    "timestamp": dto.created_at.isoformat(),
-                }
-                await redis.publish(channel, json.dumps(payload))
-        except Exception as e:
-            logger.warning("Failed to publish real-time notification to Redis", error=str(e))
+        if tenant_id:
+            try:
+                redis = get_redis_client()
+                if redis:
+                    channel = f"workspace:{tenant_id}:notifications"
+                    payload = {
+                        "type": f"NOTIFICATION_{category}",
+                        "id": str(dto.id),
+                        "tenant_id": str(dto.tenant_id) if dto.tenant_id else None,
+                        "user_id": str(dto.user_id) if dto.user_id else None,
+                        "category": dto.category,
+                        "severity": dto.severity,
+                        "title": dto.title,
+                        "message": dto.message,
+                        "action_url": dto.action_url,
+                        "payload": dto.payload_json or {},
+                        "is_read": dto.is_read,
+                        "timestamp": dto.created_at.isoformat(),
+                    }
+                    await redis.publish(channel, json.dumps(payload))
+            except Exception as e:
+                logger.warning("Failed to publish real-time notification to Redis", error=str(e))
 
         return dto
 
     async def list_notifications(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
         category: str | None = None,
         unread_only: bool = False,
@@ -129,7 +130,7 @@ class NotificationService:
 
     async def get_unread_count(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> UnreadCountResponse:
         """Retrieve authoritative count of unread notifications."""
@@ -139,7 +140,7 @@ class NotificationService:
     async def mark_as_read(
         self,
         notification_id: uuid.UUID,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> NotificationDTO | None:
         """Mark a single authorized notification as read."""
@@ -156,7 +157,7 @@ class NotificationService:
 
     async def mark_all_as_read(
         self,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> NotificationActionResponse:
         """Mark all unread active notifications for this user as read."""
@@ -171,7 +172,7 @@ class NotificationService:
     async def dismiss_notification(
         self,
         notification_id: uuid.UUID,
-        tenant_id: uuid.UUID,
+        tenant_id: uuid.UUID | None,
         user_id: uuid.UUID,
     ) -> NotificationActionResponse:
         """Dismiss (soft delete) a notification."""

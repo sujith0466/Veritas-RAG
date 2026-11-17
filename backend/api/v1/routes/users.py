@@ -221,6 +221,8 @@ async def deactivate_my_account(
         UserLifecycleService,
         ReauthenticationFailedException,
         SoleWorkspaceOwnerConflictException,
+        InactiveWorkspaceOwnerConflictException,
+        UserDeletionIneligibleException,
         LifecycleException,
     )
     import uuid
@@ -240,7 +242,65 @@ async def deactivate_my_account(
         }
     except ReauthenticationFailedException as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-    except SoleWorkspaceOwnerConflictException as e:
+    except UserDeletionIneligibleException as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": e.code, "reason": e.reason, "details": e.details},
+        )
+    except (SoleWorkspaceOwnerConflictException, InactiveWorkspaceOwnerConflictException) as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except LifecycleException as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/me/deletion-eligibility")
+async def check_my_deletion_eligibility(
+    current_user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check if the current authenticated user is eligible for account deletion or deactivation (WP 7.9)."""
+    from backend.services.user_lifecycle import UserLifecycleService
+    import uuid
+
+    user_uuid = uuid.UUID(str(current_user.id))
+    lifecycle_service = UserLifecycleService(db)
+    result = await lifecycle_service.validate_user_deletion_eligibility(user_uuid)
+    return {
+        "eligible": result.eligible,
+        "rejection_code": result.rejection_code,
+        "rejection_reason": result.rejection_reason,
+        "details": result.details,
+    }
+
+
+@router.get("/{user_id}/deletion-eligibility")
+async def check_user_deletion_eligibility(
+    user_id: str,
+    current_user: UserContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check if a specific user is eligible for account deletion or deactivation (WP 7.9)."""
+    from backend.services.user_lifecycle import UserLifecycleService
+    import uuid
+
+    try:
+        target_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID format")
+
+    caller_uuid = uuid.UUID(str(current_user.id))
+    caller_role = getattr(current_user, "role", "") or ""
+    if caller_uuid != target_uuid and caller_role.lower() != "platform_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot inspect deletion eligibility of another user",
+        )
+
+    lifecycle_service = UserLifecycleService(db)
+    result = await lifecycle_service.validate_user_deletion_eligibility(target_uuid)
+    return {
+        "eligible": result.eligible,
+        "rejection_code": result.rejection_code,
+        "rejection_reason": result.rejection_reason,
+        "details": result.details,
+    }

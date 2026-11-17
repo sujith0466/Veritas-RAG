@@ -59,6 +59,17 @@ def _resolve_tenant_and_owner(
     if not user or not tenant_id or str(tenant_id) == "None":
         from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Missing workspace context")
+    user_role_str = ""
+    if hasattr(user, "role"):
+        user_role_str = str(user.role).upper()
+        if user_role_str.startswith("ROLE."):
+            user_role_str = user_role_str.split(".", 1)[1]
+    if user_role_str in ("PLATFORM_SUPPORT", "PLATFORM_AUDITOR"):
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform diagnostic roles are strictly excluded from customer document access.",
+        )
     return str(tenant_id), getattr(user, "id", None)
 
 
@@ -436,6 +447,17 @@ async def delete_document(
 ) -> SuccessResponse[dict[str, Any]]:
     """Delete document entity, clean up physical files, and remove vectors."""
     tenant_id, _ = _resolve_tenant_and_owner(user)
+
+    ws_uuid = None
+    try:
+        ws_uuid = uuid.UUID(tenant_id)
+    except (ValueError, TypeError):
+        pass
+
+    if ws_uuid:
+        from backend.core.dependencies.workspace import require_workspace_admin_or_owner
+        await require_workspace_admin_or_owner(ws_uuid, user, session)
+
     service = DocumentService()
 
     success = await service.delete_document(document_id, tenant_id, session)
@@ -759,6 +781,16 @@ async def remove_document_metadata_key(
 ) -> SuccessResponse[dict]:
     """Remove a specific key from the document's user_metadata."""
     tenant_id, _ = _resolve_tenant_and_owner(user)
+
+    ws_uuid = None
+    try:
+        ws_uuid = uuid.UUID(tenant_id)
+    except (ValueError, TypeError):
+        pass
+
+    if ws_uuid:
+        from backend.core.dependencies.workspace import get_workspace_member_or_raise
+        await get_workspace_member_or_raise(ws_uuid, user, session)
 
     from backend.document.services.metadata_service import MetadataService
     from backend.document.workers.metadata_sync import sync_document_metadata_to_vectors_job

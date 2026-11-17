@@ -33,14 +33,20 @@ from .routes.workspace_invitations import (
     workspace_invitations_router,
     invitations_router
 )
+from .routes.workspace_join_codes import workspace_join_codes_router
 from .routes.workspace_members import workspace_members_router
 from .routes.workspace_access_requests import workspace_access_requests_router
+from .routes.workspace_transfers import router as workspace_transfers_router
+from .routes.former_owner_departures import router as former_owner_departures_router
 
 api_v1_router.include_router(workspaces_router)
+api_v1_router.include_router(workspace_join_codes_router)
 api_v1_router.include_router(workspace_invitations_router)
 api_v1_router.include_router(invitations_router)
 api_v1_router.include_router(workspace_members_router)
 api_v1_router.include_router(workspace_access_requests_router)
+api_v1_router.include_router(workspace_transfers_router)
+api_v1_router.include_router(former_owner_departures_router)
 
 from .routes.workspace_webhooks import router as workspace_webhooks_router
 api_v1_router.include_router(workspace_webhooks_router)

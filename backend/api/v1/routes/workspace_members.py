@@ -6,7 +6,9 @@ and bulk managing members within a workspace.
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
@@ -25,6 +27,8 @@ from backend.core.dependencies.database import (
     get_db,
     get_workspace_membership_service,
 )
+from backend.core.permissions.guards import record_diagnostic_access, validate_diagnostic_ticket
+from backend.core.permissions.rbac import Role
 from backend.services.workspace.membership_service import (
     MembershipConflictError,
     MembershipInvalidStateError,
@@ -47,6 +51,7 @@ workspace_members_router = APIRouter(
     summary="List workspace members",
 )
 async def list_workspace_members(
+    request: Request,
     workspace_id: uuid.UUID,
     search: str | None = Query(None, description="Search by username or email"),
     role: str | None = Query(None, description="Filter by role (e.g. OWNER, ADMIN, MEMBER, VIEWER)"),
@@ -56,8 +61,38 @@ async def list_workspace_members(
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
     current_user: UserContext = Depends(get_current_user),
     service: WorkspaceMembershipService = Depends(get_workspace_membership_service),
+    session: AsyncSession = Depends(get_db),
 ) -> WorkspaceMemberListResponse:
-    """Lists workspace members with search, filters, and pagination."""
+    """Lists workspace members with search, filters, and pagination.
+
+    DEC-11: Platform Support permitted with mandatory ticket justification; Platform Auditor denied.
+    """
+    user_role = Role.from_str(str(current_user.role))
+    is_diagnostic = False
+
+    # 1. Deny Platform Auditor explicitly (DEC-11 policy boundary)
+    if user_role == Role.PLATFORM_AUDITOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Platform auditor role is prohibited from accessing member lists.",
+        )
+
+    # 2. Platform Support: Ticket enforcement and fail-closed audit logging
+    if user_role == Role.PLATFORM_SUPPORT:
+        raw_ticket = request.headers.get("X-Justification-Ticket-ID")
+        ticket_id = validate_diagnostic_ticket(raw_ticket)
+        await record_diagnostic_access(
+            session=session,
+            user_id=current_user.id,
+            user_role=user_role.value,
+            action="DIAGNOSTIC_MEMBER_LIST_READ",
+            resource_type="workspace_members",
+            resource_id=str(workspace_id),
+            ticket_id=ticket_id,
+            tenant_id=workspace_id,
+        )
+        is_diagnostic = True
+
     try:
         skip = (page - 1) * page_size
         items, total, next_cursor = await service.list_members(
@@ -69,6 +104,7 @@ async def list_workspace_members(
             cursor=cursor,
             skip=skip,
             limit=page_size,
+            is_diagnostic=is_diagnostic,
         )
         return WorkspaceMemberListResponse(
             success=True,
@@ -131,12 +167,22 @@ async def get_workspace_member(
 async def update_workspace_member_role(
     workspace_id: uuid.UUID,
     member_id: uuid.UUID,
-    request: UpdateMemberRoleRequest,
+    payload: dict = Body(...),
     current_user: UserContext = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
     service: WorkspaceMembershipService = Depends(get_workspace_membership_service),
 ) -> WorkspaceMemberResponse:
     """Updates a member's role with Last Owner Protection and hierarchy validation."""
+    if isinstance(payload, dict) and payload.get("role") == "OWNER":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Direct assignment or promotion to OWNER is not permitted.",
+        )
+    try:
+        request = UpdateMemberRoleRequest.model_validate(payload)
+    except ValidationError as e:
+        raise RequestValidationError(e.errors())
+
     try:
         member = await service.update_member_role(
             session=session,
@@ -156,7 +202,16 @@ async def update_workspace_member_role(
     except MembershipUnauthorizedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except MembershipConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        detail_msg = str(e)
+        if "leave as owner" in detail_msg.lower() or "last remaining owner" in detail_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "CANNOT_LEAVE_AS_OWNER",
+                    "message": "Workspace owners cannot leave the workspace. You must transfer workspace ownership to another member before departing.",
+                },
+            )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail_msg)
     except MembershipInvalidStateError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -197,7 +252,16 @@ async def suspend_workspace_member(
     except MembershipUnauthorizedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except MembershipConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        detail_msg = str(e)
+        if "leave as owner" in detail_msg.lower() or "last remaining owner" in detail_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "CANNOT_LEAVE_AS_OWNER",
+                    "message": "Workspace owners cannot leave the workspace. You must transfer workspace ownership to another member before departing.",
+                },
+            )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail_msg)
     except MembershipInvalidStateError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -237,6 +301,17 @@ async def restore_workspace_member(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except MembershipUnauthorizedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except MembershipConflictError as e:
+        detail_msg = str(e)
+        if "leave as owner" in detail_msg.lower() or "last remaining owner" in detail_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "CANNOT_LEAVE_AS_OWNER",
+                    "message": "Workspace owners cannot leave the workspace. You must transfer workspace ownership to another member before departing.",
+                },
+            )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail_msg)
     except MembershipInvalidStateError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -277,7 +352,16 @@ async def remove_workspace_member(
     except MembershipUnauthorizedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except MembershipConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        detail_msg = str(e)
+        if "leave as owner" in detail_msg.lower() or "last remaining owner" in detail_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "CANNOT_LEAVE_AS_OWNER",
+                    "message": "Workspace owners cannot leave the workspace. You must transfer workspace ownership to another member before departing.",
+                },
+            )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail_msg)
     except MembershipInvalidStateError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -322,7 +406,16 @@ async def leave_workspace(
     except MembershipUnauthorizedError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except MembershipConflictError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+        detail_msg = str(e)
+        if "leave as owner" in detail_msg.lower() or "last remaining owner" in detail_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "CANNOT_LEAVE_AS_OWNER",
+                    "message": "Workspace owners cannot leave the workspace. You must transfer workspace ownership to another member before departing.",
+                },
+            )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail_msg)
     except MembershipInvalidStateError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:

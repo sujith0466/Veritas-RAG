@@ -9,6 +9,7 @@ from sqlalchemy import select, func, desc
 import sqlalchemy as sa
 
 from backend.api.v1.schemas.common import PaginatedResponse, ResponseMetadata
+from backend.api.v1.schemas.owner_recovery import OwnerRecoveryRequest, OwnerRecoveryResponse
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
 from backend.core.dependencies.database import get_db as get_db_session
@@ -93,5 +94,36 @@ async def list_all_workspaces(
             total_elements=total,
             total_pages=(total + page_size - 1) // page_size if page_size > 0 else 1
         ),
+        metadata=ResponseMetadata(request_id=req_id),
+    )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/recover-owner",
+    status_code=status.HTTP_200_OK,
+    summary="Recover an ownerless workspace (Platform Admin only)",
+    description="Multi-factor, break-glass workflow promoting an active workspace member to OWNER for genuinely ownerless workspaces.",
+)
+async def recover_ownerless_workspace(
+    workspace_id: UUID,
+    payload: OwnerRecoveryRequest,
+    request: Request,
+    auth: Annotated[UserContext, Depends(require_role(Role.PLATFORM_ADMIN))],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+):
+    """Execute authenticated, audited owner recovery for an ownerless workspace."""
+    from backend.api.v1.schemas.common import SuccessResponse
+    from backend.services.workspace.owner_recovery_service import OwnerRecoveryService
+
+    service = OwnerRecoveryService(session)
+    response_data = await service.recover_ownerless_workspace(
+        workspace_id=workspace_id,
+        caller_user_id=auth.id,
+        request=payload,
+    )
+    import uuid
+    req_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+    return SuccessResponse(
+        data=response_data,
         metadata=ResponseMetadata(request_id=req_id),
     )
