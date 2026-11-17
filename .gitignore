@@ -178,3 +178,5 @@ docs/internal/*_SCRATCH.md
 *.pdf
 ~$*
 ~*.tmp
+# Private Documentation Archive
+/docs/private-archive/

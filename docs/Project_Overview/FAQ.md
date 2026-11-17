@@ -1,4 +1,4 @@
-# Faq
+# Platform & Architecture FAQ
 
 **Version:** 1.0.0
 **Purpose:** Define the Faq for Veritas RAG.

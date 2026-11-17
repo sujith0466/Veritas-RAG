@@ -1,4 +1,4 @@
-# Frequently Asked Questions
+# User & Operational FAQ
 
 **Q: What LLM providers does Veritas RAG support?**
 A: Veritas RAG ships with OpenAI and Anthropic Claude provider adapters. The `BaseLLMProvider`
