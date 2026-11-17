@@ -256,11 +256,11 @@ class WorkspaceService {
   }
 
   /**
-   * Get active join code and canonical join link for current workspace member (WS-D)
+   * Get active join code and canonical join link for current workspace member (V1.7 Plural Route)
    */
   async getJoinAccess(workspaceId: string): Promise<WorkspaceJoinAccessResponse> {
     const response = await get<WorkspaceJoinAccessResponse>(
-      `/api/v1/workspaces/${workspaceId}/join-code/access`
+      `/api/v1/workspaces/${workspaceId}/join-codes/member-access`
     );
     return response;
   }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { KeyRound, Copy, Check, Loader2, AlertCircle } from 'lucide-react'
+import { KeyRound, Copy, Check, Loader2, AlertCircle, Clock, ShieldAlert, UserX, AlertTriangle, Info } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -114,7 +114,75 @@ export function JoinAccessDialog({ open, onOpenChange }: JoinAccessDialogProps) 
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
-        ) : !data?.has_active_code || !data.join_code ? (
+        ) : data?.status === 'EXPIRED' ? (
+          <div className="p-5 rounded-xl bg-amber-500/10 dark:bg-amber-950/20 border border-amber-500/30 text-center space-y-2">
+            <Clock className="h-6 w-6 text-amber-500 mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">Join Code Expired</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The join code created by <strong className="text-foreground">{data.creator_name || 'your administrator'}</strong> expired on{' '}
+              <span className="font-mono font-medium text-foreground">{data.expires_at ? formatDateDDMMYYYY(data.expires_at) : 'recently'}</span>.
+              Please contact <strong className="text-foreground">{data.creator_name || 'your administrator'}</strong> to request an updated code.
+            </p>
+          </div>
+        ) : data?.status === 'REVOKED' ? (
+          <div className="p-5 rounded-xl bg-slate-500/10 dark:bg-slate-900/30 border border-slate-500/30 text-center space-y-2">
+            <AlertTriangle className="h-6 w-6 text-slate-500 mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">Join Code Deactivated</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The join code created by <strong className="text-foreground">{data.creator_name || 'your administrator'}</strong> has been deactivated.
+              Please contact <strong className="text-foreground">{data.creator_name || 'your administrator'}</strong> for an updated code.
+            </p>
+          </div>
+        ) : data?.status === 'CREATOR_INELIGIBLE' ? (
+          <div className="p-5 rounded-xl bg-rose-500/10 dark:bg-rose-950/20 border border-rose-500/30 text-center space-y-2">
+            <UserX className="h-6 w-6 text-rose-500 mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">Administrator Ineligible</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your originating administrator (<strong className="text-foreground">{data.creator_name || 'Administrator'}</strong>) is no longer eligible to manage workspace join credentials.
+              Please contact the workspace owner.
+            </p>
+          </div>
+        ) : data?.status === 'ATTRIBUTION_CONFLICT' ? (
+          <div className="p-5 rounded-xl bg-rose-500/10 dark:bg-rose-950/20 border border-rose-500/30 text-center space-y-2">
+            <ShieldAlert className="h-6 w-6 text-rose-500 mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">Credential Sharing Suspended</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              An attribution integrity conflict has been detected on your workspace membership. To safeguard workspace security, join credentials cannot be displayed.
+              Please contact your workspace owner.
+            </p>
+          </div>
+        ) : data?.status === 'ADMIN_MANAGEMENT_REQUIRED' ? (
+          <div className="p-5 rounded-xl bg-primary/10 border border-primary/20 text-center space-y-2">
+            <KeyRound className="h-6 w-6 text-primary mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">Administrator Access</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {data.message || 'Administrators manage and rotate join codes directly in Workspace Settings. Plaintext recovery is disabled under single-reveal policy.'}
+            </p>
+            {data.code_display && (
+              <div className="pt-2">
+                <span className="font-mono text-xs font-semibold px-2.5 py-1 bg-surface rounded border border-border">
+                  Current code: {data.code_display}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : data?.status === 'NO_ATTRIBUTION' ? (
+          <div className="p-5 rounded-xl bg-muted/40 dark:bg-background/90 border border-border text-center space-y-2">
+            <Info className="h-6 w-6 text-muted-foreground mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">No Attribution Recorded</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              No originating administrator attribution is recorded for your membership. Please contact your workspace administrator.
+            </p>
+          </div>
+        ) : data?.status === 'NO_CODE_CONFIGURED' ? (
+          <div className="p-5 rounded-xl bg-muted/40 dark:bg-background/90 border border-border text-center space-y-2">
+            <Info className="h-6 w-6 text-muted-foreground mx-auto" />
+            <h4 className="text-sm font-semibold text-foreground">No Code Configured</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your originating administrator (<strong className="text-foreground">{data.creator_name || 'Administrator'}</strong>) does not currently have an active join code configured.
+            </p>
+          </div>
+        ) : !data?.join_code ? (
           <div className="p-5 rounded-xl bg-muted/40 dark:bg-background/90 border border-border text-center space-y-2">
             <AlertCircle className="h-6 w-6 text-muted-foreground mx-auto" />
             <h4 className="text-sm font-semibold text-foreground">No Active Join Code</h4>

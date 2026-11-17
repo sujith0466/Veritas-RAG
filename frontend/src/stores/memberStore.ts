@@ -6,11 +6,14 @@ import type {
   WorkspaceMember,
 } from '@/types/workspaceMember';
 
+let latestFetchRequestId = 0;
+
 interface MemberState {
   members: WorkspaceMember[];
   total: number;
   isLoading: boolean;
   error: string | null;
+  currentWorkspaceId: string | null;
 
   fetchMembers: (
     workspaceId: string,
@@ -39,17 +42,34 @@ export const useMemberStore = create<MemberState>((set, get) => ({
   total: 0,
   isLoading: false,
   error: null,
+  currentWorkspaceId: null,
 
   fetchMembers: async (workspaceId, params) => {
-    set({ isLoading: true, error: null });
+    const requestId = ++latestFetchRequestId;
+    const isNewWorkspace = get().currentWorkspaceId !== workspaceId;
+
+    set({
+      isLoading: true,
+      error: null,
+      currentWorkspaceId: workspaceId,
+      ...(isNewWorkspace ? { members: [], total: 0 } : {}),
+    });
+
     try {
       const response = await memberService.listMembers(workspaceId, params);
+      // Discard out-of-order or stale cross-workspace responses
+      if (requestId !== latestFetchRequestId || get().currentWorkspaceId !== workspaceId) {
+        return;
+      }
       set({
         members: response.items,
         total: response.total,
         isLoading: false,
       });
     } catch (err: any) {
+      if (requestId !== latestFetchRequestId || get().currentWorkspaceId !== workspaceId) {
+        return;
+      }
       set({
         error: err.response?.data?.detail || err.message || 'Failed to fetch members',
         isLoading: false,
@@ -144,6 +164,9 @@ export const useMemberStore = create<MemberState>((set, get) => ({
     }
   },
 
-    clearMemberState: () => set({ members: [], total: 0, error: null, isLoading: false }),
+  clearMemberState: () => {
+    latestFetchRequestId++;
+    set({ members: [], total: 0, currentWorkspaceId: null, error: null, isLoading: false });
+  },
   clearError: () => set({ error: null }),
 }));

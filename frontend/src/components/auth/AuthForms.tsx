@@ -197,6 +197,161 @@ const baseRegisterSchema = {
   }),
 }
 
+const identityRegisterSchema = z.object({
+  ...baseRegisterSchema,
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+})
+
+export function IdentityRegisterForm({ onSuccess, onFocusChange, onError }: BaseFormProps) {
+  const { register: registerAuth } = useAuth()
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<z.infer<typeof identityRegisterSchema>>({
+    resolver: zodResolver(identityRegisterSchema),
+  })
+
+  const passwordVal = watch('password')
+
+  const onSubmit = async (data: z.infer<typeof identityRegisterSchema>) => {
+    setIsLoading(true)
+    try {
+      await registerAuth({
+        email: data.email,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+        fullName: data.fullName,
+      })
+      onSuccess()
+    } catch (error: unknown) {
+      if (onError) onError()
+      toast({ title: 'Registration Failed', message: (error as Error).message || 'Something went wrong', type: 'error' })
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <motion.form
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-5"
+    >
+      <div className="space-y-2">
+        <Label htmlFor="fullName">Full Name</Label>
+        <Input
+          id="fullName"
+          placeholder="Jane Doe"
+          onFocus={() => onFocusChange?.('idle')}
+          leftIcon={<User className="h-4 w-4 text-muted-foreground" />}
+          error={errors.fullName?.message}
+          {...register('fullName')}
+        />
+        {errors.fullName && (
+          <p className="text-xs text-destructive mt-1">{errors.fullName.message}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="jane@example.com"
+          onFocus={() => onFocusChange?.('email')}
+          leftIcon={<Mail className="h-4 w-4 text-muted-foreground" />}
+          error={errors.email?.message}
+          {...register('email')}
+        />
+        {errors.email && (
+          <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            onFocus={() => onFocusChange?.(showPassword ? 'password_visible' : 'password')}
+            leftIcon={<Lock className="h-4 w-4 text-muted-foreground" />}
+            rightIcon={
+              <PasswordVisibilityToggle
+                isVisible={showPassword}
+                onToggle={() => {
+                  const next = !showPassword
+                  setShowPassword(next)
+                  onFocusChange?.(next ? 'password_visible' : 'password')
+                }}
+                ariaLabel={showPassword ? 'Hide password' : 'Show password'}
+              />
+            }
+            error={errors.password?.message}
+            {...register('password')}
+          />
+          {errors.password && (
+            <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Input
+            id="confirmPassword"
+            type={showConfirmPassword ? "text" : "password"}
+            onFocus={() => onFocusChange?.(showConfirmPassword ? 'password_visible' : 'password')}
+            leftIcon={<Lock className="h-4 w-4 text-muted-foreground" />}
+            rightIcon={
+              <PasswordVisibilityToggle
+                isVisible={showConfirmPassword}
+                onToggle={() => {
+                  const next = !showConfirmPassword
+                  setShowConfirmPassword(next)
+                  onFocusChange?.(next ? 'password_visible' : 'password')
+                }}
+                ariaLabel={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+              />
+            }
+            error={errors.confirmPassword?.message}
+            {...register('confirmPassword')}
+          />
+          {errors.confirmPassword && (
+            <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>
+          )}
+        </div>
+      </div>
+
+      <PasswordStrength password={passwordVal} />
+
+      <div className="flex items-center space-x-2 pt-1 pb-1">
+        <input
+          type="checkbox"
+          id="acceptTerms"
+          {...register('acceptTerms')}
+          className="rounded border-border/50 bg-surface text-primary focus:ring-primary shadow-sm"
+        />
+        <label htmlFor="acceptTerms" className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
+          I accept the <span className="text-primary hover:underline">Terms of Service</span>
+        </label>
+      </div>
+      {errors.acceptTerms && (
+        <p className="text-xs text-destructive mt-1">{errors.acceptTerms.message}</p>
+      )}
+
+      <Button type="submit" className="w-full h-11 shadow-md shadow-primary/10" isLoading={isLoading}>
+        Create Account
+      </Button>
+
+      <GoogleAuthButton />
+    </motion.form>
+  )
+}
+
 const adminRegisterSchema = z.object({
   ...baseRegisterSchema,
   workspaceName: z.string().min(2, 'Workspace name is required'),

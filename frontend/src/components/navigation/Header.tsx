@@ -14,6 +14,7 @@ import { Badge } from '../common/Badge'
 import { NotificationBell } from '../common/NotificationBell'
 import { DemoRoleSwitcher } from './DemoRoleSwitcher'
 import { JoinAccessDialog } from './JoinAccessDialog'
+import { WorkspaceSelector } from './WorkspaceSelector'
 
 function HeaderChatTitle() {
   const activeSession = useChatStore((s) => s.activeSession)
@@ -110,7 +111,7 @@ export function Header() {
   const [isJoinAccessOpen, setIsJoinAccessOpen] = useState(false)
 
   const role = String(user?.role || '').trim().toLowerCase()
-  const isMemberOrViewer = Boolean(user && !['admin', 'owner', 'platform_admin'].includes(role))
+  const isMemberOrViewer = Boolean(user && (role === 'member' || role === 'viewer'))
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md shrink-0">
@@ -121,6 +122,7 @@ export function Header() {
         >
           <Menu className="h-4 w-4" />
         </button>
+        <WorkspaceSelector />
         {isChat ? (
           <HeaderChatTitle />
         ) : (

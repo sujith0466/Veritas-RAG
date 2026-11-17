@@ -1,12 +1,14 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useMemberStore } from '@/stores/memberStore'
+import { memberService } from '@/services/memberService'
 import { invitationService } from '@/services/invitationService'
 import { workspaceService } from '@/services/workspaceService'
 import { accessRequestService, AccessRequestData } from '@/services/accessRequestService'
 import type { WorkspaceInvitation } from '@/types/workspaceInvitation'
 import type { WorkspaceJoinAccessResponse } from '@/types'
+import type { WorkspaceMember } from '@/types/workspaceMember'
 import {
   Users,
   UserPlus,
@@ -38,12 +40,23 @@ import {
 
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
+import { useToast } from '@/hooks/useToast'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { Button } from '@/components/common/Button'
 import { Input } from '@/components/common/Input'
 import { Label } from '@/components/common/Label'
 import { Card } from '@/components/common/Card'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/common/Tooltip'
 import { cn } from '@/utils/cn'
+import { workspaceTransferService } from '@/services/workspaceTransferService'
+import type { OwnershipTransferResponse } from '@/types/workspaceTransfer'
+import { TransferPendingBanner } from '@/components/workspaces/TransferPendingBanner'
+import {
+  NominateOwnerModal,
+  AcceptTransferModal,
+  RejectTransferModal,
+  CancelTransferModal,
+} from '@/components/workspaces/TransferModals'
 
 interface ConfirmActionState {
   type:
@@ -96,11 +109,57 @@ const ROLE_DEFINITIONS = [
   },
 ]
 
+/**
+ * Safely match workspace member to current authenticated user.
+ * 1. Enforce strict workspace boundary when expectedWorkspaceId is provided:
+ *    reject if member.workspace_id is missing, null, undefined, empty, or does not match.
+ * 2. Prefer stable user ID foreign keys (member.user_id or member.user.id).
+ * 3. Fall back to email ONLY when member has no contradictory user_id.
+ * 4. Never match member.id === user.id (which conflates workspace_member PK with user PK).
+ */
+export const matchMemberIdentity = (
+  member: WorkspaceMember | null | undefined,
+  targetUser: { id?: string | null; email?: string | null } | null | undefined,
+  expectedWorkspaceId?: string | null
+): boolean => {
+  if (!member || !targetUser) return false
+
+  // 1. Enforce workspace boundary if expectedWorkspaceId is supplied
+  if (expectedWorkspaceId !== undefined && expectedWorkspaceId !== null && String(expectedWorkspaceId).trim() !== '') {
+    const normExpected = String(expectedWorkspaceId).trim()
+    const memberWsId = member.workspace_id ? String(member.workspace_id).trim() : ''
+    if (!memberWsId || memberWsId !== normExpected) {
+      return false
+    }
+  }
+
+  const memberUserId = member.user_id || member.user?.id
+
+  // 2. Authoritative: matching stable user ID
+  if (targetUser.id && memberUserId) {
+    return String(memberUserId).trim() === String(targetUser.id).trim()
+  }
+
+  // 3. Contradictory ID guard: if targetUser and member both have non-empty IDs that differ,
+  // do NOT match by email (prevents identity collision or hijacking)
+  if (targetUser.id && memberUserId && String(memberUserId).trim() !== String(targetUser.id).trim()) {
+    return false
+  }
+
+  // 4. Fallback: verified case-insensitive email match only when IDs do not contradict
+  if (targetUser.email && member.user?.email) {
+    return member.user.email.trim().toLowerCase() === targetUser.email.trim().toLowerCase()
+  }
+
+  return false
+}
+
 export const WorkspaceMembersPage: React.FC = () => {
   const { workspaceId: paramWorkspaceId } = useParams<{ workspaceId: string }>()
   const user = useAuthStore(s => s.user)
   const currentWorkspace = useWorkspaceStore(s => s.currentWorkspace)
   const shouldReduceMotion = useReducedMotion()
+  const { toast } = useToast()
 
   const workspaceId = paramWorkspaceId || currentWorkspace?.id || user?.workspace_id || user?.tenant_id || user?.workspace_name
   const {
@@ -156,8 +215,202 @@ export const WorkspaceMembersPage: React.FC = () => {
   const [submittingElevation, setSubmittingElevation] = useState<boolean>(false)
   const [elevationSuccess, setElevationSuccess] = useState<string | null>(null)
 
-  const isCurrentUserOwner = String(user?.role || '').trim().toUpperCase() === 'OWNER'
-  const isCurrentUserAdmin = ['OWNER', 'ADMIN'].includes(String(user?.role || '').trim().toUpperCase())
+  // Ownership Transfer state (Section 7 Batch 1)
+  const [activeTransfer, setActiveTransfer] = useState<OwnershipTransferResponse | null>(null)
+  const [, setLoadingActiveTransfer] = useState<boolean>(false)
+  const [nominateModalMember, setNominateModalMember] = useState<WorkspaceMember | null>(null)
+  const [isAcceptModalOpen, setIsAcceptModalOpen] = useState<boolean>(false)
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState<boolean>(false)
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState<boolean>(false)
+  const [isTransferActionExecuting, setIsTransferActionExecuting] = useState<boolean>(false)
+  const [transferError, setTransferError] = useState<string | null>(null)
+
+  // Authoritative workspace-specific caller membership state (cached per workspaceId + userId)
+  const [cachedCallerMember, setCachedCallerMember] = useState<{
+    workspaceId: string
+    userId: string
+    member: WorkspaceMember | null
+  } | null>(null)
+
+  const cachedCallerRef = useRef(cachedCallerMember)
+  cachedCallerRef.current = cachedCallerMember
+
+  // Invalidate cached role immediately if workspace or user identity changes
+  useEffect(() => {
+    setCachedCallerMember(prev => {
+      if (prev && (prev.workspaceId !== workspaceId || prev.userId !== user?.id)) {
+        return null
+      }
+      return prev
+    })
+  }, [workspaceId, user?.id])
+
+  // Synchronously match caller in the currently displayed members list if present and in this workspace
+  const memberInList = useMemo(() => {
+    if (!members || !user || !workspaceId) return null
+    return members.find(m => matchMemberIdentity(m, user, workspaceId)) || null
+  }, [members, user, workspaceId])
+
+  // Retain caller membership when discovered in list
+  useEffect(() => {
+    if (workspaceId && user?.id && memberInList) {
+      setCachedCallerMember(prev => {
+        if (
+          prev &&
+          prev.workspaceId === workspaceId &&
+          prev.userId === user.id &&
+          prev.member?.id === memberInList.id &&
+          prev.member?.role === memberInList.role &&
+          prev.member?.status === memberInList.status
+        ) {
+          return prev
+        }
+        return {
+          workspaceId,
+          userId: user.id,
+          member: memberInList,
+        }
+      })
+    }
+  }, [workspaceId, user?.id, memberInList])
+
+  // Fallback targeted fetch / revalidation for caller membership
+  useEffect(() => {
+    let isMounted = true
+    if (!workspaceId || !user?.id) return
+
+    // If caller is in displayed list for this workspace, it is handled by the memberInList effect
+    if (memberInList) return
+
+    // If unfiltered list has loaded and total <= members.length, absence is definitive proof of non-membership
+    if (!isLoading && !search && !roleFilter && total <= members.length) {
+      setCachedCallerMember(prev => {
+        if (prev && prev.workspaceId === workspaceId && prev.userId === user.id && prev.member === null) {
+          return prev
+        }
+        return {
+          workspaceId,
+          userId: user.id,
+          member: null,
+        }
+      })
+      return
+    }
+
+    const currentCache = cachedCallerRef.current
+    // If cachedCallerMember already matches current workspace & user AND has a resolved member,
+    // and a search/filter is active, keep the cached member to preserve UI affordances while filtering.
+    if (
+      currentCache &&
+      currentCache.workspaceId === workspaceId &&
+      currentCache.userId === user.id &&
+      currentCache.member !== null &&
+      (search || roleFilter)
+    ) {
+      return
+    }
+
+    // Otherwise, perform targeted lookup if list finished loading (or empty) or caller is unconfirmed
+    if (!isLoading) {
+      const query = user.email || user.id
+      if (query) {
+        memberService
+          .listMembers(workspaceId, { search: query, pageSize: 5 })
+          .then(res => {
+            if (!isMounted) return
+            const found =
+              res.items.find(
+                m =>
+                  String(m.workspace_id) === String(workspaceId) &&
+                  matchMemberIdentity(m, user, workspaceId)
+              ) || null
+            setCachedCallerMember(prev => {
+              if (
+                prev &&
+                prev.workspaceId === workspaceId &&
+                prev.userId === user.id &&
+                prev.member?.id === found?.id &&
+                prev.member?.role === found?.role &&
+                prev.member?.status === found?.status
+              ) {
+                return prev
+              }
+              return {
+                workspaceId,
+                userId: user.id,
+                member: found,
+              }
+            })
+          })
+          .catch(() => {
+            if (!isMounted) return
+            setCachedCallerMember(prev => {
+              if (prev && prev.workspaceId === workspaceId && prev.userId === user.id && prev.member === null) {
+                return prev
+              }
+              return {
+                workspaceId,
+                userId: user.id,
+                member: null,
+              }
+            })
+          })
+      }
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [
+    workspaceId,
+    user,
+    memberInList,
+    isLoading,
+    search,
+    roleFilter,
+    total,
+    members.length,
+  ])
+
+  // Active caller member strictly resolved within this workspace context
+  const currentMember = useMemo((): WorkspaceMember | null => {
+    if (!workspaceId || String(workspaceId).trim() === '' || !user) return null
+    const normWorkspaceId = String(workspaceId).trim()
+
+    if (
+      memberInList &&
+      memberInList.workspace_id &&
+      String(memberInList.workspace_id).trim() === normWorkspaceId
+    ) {
+      return memberInList
+    }
+    if (
+      cachedCallerMember &&
+      cachedCallerMember.member &&
+      cachedCallerMember.workspaceId === workspaceId &&
+      cachedCallerMember.userId === user?.id &&
+      cachedCallerMember.member.workspace_id &&
+      String(cachedCallerMember.member.workspace_id).trim() === normWorkspaceId
+    ) {
+      return cachedCallerMember.member
+    }
+    return null
+  }, [memberInList, cachedCallerMember, workspaceId, user])
+
+  const isCallerMember = Boolean(currentMember)
+  const isCallerActive = Boolean(currentMember && currentMember.status === 'ACTIVE')
+  const isCallerSuspended = Boolean(currentMember && currentMember.status === 'SUSPENDED')
+
+  // Effective role derived EXCLUSIVELY from active workspace membership in THIS workspace
+  const effectiveUserRole = useMemo(() => {
+    if (!isCallerActive || !currentMember) {
+      return ''
+    }
+    return String(currentMember.role || '').trim().toUpperCase()
+  }, [isCallerActive, currentMember])
+
+  const isCurrentUserOwner = effectiveUserRole === 'OWNER'
+  const isCurrentUserAdmin = ['OWNER', 'ADMIN'].includes(effectiveUserRole)
 
   // Prioritize currently authenticated user at top of active members list
   const sortedMembers = useMemo(() => {
@@ -165,19 +418,13 @@ export const WorkspaceMembersPage: React.FC = () => {
     if (!user) return members
 
     return [...members].sort((a, b) => {
-      const isA = Boolean(
-        (user.id && (a.user_id === user.id || a.id === user.id || a.user?.id === user.id)) ||
-        (user.email && a.user?.email && a.user.email.toLowerCase() === user.email.toLowerCase())
-      )
-      const isB = Boolean(
-        (user.id && (b.user_id === user.id || b.id === user.id || b.user?.id === user.id)) ||
-        (user.email && b.user?.email && b.user.email.toLowerCase() === user.email.toLowerCase())
-      )
+      const isA = matchMemberIdentity(a, user, workspaceId)
+      const isB = matchMemberIdentity(b, user, workspaceId)
       if (isA && !isB) return -1
       if (!isA && isB) return 1
       return 0
     })
-  }, [members, user])
+  }, [members, user, workspaceId])
 
   // Authoritative Join Credentials Fetcher
   const loadJoinCredentials = useCallback(async () => {
@@ -209,7 +456,7 @@ export const WorkspaceMembersPage: React.FC = () => {
 
   // Load Access Requests
   const loadAccessRequests = useCallback(async () => {
-    if (!workspaceId || !isCurrentUserAdmin) return
+    if (!workspaceId || !isCurrentUserAdmin || !isCallerActive) return
     try {
       setLoadingAccessRequests(true)
       const res = await accessRequestService.listRequests(workspaceId)
@@ -219,18 +466,18 @@ export const WorkspaceMembersPage: React.FC = () => {
     } finally {
       setLoadingAccessRequests(false)
     }
-  }, [workspaceId, isCurrentUserAdmin])
+  }, [workspaceId, isCurrentUserAdmin, isCallerActive])
 
   // Mount-time synchronous population of all counters
   useEffect(() => {
     if (workspaceId) {
       fetchMembers(workspaceId, { search, role: roleFilter || undefined })
       loadInvitations()
-      if (isCurrentUserAdmin) {
+      if (isCurrentUserAdmin && isCallerActive) {
         loadAccessRequests()
       }
     }
-  }, [workspaceId, search, roleFilter, fetchMembers, loadInvitations, loadAccessRequests, isCurrentUserAdmin])
+  }, [workspaceId, search, roleFilter, fetchMembers, loadInvitations, loadAccessRequests, isCurrentUserAdmin, isCallerActive])
 
   // Handle opening credentials tab
   useEffect(() => {
@@ -245,9 +492,10 @@ export const WorkspaceMembersPage: React.FC = () => {
     try {
       setSendingInvite(true)
       clearError()
+      const assignedRole = (!isCurrentUserOwner && inviteRole === 'ADMIN') ? 'MEMBER' : inviteRole
       await invitationService.sendInvitation(workspaceId, {
         email: inviteEmail,
-        role: inviteRole,
+        role: assignedRole,
         custom_message: inviteMessage || undefined,
       })
       setInviteSuccess(`Invitation sent to ${inviteEmail}`)
@@ -323,8 +571,98 @@ export const WorkspaceMembersPage: React.FC = () => {
     }
   }
 
+  // Ownership Transfer Handlers (Section 7 Batch 1)
+  const fetchActiveTransfer = useCallback(async () => {
+    if (!workspaceId) return
+    try {
+      setLoadingActiveTransfer(true)
+      const res = await workspaceTransferService.getActiveTransfer(workspaceId)
+      setActiveTransfer(res)
+    } catch {
+      setActiveTransfer(null)
+    } finally {
+      setLoadingActiveTransfer(false)
+    }
+  }, [workspaceId])
+
+  useEffect(() => {
+    fetchActiveTransfer()
+  }, [fetchActiveTransfer])
+
+  const handleNominateOwner = async (_memberId: string, nomineeUserId: string) => {
+    if (!workspaceId) return
+    try {
+      setIsTransferActionExecuting(true)
+      setTransferError(null)
+      await workspaceTransferService.nominateOwner(workspaceId, { nominee_user_id: nomineeUserId })
+      await fetchActiveTransfer()
+      setNominateModalMember(null)
+    } catch (err: any) {
+      console.error('Failed to nominate owner', err)
+      setTransferError(err?.response?.data?.detail || err?.message || 'Failed to nominate owner')
+    } finally {
+      setIsTransferActionExecuting(false)
+    }
+  }
+
+  const handleAcceptTransfer = async () => {
+    if (!workspaceId || !activeTransfer) return
+    try {
+      setIsTransferActionExecuting(true)
+      setTransferError(null)
+      await workspaceTransferService.acceptTransfer(workspaceId, activeTransfer.id)
+      await fetchActiveTransfer()
+      await fetchMembers(workspaceId)
+      setIsAcceptModalOpen(false)
+    } catch (err: any) {
+      console.error('Failed to accept transfer', err)
+      setTransferError(err?.response?.data?.detail || err?.message || 'Failed to accept ownership transfer')
+    } finally {
+      setIsTransferActionExecuting(false)
+    }
+  }
+
+  const handleRejectTransfer = async (reason?: string) => {
+    if (!workspaceId || !activeTransfer) return
+    try {
+      setIsTransferActionExecuting(true)
+      setTransferError(null)
+      await workspaceTransferService.rejectTransfer(workspaceId, activeTransfer.id, { rejection_reason: reason })
+      await fetchActiveTransfer()
+      setIsRejectModalOpen(false)
+    } catch (err: any) {
+      console.error('Failed to reject transfer', err)
+      setTransferError(err?.response?.data?.detail || err?.message || 'Failed to decline ownership transfer')
+    } finally {
+      setIsTransferActionExecuting(false)
+    }
+  }
+
+  const handleCancelTransfer = async () => {
+    if (!workspaceId || !activeTransfer) return
+    try {
+      setIsTransferActionExecuting(true)
+      setTransferError(null)
+      await workspaceTransferService.cancelTransfer(workspaceId, activeTransfer.id)
+      await fetchActiveTransfer()
+      setIsCancelModalOpen(false)
+    } catch (err: any) {
+      console.error('Failed to cancel transfer', err)
+      setTransferError(err?.response?.data?.detail || err?.message || 'Failed to cancel ownership transfer')
+    } finally {
+      setIsTransferActionExecuting(false)
+    }
+  }
+
   const handleToggleSelectAll = () => {
-    const selectable = members.filter(m => m.role !== 'OWNER' && m.user_id !== user?.id).map(m => m.id)
+    const selectable = members
+      .filter(m => {
+        if (m.role === 'OWNER') return false
+        if (matchMemberIdentity(m, user, workspaceId)) return false
+        if (!isCurrentUserOwner && (m.role || '').toUpperCase() === 'ADMIN') return false
+        return true
+      })
+      .map(m => m.id)
     if (selectedMembers.length === selectable.length && selectable.length > 0) {
       setSelectedMembers([])
     } else {
@@ -383,7 +721,7 @@ export const WorkspaceMembersPage: React.FC = () => {
   )
 
   const pendingRequestsCount = useMemo(
-    () => accessRequests.filter(r => r.status === 'PENDING').length,
+    () => (accessRequests || []).filter(r => r.status === 'PENDING').length,
     [accessRequests]
   )
 
@@ -413,10 +751,24 @@ export const WorkspaceMembersPage: React.FC = () => {
       case 'VIEWER':
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-mono font-medium bg-slate-500/10 text-slate-400 border border-slate-500/25">
-            <Eye className="h-3 w-3" />
-            VIEWER
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  tabIndex={0}
+                  title="Legacy read-only access. New VIEWER assignments are deprecated."
+                  aria-label="VIEWER: Legacy read-only access. New VIEWER assignments are deprecated."
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-2xs font-mono font-medium bg-slate-500/10 text-slate-400 border border-slate-500/25 cursor-help"
+                >
+                  <Eye className="h-3 w-3" />
+                  VIEWER
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Legacy read-only access. New VIEWER assignments are deprecated.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )
     }
   }
@@ -439,7 +791,7 @@ export const WorkspaceMembersPage: React.FC = () => {
               <span>Role Permissions</span>
               <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', showRoleGuide && 'rotate-180')} />
             </Button>
-            {!isCurrentUserAdmin && (
+            {!isCurrentUserAdmin && !isCallerSuspended && isCallerMember && (
               <Button
                 variant="outline"
                 size="sm"
@@ -450,7 +802,7 @@ export const WorkspaceMembersPage: React.FC = () => {
                 <span>Request to Admin</span>
               </Button>
             )}
-            {isCurrentUserAdmin && (
+            {isCurrentUserAdmin && isCallerActive && (
               <Button onClick={() => setIsInviteModalOpen(true)} className="flex items-center gap-2 shadow-xs" size="sm">
                 <UserPlus className="h-4 w-4" />
                 <span>Invite Team Member</span>
@@ -459,6 +811,67 @@ export const WorkspaceMembersPage: React.FC = () => {
           </div>
         }
       />
+
+      {/* Suspended Membership Warning Banner */}
+      {isCallerSuspended && (
+        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-500 text-sm animate-in fade-in">
+          <Ban className="h-5 w-5 shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold">Workspace Access Suspended:</span> Your membership seat in this workspace is currently suspended. Administrative actions, invitations, and member role adjustments are disabled.
+          </div>
+        </div>
+      )}
+
+      {/* Ownership Transfer Banner (Section 7 Batch 1 & 2) */}
+      {activeTransfer && (
+        <TransferPendingBanner
+          transfer={activeTransfer}
+          currentUserId={user?.id || ''}
+          isOwner={isCurrentUserOwner && isCallerActive}
+          onAccept={() => setIsAcceptModalOpen(true)}
+          onReject={() => setIsRejectModalOpen(true)}
+          onCancel={() => setIsCancelModalOpen(true)}
+          onFormerOwnerChoice={async (choice) => {
+            if (!workspaceId || !activeTransfer) return;
+            try {
+              const updated = await workspaceTransferService.submitFormerOwnerChoice(workspaceId, activeTransfer.id, { choice });
+              setActiveTransfer(updated);
+              toast({ title: 'Success', message: `Choice recorded: ${choice}`, type: 'success' });
+              fetchMembers(workspaceId);
+            } catch (err: any) {
+              toast({ title: 'Error', message: err?.message || 'Failed to submit choice', type: 'error' });
+            }
+          }}
+          onRoleDecision={async (decision) => {
+            if (!workspaceId || !activeTransfer) return;
+            try {
+              const updated = await workspaceTransferService.decideFormerOwnerRole(workspaceId, activeTransfer.id, { decision });
+              setActiveTransfer(updated);
+              toast({ title: 'Success', message: `Role assigned: ${decision}`, type: 'success' });
+              fetchMembers(workspaceId);
+            } catch (err: any) {
+              toast({ title: 'Error', message: err?.message || 'Failed to record role decision', type: 'error' });
+            }
+          }}
+        />
+      )}
+
+      {/* Transfer Action Error Notification */}
+      {transferError && (
+        <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/25 flex items-center justify-between text-destructive text-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>{transferError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTransferError(null)}
+            className="text-destructive/80 hover:text-destructive cursor-pointer"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Role Authority & Permissions Guide Panel */}
       <AnimatePresence>
@@ -576,7 +989,7 @@ export const WorkspaceMembersPage: React.FC = () => {
           <Mail className="h-4 w-4" />
           <span>Pending Invitations ({invitations.length})</span>
         </button>
-        {isCurrentUserAdmin && (
+        {isCurrentUserAdmin && isCallerActive && (
           <button
             onClick={() => setActiveTab('requests')}
             className={cn(
@@ -639,7 +1052,7 @@ export const WorkspaceMembersPage: React.FC = () => {
               </select>
             </div>
 
-            {selectedMembers.length > 0 && isCurrentUserAdmin && (
+            {selectedMembers.length > 0 && isCurrentUserAdmin && isCallerActive && (
               <div className="flex items-center gap-2 text-xs font-medium pl-2 sm:border-l sm:border-border">
                 <span className="text-muted-foreground font-mono text-2xs">{selectedMembers.length} selected:</span>
                 <Button
@@ -676,12 +1089,18 @@ export const WorkspaceMembersPage: React.FC = () => {
               <thead>
                 <tr className="border-b border-border/80 bg-muted/40 text-2xs uppercase tracking-wider font-semibold text-muted-foreground font-mono">
                   <th scope="col" className="p-3.5 w-10">
-                    {isCurrentUserAdmin && (
+                    {isCurrentUserAdmin && isCallerActive && (
                       <input
                         type="checkbox"
                         checked={
                           selectedMembers.length > 0 &&
-                          selectedMembers.length === members.filter(m => m.role !== 'OWNER' && m.user_id !== user?.id).length
+                          selectedMembers.length ===
+                            members.filter(m => {
+                              if (m.role === 'OWNER') return false
+                              if (matchMemberIdentity(m, user, workspaceId)) return false
+                              if (!isCurrentUserOwner && (m.role || '').toUpperCase() === 'ADMIN') return false
+                              return true
+                            }).length
                         }
                         onChange={handleToggleSelectAll}
                         className="rounded border-input bg-background text-primary focus:ring-primary cursor-pointer"
@@ -729,13 +1148,11 @@ export const WorkspaceMembersPage: React.FC = () => {
                 ) : (
                   sortedMembers.map(member => {
                     const isOwner = member.role === 'OWNER'
+                    const isPeerAdmin = (member.role || '').toUpperCase() === 'ADMIN' && !isCurrentUserOwner
                     const isSuspended = member.status === 'SUSPENDED'
                     const displayName = member.user?.display_name || member.user?.username || ''
                     const email = member.user?.email || member.user_id
-                    const isCurrentUser = Boolean(
-                      (user?.id && (member.user_id === user.id || member.id === user.id || member.user?.id === user.id)) ||
-                      (user?.email && member.user?.email && member.user.email.toLowerCase() === user.email.toLowerCase())
-                    )
+                    const isCurrentUser = matchMemberIdentity(member, user, workspaceId)
 
                     return (
                       <tr
@@ -748,7 +1165,7 @@ export const WorkspaceMembersPage: React.FC = () => {
                         )}
                       >
                         <td className="p-3.5">
-                          {!isOwner && !isCurrentUser && isCurrentUserAdmin ? (
+                          {!isOwner && !isCurrentUser && isCurrentUserAdmin && isCallerActive && !isPeerAdmin ? (
                             <input
                               type="checkbox"
                               checked={selectedMembers.includes(member.id)}
@@ -758,6 +1175,10 @@ export const WorkspaceMembersPage: React.FC = () => {
                           ) : isOwner ? (
                             <div className="h-4 w-4 flex items-center justify-center text-amber-500/60" title="Owner cannot be bulk-managed">
                               <Crown className="h-3 w-3" />
+                            </div>
+                          ) : isPeerAdmin ? (
+                            <div className="h-4 w-4 flex items-center justify-center text-indigo-400/60" title="Administrator cannot be bulk-managed by peer admin">
+                              <ShieldCheck className="h-3 w-3" />
                             </div>
                           ) : (
                             <div className="h-4 w-4" />
@@ -798,20 +1219,36 @@ export const WorkspaceMembersPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-3.5">
-                          {isOwner || isCurrentUser || !isCurrentUserAdmin ? (
-                            getRoleBadge(member.role)
-                          ) : (
-                            <select
-                              value={member.role}
-                              onChange={e => workspaceId && updateRole(workspaceId, member.id, e.target.value)}
-                              className="border border-border/80 rounded-md px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary bg-background cursor-pointer"
-                              title="Update member role"
-                            >
-                              {isCurrentUserOwner && <option value="ADMIN">ADMIN</option>}
-                              <option value="MEMBER">MEMBER</option>
-                              <option value="VIEWER">VIEWER</option>
-                            </select>
-                          )}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isOwner || isCurrentUser || !isCurrentUserAdmin || !isCallerActive || isPeerAdmin ? (
+                              getRoleBadge(member.role)
+                            ) : (
+                              <select
+                                value={member.role}
+                                onChange={e => workspaceId && updateRole(workspaceId, member.id, e.target.value)}
+                                className="border border-border/80 rounded-md px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary bg-background cursor-pointer"
+                                title="Update member role"
+                                aria-label={`Role for ${displayName || email}`}
+                              >
+                                {(member.role as string) === 'VIEWER' && (
+                                  <option value="VIEWER" disabled>VIEWER (Legacy)</option>
+                                )}
+                                {(isCurrentUserOwner || (isCurrentUserAdmin && member.role === 'MEMBER')) && (
+                                  <option value="ADMIN">ADMIN</option>
+                                )}
+                                <option value="MEMBER">MEMBER</option>
+                              </select>
+                            )}
+                            {member.is_former_owner && (
+                              <span
+                                data-testid={`former-owner-badge-${member.id}`}
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-mono font-medium bg-amber-500/10 text-amber-500 border border-amber-500/30"
+                                title="Former Workspace Owner (zero elevated privileges)"
+                              >
+                                Former Owner
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3.5">
                           <span
@@ -830,7 +1267,14 @@ export const WorkspaceMembersPage: React.FC = () => {
                           {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'N/A'}
                         </td>
                         <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
-                          {isCurrentUser && !isOwner ? (
+                          {isCurrentUser && isOwner ? (
+                            <span
+                              className="text-2xs text-muted-foreground/60 italic font-mono pr-2"
+                              title="Workspace owners cannot leave the workspace. You must transfer workspace ownership to another member before departing."
+                            >
+                              Protected
+                            </span>
+                          ) : isCurrentUser && !isOwner ? (
                             <button
                               onClick={() =>
                                 setConfirmAction({
@@ -845,8 +1289,52 @@ export const WorkspaceMembersPage: React.FC = () => {
                               <LogOut className="h-3.5 w-3.5" />
                               <span>Leave</span>
                             </button>
-                          ) : !isOwner && !isCurrentUser && isCurrentUserAdmin ? (
+                          ) : !isOwner && !isCurrentUser && isCurrentUserAdmin && isCallerActive && !isPeerAdmin ? (
                             <>
+                              {isCurrentUserOwner && isCallerActive && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <button
+                                          onClick={() => setNominateModalMember(member)}
+                                          disabled={
+                                            Boolean(activeTransfer && activeTransfer.status === 'PENDING') ||
+                                            member.status !== 'ACTIVE' ||
+                                            (member.role as string) === 'VIEWER'
+                                          }
+                                          title={
+                                            activeTransfer && activeTransfer.status === 'PENDING'
+                                              ? 'A pending ownership transfer already exists.'
+                                              : member.status !== 'ACTIVE'
+                                              ? 'Only active members can be nominated.'
+                                              : (member.role as string) === 'VIEWER'
+                                              ? 'VIEWER cannot be nominated for ownership.'
+                                              : 'Transfer Workspace Ownership'
+                                          }
+                                          className="p-1.5 rounded-md text-muted-foreground hover:text-amber-500 hover:bg-muted transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                          data-testid={`transfer-ownership-${member.id}`}
+                                        >
+                                          <Crown className="h-4 w-4" />
+                                        </button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    {Boolean(activeTransfer && activeTransfer.status === 'PENDING') ? (
+                                      <TooltipContent>
+                                        <p>A pending ownership transfer already exists.</p>
+                                      </TooltipContent>
+                                    ) : member.status !== 'ACTIVE' ? (
+                                      <TooltipContent>
+                                        <p>Only active members can be nominated.</p>
+                                      </TooltipContent>
+                                    ) : (member.role as string) === 'VIEWER' ? (
+                                      <TooltipContent>
+                                        <p>VIEWER cannot be nominated for ownership.</p>
+                                      </TooltipContent>
+                                    ) : null}
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                               {member.status === 'ACTIVE' ? (
                                 <button
                                   onClick={() =>
@@ -936,49 +1424,54 @@ export const WorkspaceMembersPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  invitations.map(inv => (
-                    <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3.5 font-medium text-foreground text-sm font-mono">
-                        {inv.email}
-                      </td>
-                      <td className="p-3.5">{getRoleBadge(inv.role)}</td>
-                      <td className="p-3.5">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold font-mono border bg-amber-500/10 text-amber-500 border-amber-500/20">
-                          <Clock className="h-3 w-3" />
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-xs text-muted-foreground font-mono">
-                        {inv.expires_at ? new Date(inv.expires_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
-                        {inv.status === 'PENDING' && isCurrentUserAdmin && (
-                          <>
-                            <button
-                              onClick={() => handleResendInvitation(inv.id)}
-                              title="Resend Invitation Email"
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors cursor-pointer"
-                            >
-                              <RotateCw className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() =>
-                                setConfirmAction({
-                                  type: 'revoke_invite',
-                                  invitationId: inv.id,
-                                  invitationEmail: inv.email,
-                                })
-                              }
-                              title="Revoke Invitation"
-                              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-muted transition-colors cursor-pointer"
-                            >
-                              <Ban className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  invitations.map(inv => {
+                    const isPeerAdminInvite = (inv.role || '').toUpperCase() === 'ADMIN' && !isCurrentUserOwner
+                    return (
+                      <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-3.5 font-medium text-foreground text-sm font-mono">
+                          {inv.email || 'Reusable Invitation Link'}
+                        </td>
+                        <td className="p-3.5">{getRoleBadge(inv.role)}</td>
+                        <td className="p-3.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold font-mono border bg-amber-500/10 text-amber-500 border-amber-500/20">
+                            <Clock className="h-3 w-3" />
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="p-3.5 text-xs text-muted-foreground font-mono">
+                          {inv.expires_at ? new Date(inv.expires_at).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                          {inv.status === 'PENDING' && isCurrentUserAdmin && isCallerActive && !isPeerAdminInvite ? (
+                            <>
+                              <button
+                                onClick={() => handleResendInvitation(inv.id)}
+                                title="Resend Invitation Email"
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors cursor-pointer"
+                              >
+                                <RotateCw className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setConfirmAction({
+                                    type: 'revoke_invite',
+                                    invitationId: inv.id,
+                                    invitationEmail: inv.email || 'Reusable Link',
+                                  })
+                                }
+                                title="Revoke Invitation"
+                                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-muted transition-colors cursor-pointer"
+                              >
+                                <Ban className="h-4 w-4" />
+                              </button>
+                            </>
+                          ) : isPeerAdminInvite ? (
+                            <span className="text-2xs text-muted-foreground/60 italic font-mono pr-2">Protected</span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
@@ -987,7 +1480,7 @@ export const WorkspaceMembersPage: React.FC = () => {
       )}
 
       {/* TAB 3: ACCESS REQUESTS (Admin/Owner) */}
-      {activeTab === 'requests' && isCurrentUserAdmin && (
+      {activeTab === 'requests' && isCurrentUserAdmin && isCallerActive && (
         <div className="space-y-4">
           <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-xs">
             <table className="w-full text-left border-collapse">
@@ -1338,7 +1831,6 @@ export const WorkspaceMembersPage: React.FC = () => {
                         >
                           {isCurrentUserOwner && <option value="ADMIN">ADMIN — Workspace Management & Quota Authority</option>}
                           <option value="MEMBER">MEMBER — Retrieval, Generation, and Document Ingestion</option>
-                          <option value="VIEWER">VIEWER — Read-Only Observability & History</option>
                         </select>
                       </div>
 
@@ -1555,6 +2047,36 @@ export const WorkspaceMembersPage: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Ownership Transfer Modals (Section 7 Batch 1) */}
+      <NominateOwnerModal
+        isOpen={Boolean(nominateModalMember)}
+        member={nominateModalMember}
+        onClose={() => setNominateModalMember(null)}
+        onConfirm={handleNominateOwner}
+        isLoading={isTransferActionExecuting}
+      />
+      <AcceptTransferModal
+        isOpen={isAcceptModalOpen}
+        transfer={activeTransfer}
+        onClose={() => setIsAcceptModalOpen(false)}
+        onConfirm={handleAcceptTransfer}
+        isLoading={isTransferActionExecuting}
+      />
+      <RejectTransferModal
+        isOpen={isRejectModalOpen}
+        transfer={activeTransfer}
+        onClose={() => setIsRejectModalOpen(false)}
+        onConfirm={handleRejectTransfer}
+        isLoading={isTransferActionExecuting}
+      />
+      <CancelTransferModal
+        isOpen={isCancelModalOpen}
+        transfer={activeTransfer}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={handleCancelTransfer}
+        isLoading={isTransferActionExecuting}
+      />
     </div>
   )
 }

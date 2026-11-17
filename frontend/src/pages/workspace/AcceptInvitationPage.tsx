@@ -136,12 +136,14 @@ export const AcceptInvitationPage: React.FC = () => {
                   {invitationData.role}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Invited Email</span>
-                <span className="text-slate-300 font-mono text-xs">
-                  {invitationData.email}
-                </span>
-              </div>
+              {invitationData.email && (
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Invited Email</span>
+                  <span className="text-slate-300 font-mono text-xs">
+                    {invitationData.email}
+                  </span>
+                </div>
+              )}
               {invitationData.inviter_email && (
                 <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>Invited By</span>

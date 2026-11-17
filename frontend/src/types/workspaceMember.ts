@@ -4,7 +4,10 @@
 
 export type MemberStatus = 'ACTIVE' | 'SUSPENDED' | 'LEFT';
 
-export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | 'ENGINEER' | 'ANALYST' | string;
+export type WorkspaceRole = 'OWNER' | 'ADMIN' | 'MEMBER';
+export type AssignableWorkspaceRole = 'ADMIN' | 'MEMBER';
+export type LegacyWorkspaceRole = 'VIEWER';
+export type AnyWorkspaceRole = WorkspaceRole | LegacyWorkspaceRole;
 
 export interface WorkspaceMemberUser {
   id: string;
@@ -21,6 +24,7 @@ export interface WorkspaceMember {
   user_id: string;
   role: WorkspaceRole;
   status: MemberStatus | string;
+  is_former_owner?: boolean;
   invited_by_user_id?: string | null;
   joined_at?: string | null;
   last_active_at?: string | null;

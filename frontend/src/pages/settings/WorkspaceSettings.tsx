@@ -101,6 +101,7 @@ export function WorkspaceSettings() {
   const workspaceId = user?.workspace_id || user?.tenant_id || currentWorkspace?.id || ''
   const role = String(user?.role || '').trim().toLowerCase()
   const isAuthorizedAdmin = ['admin', 'owner', 'platform_admin'].includes(role)
+  const isOwner = role === 'owner'
   const canExport = isAuthorizedAdmin
 
   useEffect(() => {
@@ -554,19 +555,24 @@ export function WorkspaceSettings() {
         }
 
         try {
-          const res = await workspaceSettingsService.patchSettings(
-            workspaceId,
-            expectedUpdatedAt,
-            {
-              general: {
-                retention_days: retentionDays,
-              },
+          const patchPayload: Record<string, any> = {}
+          if (isOwner) {
+            patchPayload.general = {
+              retention_days: retentionDays,
             }
-          )
-          const patchData = (res as any)?.data || res
-          if (patchData) {
-            setSettingsData(patchData)
-            setExpectedUpdatedAt(patchData.updated_at || '')
+          }
+
+          if (Object.keys(patchPayload).length > 0) {
+            const res = await workspaceSettingsService.patchSettings(
+              workspaceId,
+              expectedUpdatedAt,
+              patchPayload
+            )
+            const patchData = (res as any)?.data || res
+            if (patchData) {
+              setSettingsData(patchData)
+              setExpectedUpdatedAt(patchData.updated_at || '')
+            }
           }
         } catch (patchErr: any) {
           if (patchErr?.response?.status === 409 || patchErr?.status === 409) {
@@ -1180,8 +1186,10 @@ export function WorkspaceSettings() {
                           onChange={e => setJoinCodeForm(prev => ({ ...prev, default_role: e.target.value as any }))}
                           className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
                         >
+                          {joinCodeForm.default_role === 'VIEWER' && (
+                            <option value="VIEWER" disabled>VIEWER (Legacy - Read-Only Access)</option>
+                          )}
                           <option value="MEMBER">MEMBER (Standard Access)</option>
-                          <option value="VIEWER">VIEWER (Read-Only Access)</option>
                         </select>
                       </div>
 
@@ -1254,14 +1262,18 @@ export function WorkspaceSettings() {
                   name="retention_policy"
                   value={formData.retention_policy}
                   onChange={handleChange}
-                  className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  disabled={!isOwner}
+                  className={`w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${!isOwner ? 'opacity-60 cursor-not-allowed bg-muted/20' : ''}`}
                 >
                   <option value="30">30 Days</option>
                   <option value="90">90 Days</option>
                   <option value="180">180 Days</option>
                   <option value="365">1 Year (365 Days)</option>
                 </select>
-                <p className="text-2xs text-muted-foreground">Knowledge documents, vector embeddings, and chat interactions will be permanently deleted after this duration. System audit logs remain preserved immutably (WORM compliant).</p>
+                <p className="text-2xs text-muted-foreground">
+                  Knowledge documents, vector embeddings, and chat interactions will be permanently deleted after this duration. System audit logs remain preserved immutably (WORM compliant).
+                  {!isOwner && <span className="block text-amber-500 font-medium mt-1">Note: Only the workspace Owner can modify data retention policies.</span>}
+                </p>
               </div>
 
               {settingsData && (

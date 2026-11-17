@@ -80,19 +80,35 @@ export interface JoinCodeSettingsPatchPayload {
   expires_in_days?: number | null;
 }
 
+export type MemberAccessStatus =
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'REVOKED'
+  | 'CREATOR_INELIGIBLE'
+  | 'NO_ATTRIBUTION'
+  | 'NO_CODE_CONFIGURED'
+  | 'ADMIN_MANAGEMENT_REQUIRED'
+  | 'ATTRIBUTION_CONFLICT'
+  | 'VIEWER_RESTRICTED'
+  | 'ROLE_NOT_AUTHORIZED';
+
 /**
- * Server-authoritative read-only join access response for authenticated workspace members (WS-D).
+ * Server-authoritative read-only join access response for authenticated workspace members (WS-D / V1.7).
  */
 export interface WorkspaceJoinAccessResponse {
   success: boolean;
+  status?: MemberAccessStatus;
   workspace_id: string;
   public_id?: string | null;
   workspace_name: string;
-  has_active_code: boolean;
+  has_active_code?: boolean;
+  creator_name?: string | null;
   join_code?: string | null;
   join_link?: string | null;
+  code_display?: string | null;
   expires_at?: string | null;
   default_role?: string;
+  message?: string;
 }
 
 /**

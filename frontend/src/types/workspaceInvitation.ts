@@ -9,12 +9,13 @@ export type InvitationStatus =
   | 'EXPIRED'
   | 'CANCELED';
 
-export type WorkspaceRole = 'ADMIN' | 'MEMBER' | 'VIEWER';
+export type WorkspaceRole = 'ADMIN' | 'MEMBER';
+export type WorkspaceInvitationRole = 'ADMIN' | 'MEMBER';
 
 export interface WorkspaceInvitation {
   id: string;
   workspace_id: string;
-  email: string;
+  email?: string | null;
   role: WorkspaceRole | string;
   status: InvitationStatus;
   invited_by_user_id?: string | null;
@@ -30,7 +31,7 @@ export interface WorkspaceInvitation {
 }
 
 export interface SendInvitationPayload {
-  email: string;
+  email?: string | null;
   role?: WorkspaceRole | string;
   custom_message?: string;
 }
@@ -43,7 +44,7 @@ export interface VerifyInvitationData {
   invitation_id: string;
   workspace_id: string;
   workspace_name: string;
-  email: string;
+  email?: string | null;
   role: string;
   inviter_email?: string | null;
   expires_at: string;

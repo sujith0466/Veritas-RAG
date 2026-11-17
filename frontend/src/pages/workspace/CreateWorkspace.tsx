@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Building2, Sparkles, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 
 export const CreateWorkspace: React.FC = () => {
   const navigate = useNavigate();
   const { createWorkspace, isLoading, error, clearError } = useWorkspaceStore();
+  const user = useAuthStore((s) => s.user);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,6 +80,18 @@ export const CreateWorkspace: React.FC = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-slate-900 border border-slate-800 py-8 px-6 shadow-2xl rounded-2xl sm:px-10 backdrop-blur-xl">
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Authenticated Identity Attribution (Read-Only) */}
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800/80 flex items-center justify-between text-xs" data-testid="authenticated-identity-badge">
+              <div className="text-slate-400">
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">Workspace Owner Identity</span>
+                <span className="font-medium text-slate-200">{user?.full_name || 'Authenticated User'}</span>
+                <span className="text-slate-400 ml-1.5 font-mono text-[11px]">({user?.email || 'unknown@domain.com'})</span>
+              </div>
+              <div className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-indigo-950/70 border border-indigo-800/40 text-indigo-400">
+                OWNER
+              </div>
+            </div>
+
             {activeError && (
               <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/50 flex items-start space-x-3 text-red-200">
                 <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />

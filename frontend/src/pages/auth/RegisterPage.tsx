@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { RoleSelector, AuthBranding, AdminRegisterForm, UserRegisterForm, type AIAssistantState } from '@/components/auth'
-import { ArrowLeft, MailCheck } from 'lucide-react'
+import { AuthBranding, IdentityRegisterForm, type AIAssistantState } from '@/components/auth'
+import { MailCheck, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react'
 
 export function RegisterPage() {
-  const [searchParams] = useSearchParams()
-  const initialRole = (searchParams.get('role') as 'admin' | 'viewer' | null) || null
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'viewer' | null>(initialRole)
   const [aiState, setAiState] = useState<AIAssistantState>('idle')
   const [isSuccess, setIsSuccess] = useState(false)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const roleParam = searchParams.get('role')
+  const isAdminRegistration = roleParam === 'admin'
 
   const handleFocusChange = (field: 'email' | 'password' | 'password_visible' | 'idle') => {
     if (isSuccess || aiState === 'loading' || aiState === 'error') return
@@ -33,8 +33,7 @@ export function RegisterPage() {
   }
 
   const handleLoaderComplete = () => {
-    // F2.1: We do not navigate to dashboard immediately because we require email verification
-    // Navigation/Login flows are handled in subsequent features.
+    // Navigate to login after registration email dispatch
     navigate('/auth/login')
   }
 
@@ -70,65 +69,92 @@ export function RegisterPage() {
                 </button>
               </div>
             </motion.div>
-          ) : !selectedRole ? (
-            <motion.div
-              key="selector"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="w-full"
-            >
-              <RoleSelector mode="register" onSelect={setSelectedRole} />
-
-              <div className="text-center text-sm mt-6">
-                <span className="text-muted-foreground">Already have an account? </span>
-                <Link
-                  to="/auth/login"
-                  className="font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
-                >
-                  Sign in
-                </Link>
-              </div>
-            </motion.div>
           ) : (
             <motion.div
               key="form"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               className="w-full"
             >
-              <button
-                onClick={() => setSelectedRole(null)}
-                className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to roles
-              </button>
-
-              <div className="space-y-1.5 mb-5">
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                  {selectedRole === 'admin' ? 'Admin Registration' : 'User Registration'}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {selectedRole === 'admin'
-                    ? 'Enter your details to create a new workspace'
-                    : 'Enter your details and invitation code to join'}
-                </p>
-              </div>
-
-              {selectedRole === 'admin' ? (
-                <AdminRegisterForm
-                  onFocusChange={handleFocusChange}
-                  onSuccess={handleSuccess}
-                  onError={handleError}
-                />
+              {isAdminRegistration ? (
+                <div className="space-y-1.5 mb-5">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary mb-1">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>Administrator Registration</span>
+                  </div>
+                  <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                    Create admin account
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Register your identity to provision a new workspace as an administrator.
+                  </p>
+                </div>
               ) : (
-                <UserRegisterForm
-                  onFocusChange={handleFocusChange}
-                  onSuccess={handleSuccess}
-                  onError={handleError}
-                />
+                <div className="space-y-3 mb-5">
+                  <div className="space-y-1.5">
+                    <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                      Create your account
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Register your individual identity to access Veritas RAG.
+                    </p>
+                  </div>
+
+                  {/* Explanatory Notice Banner for Regular Registration */}
+                  <div
+                    role="alert"
+                    aria-label="workspace-creation-notice"
+                    className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3.5 text-sm text-amber-900 dark:text-amber-200"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div className="space-y-2">
+                        <div>
+                          <p className="font-medium text-amber-800 dark:text-amber-300">
+                            Workspace creation is not supported through regular user registration.
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Regular registration creates an individual user identity only and cannot create or register a workspace. To provision a workspace as an administrator, proceed to Admin Registration.
+                          </p>
+                        </div>
+                        <div className="pt-1 flex flex-wrap gap-2 items-center">
+                          <Link
+                            to="/auth/register?role=admin"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                          >
+                            <span>Register as Admin to Create Workspace</span>
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </Link>
+                          <Link
+                            to="/workspaces/join"
+                            className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+                          >
+                            Joining an existing workspace?
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <IdentityRegisterForm
+                onFocusChange={handleFocusChange}
+                onSuccess={handleSuccess}
+                onError={handleError}
+              />
+
+              {isAdminRegistration && (
+                <div className="text-center text-xs text-muted-foreground mt-3">
+                  Looking for regular user registration?{' '}
+                  <Link
+                    to="/auth/register"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    Switch to Regular Registration
+                  </Link>
+                </div>
               )}
 
               <div className="text-center text-sm mt-5">

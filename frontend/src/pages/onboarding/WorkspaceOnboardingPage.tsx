@@ -135,7 +135,7 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
             Workspace Onboarding
           </h1>
           <p className="text-sm sm:text-base text-slate-400 max-w-lg mx-auto">
-            You do not currently have an active workspace session. Choose an option below to enter Veritas RAG.
+            Your account is authenticated, but you are not yet part of a workspace. Create a new workspace or join an existing one to continue.
           </p>
         </div>
 
