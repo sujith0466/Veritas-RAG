@@ -372,7 +372,7 @@ async def test_patch_join_code_settings(
 
     patch_req = JoinCodeSettingsPatchRequest(
         enabled=False,
-        default_role="VIEWER",
+        default_role="MEMBER",
         require_approval=True,
         max_uses=25,
     )
@@ -387,10 +387,14 @@ async def test_patch_join_code_settings(
         )
 
     assert res.enabled is False
-    assert res.default_role == "VIEWER"
+    assert res.default_role == "MEMBER"
     assert res.require_approval is True
     assert res.max_uses == 25
     assert res.current_uses == 3
+
+    # Prohibit setting VIEWER as default role
+    with pytest.raises(Exception):
+        JoinCodeSettingsPatchRequest(default_role="VIEWER")
 
     mock_redis.delete.assert_called_once_with(f"workspace:{workspace_id}:settings")
 
@@ -663,7 +667,7 @@ async def test_reject_elevated_role_in_join_code(
         workspace_id=workspace_id, user_id=actor_id, role="OWNER"
     )
 
-    with pytest.raises(ValueError, match="Default role must be 'MEMBER' or 'VIEWER'"):
+    with pytest.raises(ValueError, match="Default role must be 'MEMBER'"):
         await join_code_service.generate_new_join_code(
             mock_session,
             workspace_id=workspace_id,
@@ -671,12 +675,20 @@ async def test_reject_elevated_role_in_join_code(
             default_role="OWNER",
         )
 
-    with pytest.raises(ValueError, match="Default role must be 'MEMBER' or 'VIEWER'"):
+    with pytest.raises(ValueError, match="Default role must be 'MEMBER'"):
         await join_code_service.generate_new_join_code(
             mock_session,
             workspace_id=workspace_id,
             user_id=actor_id,
             default_role="ADMIN",
+        )
+
+    with pytest.raises(ValueError, match="Default role must be 'MEMBER'"):
+        await join_code_service.generate_new_join_code(
+            mock_session,
+            workspace_id=workspace_id,
+            user_id=actor_id,
+            default_role="VIEWER",
         )
 
 

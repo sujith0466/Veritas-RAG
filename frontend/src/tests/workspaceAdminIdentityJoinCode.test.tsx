@@ -294,9 +294,10 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
       expect(screen.getByText('Active Join Code')).toBeInTheDocument()
     })
 
-    // Change role to VIEWER
-    const roleSelect = screen.getByLabelText(/Default Role/i)
-    fireEvent.change(roleSelect, { target: { value: 'VIEWER' } })
+    // Verify role select defaults to MEMBER and does not offer VIEWER as a new role
+    const roleSelect = screen.getByLabelText(/Default Role/i) as HTMLSelectElement
+    expect(roleSelect.value).toBe('MEMBER')
+    expect(screen.queryByRole('option', { name: /VIEWER \(Read-Only Access\)/i })).not.toBeInTheDocument()
 
     // Change max uses to 100
     const maxUsesInput = screen.getByLabelText(/Max Uses/i)
@@ -309,7 +310,7 @@ describe('Workspace Admin Identity & Join Code Management UI (WS-A9)', () => {
     await waitFor(() => {
       expect(updateSpy).toHaveBeenCalledWith('ws-uuid-999', {
         enabled: true,
-        default_role: 'VIEWER',
+        default_role: 'MEMBER',
         require_approval: false,
         max_uses: 100,
         expires_in_days: 30,

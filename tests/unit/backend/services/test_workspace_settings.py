@@ -269,7 +269,7 @@ async def test_import_settings_dry_run(
     now = datetime.now(UTC)
 
     member_repo.get_membership.return_value = WorkspaceMember(
-        workspace_id=ws_id, user_id=user_id, role="ADMIN"
+        workspace_id=ws_id, user_id=user_id, role="OWNER"
     )
     settings_repo.get_by_workspace_id.return_value = None
 

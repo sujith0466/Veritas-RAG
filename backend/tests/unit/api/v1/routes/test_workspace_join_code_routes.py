@@ -12,7 +12,7 @@ Validates:
 """
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
 from fastapi.testclient import TestClient
@@ -31,6 +31,19 @@ from backend.services.workspace.management_service import (
     WorkspaceNotFoundError,
     WorkspaceUnauthorizedError,
 )
+
+
+@pytest.fixture(autouse=True)
+def bypass_admission_control():
+    """Bypass Redis admission control in offline integration test environments."""
+    async def _mock_dispatch(self, request, call_next):
+        return await call_next(request)
+
+    with patch(
+        "backend.core.middleware.admission_control.AdmissionControlMiddleware.dispatch",
+        new=_mock_dispatch,
+    ):
+        yield
 
 
 @pytest.fixture
@@ -148,7 +161,7 @@ def test_patch_join_code_settings_success(test_app, client, verified_admin_user,
     mock_join_service.patch_join_code_settings = AsyncMock(
         return_value=JoinCodeSettingsSchema(
             enabled=False,
-            default_role="VIEWER",
+            default_role="MEMBER",
             require_approval=True,
             expires_at=None,
             generated_at=None,
@@ -166,12 +179,12 @@ def test_patch_join_code_settings_success(test_app, client, verified_admin_user,
     try:
         response = client.patch(
             f"/api/v1/workspaces/{workspace_id}/join-code/settings",
-            json={"enabled": False, "default_role": "VIEWER", "require_approval": True, "max_uses": 20},
+            json={"enabled": False, "default_role": "MEMBER", "require_approval": True, "max_uses": 20},
         )
         assert response.status_code == 200
         data = response.json()
         assert data["enabled"] is False
-        assert data["default_role"] == "VIEWER"
+        assert data["default_role"] == "MEMBER"
         assert data["max_uses"] == 20
     finally:
         test_app.dependency_overrides.clear()
@@ -240,7 +253,7 @@ def test_regenerate_join_code_success(test_app, client, verified_admin_user, moc
 def test_generate_join_code_invalid_role(test_app, client, verified_admin_user, mock_db_session, mock_join_service):
     workspace_id = uuid.uuid4()
     mock_join_service.generate_new_join_code = AsyncMock(
-        side_effect=ValueError("Default role must be 'MEMBER' or 'VIEWER', got 'OWNER'.")
+        side_effect=ValueError("Default role must be 'MEMBER', got 'OWNER'.")
     )
 
     test_app.dependency_overrides[get_current_user] = lambda: verified_admin_user

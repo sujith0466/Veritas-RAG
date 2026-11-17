@@ -19,6 +19,39 @@ from backend.document.schemas import DocumentListResponse, ProcessingStatusRespo
 from backend.modules.retrieval.schemas.retrieval_dto import CandidatePointDTO
 
 
+@pytest.fixture(autouse=True)
+def mock_rate_limiter():
+    with patch("backend.cache.rate_limit.RateLimiter.check_limit", new_callable=AsyncMock) as m:
+        m.return_value = {"current": 1, "limit": 100, "remaining": 99, "reset_seconds": 60}
+        yield m
+
+
+@pytest.fixture(autouse=True)
+def mock_workspace_member_auth(documents_test_app):
+    from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
+    with patch("backend.repositories.workspace_member.WorkspaceMemberRepository.get_membership", new_callable=AsyncMock) as m:
+        async def _get_mem(workspace_id, user_id, include_suspended=True, include_deleted=False):
+            getter = documents_test_app.dependency_overrides.get(get_current_user)
+            role = "ADMIN"
+            if getter and callable(getter):
+                try:
+                    u = getter()
+                    if u and hasattr(u, "role"):
+                        role = u.role if isinstance(u.role, str) else u.role.value
+                except Exception:
+                    pass
+            return WorkspaceMember(
+                id=uuid.uuid4(),
+                workspace_id=workspace_id,
+                user_id=user_id,
+                role=role,
+                status=MemberStatus.ACTIVE.value,
+                is_deleted=False,
+            )
+        m.side_effect = _get_mem
+        yield m
+
+
 @pytest.fixture
 def documents_test_app():
     app = FastAPI()
@@ -164,13 +197,15 @@ async def test_member_role_rbac_boundary(documents_test_app):
     transport = ASGITransport(app=documents_test_app)
     doc_id = uuid.uuid4()
 
-    with patch("backend.modules.analytics.services.quota.QuotaGovernor.check_quota", new_callable=AsyncMock) as mock_quota, \
+    with patch("backend.modules.analytics.services.quota.QuotaGovernor.check_hierarchical_quota", new_callable=AsyncMock) as mock_hier_quota, \
+         patch("backend.modules.analytics.services.quota.QuotaGovernor.check_quota", new_callable=AsyncMock) as mock_quota, \
          patch("backend.document.services.document_service.DocumentService.upload_document", new_callable=AsyncMock) as mock_upload, \
          patch("backend.document.services.metadata_service.MetadataService.update_metadata", new_callable=AsyncMock) as mock_up_meta, \
          patch("backend.document.services.metadata_service.MetadataService.patch_metadata", new_callable=AsyncMock) as mock_patch_meta, \
          patch("backend.document.services.metadata_service.MetadataService.remove_metadata_key", new_callable=AsyncMock) as mock_del_meta, \
          patch("backend.document.workers.metadata_sync.sync_document_metadata_to_vectors_job.apply_async") as mock_async_sync:
 
+        mock_hier_quota.return_value = MagicMock(is_allowed=True, detail=None)
         mock_quota.return_value = (False, 0, 1000, 0)
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         mock_doc = MagicMock()

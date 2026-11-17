@@ -88,3 +88,74 @@ async def test_provision_workspace_slug_collision(service, mock_session, mock_wo
 
     assert workspace.slug.startswith("collision-corp-")
     assert len(workspace.slug) > len("collision-corp-")
+
+
+# ── T-03: Provisioning Audit Attribution & Missing Actor Tests ──────────────
+
+from backend.models.entities.audit_log import AuditLog
+
+
+@pytest.mark.asyncio
+async def test_provision_workspace_user_id_audit_attribution(service, mock_session):
+    """T-03: Verifies that provisioning via user_id correctly records AuditLog.user_id and tenant_id."""
+    actor_id = uuid.uuid4()
+
+    workspace = await service.provision_workspace(
+        session=mock_session,
+        name="Actor Attributed Corp",
+        description="Testing actor attribution",
+        user_id=actor_id,
+    )
+
+    # Locate the added AuditLog entity
+    audit_logs = [
+        call[0][0] for call in mock_session.add.call_args_list
+        if isinstance(call[0][0], AuditLog)
+    ]
+    assert len(audit_logs) == 1
+    log = audit_logs[0]
+
+    assert log.action == "WORKSPACE_CREATED"
+    assert log.user_id == actor_id
+    assert log.tenant_id == workspace.id
+    assert log.resource_type == "WORKSPACE"
+    assert log.resource_id == str(workspace.id)
+    assert log.status == "success"
+
+
+@pytest.mark.asyncio
+async def test_provision_workspace_owner_user_id_audit_attribution(service, mock_session):
+    """T-03: Verifies that provisioning via owner_user_id correctly records AuditLog.user_id and tenant_id."""
+    actor_id = uuid.uuid4()
+
+    workspace = await service.provision_workspace(
+        session=mock_session,
+        name="Owner Attributed Corp",
+        description="Testing owner attribution",
+        owner_user_id=actor_id,
+    )
+
+    audit_logs = [
+        call[0][0] for call in mock_session.add.call_args_list
+        if isinstance(call[0][0], AuditLog)
+    ]
+    assert len(audit_logs) == 1
+    log = audit_logs[0]
+
+    assert log.user_id == actor_id
+    assert log.tenant_id == workspace.id
+
+
+@pytest.mark.asyncio
+async def test_provision_workspace_missing_actor_rejected(service, mock_session):
+    """T-03: Verifies that provisioning without owner_user_id or user_id raises ValueError before writes."""
+    with pytest.raises(ValueError, match="Either owner_user_id or user_id must be provided"):
+        await service.provision_workspace(
+            session=mock_session,
+            name="Orphan Corp",
+            owner_user_id=None,
+            user_id=None,
+        )
+
+    mock_session.commit.assert_not_called()
+

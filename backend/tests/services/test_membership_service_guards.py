@@ -173,3 +173,60 @@ async def test_admin_can_suspend_regular_member():
 
     assert suspended.status == MemberStatus.SUSPENDED.value
     mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_owner_cannot_suspend_owner():
+    """Verify unconditional OWNER suspension immunity (Directive D-19 / DEC-02)."""
+    workspace_id = uuid.uuid4()
+    actor_owner_id = uuid.uuid4()
+    actor_owner_member_id = uuid.uuid4()
+
+    target_owner_user_id = uuid.uuid4()
+    target_owner_member_id = uuid.uuid4()
+
+    actor_owner = WorkspaceMember(
+        id=actor_owner_member_id,
+        workspace_id=workspace_id,
+        user_id=actor_owner_id,
+        role="OWNER",
+        status=MemberStatus.ACTIVE.value,
+    )
+    target_owner = WorkspaceMember(
+        id=target_owner_member_id,
+        workspace_id=workspace_id,
+        user_id=target_owner_user_id,
+        role="OWNER",
+        status=MemberStatus.ACTIVE.value,
+    )
+
+    mock_member_repo = AsyncMock()
+    mock_member_repo.get_membership.return_value = actor_owner
+    mock_member_repo.get_by_id_for_update.return_value = target_owner
+
+    mock_workspace_repo = AsyncMock()
+    mock_workspace = Workspace(
+        id=workspace_id,
+        name="Security Lab",
+        slug="security-lab",
+        status=WorkspaceStatus.ACTIVE.value,
+    )
+    mock_workspace_repo.get_by_id.return_value = mock_workspace
+
+    service = WorkspaceMembershipService(
+        member_repo=mock_member_repo,
+        workspace_repo=mock_workspace_repo,
+    )
+
+    mock_session = AsyncMock()
+
+    with pytest.raises(MembershipUnauthorizedError) as exc_info:
+        await service.suspend_member(
+            session=mock_session,
+            workspace_id=workspace_id,
+            actor_id=actor_owner_id,
+            member_id=target_owner_member_id,
+        )
+
+    assert "Workspace owners cannot be suspended" in str(exc_info.value)
+

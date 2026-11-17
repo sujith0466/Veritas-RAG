@@ -1,7 +1,8 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
 from fastapi.testclient import TestClient
+import pytest
 
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
@@ -11,6 +12,19 @@ from backend.main import create_app
 from backend.models.entities.workspace import ProvisioningStatus, Workspace, WorkspaceStatus
 
 app = create_app()
+
+
+@pytest.fixture(autouse=True)
+def bypass_admission_control():
+    """Bypass Redis admission control in offline integration test environments."""
+    async def _mock_dispatch(self, request, call_next):
+        return await call_next(request)
+
+    with patch(
+        "backend.core.middleware.admission_control.AdmissionControlMiddleware.dispatch",
+        new=_mock_dispatch,
+    ):
+        yield
 
 def get_mock_verified_user():
     return UserContext(

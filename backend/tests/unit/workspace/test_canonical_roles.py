@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import ValidationError
 
-from backend.api.v1.schemas.workspace_member import UpdateMemberRoleRequest
+from backend.api.v1.schemas.workspace_member import BulkMemberActionRequest, UpdateMemberRoleRequest
 from backend.core.permissions.guards import evaluate_role_access
 from backend.core.permissions.rbac import Role, WORKSPACE_ROLES
 from backend.models.entities.workspace import Workspace, WorkspaceStatus
@@ -83,18 +83,69 @@ def test_workspace_role_is_valid():
 
 
 def test_schema_rejects_non_canonical_workspace_roles():
-    """Verify that UpdateMemberRoleRequest rejects non-canonical roles."""
-    # Valid roles
-    assert UpdateMemberRoleRequest(role="OWNER").role == "OWNER"
-    assert UpdateMemberRoleRequest(role="admin").role == "ADMIN"
+    """Verify that UpdateMemberRoleRequest allows only ADMIN and MEMBER and rejects all others."""
+    # Permitted assignment roles
+    assert UpdateMemberRoleRequest(role="ADMIN").role == "ADMIN"
     assert UpdateMemberRoleRequest(role="MEMBER").role == "MEMBER"
-    assert UpdateMemberRoleRequest(role="viewer").role == "VIEWER"
 
-    # Non-canonical roles must be rejected
-    invalid_roles = ["ENGINEER", "ANALYST", "PLATFORM_ADMIN", "superuser", "guest", "random"]
+    # Explicitly rejected unassignable roles
+    with pytest.raises(ValidationError, match="Direct assignment or promotion to OWNER is not permitted"):
+        UpdateMemberRoleRequest(role="OWNER")
+
+    with pytest.raises(ValidationError, match="Role VIEWER is deprecated and cannot be assigned"):
+        UpdateMemberRoleRequest(role="VIEWER")
+
+    # Non-canonical / lowercase / whitespace roles must be rejected without normalization
+    non_canonical_roles = ["admin", "member", " ADMIN ", " Member ", "Admin"]
+    for nc in non_canonical_roles:
+        with pytest.raises(ValidationError, match="Noncanonical role value"):
+            UpdateMemberRoleRequest(role=nc)
+
+    # Unknown roles must be rejected
+    invalid_roles = ["ENGINEER", "ANALYST", "PLATFORM_ADMIN", "superuser", "guest", "random", ""]
     for inv in invalid_roles:
         with pytest.raises(ValidationError):
             UpdateMemberRoleRequest(role=inv)
+
+
+def test_bulk_member_action_request_validation():
+    """Verify BulkMemberActionRequest conditional role validation for update_role."""
+    member_id = uuid.uuid4()
+
+    # Valid update_role actions with permitted roles
+    req_admin = BulkMemberActionRequest(action="update_role", member_ids=[member_id], role="ADMIN")
+    assert req_admin.role == "ADMIN"
+    assert req_admin.action == "update_role"
+
+    req_member = BulkMemberActionRequest(action="update_role", member_ids=[member_id], role="MEMBER")
+    assert req_member.role == "MEMBER"
+
+    # Missing role when action is update_role
+    with pytest.raises(ValidationError, match="Field 'role' is required when action is 'update_role'"):
+        BulkMemberActionRequest(action="update_role", member_ids=[member_id], role=None)
+
+    with pytest.raises(ValidationError, match="Field 'role' is required when action is 'update_role'"):
+        BulkMemberActionRequest(action="update_role", member_ids=[member_id])
+
+    # Rejection of OWNER and VIEWER in bulk operations
+    with pytest.raises(ValidationError, match="Direct assignment or promotion to OWNER is not permitted in bulk operations"):
+        BulkMemberActionRequest(action="update_role", member_ids=[member_id], role="OWNER")
+
+    with pytest.raises(ValidationError, match="Role VIEWER is deprecated and cannot be assigned in bulk operations"):
+        BulkMemberActionRequest(action="update_role", member_ids=[member_id], role="VIEWER")
+
+    # Rejection of noncanonical role representations
+    with pytest.raises(ValidationError, match="Noncanonical role value"):
+        BulkMemberActionRequest(action="update_role", member_ids=[member_id], role="admin")
+
+    with pytest.raises(ValidationError):
+        BulkMemberActionRequest(action="update_role", member_ids=[member_id], role="ENGINEER")
+
+    # Other bulk actions unaffected by conditional role requirement
+    for act in ["suspend", "restore", "remove"]:
+        req = BulkMemberActionRequest(action=act, member_ids=[member_id])
+        assert req.action == act
+        assert req.role is None
 
 
 @pytest.mark.asyncio
@@ -269,3 +320,279 @@ async def test_last_owner_protection_prevents_demotion():
             member_id=owner2_member_id,
             new_role="ADMIN",
         )
+
+
+@pytest.mark.asyncio
+async def test_service_direct_assignment_admin_and_member_succeeds():
+    """Verify that an authorized OWNER can assign canonical ADMIN and MEMBER roles."""
+    ws_id = uuid.uuid4()
+    owner_actor_id = uuid.uuid4()
+    target_member_id = uuid.uuid4()
+    target_user_id = uuid.uuid4()
+
+    member_repo = MagicMock()
+    workspace_repo = MagicMock()
+    service = WorkspaceMembershipService(member_repo=member_repo, workspace_repo=workspace_repo)
+
+    workspace = Workspace(id=ws_id, name="Test WS", slug="test-ws", status=WorkspaceStatus.ACTIVE.value)
+    workspace_repo.get_by_id = AsyncMock(return_value=workspace)
+
+    owner_member = WorkspaceMember(
+        id=uuid.uuid4(),
+        workspace_id=ws_id,
+        user_id=owner_actor_id,
+        role=WorkspaceRole.OWNER.value,
+        status=MemberStatus.ACTIVE.value,
+    )
+    target_member = WorkspaceMember(
+        id=target_member_id,
+        workspace_id=ws_id,
+        user_id=target_user_id,
+        role=WorkspaceRole.MEMBER.value,
+        status=MemberStatus.ACTIVE.value,
+    )
+
+    member_repo.get_membership = AsyncMock(return_value=owner_member)
+    member_repo.get_by_id_for_update = AsyncMock(return_value=target_member)
+    session = AsyncMock()
+
+    # Assign ADMIN
+    updated = await service.update_member_role(
+        session=session,
+        workspace_id=ws_id,
+        actor_id=owner_actor_id,
+        member_id=target_member_id,
+        new_role="ADMIN",
+    )
+    assert updated.role == "ADMIN"
+
+    # Assign MEMBER
+    updated_back = await service.update_member_role(
+        session=session,
+        workspace_id=ws_id,
+        actor_id=owner_actor_id,
+        member_id=target_member_id,
+        new_role="MEMBER",
+    )
+    assert updated_back.role == "MEMBER"
+
+
+@pytest.mark.asyncio
+async def test_service_direct_assignment_viewer_rejected():
+    """Verify that service-layer validation rejects assignment of deprecated VIEWER role."""
+    ws_id = uuid.uuid4()
+    owner_actor_id = uuid.uuid4()
+    target_member_id = uuid.uuid4()
+
+    member_repo = MagicMock()
+    workspace_repo = MagicMock()
+    service = WorkspaceMembershipService(member_repo=member_repo, workspace_repo=workspace_repo)
+
+    workspace = Workspace(id=ws_id, name="Test WS", slug="test-ws", status=WorkspaceStatus.ACTIVE.value)
+    workspace_repo.get_by_id = AsyncMock(return_value=workspace)
+
+    owner_member = WorkspaceMember(
+        id=uuid.uuid4(),
+        workspace_id=ws_id,
+        user_id=owner_actor_id,
+        role=WorkspaceRole.OWNER.value,
+        status=MemberStatus.ACTIVE.value,
+        version=1,
+    )
+    member_repo.get_membership = AsyncMock(return_value=owner_member)
+    session = AsyncMock()
+
+    with pytest.raises(MembershipError, match="Role VIEWER is deprecated and cannot be assigned"):
+        await service.update_member_role(
+            session=session,
+            workspace_id=ws_id,
+            actor_id=owner_actor_id,
+            member_id=target_member_id,
+            new_role="VIEWER",
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_direct_assignment_owner_rejected():
+    """Verify that direct assignment or promotion to OWNER is rejected at service layer."""
+    ws_id = uuid.uuid4()
+    owner_actor_id = uuid.uuid4()
+    target_member_id = uuid.uuid4()
+    target_user_id = uuid.uuid4()
+
+    member_repo = MagicMock()
+    workspace_repo = MagicMock()
+    service = WorkspaceMembershipService(member_repo=member_repo, workspace_repo=workspace_repo)
+
+    workspace = Workspace(id=ws_id, name="Test WS", slug="test-ws", status=WorkspaceStatus.ACTIVE.value)
+    workspace_repo.get_by_id = AsyncMock(return_value=workspace)
+
+    owner_member = WorkspaceMember(
+        id=uuid.uuid4(),
+        workspace_id=ws_id,
+        user_id=owner_actor_id,
+        role=WorkspaceRole.OWNER.value,
+        status=MemberStatus.ACTIVE.value,
+        version=1,
+    )
+    target_member = WorkspaceMember(
+        id=target_member_id,
+        workspace_id=ws_id,
+        user_id=target_user_id,
+        role=WorkspaceRole.MEMBER.value,
+        status=MemberStatus.ACTIVE.value,
+        version=1,
+    )
+
+    member_repo.get_membership = AsyncMock(return_value=owner_member)
+    member_repo.get_by_id_for_update = AsyncMock(return_value=target_member)
+    session = AsyncMock()
+
+    with pytest.raises(MembershipError, match="Direct assignment or promotion to OWNER is not permitted"):
+        await service.update_member_role(
+            session=session,
+            workspace_id=ws_id,
+            actor_id=owner_actor_id,
+            member_id=target_member_id,
+            new_role="OWNER",
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_rejects_unknown_and_noncanonical_roles():
+    """Verify that service-layer validation rejects noncanonical or unknown roles."""
+    ws_id = uuid.uuid4()
+    owner_actor_id = uuid.uuid4()
+    target_member_id = uuid.uuid4()
+
+    member_repo = MagicMock()
+    workspace_repo = MagicMock()
+    service = WorkspaceMembershipService(member_repo=member_repo, workspace_repo=workspace_repo)
+
+    workspace = Workspace(id=ws_id, name="Test WS", slug="test-ws", status=WorkspaceStatus.ACTIVE.value)
+    workspace_repo.get_by_id = AsyncMock(return_value=workspace)
+
+    owner_member = WorkspaceMember(
+        id=uuid.uuid4(),
+        workspace_id=ws_id,
+        user_id=owner_actor_id,
+        role=WorkspaceRole.OWNER.value,
+        status=MemberStatus.ACTIVE.value,
+        version=1,
+    )
+    member_repo.get_membership = AsyncMock(return_value=owner_member)
+    session = AsyncMock()
+
+    # Lowercase must be rejected without silent normalization
+    with pytest.raises(MembershipError, match="Noncanonical role value"):
+        await service.update_member_role(
+            session=session,
+            workspace_id=ws_id,
+            actor_id=owner_actor_id,
+            member_id=target_member_id,
+            new_role="admin",
+        )
+
+    # Whitespace must be rejected without silent normalization
+    with pytest.raises(MembershipError, match="Noncanonical role value"):
+        await service.update_member_role(
+            session=session,
+            workspace_id=ws_id,
+            actor_id=owner_actor_id,
+            member_id=target_member_id,
+            new_role=" MEMBER ",
+        )
+
+    # Unknown role
+    with pytest.raises(MembershipError, match="Invalid workspace role"):
+        await service.update_member_role(
+            session=session,
+            workspace_id=ws_id,
+            actor_id=owner_actor_id,
+            member_id=target_member_id,
+            new_role="ENGINEER",
+        )
+
+
+@pytest.mark.asyncio
+async def test_service_bulk_update_role_conditional_and_service_validation():
+    """Verify bulk update_role behavior with valid roles, invalid roles, and missing role."""
+    ws_id = uuid.uuid4()
+    actor_id = uuid.uuid4()
+    target_id1 = uuid.uuid4()
+    target_id2 = uuid.uuid4()
+
+    member_repo = MagicMock()
+    workspace_repo = MagicMock()
+    service = WorkspaceMembershipService(member_repo=member_repo, workspace_repo=workspace_repo)
+    session = AsyncMock()
+
+    workspace = Workspace(id=ws_id, name="Test WS", slug="test-ws", status=WorkspaceStatus.ACTIVE.value)
+    workspace_repo.get_by_id = AsyncMock(return_value=workspace)
+
+    owner_member = WorkspaceMember(
+        id=uuid.uuid4(),
+        workspace_id=ws_id,
+        user_id=actor_id,
+        role=WorkspaceRole.OWNER.value,
+        status=MemberStatus.ACTIVE.value,
+        version=1,
+    )
+    target_member1 = WorkspaceMember(
+        id=target_id1,
+        workspace_id=ws_id,
+        user_id=uuid.uuid4(),
+        role=WorkspaceRole.MEMBER.value,
+        status=MemberStatus.ACTIVE.value,
+        version=1,
+    )
+    member_repo.get_membership = AsyncMock(return_value=owner_member)
+    member_repo.get_by_id_for_update = AsyncMock(return_value=target_member1)
+
+    # 1. Missing role when action is update_role
+    res_missing = await service.bulk_update_members(
+        session=session,
+        workspace_id=ws_id,
+        actor_id=actor_id,
+        member_ids=[target_id1],
+        action="update_role",
+        role=None,
+    )
+    assert res_missing["total"] == 1
+    assert res_missing["results"][0]["status"] == "error"
+    assert "Role is required when action is 'update_role'" in res_missing["results"][0]["message"]
+
+    # 2. Invalid role VIEWER in bulk
+    res_viewer = await service.bulk_update_members(
+        session=session,
+        workspace_id=ws_id,
+        actor_id=actor_id,
+        member_ids=[target_id1],
+        action="update_role",
+        role="VIEWER",
+    )
+    assert res_viewer["results"][0]["status"] == "error"
+    assert "VIEWER is deprecated" in res_viewer["results"][0]["message"]
+
+    # 3. Invalid role OWNER in bulk
+    res_owner = await service.bulk_update_members(
+        session=session,
+        workspace_id=ws_id,
+        actor_id=actor_id,
+        member_ids=[target_id1],
+        action="update_role",
+        role="OWNER",
+    )
+    assert res_owner["results"][0]["status"] == "error"
+    assert "promotion to OWNER is not permitted" in res_owner["results"][0]["message"]
+
+    # 4. Valid role ADMIN in bulk succeeds
+    res_admin = await service.bulk_update_members(
+        session=session,
+        workspace_id=ws_id,
+        actor_id=actor_id,
+        member_ids=[target_id1],
+        action="update_role",
+        role="ADMIN",
+    )
+    assert res_admin["results"][0]["status"] == "success"

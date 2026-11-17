@@ -118,6 +118,29 @@ describe('WS-A8: Create & Join Workspace Workflows', () => {
       expect(useAuthStore.getState().user?.role).toBe('owner');
     });
 
+    it('1b. Displays prefilled read-only authenticated identity badge and excludes role selector', async () => {
+      useAuthStore.setState({
+        user: { id: 'user-42', email: 'owner.creator@example.com', full_name: 'Dr. Jane Creator', role: 'viewer', tenant_id: null } as any,
+        status: 'AUTHENTICATED',
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/workspaces/new']}>
+          <CreateWorkspace />
+        </MemoryRouter>
+      );
+
+      const identityBadge = screen.getByTestId('authenticated-identity-badge');
+      expect(identityBadge).toBeInTheDocument();
+      expect(identityBadge).toHaveTextContent('Workspace Owner Identity');
+      expect(identityBadge).toHaveTextContent('Dr. Jane Creator');
+      expect(identityBadge).toHaveTextContent('owner.creator@example.com');
+      expect(identityBadge).toHaveTextContent('OWNER');
+
+      // Verify no role selector input exists
+      expect(screen.queryByLabelText(/role/i)).not.toBeInTheDocument();
+    });
+
     it('2. Enforces validation for required and length-bounded workspace name', async () => {
       render(
         <MemoryRouter initialEntries={['/workspaces/new']}>

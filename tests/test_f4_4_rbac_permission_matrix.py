@@ -68,7 +68,10 @@ def test_suspended_user_explicit_deny():
 
 def test_evaluate_guards():
     assert evaluate_role_access(Role.OWNER, (Role.ADMIN, Role.MEMBER)) is True
-    assert evaluate_role_access(Role.MEMBER, (Role.VIEWER,)) is False
+    # Member inherits access to endpoints permitting Viewer
+    assert evaluate_role_access(Role.MEMBER, (Role.VIEWER,)) is True
+    # Viewer does NOT have access to endpoints requiring Member
+    assert evaluate_role_access(Role.VIEWER, (Role.MEMBER,)) is False
     assert evaluate_role_access(Role.VIEWER, (Role.VIEWER,)) is True
     assert evaluate_role_access(Role.VIEWER, (Role.VIEWER,), is_suspended=True) is False
 

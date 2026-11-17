@@ -52,6 +52,19 @@ from backend.services.workspace.workspace_switching_service import (
 
 # ── Test Fixtures ─────────────────────────────────────────────────────────────
 
+@pytest.fixture(autouse=True)
+def bypass_admission_control():
+    """Bypass Redis admission control in offline unit/route test environments."""
+    async def _mock_dispatch(self, request, call_next):
+        return await call_next(request)
+
+    with patch(
+        "backend.core.middleware.admission_control.AdmissionControlMiddleware.dispatch",
+        new=_mock_dispatch,
+    ):
+        yield
+
+
 @pytest.fixture
 def mock_user_id():
     return uuid.uuid4()

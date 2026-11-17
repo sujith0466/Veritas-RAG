@@ -162,11 +162,11 @@ async def test_update_member_role_dry_run_does_not_commit():
         workspace_id=ws_id,
         actor_id=owner_actor_id,
         member_id=target_member_id,
-        new_role="VIEWER",
+        new_role="ADMIN",
         dry_run=True,
     )
 
-    assert prospective.role == "VIEWER"
+    assert prospective.role == "ADMIN"
     # Target member in repo is untouched
     assert target_member.role == "MEMBER"
     # DB session was NOT committed

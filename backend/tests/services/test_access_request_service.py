@@ -14,6 +14,7 @@ from backend.models.entities.workspace_access_request import (
 from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember, WorkspaceRole
 from backend.services.workspace.access_request_service import (
     AccessRequestConflictError,
+    AccessRequestInvalidStateError,
     AccessRequestService,
     AccessRequestUnauthorizedError,
 )
@@ -21,7 +22,7 @@ from backend.services.workspace.access_request_service import (
 
 @pytest.mark.asyncio
 async def test_create_role_elevation_request_success():
-    """Verify active member can submit a role elevation request to ADMIN."""
+    """Verify active legacy VIEWER member can submit a role elevation request to MEMBER."""
     workspace_id = uuid.uuid4()
     user_id = uuid.uuid4()
 
@@ -33,7 +34,7 @@ async def test_create_role_elevation_request_success():
         id=uuid.uuid4(),
         workspace_id=workspace_id,
         user_id=user_id,
-        role=WorkspaceRole.MEMBER.value,
+        role=WorkspaceRole.VIEWER.value,
         status=MemberStatus.ACTIVE.value,
     )
     mock_member_repo.get_membership.return_value = member
@@ -64,13 +65,13 @@ async def test_create_role_elevation_request_success():
         workspace_id=workspace_id,
         actor_id=user_id,
         request_type=AccessRequestType.ROLE_ELEVATION.value,
-        requested_role=WorkspaceRole.ADMIN.value,
-        reason="Need admin access for team management",
+        requested_role=WorkspaceRole.MEMBER.value,
+        reason="Need member access for collaboration",
     )
 
     assert req.request_type == AccessRequestType.ROLE_ELEVATION.value
-    assert req.requested_role == WorkspaceRole.ADMIN.value
-    assert req.current_role == WorkspaceRole.MEMBER.value
+    assert req.requested_role == WorkspaceRole.MEMBER.value
+    assert req.current_role == WorkspaceRole.VIEWER.value
     assert req.status == AccessRequestStatus.PENDING.value
     mock_session.commit.assert_called_once()
 
@@ -86,7 +87,7 @@ async def test_create_role_elevation_duplicate_pending_conflict():
         workspace_id=workspace_id,
         user_id=user_id,
         request_type=AccessRequestType.ROLE_ELEVATION.value,
-        requested_role=WorkspaceRole.ADMIN.value,
+        requested_role=WorkspaceRole.MEMBER.value,
         status=AccessRequestStatus.PENDING.value,
     )
 
@@ -117,7 +118,7 @@ async def test_create_role_elevation_duplicate_pending_conflict():
             workspace_id=workspace_id,
             actor_id=user_id,
             request_type=AccessRequestType.ROLE_ELEVATION.value,
-            requested_role=WorkspaceRole.ADMIN.value,
+            requested_role=WorkspaceRole.MEMBER.value,
         )
 
     assert "already have an active pending role elevation request" in str(exc_info.value)
@@ -190,7 +191,7 @@ async def test_approve_role_elevation_request_promotes_member():
         id=uuid.uuid4(),
         workspace_id=workspace_id,
         user_id=target_user_id,
-        role=WorkspaceRole.MEMBER.value,
+        role=WorkspaceRole.VIEWER.value,
         status=MemberStatus.ACTIVE.value,
         version=1,
     )
@@ -199,8 +200,8 @@ async def test_approve_role_elevation_request_promotes_member():
         workspace_id=workspace_id,
         user_id=target_user_id,
         request_type=AccessRequestType.ROLE_ELEVATION.value,
-        current_role=WorkspaceRole.MEMBER.value,
-        requested_role=WorkspaceRole.ADMIN.value,
+        current_role=WorkspaceRole.VIEWER.value,
+        requested_role=WorkspaceRole.MEMBER.value,
         status=AccessRequestStatus.PENDING.value,
     )
 
@@ -241,7 +242,7 @@ async def test_approve_role_elevation_request_promotes_member():
 
     assert approved_req.status == AccessRequestStatus.APPROVED.value
     assert approved_req.reviewed_by_id == admin_user_id
-    assert target_member.role == WorkspaceRole.ADMIN.value
+    assert target_member.role == WorkspaceRole.MEMBER.value
     assert target_member.version == 2
     mock_session.commit.assert_called_once()
 
@@ -261,12 +262,12 @@ async def test_approve_request_stale_role_conflict():
         role=WorkspaceRole.ADMIN.value,
         status=MemberStatus.ACTIVE.value,
     )
-    # Target member has already been promoted to VIEWER or altered
+    # Target member has already been promoted to ADMIN or altered
     target_member = WorkspaceMember(
         id=uuid.uuid4(),
         workspace_id=workspace_id,
         user_id=target_user_id,
-        role=WorkspaceRole.VIEWER.value,
+        role=WorkspaceRole.ADMIN.value,
         status=MemberStatus.ACTIVE.value,
         version=1,
     )
@@ -275,8 +276,8 @@ async def test_approve_request_stale_role_conflict():
         workspace_id=workspace_id,
         user_id=target_user_id,
         request_type=AccessRequestType.ROLE_ELEVATION.value,
-        current_role=WorkspaceRole.MEMBER.value,  # was MEMBER when requested
-        requested_role=WorkspaceRole.ADMIN.value,
+        current_role=WorkspaceRole.VIEWER.value,  # was VIEWER when requested
+        requested_role=WorkspaceRole.MEMBER.value,
         status=AccessRequestStatus.PENDING.value,
     )
 
@@ -334,8 +335,8 @@ async def test_reject_request_records_reason():
         workspace_id=workspace_id,
         user_id=uuid.uuid4(),
         request_type=AccessRequestType.ROLE_ELEVATION.value,
-        current_role=WorkspaceRole.MEMBER.value,
-        requested_role=WorkspaceRole.ADMIN.value,
+        current_role=WorkspaceRole.VIEWER.value,
+        requested_role=WorkspaceRole.MEMBER.value,
         status=AccessRequestStatus.PENDING.value,
     )
 
@@ -378,3 +379,111 @@ async def test_reject_request_records_reason():
     assert rejected_req.rejection_reason == "Admin seats are currently capped"
     assert rejected_req.reviewed_by_id == admin_user_id
     mock_session.commit.assert_called_once()
+
+
+# ── T-60: Access Request Contract — MEMBER-Only Enforcement Tests ─────────────
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "prohibited_role",
+    [
+        WorkspaceRole.ADMIN.value,
+        WorkspaceRole.VIEWER.value,
+        WorkspaceRole.OWNER.value,
+        "ARBITRARY_ROLE",
+        "superadmin",
+    ],
+)
+async def test_create_request_rejects_non_member_roles(prohibited_role: str):
+    """T-60: Direct service invocation independently rejects non-MEMBER roles."""
+    workspace_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    mock_workspace_repo = AsyncMock()
+    mock_workspace = Workspace(
+        id=workspace_id,
+        name="Engineering",
+        slug="engineering",
+        status=WorkspaceStatus.ACTIVE.value,
+    )
+    mock_workspace_repo.get_by_id.return_value = mock_workspace
+
+    service = AccessRequestService(
+        access_repo=AsyncMock(),
+        member_repo=AsyncMock(),
+        workspace_repo=mock_workspace_repo,
+    )
+
+    mock_session = AsyncMock()
+
+    with pytest.raises(AccessRequestInvalidStateError) as exc_info:
+        await service.create_request(
+            session=mock_session,
+            workspace_id=workspace_id,
+            actor_id=user_id,
+            request_type=AccessRequestType.ROLE_ELEVATION.value,
+            requested_role=prohibited_role,
+        )
+
+    assert "Only MEMBER requests are permitted" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_approve_request_rejects_non_member_role_before_mutation():
+    """T-60: Approving a request with a non-MEMBER requested_role fails closed."""
+    workspace_id = uuid.uuid4()
+    admin_user_id = uuid.uuid4()
+    target_user_id = uuid.uuid4()
+    request_id = uuid.uuid4()
+
+    admin_member = WorkspaceMember(
+        id=uuid.uuid4(),
+        workspace_id=workspace_id,
+        user_id=admin_user_id,
+        role=WorkspaceRole.ADMIN.value,
+        status=MemberStatus.ACTIVE.value,
+    )
+    access_request = WorkspaceAccessRequest(
+        id=request_id,
+        workspace_id=workspace_id,
+        user_id=target_user_id,
+        request_type=AccessRequestType.ROLE_ELEVATION.value,
+        current_role=WorkspaceRole.VIEWER.value,
+        requested_role="ADMIN",  # Prohibited role
+        status=AccessRequestStatus.PENDING.value,
+    )
+
+    mock_access_repo = AsyncMock()
+    mock_access_repo.get_by_id_for_update.return_value = access_request
+
+    mock_member_repo = AsyncMock()
+    mock_member_repo.get_membership.return_value = admin_member
+
+    mock_workspace_repo = AsyncMock()
+    mock_workspace = Workspace(
+        id=workspace_id,
+        name="Engineering",
+        slug="engineering",
+        status=WorkspaceStatus.ACTIVE.value,
+    )
+    mock_workspace_repo.get_by_id.return_value = mock_workspace
+
+    service = AccessRequestService(
+        access_repo=mock_access_repo,
+        member_repo=mock_member_repo,
+        workspace_repo=mock_workspace_repo,
+    )
+
+    mock_session = AsyncMock()
+
+    with pytest.raises(AccessRequestInvalidStateError) as exc_info:
+        await service.approve_request(
+            session=mock_session,
+            workspace_id=workspace_id,
+            actor_id=admin_user_id,
+            request_id=request_id,
+        )
+
+    assert "Cannot approve request with non-MEMBER role" in str(exc_info.value)
+    mock_session.commit.assert_not_called()

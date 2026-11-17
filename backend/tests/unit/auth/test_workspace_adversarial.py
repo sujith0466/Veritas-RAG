@@ -42,101 +42,134 @@ async def test_workspace_analytics_rbac_and_tenant_isolation():
     mock_db = AsyncMock()
     app.dependency_overrides[get_db_session] = lambda: mock_db
 
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Test Admin and Owner can access /workspace-overview for workspace A
-        for role in [Role.ADMIN, Role.OWNER, Role.PLATFORM_ADMIN, Role.VIEWER]:
-            user = UserContext(
+    from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
+
+    with patch("backend.repositories.workspace_member.WorkspaceMemberRepository.get_membership", new_callable=AsyncMock) as mock_mem:
+        async def _fake_mem(workspace_id, user_id, include_suspended=False, include_deleted=False):
+            curr = app.dependency_overrides.get(get_current_user)
+            if curr:
+                u = curr()
+                if str(workspace_id) == str(u.tenant_id):
+                    role_str = u.role.value.upper() if isinstance(u.role, Role) else str(u.role).upper()
+                    return WorkspaceMember(
+                        id=uuid.uuid4(),
+                        workspace_id=workspace_id,
+                        user_id=u.id,
+                        role=role_str,
+                        status=MemberStatus.ACTIVE.value,
+                        is_deleted=False,
+                    )
+            return None
+        mock_mem.side_effect = _fake_mem
+
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # 1. Test Admin and Owner can access /workspace-overview for workspace A
+            for role in [Role.ADMIN, Role.OWNER]:
+                user = UserContext(
+                    id=uuid.uuid4(),
+                    email=f"{role.value}@company.com",
+                    role=role.value,
+                    workspace_id=workspace_a,
+                    tenant_id=str(workspace_a)
+                )
+                app.dependency_overrides[get_current_user] = lambda u=user: u
+
+                mock_overview = WorkspaceOverviewDTO(
+                    active_users=42,
+                    document_count=15,
+                    total_queries=120,
+                )
+
+                with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_workspace_overview", new_callable=AsyncMock) as mock_get:
+                    mock_get.return_value = mock_overview
+                    res = await client.get("/api/v1/analytics/workspace-overview")
+                    assert res.status_code == 200, f"Role {role} failed on /workspace-overview: {res.text}"
+                    data = res.json()["data"]
+                    assert data["active_users"] == 42
+                    assert data["document_count"] == 15
+                    assert data["total_queries"] == 120
+
+                    # Verify tenant_id passed to service is strictly workspace_a
+                    call_args = mock_get.call_args[0][0]
+                    assert call_args.tenant_id == str(workspace_a), "Service must be called with authenticated workspace ID"
+                    assert call_args.tenant_id != str(workspace_b), "Cross-tenant leakage detected"
+
+            # 1b. Test VIEWER and MEMBER are denied /workspace-overview under DEC-07
+            for role in [Role.VIEWER, Role.MEMBER]:
+                user = UserContext(
+                    id=uuid.uuid4(),
+                    email=f"{role.value}@company.com",
+                    role=role.value,
+                    workspace_id=workspace_a,
+                    tenant_id=str(workspace_a)
+                )
+                app.dependency_overrides[get_current_user] = lambda u=user: u
+                res = await client.get("/api/v1/analytics/workspace-overview")
+                assert res.status_code == 403, f"Role {role} was not rejected from /workspace-overview"
+
+            # 2. Test Popular Topics tenant scoping
+            user_a = UserContext(
                 id=uuid.uuid4(),
-                email=f"{role.value}@company.com",
-                role=role.value,
+                email="admin@a.com",
+                role=Role.ADMIN.value,
                 workspace_id=workspace_a,
                 tenant_id=str(workspace_a)
             )
-            app.dependency_overrides[get_current_user] = lambda u=user: u
+            app.dependency_overrides[get_current_user] = lambda: user_a
 
-            mock_overview = WorkspaceOverviewDTO(
-                active_users=42,
-                document_count=15,
-                total_queries=120,
+            with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_popular_topics", new_callable=AsyncMock) as mock_topics:
+                mock_topics.return_value = [PopularTopicDTO(topic="kubernetes", count=5)]
+                res = await client.get("/api/v1/analytics/popular-topics")
+                assert res.status_code == 200
+                assert res.json()["data"][0]["topic"] == "kubernetes"
+                call_args = mock_topics.call_args[0][0]
+                assert call_args.tenant_id == str(workspace_a)
+
+            # 3. Test Unanswered Queries tenant scoping
+            with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_unanswered_queries", new_callable=AsyncMock) as mock_unanswered:
+                mock_unanswered.return_value = [
+                    UnansweredQueryDTO(query_text="What is our 401k match?", outcome="ABORTED_LOW_CONFIDENCE", count=2, last_seen=datetime.now())
+                ]
+                res = await client.get("/api/v1/analytics/unanswered-queries")
+                assert res.status_code == 200
+                assert res.json()["data"][0]["query_text"] == "What is our 401k match?"
+                call_args = mock_unanswered.call_args[0][0]
+                assert call_args.tenant_id == str(workspace_a)
+
+            # 4. Test Most Cited Documents tenant scoping
+            with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_most_cited_documents", new_callable=AsyncMock) as mock_docs:
+                mock_docs.return_value = [
+                    MostCitedDocumentDTO(
+                        document_id=str(uuid.uuid4()),
+                        document_title="Security Policy.pdf",
+                        citation_count=8,
+                        last_cited_at=datetime.now()
+                    )
+                ]
+                res = await client.get("/api/v1/analytics/most-cited-documents")
+                assert res.status_code == 200
+                assert res.json()["data"][0]["document_title"] == "Security Policy.pdf"
+                call_args = mock_docs.call_args[0][0]
+                assert call_args.tenant_id == str(workspace_a)
+
+            # 5. IDOR test: User B cannot access User A's data
+            user_b = UserContext(
+                id=uuid.uuid4(),
+                email="admin@b.com",
+                role=Role.ADMIN.value,
+                workspace_id=workspace_b,
+                tenant_id=str(workspace_b)
             )
+            app.dependency_overrides[get_current_user] = lambda: user_b
 
-            with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_workspace_overview", new_callable=AsyncMock) as mock_get:
-                mock_get.return_value = mock_overview
-                res = await client.get("/api/v1/analytics/workspace-overview")
-                assert res.status_code == 200, f"Role {role} failed on /workspace-overview: {res.text}"
-                data = res.json()["data"]
-                assert data["active_users"] == 42
-                assert data["document_count"] == 15
-                assert data["total_queries"] == 120
-
-                # Verify tenant_id passed to service is strictly workspace_a
-                call_args = mock_get.call_args[0][0]
-                assert call_args.tenant_id == str(workspace_a), "Service must be called with authenticated workspace ID"
-                assert call_args.tenant_id != str(workspace_b), "Cross-tenant leakage detected"
-
-        # 2. Test Popular Topics tenant scoping
-        user_a = UserContext(
-            id=uuid.uuid4(),
-            email="admin@a.com",
-            role=Role.ADMIN.value,
-            workspace_id=workspace_a,
-            tenant_id=str(workspace_a)
-        )
-        app.dependency_overrides[get_current_user] = lambda: user_a
-
-        with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_popular_topics", new_callable=AsyncMock) as mock_topics:
-            mock_topics.return_value = [PopularTopicDTO(topic="kubernetes", count=5)]
-            res = await client.get("/api/v1/analytics/popular-topics")
-            assert res.status_code == 200
-            assert res.json()["data"][0]["topic"] == "kubernetes"
-            call_args = mock_topics.call_args[0][0]
-            assert call_args.tenant_id == str(workspace_a)
-
-        # 3. Test Unanswered Queries tenant scoping
-        with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_unanswered_queries", new_callable=AsyncMock) as mock_unanswered:
-            mock_unanswered.return_value = [
-                UnansweredQueryDTO(query_text="What is our 401k match?", outcome="ABORTED_LOW_CONFIDENCE", count=2, last_seen=datetime.now())
-            ]
-            res = await client.get("/api/v1/analytics/unanswered-queries")
-            assert res.status_code == 200
-            assert res.json()["data"][0]["query_text"] == "What is our 401k match?"
-            call_args = mock_unanswered.call_args[0][0]
-            assert call_args.tenant_id == str(workspace_a)
-
-        # 4. Test Most Cited Documents tenant scoping
-        with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_most_cited_documents", new_callable=AsyncMock) as mock_docs:
-            mock_docs.return_value = [
-                MostCitedDocumentDTO(
-                    document_id=str(uuid.uuid4()),
-                    document_title="Security Policy.pdf",
-                    citation_count=8,
-                    last_cited_at=datetime.now()
-                )
-            ]
-            res = await client.get("/api/v1/analytics/most-cited-documents")
-            assert res.status_code == 200
-            assert res.json()["data"][0]["document_title"] == "Security Policy.pdf"
-            call_args = mock_docs.call_args[0][0]
-            assert call_args.tenant_id == str(workspace_a)
-
-        # 5. IDOR test: User B cannot access User A's data
-        user_b = UserContext(
-            id=uuid.uuid4(),
-            email="admin@b.com",
-            role=Role.ADMIN.value,
-            workspace_id=workspace_b,
-            tenant_id=str(workspace_b)
-        )
-        app.dependency_overrides[get_current_user] = lambda: user_b
-
-        with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_workspace_overview", new_callable=AsyncMock) as mock_get_b:
-            mock_get_b.return_value = WorkspaceOverviewDTO(active_users=1, document_count=2, total_queries=3)
-            res_b = await client.get("/api/v1/analytics/workspace-overview")
-            assert res_b.status_code == 200
-            call_args_b = mock_get_b.call_args[0][0]
-            # Must strictly be workspace_b
-            assert call_args_b.tenant_id == str(workspace_b)
-            assert call_args_b.tenant_id != str(workspace_a)
+            with patch("backend.modules.analytics.services.analytics_service.QueryAnalyticsService.get_workspace_overview", new_callable=AsyncMock) as mock_get_b:
+                mock_get_b.return_value = WorkspaceOverviewDTO(active_users=1, document_count=2, total_queries=3)
+                res_b = await client.get("/api/v1/analytics/workspace-overview")
+                assert res_b.status_code == 200
+                call_args_b = mock_get_b.call_args[0][0]
+                # Must strictly be workspace_b
+                assert call_args_b.tenant_id == str(workspace_b)
+                assert call_args_b.tenant_id != str(workspace_a)
 
 
 @pytest.mark.asyncio

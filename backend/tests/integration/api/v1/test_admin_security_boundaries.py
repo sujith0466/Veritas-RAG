@@ -6,16 +6,24 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from backend.api.v1.routes.domains import router as domains_router
+from backend.api.v1.routes.workspace_members import workspace_members_router
 from backend.api.v1.routes.workspace_webhooks import router as webhooks_router
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
-from backend.core.dependencies.database import get_db
+from backend.core.dependencies.database import (
+    get_db,
+    get_workspace_membership_service,
+)
 from backend.core.dependencies.workspace import require_workspace_admin_or_owner
 from backend.core.permissions.rbac import Role
 from backend.models.entities.workspace_domain import WorkspaceDomain
 from backend.core.exceptions import get_exception_handlers
 from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember, WorkspaceRole
 from backend.repositories.workspace_member import WorkspaceMemberRepository
+from backend.services.workspace.membership_service import (
+    MembershipUnauthorizedError,
+    WorkspaceMembershipService,
+)
 
 
 app = FastAPI()
@@ -24,6 +32,7 @@ for exc_class, handler in get_exception_handlers():
 
 app.include_router(domains_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
+app.include_router(workspace_members_router, prefix="/api/v1")
 
 
 @pytest.fixture
@@ -193,5 +202,32 @@ def test_webhooks_route_unauthorized_member(monkeypatch, workspace_id, mock_db):
         client = TestClient(app)
         res = client.get(f"/api/v1/workspaces/{workspace_id}/webhooks")
         assert res.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_viewer_cannot_update_member_role(workspace_id, mock_db):
+    """T-65: Legacy VIEWER cannot update member roles; returns HTTP 403 Forbidden."""
+    user = make_user(Role.VIEWER)
+    target_member_id = uuid.uuid4()
+
+    mock_service = AsyncMock(spec=WorkspaceMembershipService)
+    mock_service.update_member_role.side_effect = MembershipUnauthorizedError(
+        "Only OWNER or ADMIN can modify member roles."
+    )
+
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_workspace_membership_service] = lambda: mock_service
+    try:
+        client = TestClient(app)
+        res = client.patch(
+            f"/api/v1/workspaces/{workspace_id}/members/{target_member_id}/role",
+            json={"role": "MEMBER"},
+        )
+        assert res.status_code == 403
+        data = res.json()
+        error_msg = data.get("detail") or data.get("error", {}).get("message", "")
+        assert "Only OWNER or ADMIN" in str(error_msg)
     finally:
         app.dependency_overrides.clear()

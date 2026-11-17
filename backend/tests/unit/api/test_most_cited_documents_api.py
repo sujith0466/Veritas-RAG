@@ -8,6 +8,8 @@ from httpx import AsyncClient, ASGITransport
 from backend.core.auth.context import UserContext
 from backend.core.dependencies.auth import get_current_user
 from backend.core.permissions.rbac import Role
+from backend.core.dependencies.database import get_db as get_db_session
+from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
 from backend.modules.analytics.api.routes import router
 from backend.modules.analytics.schemas.analytics_dto import MostCitedDocumentDTO
 from backend.modules.analytics.repositories.analytics_repository import AnalyticsRepository
@@ -16,8 +18,26 @@ from backend.modules.analytics.repositories.analytics_repository import Analytic
 @pytest.fixture
 def analytics_test_app():
     app = FastAPI()
+    mock_session = AsyncMock()
+    app.dependency_overrides[get_db_session] = lambda: mock_session
     app.include_router(router, prefix="/api/v1/analytics")
     return app
+
+
+@pytest.fixture(autouse=True)
+def mock_membership():
+    with patch("backend.repositories.workspace_member.WorkspaceMemberRepository.get_membership", new_callable=AsyncMock) as mock_mem:
+        async def _fake_mem(workspace_id, user_id, include_suspended=False, include_deleted=False):
+            return WorkspaceMember(
+                id=uuid.uuid4(),
+                workspace_id=workspace_id,
+                user_id=user_id,
+                role="ADMIN",
+                status=MemberStatus.ACTIVE.value,
+                is_deleted=False,
+            )
+        mock_mem.side_effect = _fake_mem
+        yield
 
 
 @pytest.mark.asyncio
@@ -26,8 +46,8 @@ async def test_get_most_cited_documents_endpoint_success(analytics_test_app):
     doc_id = str(uuid.uuid4())
     user = UserContext(
         id=uuid.uuid4(),
-        email="viewer@test.com",
-        role=Role.VIEWER.value,
+        email="admin@test.com",
+        role=Role.ADMIN.value,
         workspace_id=ws_id,
         tenant_id=str(ws_id),
     )

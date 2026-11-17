@@ -304,8 +304,8 @@ def test_switch_workspace_request_valid():
 
 # ── 9. Registration Context Validation ───────────────────────────────────────
 
-def test_registration_request_with_onboarding_context():
-    """RegistrationRequest cleanly parses optional onboarding context."""
+def test_registration_request_dead_onboarding_fields_stripped():
+    """RegistrationRequest strips and ignores dead onboarding fields (WP-8)."""
     req = RegistrationRequest(
         email="newuser@example.com",
         password="SecurePassword123!",
@@ -315,17 +315,16 @@ def test_registration_request_with_onboarding_context():
         workspace_name="New Workspace Name",
     )
     assert req.email == "newuser@example.com"
-    assert req.workspace_id == "ACME-CORP"
-    assert req.join_code == "VR-7K9M2P"
-    assert req.workspace_name == "New Workspace Name"
+    assert req.full_name == "Alice Smith"
+    assert not hasattr(req, "workspace_id")
+    assert not hasattr(req, "join_code")
+    assert not hasattr(req, "workspace_name")
 
 
-def test_registration_request_rejects_uuid_workspace_id():
-    """RegistrationRequest rejects raw Tenant UUID in workspace_id."""
+def test_onboarding_context_rejects_uuid_workspace_id():
+    """OnboardingContext rejects raw Tenant UUID in workspace_id."""
     with pytest.raises(ValidationError) as exc_info:
-        RegistrationRequest(
-            email="test@example.com",
-            password="SecurePassword123!",
+        OnboardingContext(
             workspace_id=str(uuid.uuid4()),
         )
     assert "Tenant UUID cannot be used as a public join credential" in str(exc_info.value)
@@ -422,13 +421,14 @@ def test_registration_request_backward_compatible():
     }
     req = RegistrationRequest.model_validate(legacy_payload)
     assert req.email == "legacy@example.com"
-    assert req.workspace_id is None
-    assert req.join_code is None
-    assert req.invitation_token is None
+    assert req.full_name == "Legacy User"
+    assert not hasattr(req, "workspace_id")
+    assert not hasattr(req, "join_code")
+    assert not hasattr(req, "invitation_token")
 
 
 def test_registration_request_legacy_company_name_compatible():
-    """RegistrationRequest accepts legacy optional company_name and workspace_name."""
+    """RegistrationRequest safely ignores legacy optional company_name and workspace_name (WP-8)."""
     legacy_payload = {
         "email": "legacy_corp@example.com",
         "password": "ValidPassword123!",
@@ -437,5 +437,7 @@ def test_registration_request_legacy_company_name_compatible():
         "company_name": "Test Company",
     }
     req = RegistrationRequest.model_validate(legacy_payload)
-    assert req.workspace_name == "Test Org"
-    assert req.company_name == "Test Company"
+    assert req.email == "legacy_corp@example.com"
+    assert req.full_name == "Corp User"
+    assert not hasattr(req, "workspace_name")
+    assert not hasattr(req, "company_name")

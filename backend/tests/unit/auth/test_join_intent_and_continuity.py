@@ -357,3 +357,147 @@ async def test_join_code_validation_succeeds_after_oauth_continuity():
     assert added_user is not None
     assert added_user.tenant_id == str(target_ws_id)
     assert added_user.workspace_name == "Engineers"
+
+
+# ── 5. T-01: First-Time Google SSO Role & Verification Sync Tests ────────────
+
+@pytest.mark.asyncio
+async def test_oidc_first_time_user_receives_viewer_role():
+    """T-01: Verifies that a newly registered Google OIDC user receives role='viewer'."""
+    mock_session = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    auth_service = AuthService(mock_session)
+    auth_service.user_repo = AsyncMock()
+    auth_service.user_repo.get_by_email.return_value = None
+    auth_service.jwt_service = AsyncMock()
+    auth_service.jwt_service.issue_tokens.return_value = ("access-jwt", "refresh-raw", "fam-1")
+
+    mock_identity_res = MagicMock()
+    mock_identity_res.scalar_one_or_none.return_value = None
+
+    mock_member_res = MagicMock()
+    mock_member_res.first.return_value = None
+
+    mock_session.execute.side_effect = [mock_identity_res, mock_member_res]
+
+    access_token, _ = await auth_service.handle_oidc_login(
+        email="new_sso_user@example.com",
+        provider="google",
+        provider_user_id="google-sub-new-1",
+        metadata={"name": "New SSO User"},
+        join_intent=None,
+    )
+
+    added_user = None
+    for call in mock_session.add.call_args_list:
+        obj = call[0][0]
+        if isinstance(obj, User):
+            added_user = obj
+            break
+
+    assert added_user is not None
+    assert added_user.email == "new_sso_user@example.com"
+    assert added_user.role == "viewer"
+    assert added_user.is_verified is True
+    assert added_user.verified_at is not None
+    assert added_user.tenant_id is None
+
+
+@pytest.mark.asyncio
+async def test_oidc_verified_email_syncs_existing_unverified_user():
+    """T-01/T-05: Verifies that an existing unverified user is marked verified upon valid Google OIDC login."""
+    mock_session = AsyncMock()
+    mock_session.add = MagicMock()
+    mock_session.flush = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    existing_user = User(
+        id=uuid.uuid4(),
+        email="unverified_existing@example.com",
+        is_verified=False,
+        verified_at=None,
+        role="viewer",
+        is_active=True,
+    )
+
+    auth_service = AuthService(mock_session)
+    auth_service.user_repo = AsyncMock()
+    auth_service.user_repo.get_by_email.return_value = existing_user
+    auth_service.jwt_service = AsyncMock()
+    auth_service.jwt_service.issue_tokens.return_value = ("access-jwt", "refresh-raw", "fam-2")
+
+    mock_identity_res = MagicMock()
+    mock_identity_res.scalar_one_or_none.return_value = None
+
+    mock_member_res = MagicMock()
+    mock_member_res.first.return_value = None
+
+    mock_session.execute.side_effect = [mock_identity_res, mock_member_res]
+
+    await auth_service.handle_oidc_login(
+        email="unverified_existing@example.com",
+        provider="google",
+        provider_user_id="google-sub-existing-2",
+        metadata={"name": "Existing User"},
+        join_intent=None,
+    )
+
+    assert existing_user.is_verified is True
+    assert existing_user.verified_at is not None
+
+
+@pytest.mark.asyncio
+async def test_oidc_unverified_google_email_rejected():
+    """T-05: Verifies that Google ID tokens with email_verified=False raise AuthenticationException."""
+    with patch.dict(
+        "os.environ",
+        {
+            "OIDC_GOOGLE_CLIENT_ID": "test-client-id",
+            "OIDC_GOOGLE_CLIENT_SECRET": "test-client-secret",
+        },
+    ):
+        provider = GoogleOIDCProvider()
+        mock_redis = AsyncMock()
+        provider.redis = mock_redis
+
+        state = "state-unverified-test"
+        session_data = {
+            "nonce": "nonce-unverified",
+            "code_verifier": "verifier-unverified",
+        }
+        mock_redis.getdel.return_value = json.dumps(session_data)
+
+        with patch.object(provider, "_get_oidc_config", new_callable=AsyncMock) as mock_config, \
+             patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post, \
+             patch.object(provider, "_get_jwks", new_callable=AsyncMock) as mock_jwks, \
+             patch("jwt.get_unverified_header") as mock_header, \
+             patch("jwt.decode") as mock_decode, \
+             patch("jwt.algorithms.RSAAlgorithm.from_jwk", return_value="pubkey"):
+
+            mock_config.return_value = {
+                "token_endpoint": "https://oauth2.googleapis.com/token",
+                "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
+                "issuer": "https://accounts.google.com",
+            }
+            mock_token_resp = MagicMock()
+            mock_token_resp.status_code = 200
+            mock_token_resp.json.return_value = {"id_token": "token-unverified"}
+            mock_post.return_value = mock_token_resp
+
+            mock_jwks.return_value = {"keys": [{"kid": "k1"}]}
+            mock_header.return_value = {"kid": "k1"}
+            mock_decode.return_value = {
+                "sub": "user-unverified",
+                "email": "unverified@gmail.com",
+                "nonce": "nonce-unverified",
+                "email_verified": False,  # Google reports unverified email
+            }
+
+            with pytest.raises(AuthenticationException) as exc_info:
+                await provider.exchange_code(code="code-unverified", state=state)
+
+            assert "Email not verified by provider" in str(exc_info.value)
+

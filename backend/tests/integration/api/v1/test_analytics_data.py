@@ -1,5 +1,7 @@
 import uuid
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -10,6 +12,7 @@ from backend.main import create_app
 from backend.core.auth.context import UserContext
 from backend.core.permissions.rbac import Role
 from backend.core.dependencies.auth import get_optional_user, get_current_user
+from backend.models.entities.workspace_member import MemberStatus, WorkspaceMember
 from backend.modules.analytics.models.query_analytics import QueryAnalyticsRecord
 from backend.core.dependencies.database import get_db
 
@@ -30,11 +33,32 @@ def client():
     return TestClient(app)
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
+async def mock_membership_for_data_tests():
+    with patch("backend.repositories.workspace_member.WorkspaceMemberRepository.get_membership", new_callable=AsyncMock) as mock_mem:
+        async def _fake_mem(workspace_id, user_id, include_suspended=False, include_deleted=False):
+            curr_fn = app.dependency_overrides.get(get_current_user)
+            if curr_fn:
+                u = curr_fn()
+                if str(workspace_id) == str(u.tenant_id):
+                    role_str = u.role.value.upper() if isinstance(u.role, Role) else str(u.role).upper()
+                    return WorkspaceMember(
+                        id=uuid.uuid4(),
+                        workspace_id=workspace_id,
+                        user_id=u.id,
+                        role=role_str,
+                        status=MemberStatus.ACTIVE.value,
+                        is_deleted=False,
+                    )
+            return None
+        mock_mem.side_effect = _fake_mem
+        yield
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def setup_data():
     async with TestingSessionLocal() as db:
         # Create unique tenant IDs for this test run
-        tenant_a = f"Workspace-A-{uuid.uuid4()}"
-        tenant_b = f"Workspace-B-{uuid.uuid4()}"
+        tenant_a = str(uuid.uuid4())
+        tenant_b = str(uuid.uuid4())
 
         # Workspace A Data
         record_a1 = QueryAnalyticsRecord(
@@ -107,6 +131,11 @@ async def setup_data():
         app.dependency_overrides.clear()
 
 def get_mock_user(workspace: str, role: Role):
+    ws_uuid = None
+    try:
+        ws_uuid = uuid.UUID(str(workspace))
+    except (ValueError, TypeError):
+        pass
     return UserContext(
         id=uuid.uuid4(),
         email="test@raguard.ai",
@@ -115,6 +144,7 @@ def get_mock_user(workspace: str, role: Role):
         is_verified=True,
         supabase_id="mock-supabase-id",
         session_id=uuid.uuid4(),
+        workspace_id=ws_uuid,
         tenant_id=workspace,
         workspace_name=workspace
     )
@@ -124,8 +154,8 @@ async def test_real_cross_tenant_popular_topics(client, setup_data):
     tenant_a, tenant_b = setup_data
 
     # Test Tenant A
-    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
-    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
+    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.ADMIN)
+    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.ADMIN)
 
     res_a = client.get("/api/v1/analytics/popular-topics")
     assert res_a.status_code == 200
@@ -136,8 +166,8 @@ async def test_real_cross_tenant_popular_topics(client, setup_data):
     assert "beta" not in topics_a
 
     # Test Tenant B
-    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
-    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
+    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_b, Role.ADMIN)
+    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_b, Role.ADMIN)
 
     res_b = client.get("/api/v1/analytics/popular-topics")
     assert res_b.status_code == 200
@@ -152,8 +182,8 @@ async def test_real_cross_tenant_unanswered_queries(client, setup_data):
     tenant_a, tenant_b = setup_data
 
     # Test Tenant A
-    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
-    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
+    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.ADMIN)
+    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.ADMIN)
 
     res_a = client.get("/api/v1/analytics/unanswered-queries")
     assert res_a.status_code == 200
@@ -165,8 +195,8 @@ async def test_real_cross_tenant_unanswered_queries(client, setup_data):
     assert "unique_lexeme_beta" not in queries_a
 
     # Test Tenant B
-    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
-    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_b, Role.VIEWER)
+    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_b, Role.ADMIN)
+    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_b, Role.ADMIN)
 
     res_b = client.get("/api/v1/analytics/unanswered-queries")
     assert res_b.status_code == 200
@@ -187,15 +217,21 @@ async def test_authorization_matrix(client, setup_data):
     res = client.get("/api/v1/analytics/popular-topics")
     assert res.status_code in (401, 403)
 
-    # Insufficient Role (MEMBER on admin-gated quota endpoint)
+    # Insufficient Role (MEMBER is rejected from analytics under DEC-07)
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.MEMBER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.MEMBER)
-    res = client.get(f"/api/v1/analytics/v1/quotas/{tenant_a}")
+    res = client.get("/api/v1/analytics/popular-topics")
     assert res.status_code == 403
 
-    # Authorized (VIEWER on workspace viewer endpoint)
+    # Insufficient Role (VIEWER is rejected from analytics under DEC-07)
     app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
     app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.VIEWER)
+    res = client.get("/api/v1/analytics/popular-topics")
+    assert res.status_code == 403
+
+    # Authorized (ADMIN on workspace analytics)
+    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_a, Role.ADMIN)
+    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_a, Role.ADMIN)
     res = client.get("/api/v1/analytics/popular-topics")
     assert res.status_code == 200
 
@@ -203,7 +239,7 @@ async def test_authorization_matrix(client, setup_data):
 @pytest.mark.asyncio
 async def test_popular_topics_correctness(client):
     async with TestingSessionLocal() as db:
-        tenant_id = f"Workspace-C-{uuid.uuid4()}"
+        tenant_id = str(uuid.uuid4())
 
         # Contains stop words ("the", "is", "a"), should be filtered out
         # "running" should stem to "run"
@@ -218,8 +254,8 @@ async def test_popular_topics_correctness(client):
         db.add(record)
         await db.commit()
 
-    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
-    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
+    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_id, Role.ADMIN)
+    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_id, Role.ADMIN)
 
     res = client.get("/api/v1/analytics/popular-topics")
     assert res.status_code == 200
@@ -234,7 +270,7 @@ async def test_popular_topics_correctness(client):
 @pytest.mark.asyncio
 async def test_unanswered_query_correctness(client):
     async with TestingSessionLocal() as db:
-        tenant_id = f"Workspace-D-{uuid.uuid4()}"
+        tenant_id = str(uuid.uuid4())
 
         # This one should NOT appear (SUCCESS)
         record1 = QueryAnalyticsRecord(
@@ -266,8 +302,8 @@ async def test_unanswered_query_correctness(client):
         db.add_all([record1, record2, record3])
         await db.commit()
 
-    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
-    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_id, Role.VIEWER)
+    app.dependency_overrides[get_optional_user] = lambda: get_mock_user(tenant_id, Role.ADMIN)
+    app.dependency_overrides[get_current_user] = lambda: get_mock_user(tenant_id, Role.ADMIN)
 
     res = client.get("/api/v1/analytics/unanswered-queries")
     assert res.status_code == 200
