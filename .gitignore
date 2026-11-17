@@ -180,3 +180,13 @@ docs/internal/*_SCRATCH.md
 ~*.tmp
 # Private Documentation Archive
 /docs/private-archive/
+
+# Local Test Harness & Inventory Artifacts
+/classified_full_inventory.txt
+/failed_inventory.txt
+/infrastructure/compose/docker-compose.sec4-5-staging.yml
+/infrastructure/compose/docker-compose.t3b-test.yml
+/scripts/run_t3b_isolated_tests.ps1
+/scripts/seed_staging_baseline.py
+/scripts/validate_t3b_g1_migration.py
+/scripts/verify_t3b_target.py
