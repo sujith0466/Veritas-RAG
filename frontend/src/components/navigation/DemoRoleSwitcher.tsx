@@ -6,7 +6,6 @@ import {
   Shield,
   ShieldAlert,
   Users,
-  Eye,
   Check,
   RotateCcw,
   ChevronDown,
@@ -55,13 +54,6 @@ const DEMO_ROLES: DemoRoleOption[] = [
     icon: Users,
     badgeColor: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/30',
   },
-  {
-    role: 'viewer',
-    label: 'Viewer',
-    description: 'Read-only search, citations & knowledge inspection',
-    icon: Eye,
-    badgeColor: 'text-zinc-700 bg-zinc-100 border-zinc-200 dark:text-zinc-400 dark:bg-zinc-500/10 dark:border-zinc-500/30',
-  },
 ]
 
 export function DemoRoleSwitcher() {
@@ -75,9 +67,9 @@ export function DemoRoleSwitcher() {
     return null
   }
 
-  const currentRole = user.role?.toLowerCase() || 'viewer'
+  const currentRole = user.role?.toLowerCase() || 'member'
   const isSimulated = Boolean(user.demo_simulated)
-  const currentRoleConfig = DEMO_ROLES.find((r) => r.role === currentRole) || DEMO_ROLES[4]
+  const currentRoleConfig = DEMO_ROLES.find((r) => r.role === currentRole) || DEMO_ROLES[3]
 
   const handleRoleSelect = async (targetRole: Role) => {
     if (isPending || targetRole === currentRole) return

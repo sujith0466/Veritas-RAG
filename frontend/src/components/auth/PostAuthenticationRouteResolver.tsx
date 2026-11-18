@@ -9,6 +9,7 @@ import { PageTransition } from '@/components/layouts'
 import { Shield, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/common/Button'
 import { OnboardingWizard } from '@/pages/dashboard/OnboardingWizard'
+import { ApiError } from '@/types/api'
 
 export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
   const [isResolved, setIsResolved] = useState(false)
@@ -37,11 +38,12 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
     }
 
     setError(null)
+    let resolvedState = true
     try {
       // For backward compatibility: if onboarding_completed is missing/false,
       // we check if documents exist.
       const kiSummary = await dashboardService.getKnowledgeIntelligenceSummary()
-      const hasDocuments = kiSummary.total_documents > 0
+      const hasDocuments = Boolean(kiSummary?.total_documents && kiSummary.total_documents > 0)
 
       if (hasDocuments) {
         // Lazy migration for existing workspaces
@@ -56,11 +58,38 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
       } else {
         setIsWorkspaceEmpty(true)
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to resolve workspace state:', err)
+
+      const isGateway =
+        (err instanceof ApiError && (err.isGatewayError() || err.status === 0)) ||
+        (err as any)?.status === 502 ||
+        (err as any)?.status === 503 ||
+        (err as any)?.status === 504 ||
+        (err as any)?.response?.status === 502 ||
+        (err as any)?.response?.status === 503 ||
+        (err as any)?.response?.status === 504
+
+      if (isGateway) {
+        resolvedState = false
+        useAuthStore.getState().setErrorAuth(useAuthStore.getState().token || '', {
+          code: 'BACKEND_UNAVAILABLE',
+          message: 'Backend services are currently initializing. Reconnecting...',
+          retryable: true,
+          timestamp: Date.now(),
+        })
+        return
+      }
+
+      if (err instanceof ApiError && err.status === 401) {
+        resolvedState = false
+        useAuthStore.getState().clearAuth()
+        return
+      }
+
       setError('Unable to fetch workspace status. Please check your connection.')
     } finally {
-      setIsResolved(true)
+      setIsResolved(resolvedState)
     }
   }, [updateUser])
 
@@ -94,7 +123,7 @@ export function PostAuthenticationRouteResolver(): React.JSX.Element | null {
         </div>
         <h2 className="text-xl font-bold text-foreground">Workspace Resolution Failed</h2>
         <p className="text-sm text-muted-foreground">{error}</p>
-        <Button variant="outline" onClick={() => { setIsResolved(false); resolveWorkspaceState(); }}>
+        <Button variant="outline" onClick={() => { setIsResolved(false); setError(null); resolveWorkspaceState(); }}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
         </Button>

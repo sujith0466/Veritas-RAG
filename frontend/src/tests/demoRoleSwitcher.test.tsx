@@ -93,12 +93,12 @@ describe('DemoRoleSwitcher Frontend Integration', () => {
       ...baseUser,
       demo_role_switcher_enabled: true,
       demo_simulated: true,
-      role: 'viewer',
+      role: 'admin',
     }
 
     vi.mocked(authService.switchDemoRole).mockResolvedValueOnce({
       access_token: 'new-simulated-token',
-      role: 'viewer',
+      role: 'admin',
       workspace_id: 'ws-uuid-1',
       demo_simulated: true,
     })
@@ -109,12 +109,12 @@ describe('DemoRoleSwitcher Frontend Integration', () => {
     const button = screen.getByRole('button', { name: /demo role switcher/i })
     await user.click(button)
 
-    // Find "Viewer" option in dropdown
-    const viewerOption = await screen.findByText(/^viewer$/i)
-    await user.click(viewerOption)
+    // Find "Admin" option in dropdown
+    const adminOption = await screen.findByText(/^admin$/i)
+    await user.click(adminOption)
 
     await waitFor(() => {
-      expect(authService.switchDemoRole).toHaveBeenCalledWith('viewer', 'ws-uuid-1')
+      expect(authService.switchDemoRole).toHaveBeenCalledWith('admin', 'ws-uuid-1')
       expect(authService.fetchBackendProfile).toHaveBeenCalled()
     })
   })
@@ -126,7 +126,7 @@ describe('DemoRoleSwitcher Frontend Integration', () => {
         ...baseUser,
         demo_role_switcher_enabled: true,
         demo_simulated: true,
-        role: 'viewer',
+        role: 'admin',
       },
     })
 

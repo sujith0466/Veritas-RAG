@@ -353,6 +353,36 @@ describe('WS-A7: Route Guards & Onboarding Bridge', () => {
       expect(screen.getByTestId('dashboard')).toBeInTheDocument()
       expect(screen.queryByTestId('onboarding-content')).not.toBeInTheDocument()
     })
+
+    it('10b. OnboardingRoute renders BackendUnavailableBanner when status is ERROR and code is BACKEND_UNAVAILABLE', () => {
+      useAuthStore.setState({
+        status: 'ERROR',
+        error: {
+          code: 'BACKEND_UNAVAILABLE',
+          message: 'Backend services are currently initializing.',
+          retryable: true,
+          timestamp: Date.now(),
+        },
+      })
+
+      render(
+        <MemoryRouter initialEntries={['/onboarding']}>
+          <Routes>
+            <Route
+              path="/onboarding"
+              element={
+                <OnboardingRoute>
+                  <div data-testid="onboarding-content">Onboarding Content</div>
+                </OnboardingRoute>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      )
+
+      expect(screen.getByText(/Service Temporarily Unavailable/i)).toBeInTheDocument()
+      expect(screen.queryByTestId('onboarding-content')).not.toBeInTheDocument()
+    })
   })
 
   describe('PublicOnlyRoute', () => {

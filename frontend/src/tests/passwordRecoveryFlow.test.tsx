@@ -42,7 +42,7 @@ describe('Password Recovery Workflow', () => {
   it('renders Forgot Password link in LoginForm pointing to /auth/forgot-password', () => {
     render(
       <MemoryRouter>
-        <LoginForm role="viewer" onSuccess={vi.fn()} />
+        <LoginForm onSuccess={vi.fn()} />
       </MemoryRouter>
     )
 

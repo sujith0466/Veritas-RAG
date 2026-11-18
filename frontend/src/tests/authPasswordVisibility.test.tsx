@@ -26,7 +26,7 @@ vi.mock('@/components/auth/PasswordStrength', () => ({
 describe('Password Visibility Controls (UI Polish)', () => {
   describe('LoginForm', () => {
     it('initializes password field as hidden with closed eye control', () => {
-      render(<LoginForm role="admin" onSuccess={vi.fn()} />)
+      render(<LoginForm onSuccess={vi.fn()} />)
       const passwordInput = screen.getByLabelText(/^Password/i) as HTMLInputElement
       expect(passwordInput.type).toBe('password')
 
@@ -35,7 +35,7 @@ describe('Password Visibility Controls (UI Polish)', () => {
     })
 
     it('toggles password visibility between text and password on click', () => {
-      render(<LoginForm role="admin" onSuccess={vi.fn()} />)
+      render(<LoginForm onSuccess={vi.fn()} />)
       const passwordInput = screen.getByLabelText(/^Password/i) as HTMLInputElement
       const toggleBtn = screen.getByRole('button', { name: /Show password/i })
 

@@ -83,7 +83,7 @@ function ForgotPasswordLink() {
   )
 }
 
-export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormProps & { role: 'admin' | 'viewer' }) {
+export function LoginForm({ onSuccess, onFocusChange, onError }: BaseFormProps) {
   const { login } = useAuth()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
@@ -118,11 +118,11 @@ export function LoginForm({ role, onSuccess, onFocusChange, onError }: BaseFormP
       className="space-y-5"
     >
       <div className="space-y-2.5">
-        <Label htmlFor="email">{role === 'admin' ? 'Business Email' : 'Email'}</Label>
+        <Label htmlFor="email">Email</Label>
         <Input
           id="email"
           type="email"
-          placeholder={role === 'admin' ? 'admin@company.com' : 'name@example.com'}
+          placeholder="name@example.com"
           autoComplete="email"
           autoFocus
           onFocus={() => onFocusChange?.('email')}

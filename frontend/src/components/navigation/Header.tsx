@@ -111,7 +111,8 @@ export function Header() {
   const [isJoinAccessOpen, setIsJoinAccessOpen] = useState(false)
 
   const role = String(user?.role || '').trim().toLowerCase()
-  const isMemberOrViewer = Boolean(user && (role === 'member' || role === 'viewer'))
+  // Canonical MEMBER or historical VIEWER compatibility
+  const canAccessJoinCode = Boolean(user && (role === 'member' || role === 'viewer'))
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md shrink-0">
@@ -143,7 +144,7 @@ export function Header() {
 
         <DemoRoleSwitcher />
 
-        {isMemberOrViewer && (
+        {canAccessJoinCode && (
           <button
             type="button"
             onClick={() => setIsJoinAccessOpen(true)}

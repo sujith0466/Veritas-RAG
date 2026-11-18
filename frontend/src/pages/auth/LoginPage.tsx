@@ -1,14 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { RoleSelector, AuthBranding, LoginForm, WorkspaceLoader, type AIAssistantState } from '@/components/auth'
-import { ArrowLeft } from 'lucide-react'
+import { AuthBranding, LoginForm, WorkspaceLoader, type AIAssistantState } from '@/components/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { getSafeRedirectUrl } from '@/utils/redirect'
 
 export function LoginPage() {
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'viewer' | null>(null)
   const [aiState, setAiState] = useState<AIAssistantState>('idle')
   const [isSuccess, setIsSuccess] = useState(false)
   const navigate = useNavigate()
@@ -65,45 +63,17 @@ export function LoginPage() {
             >
               <WorkspaceLoader onComplete={handleLoaderComplete} />
             </motion.div>
-          ) : !selectedRole ? (
-            <motion.div
-              key="selector"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="w-full"
-            >
-              <RoleSelector mode="login" onSelect={setSelectedRole} />
-
-              <div className="text-center text-sm mt-6">
-                <span className="text-muted-foreground">Don&apos;t have an account? </span>
-                <Link
-                  to="/auth/register"
-                  className="font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
-                >
-                  Sign up
-                </Link>
-              </div>
-            </motion.div>
           ) : (
             <motion.div
               key="form"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               className="w-full"
             >
-              <button
-                onClick={() => setSelectedRole(null)}
-                className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to roles
-              </button>
-
               <div className="space-y-1.5 mb-5">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                  {selectedRole === 'admin' ? 'Admin Login' : 'User Login'}
+                  Welcome back
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   Enter your credentials to access your workspace
@@ -111,7 +81,6 @@ export function LoginPage() {
               </div>
 
               <LoginForm
-                role={selectedRole}
                 onFocusChange={handleFocusChange}
                 onSuccess={handleSuccess}
                 onError={handleError}
@@ -120,7 +89,7 @@ export function LoginPage() {
               <div className="text-center text-sm mt-5">
                 <span className="text-muted-foreground">Don&apos;t have an account? </span>
                 <Link
-                  to={`/auth/register?role=${selectedRole}`}
+                  to="/auth/register"
                   className="font-medium text-primary hover:underline outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
                 >
                   Sign up

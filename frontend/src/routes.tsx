@@ -168,8 +168,16 @@ export function OnboardingRoute({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((s) => s.status)
   const isAuthenticated = useAuthStore((s) => s.status === 'AUTHENTICATED')
   const user = useAuthStore((s) => s.user)
+  const error = useAuthStore((s) => s.error)
   const currentWorkspace = useWorkspaceStore((s) => s.currentWorkspace)
   const isResolvingWorkspace = useWorkspaceStore((s) => s.isResolvingWorkspace)
+
+  if (status === 'ERROR') {
+    if (error?.code === 'BACKEND_UNAVAILABLE') {
+      return <BackendUnavailableBanner />
+    }
+    return <Navigate to="/auth/login" replace />
+  }
 
   if (status === 'LOADING' || isResolvingWorkspace) {
     return <SuspenseFallback />
