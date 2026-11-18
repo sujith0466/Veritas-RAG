@@ -80,6 +80,15 @@ def is_route_covered(path: str, method: str) -> bool:
 
     # Chat, AI generation, and retrieval
     if norm_path == "/api/v1/chat" or norm_path.startswith("/api/v1/chat/"):
+        # Streaming and active AI query endpoints are always covered regardless of method
+        if "stream" in norm_path:
+            return True
+        # Mutating operations (session creation, message posting, deletion, feedback) require READY workspace
+        if method.upper() in ("POST", "PUT", "DELETE", "PATCH"):
+            return True
+        # Read-only historical chat listing and message reading (GET) are exempt from readiness lock
+        if method.upper() == "GET":
+            return False
         return True
     if norm_path == "/api/v1/generation" or norm_path.startswith("/api/v1/generation/"):
         return True

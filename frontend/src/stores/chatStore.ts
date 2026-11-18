@@ -72,9 +72,14 @@ export const useChatStore = create<ChatState>((set) => ({
     try {
       const { data } = await api.get('/chat/sessions')
       set({ sessions: data.data || [] })
-    } catch (error) {
-      console.error('Failed to fetch chat sessions', error)
-      notifyError('Fetch Failed', (error as Error).message || 'Failed to fetch chat sessions')
+    } catch (error: any) {
+      console.warn('Failed to fetch chat sessions:', error)
+      const isLocked = error?.status === 423 || error?.response?.status === 423 || error?.code === 'WORKSPACE_PROVISIONING_LOCKED'
+      const isAuth = error?.status === 401 || error?.response?.status === 401
+      if (!isLocked && !isAuth) {
+        notifyError('Fetch Failed', (error as Error).message || 'Failed to fetch chat sessions')
+      }
+      set({ sessions: [] })
     } finally {
       set({ isLoading: false })
     }

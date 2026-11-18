@@ -55,6 +55,9 @@ def test_is_route_covered_matrix():
     assert is_route_covered("/api/v1/retrieval/query", "POST") is True
 
     # Bypass routes
+    assert is_route_covered("/api/v1/chat/sessions", "GET") is False
+    assert is_route_covered("/api/v1/chat/sessions/123", "GET") is False
+    assert is_route_covered("/api/v1/chat/sessions/123/messages", "GET") is False
     assert is_route_covered("/api/v1/platform-admin/workspaces", "GET") is False
     assert is_route_covered("/api/v1/platform/audit-logs/inspect", "GET") is False
     assert is_route_covered("/api/v1/auth/login", "POST") is False
@@ -88,6 +91,10 @@ def create_test_app() -> FastAPI:
     @app.post("/api/v1/chat/sessions")
     async def mock_chat(request: Request):
         return {"success": True, "message": "Chat created"}
+
+    @app.get("/api/v1/chat/sessions")
+    async def mock_list_chat_sessions(request: Request):
+        return {"success": True, "sessions": []}
 
     @app.post("/api/v1/retrieval/query")
     async def mock_retrieval(request: Request):
@@ -163,6 +170,20 @@ def test_unready_workspace_covered_endpoints_locked(test_app, endpoint):
     )
     assert res.status_code == 423
     assert res.json()["error"]["code"] == "WORKSPACE_PROVISIONING_LOCKED"
+
+
+def test_unready_workspace_allows_read_only_chat_sessions_listing(test_app):
+    """Historical chat session listing (GET) is allowed even when workspace is unready."""
+    ws_id = uuid.uuid4()
+    test_app.state.mock_workspace_provisioning_status = {ws_id: "PROVISIONING"}
+
+    client = TestClient(test_app)
+    res = client.get(
+        "/api/v1/chat/sessions",
+        headers={"X-Workspace-ID": str(ws_id)},
+    )
+    assert res.status_code == 200
+    assert res.json()["success"] is True
 
 
 @pytest.mark.parametrize("role", [

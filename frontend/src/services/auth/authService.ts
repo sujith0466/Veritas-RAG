@@ -5,6 +5,26 @@ import type { UserContext } from '@/types'
 import type { LoginFormData, RegisterFormData } from '@/utils/validators'
 
 let inFlightRefreshPromise: Promise<string> | null = null
+let lastRefreshedToken: string | null = null
+let lastRefreshTime = 0
+
+// Listen for cross-tab token refresh events to prevent duplicate rotations when Web Lock is acquired
+if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+  try {
+    const syncChannel = new BroadcastChannel('auth_sync')
+    syncChannel.onmessage = (event) => {
+      if (event.data?.type === 'TOKEN_REFRESHED' && event.data?.token) {
+        lastRefreshedToken = event.data.token
+        lastRefreshTime = Date.now()
+      } else if (event.data?.type === 'LOGOUT') {
+        lastRefreshedToken = null
+        lastRefreshTime = 0
+      }
+    }
+  } catch {
+    // Ignore in non-supporting browser/test environments
+  }
+}
 
 export const authService = {
   async login(data: LoginFormData) {
@@ -113,6 +133,8 @@ export const authService = {
   },
 
   async logout() {
+    lastRefreshedToken = null
+    lastRefreshTime = 0
     try {
       await post('/auth/logout')
     } catch (error) {
@@ -126,6 +148,11 @@ export const authService = {
   },
 
   async refresh(): Promise<string> {
+    // 0. If a token was refreshed very recently (within 3 seconds), reuse it immediately
+    if (lastRefreshedToken && Date.now() - lastRefreshTime < 3000) {
+      return lastRefreshedToken
+    }
+
     // 1. Check in-memory single-flight promise (Tier 1: intra-tab dedup)
     if (inFlightRefreshPromise) {
       return inFlightRefreshPromise
@@ -143,6 +170,11 @@ export const authService = {
           async () => {
             clearTimeout(timeoutId)
             try {
+              // Check if another tab refreshed while we were queued on the lock
+              if (lastRefreshedToken && Date.now() - lastRefreshTime < 5000) {
+                resolve(lastRefreshedToken)
+                return
+              }
               const res = await this._executeRawRefresh()
               resolve(res)
             } catch (err) {
@@ -172,6 +204,9 @@ export const authService = {
     // The refresh_token is sent automatically via httpOnly cookies
     const response = await post<{ access_token: string }>('/auth/refresh')
     const token = response.access_token
+
+    lastRefreshedToken = token
+    lastRefreshTime = Date.now()
 
     // Broadcast newly refreshed token to other listening tabs so they can synchronize without re-rotating
     try {
