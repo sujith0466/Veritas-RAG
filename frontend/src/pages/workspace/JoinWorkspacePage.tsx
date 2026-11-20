@@ -273,7 +273,7 @@ export const JoinWorkspacePage: React.FC = () => {
         </button>
 
         <div className="flex justify-center mb-4">
-          <div className="h-14 w-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner">
+          <div className="h-14 w-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shadow-inner">
             <KeyRound className="h-7 w-7" />
           </div>
         </div>
@@ -296,7 +296,7 @@ export const JoinWorkspacePage: React.FC = () => {
             }}
             className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center space-x-2 ${
               activeTab === 'code'
-                ? 'bg-indigo-600 text-white shadow'
+                ? 'bg-primary text-primary-foreground shadow'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -312,7 +312,7 @@ export const JoinWorkspacePage: React.FC = () => {
             }}
             className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center space-x-2 ${
               activeTab === 'invitation'
-                ? 'bg-indigo-600 text-white shadow'
+                ? 'bg-primary text-primary-foreground shadow'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -368,7 +368,7 @@ export const JoinWorkspacePage: React.FC = () => {
                     type="button"
                     onClick={handleSwitchToExisting}
                     disabled={isSubmitting}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-medium transition-colors disabled:opacity-50"
                   >
                     <span>Switch to this Workspace</span>
                     <ExternalLink className="h-3 w-3 ml-1" />
@@ -386,7 +386,7 @@ export const JoinWorkspacePage: React.FC = () => {
                   htmlFor="workspace-identifier"
                   className="block text-xs font-medium uppercase tracking-wider text-slate-300"
                 >
-                  Workspace ID or Slug <span className="text-indigo-400">*</span>
+                  Workspace ID or Slug <span className="text-primary">*</span>
                 </label>
                 <div className="mt-2 flex space-x-2">
                   <input
@@ -405,7 +405,7 @@ export const JoinWorkspacePage: React.FC = () => {
                         handleLookup();
                       }
                     }}
-                    className="block flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-all"
+                    className="block flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all"
                     placeholder="e.g. ACME-7X92 or acme-ai"
                     disabled={isLoading || isSubmitting}
                   />
@@ -428,7 +428,7 @@ export const JoinWorkspacePage: React.FC = () => {
               {preview && (
                 <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
                       <Building2 className="h-5 w-5" />
                     </div>
                     <div>
@@ -440,7 +440,7 @@ export const JoinWorkspacePage: React.FC = () => {
                   </div>
                   <div>
                     {preview.requires_join_code ? (
-                      <span className="text-[11px] font-medium text-indigo-300 bg-indigo-950/60 border border-indigo-800/60 px-2 py-0.5 rounded-full">
+                      <span className="text-[11px] font-medium text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
                         Requires Code
                       </span>
                     ) : (
@@ -459,7 +459,7 @@ export const JoinWorkspacePage: React.FC = () => {
                     htmlFor="join-code"
                     className="block text-xs font-medium uppercase tracking-wider text-slate-300"
                   >
-                    Join Code {preview?.requires_join_code && <span className="text-indigo-400">*</span>}
+                    Join Code {preview?.requires_join_code && <span className="text-primary">*</span>}
                   </label>
                   {!preview?.requires_join_code && (
                     <span className="text-[11px] text-slate-500">Optional for open workspaces</span>
@@ -483,7 +483,7 @@ export const JoinWorkspacePage: React.FC = () => {
                         setJoinCode(`VR-${val}`);
                       }
                     }}
-                    className="block w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-mono tracking-wider transition-all uppercase"
+                    className="block w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm font-mono tracking-wider transition-all uppercase"
                     placeholder="VR-XXXXXX"
                     disabled={isLoading || isSubmitting}
                   />
@@ -497,7 +497,7 @@ export const JoinWorkspacePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading || isSubmitting || !workspaceIdentifier.trim()}
-                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isLoading || isSubmitting ? (
                     <span className="flex items-center space-x-2">
@@ -523,7 +523,7 @@ export const JoinWorkspacePage: React.FC = () => {
                   htmlFor="invitation-token"
                   className="block text-xs font-medium uppercase tracking-wider text-slate-300"
                 >
-                  Invitation Token <span className="text-indigo-400">*</span>
+                  Invitation Token <span className="text-primary">*</span>
                 </label>
                 <div className="mt-2 flex space-x-2">
                   <input
@@ -542,7 +542,7 @@ export const JoinWorkspacePage: React.FC = () => {
                         handleVerifyInvite();
                       }
                     }}
-                    className="block flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-mono text-xs transition-all"
+                    className="block flex-1 px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm font-mono text-xs transition-all"
                     placeholder="Paste your invitation token (sec_inv_...)"
                     disabled={isLoading || isSubmitting}
                   />
@@ -587,7 +587,7 @@ export const JoinWorkspacePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading || isSubmitting || !invitationToken.trim()}
-                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isLoading || isSubmitting ? (
                     <span className="flex items-center space-x-2">

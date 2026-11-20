@@ -119,6 +119,7 @@ export function Header() {
       <div className="flex items-center gap-3 sm:gap-4 overflow-hidden min-w-0">
         <button
           onClick={toggleSidebar}
+          aria-label="Open mobile navigation menu"
           className="md:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Menu className="h-4 w-4" />

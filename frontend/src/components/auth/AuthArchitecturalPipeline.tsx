@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useContext } from 'react'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { ThemeContext } from '@/contexts/ThemeContext'
 
 // SVG-based Internal Structure for perfectly crisp, abstract architectural details
 // Reused from ArchitecturalPipeline but visually subdued for auth background
@@ -81,7 +82,7 @@ function BlueprintDetails({ layerId }: { layerId: string }) {
   return null
 }
 
-export function AuthArchitecturalPipeline() {
+function AuthArchitecturalPipelineContent() {
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
 
@@ -187,4 +188,22 @@ export function AuthArchitecturalPipeline() {
       <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background opacity-40 z-10" />
     </div>
   )
+}
+
+/**
+ * AuthArchitecturalPipeline
+ * Isolated to light theme to preserve approved light-theme presentation.
+ * In dark theme, returns null to eliminate unnecessary 3D canvas and mouse-tracking springs.
+ */
+export function AuthArchitecturalPipeline() {
+  const themeContext = useContext(ThemeContext)
+  const isDark =
+    themeContext?.resolvedMode === 'dark' ||
+    (typeof document !== 'undefined' && document.documentElement.classList.contains('dark'))
+
+  if (isDark) {
+    return null
+  }
+
+  return <AuthArchitecturalPipelineContent />
 }

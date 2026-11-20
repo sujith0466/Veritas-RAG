@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { isToday, isYesterday, differenceInCalendarDays, parseISO } from 'date-fns'
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/common/Tooltip'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useChatStore, ChatSession } from '@/stores/chatStore'
@@ -151,85 +152,143 @@ export function Sidebar() {
 
       <button
         onClick={toggleSidebar}
+        aria-label={sidebarCollapsed ? "Expand navigation sidebar" : "Collapse navigation sidebar"}
         className="absolute -right-3 top-[3.75rem] z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors"
       >
         {sidebarCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
       </button>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 scrollbar-none flex flex-col">
-        {/* Main Navigation */}
-        <nav className="px-2 space-y-1 pb-4">
-          {navigation.map((section, i) => {
-            const roleStr = String(user?.role || '').trim().toLowerCase()
-            const items = section.items.filter(item => !item.adminOnly || ['admin', 'owner', 'platform_admin'].includes(roleStr))
-            if (items.length === 0) return null
+        <TooltipProvider delayDuration={150}>
+          {/* Main Navigation */}
+          <nav className="px-2 space-y-1 pb-4">
+            {navigation.map((section, i) => {
+              const roleStr = String(user?.role || '').trim().toLowerCase()
+              const items = section.items.filter(item => !item.adminOnly || ['admin', 'owner', 'platform_admin'].includes(roleStr))
+              if (items.length === 0) return null
 
-            return (
-              <div key={i} className="mb-2">
-                {i > 0 && <div className="h-px bg-border/40 mx-2 my-2" />}
-                <div className="space-y-0.5">
-                  {items.map((item) => {
-                    const isActive = item.matchPrefix
-                      ? location.pathname.startsWith(item.href)
-                      : location.pathname === item.href
+              return (
+                <div key={i} className="mb-2">
+                  {i > 0 && <div className="h-px bg-border/40 mx-2 my-2" />}
+                  <div className="space-y-0.5">
+                    {items.map((item) => {
+                      const isActive = item.matchPrefix
+                        ? location.pathname.startsWith(item.href)
+                        : location.pathname === item.href
 
-                    return (
-                      <Link
-                        key={item.name}
-                        to={item.href}
-                        title={sidebarCollapsed ? item.name : undefined}
-                        className={cn(
-                          'group relative flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                          isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-                          sidebarCollapsed && 'justify-center px-2'
-                        )}
-                      >
-                        {isActive && (
-                          <motion.div
-                            layoutId="sidebar-active-bg"
-                            className="absolute inset-0 rounded-lg bg-primary/8"
-                            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                          />
-                        )}
-                        <item.icon className={cn('h-4 w-4 shrink-0 z-10 transition-colors', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
-                        <AnimatePresence initial={false}>
-                          {!sidebarCollapsed && (
-                            <motion.span variants={sidebarLabelVariants} initial="collapsed" animate="expanded" exit="collapsed" className="z-10 font-medium whitespace-nowrap overflow-hidden text-sm">
-                              {item.name}
-                            </motion.span>
+                      const navLink = (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          aria-label={sidebarCollapsed ? item.name : undefined}
+                          className={cn(
+                            'group relative flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                            isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                            sidebarCollapsed && 'justify-center px-2'
                           )}
-                        </AnimatePresence>
-                      </Link>
-                    )
-                  })}
+                        >
+                          {isActive && (
+                            <motion.div
+                              layoutId="sidebar-active-bg"
+                              className="absolute inset-0 rounded-lg bg-primary/8"
+                              transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                            />
+                          )}
+                          <item.icon className={cn('h-4 w-4 shrink-0 z-10 transition-colors', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+                          <AnimatePresence initial={false}>
+                            {!sidebarCollapsed && (
+                              <motion.span variants={sidebarLabelVariants} initial="collapsed" animate="expanded" exit="collapsed" className="z-10 font-medium whitespace-nowrap overflow-hidden text-sm">
+                                {item.name}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </Link>
+                      )
+
+                      if (sidebarCollapsed) {
+                        return (
+                          <Tooltip key={item.name}>
+                            <TooltipTrigger asChild>
+                              {navLink}
+                            </TooltipTrigger>
+                            <TooltipContent side="right" sideOffset={12}>
+                              {item.name}
+                            </TooltipContent>
+                          </Tooltip>
+                        )
+                      }
+
+                      return navLink
+                    })}
+                  </div>
                 </div>
+              )
+            })}
+          </nav>
+
+          {/* Chat History Section */}
+          <div className="flex-1 px-2 mt-2">
+            {!sidebarCollapsed ? (
+              <button
+                onClick={handleNewChat}
+                className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Plus className="h-4 w-4 shrink-0 transition-colors" />
+                <span className="font-medium text-sm whitespace-nowrap overflow-hidden">New Chat</span>
+              </button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleNewChat}
+                    className="w-full flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label="New Chat"
+                  >
+                    <Plus className="h-4 w-4 shrink-0 transition-colors" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={12}>
+                  New Chat
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Collapsed Recent Chat History */}
+            {sidebarCollapsed && sessions.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-border/40 space-y-1">
+                {sessions.slice(0, 5).map((session) => {
+                  const isChatActive = location.pathname === `/chat/${session.id}`
+                  return (
+                    <Tooltip key={session.id}>
+                      <TooltipTrigger asChild>
+                        <Link
+                          to={`/chat/${session.id}`}
+                          aria-label={session.title || 'Chat session'}
+                          className={cn(
+                            'flex items-center justify-center rounded-lg px-2 py-2 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                            isChatActive
+                              ? 'bg-muted/80 text-foreground font-medium'
+                              : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                          )}
+                        >
+                          {session.pinned ? (
+                            <Pin className="h-4 w-4 shrink-0 text-primary fill-primary/30" />
+                          ) : (
+                            <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
+                          )}
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={12} className="max-w-xs truncate">
+                        {session.title || 'Untitled Chat'}
+                      </TooltipContent>
+                    </Tooltip>
+                  )
+                })}
               </div>
-            )
-          })}
-        </nav>
+            )}
 
-        {/* Chat History Section */}
-        <div className="flex-1 px-2 mt-2">
-          {!sidebarCollapsed ? (
-            <button
-              onClick={handleNewChat}
-              className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <Plus className="h-4 w-4 shrink-0 transition-colors" />
-              <span className="font-medium text-sm whitespace-nowrap overflow-hidden">New Chat</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleNewChat}
-              className="w-full flex items-center justify-center rounded-lg px-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              title="New Chat"
-            >
-              <Plus className="h-4 w-4 shrink-0 transition-colors" />
-            </button>
-          )}
-
-          {!sidebarCollapsed && (
-            <div className="mt-4 space-y-4 pb-4">
+            {!sidebarCollapsed && (
+              <div className="mt-4 space-y-4 pb-4">
               {groupedSessions.pinned.length > 0 && (
                 <ChatGroup
                   title="Pinned"
@@ -256,6 +315,7 @@ export function Sidebar() {
             </div>
           )}
         </div>
+        </TooltipProvider>
       </div>
     </motion.aside>
   )

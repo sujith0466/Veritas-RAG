@@ -64,7 +64,7 @@ export const CreateWorkspace: React.FC = () => {
         </button>
 
         <div className="flex justify-center mb-4">
-          <div className="h-14 w-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner">
+          <div className="h-14 w-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shadow-inner">
             <Building2 className="h-7 w-7" />
           </div>
         </div>
@@ -87,7 +87,7 @@ export const CreateWorkspace: React.FC = () => {
                 <span className="font-medium text-slate-200">{user?.full_name || 'Authenticated User'}</span>
                 <span className="text-slate-400 ml-1.5 font-mono text-[11px]">({user?.email || 'unknown@domain.com'})</span>
               </div>
-              <div className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-indigo-950/70 border border-indigo-800/40 text-indigo-400">
+              <div className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-primary/10 border border-primary/20 text-primary">
                 OWNER
               </div>
             </div>
@@ -101,7 +101,7 @@ export const CreateWorkspace: React.FC = () => {
 
             <div>
               <label htmlFor="workspace-name" className="block text-xs font-medium uppercase tracking-wider text-slate-300">
-                Workspace Name <span className="text-indigo-400">*</span>
+                Workspace Name <span className="text-primary">*</span>
               </label>
               <div className="mt-2">
                 <input
@@ -119,7 +119,7 @@ export const CreateWorkspace: React.FC = () => {
                       clearError();
                     }
                   }}
-                  className="block w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-all"
+                  className="block w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all"
                   placeholder="e.g. Acme Research Lab"
                   disabled={isLoading || isSubmitting}
                 />
@@ -141,7 +141,7 @@ export const CreateWorkspace: React.FC = () => {
                   maxLength={500}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="block w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm transition-all resize-none"
+                  className="block w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all resize-none"
                   placeholder="Brief description of this workspace's purpose..."
                   disabled={isLoading || isSubmitting}
                 />
@@ -152,7 +152,7 @@ export const CreateWorkspace: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading || isSubmitting || !name.trim()}
-                className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isLoading || isSubmitting ? (
                   <span className="flex items-center space-x-2">

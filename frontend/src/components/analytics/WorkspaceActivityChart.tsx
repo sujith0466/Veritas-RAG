@@ -72,7 +72,7 @@ export function WorkspaceActivityChart({
   }, [points, pathD])
 
   return (
-    <Card className="border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl rounded-2xl overflow-hidden shadow-sm">
+    <Card className="border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl overflow-hidden shadow-sm">
       <CardHeader className="pb-3 border-b border-border/30">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">

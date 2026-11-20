@@ -113,7 +113,7 @@ async def test_handle_chunking_completed_dispatches_correct_version_and_preserve
     v1_id = uuid.uuid4()
     v2_id = uuid.uuid4()
     job_id = uuid.uuid4()
-    tenant_id = "test-tenant"
+    tenant_id = str(uuid.uuid4())
 
     doc = Document(
         id=doc_id,
@@ -135,12 +135,20 @@ async def test_handle_chunking_completed_dispatches_correct_version_and_preserve
     mock_emb_job = MagicMock()
     mock_emb_job.id = job_id
 
+    mock_quota_settings = MagicMock()
+    mock_quota_settings.monthly_token_limit = 1_000_000
+    mock_quota_settings.is_hard_enforced = False
+
     with patch("backend.database.engine.get_session_factory") as mock_factory, \
+         patch("backend.modules.analytics.services.quota.QuotaGovernor.get_quota_settings", new_callable=AsyncMock) as mock_get_quota, \
+         patch("backend.modules.analytics.services.quota.QuotaGovernor.get_durable_usage", new_callable=AsyncMock) as mock_get_usage, \
          patch("backend.modules.embedding.services.embedding_service.EmbeddingService.initiate_embedding_job", new_callable=AsyncMock) as mock_initiate, \
          patch("backend.modules.embedding.workers.tasks.process_embedding_batch_task.apply_async") as mock_batch_task:
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__.return_value = mock_session
         mock_factory.return_value = MagicMock(return_value=mock_ctx)
+        mock_get_quota.return_value = mock_quota_settings
+        mock_get_usage.return_value = 100
         mock_initiate.return_value = mock_emb_job
 
         await handle_chunking_completed(event)
@@ -152,6 +160,49 @@ async def test_handle_chunking_completed_dispatches_correct_version_and_preserve
         assert call_kwargs["document_id"] == doc_id
         assert doc.status == DocumentStatus.READY
         mock_batch_task.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_chunking_completed_malformed_tenant_fails_closed(mock_session):
+    """Fail-closed guard: Non-UUID tenant_id records pipeline failure and does NOT dispatch embedding."""
+    doc_id = uuid.uuid4()
+    v1_id = uuid.uuid4()
+    malformed_tenant_id = "malformed-non-uuid"
+
+    doc = Document(
+        id=doc_id,
+        tenant_id=malformed_tenant_id,
+        status=DocumentStatus.CHUNKING,
+        latest_version_id=v1_id,
+        filename="contract.pdf",
+    )
+
+    mock_session.get.return_value = doc
+
+    event = MagicMock()
+    event.event_id = uuid.uuid4()
+    event.document_id = doc_id
+    event.document_version_id = v1_id
+    event.data = {"chunk_count": 1}
+    event.payload = None
+
+    with patch("backend.database.engine.get_session_factory") as mock_factory, \
+         patch("backend.document.services.failure_service.PipelineFailureSynchronizer.record_pipeline_failure", new_callable=AsyncMock) as mock_record_failure, \
+         patch("backend.modules.embedding.services.embedding_service.EmbeddingService.initiate_embedding_job", new_callable=AsyncMock) as mock_initiate, \
+         patch("backend.modules.embedding.workers.tasks.process_embedding_batch_task.apply_async") as mock_batch_task:
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__.return_value = mock_session
+        mock_factory.return_value = MagicMock(return_value=mock_ctx)
+
+        await handle_chunking_completed(event)
+
+        # Verified: Failure recorded with INVALID_TENANT_ID and embedding never dispatched
+        mock_record_failure.assert_called_once()
+        call_kwargs = mock_record_failure.call_args.kwargs
+        assert call_kwargs["error_code"] == "INVALID_TENANT_ID"
+        assert call_kwargs["failing_stage"] == "quota_validation"
+        mock_initiate.assert_not_called()
+        mock_batch_task.assert_not_called()
 
 
 @pytest.mark.asyncio

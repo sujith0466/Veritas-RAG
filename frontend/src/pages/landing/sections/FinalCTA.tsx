@@ -32,7 +32,7 @@ export function FinalCTA() {
             <MagneticButton
               variant="primary"
               onClick={handleLaunch}
-              className="w-full sm:w-auto text-base h-12 px-8 shadow-[0_0_20px_rgb(59,130,246,0.2)] hover:shadow-[0_0_30px_rgb(59,130,246,0.4)] transition-shadow group"
+              className="w-full sm:w-auto text-base h-12 px-8 shadow-[0_0_20px_rgb(59,130,246,0.2)] dark:shadow-[0_0_20px_rgba(69,175,162,0.25)] hover:shadow-[0_0_30px_rgb(59,130,246,0.4)] dark:hover:shadow-[0_0_30px_rgba(69,175,162,0.4)] transition-shadow group"
             >
               Launch Workspace
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />

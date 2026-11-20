@@ -130,12 +130,32 @@ async def handle_chunking_completed(event) -> None:
             from backend.modules.analytics.services.quota import QuotaGovernor
             from backend.modules.embedding.schemas.errors import TokenQuotaExceededError
             governor = QuotaGovernor()
-            ws_uuid = doc.workspace_id
-            if ws_uuid is None and doc.tenant_id:
-                try:
-                    ws_uuid = uuid.UUID(doc.tenant_id)
-                except Exception:
-                    pass
+            try:
+                if not doc.tenant_id or not str(doc.tenant_id).strip():
+                    raise ValueError("Document is missing mandatory tenant_id.")
+                ws_uuid = uuid.UUID(str(doc.tenant_id))
+            except (ValueError, TypeError) as id_err:
+                logger.error(
+                    "Invalid or missing tenant_id for quota enforcement (EMB_001)",
+                    document_id=str(doc.id),
+                    tenant_id=getattr(doc, "tenant_id", None),
+                    error=str(id_err),
+                )
+                from backend.modules.embedding.schemas.errors import InvalidInputError
+                err = InvalidInputError(
+                    f"Document '{doc.id}' has invalid or missing tenant identity '{getattr(doc, 'tenant_id', None)}'."
+                )
+                await PipelineFailureSynchronizer.record_pipeline_failure(
+                    session=session,
+                    document_id=doc.id,
+                    failing_stage="quota_validation",
+                    error_code="INVALID_TENANT_ID",
+                    error_message=str(err),
+                    exception=err,
+                    tenant_id=str(doc.tenant_id) if getattr(doc, "tenant_id", None) else None,
+                    version_id=target_ver_uuid,
+                )
+                return
 
             quota_settings = await governor.get_quota_settings(
                 workspace_id=ws_uuid,

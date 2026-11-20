@@ -101,16 +101,16 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-between p-4 sm:p-6 text-slate-100 selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-slate-950 flex flex-col justify-between p-4 sm:p-6 text-slate-100 selection:bg-primary/30">
       {/* Top Navigation Bar */}
       <header className="w-full max-w-5xl mx-auto flex items-center justify-between py-4 border-b border-slate-800/80">
         <div className="flex items-center space-x-3">
-          <div className="h-9 w-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+          <div className="h-9 w-9 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary">
             <Shield className="h-5 w-5" />
           </div>
           <div>
             <span className="font-semibold text-white tracking-tight">Veritas RAG</span>
-            <span className="ml-2 text-xs font-mono uppercase bg-indigo-950/60 text-indigo-400 px-2 py-0.5 rounded border border-indigo-800/40">
+            <span className="ml-2 text-xs font-mono uppercase bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20">
               Onboarding
             </span>
           </div>
@@ -148,8 +148,8 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
 
         {/* Transient parameter indicators */}
         {(joinCodeParam || invitationTokenParam || intentIdParam) && (
-          <div className="mb-6 p-4 rounded-xl bg-indigo-950/40 border border-indigo-800/50 flex items-start space-x-3 text-indigo-200">
-            <CheckCircle2 className="h-5 w-5 text-indigo-400 shrink-0 mt-0.5" />
+          <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/30 flex items-start space-x-3 text-slate-200">
+            <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
             <div className="text-xs leading-relaxed">
               <strong>Pending Join Context Detected:</strong> We detected an invitation or join context for your session. Proceed to join to complete enrollment.
             </div>
@@ -160,14 +160,14 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
         {existingMemberships.length > 0 && (
           <div className="mb-8 p-6 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur shadow-xl">
             <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-indigo-400" />
+              <Building2 className="h-4 w-4 text-primary" />
               Existing Workspace Memberships
             </h2>
             <div className="space-y-3">
               {existingMemberships.map((membership) => (
                 <div
                   key={membership.workspace_id}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/70 hover:border-indigo-500/40 transition-colors"
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/70 hover:border-primary/40 transition-colors"
                 >
                   <div>
                     <div className="font-medium text-white flex items-center gap-2">
@@ -186,7 +186,7 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
                   <button
                     onClick={() => handleSwitch(membership.workspace_id)}
                     disabled={isSwitching === membership.workspace_id}
-                    className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
+                    className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-medium transition-colors disabled:opacity-50"
                   >
                     {isSwitching === membership.workspace_id ? (
                       <>
@@ -211,20 +211,20 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
           {/* Pathway 1: Create Workspace */}
           <div
             onClick={() => navigate('/workspaces/new')}
-            className="group cursor-pointer p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 transition-all duration-200 shadow-lg flex flex-col justify-between"
+            className="group cursor-pointer p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 hover:border-primary/50 transition-all duration-200 shadow-lg flex flex-col justify-between"
           >
             <div>
-              <div className="h-12 w-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-4 group-hover:scale-105 transition-transform">
                 <PlusCircle className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-semibold text-white group-hover:text-indigo-300 transition-colors">
+              <h3 className="text-lg font-semibold text-white group-hover:text-primary transition-colors">
                 Create a Workspace
               </h3>
               <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
                 Set up a new isolated organization or team workspace to ingest proprietary knowledge, manage members, and query AI assistants.
               </p>
             </div>
-            <div className="mt-6 flex items-center text-xs font-medium text-indigo-400 group-hover:translate-x-1 transition-transform">
+            <div className="mt-6 flex items-center text-xs font-medium text-primary group-hover:translate-x-1 transition-transform">
               <span>Create new workspace</span>
               <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
             </div>
@@ -241,20 +241,20 @@ export function WorkspaceOnboardingPage(): React.JSX.Element {
                 navigate('/workspaces/join')
               }
             }}
-            className="group cursor-pointer p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 transition-all duration-200 shadow-lg flex flex-col justify-between"
+            className="group cursor-pointer p-6 rounded-2xl bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 hover:border-primary/50 transition-all duration-200 shadow-lg flex flex-col justify-between"
           >
             <div>
-              <div className="h-12 w-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-4 group-hover:scale-105 transition-transform">
                 <KeyRound className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-semibold text-white group-hover:text-indigo-300 transition-colors">
+              <h3 className="text-lg font-semibold text-white group-hover:text-primary transition-colors">
                 Join with Code or Invite
               </h3>
               <p className="text-xs sm:text-sm text-slate-400 mt-2 leading-relaxed">
                 Connect to an existing workspace using a 6-character Join Code (VR-XXXXXX) or a direct cryptographic invitation token.
               </p>
             </div>
-            <div className="mt-6 flex items-center text-xs font-medium text-indigo-400 group-hover:translate-x-1 transition-transform">
+            <div className="mt-6 flex items-center text-xs font-medium text-primary group-hover:translate-x-1 transition-transform">
               <span>Join existing workspace</span>
               <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
             </div>

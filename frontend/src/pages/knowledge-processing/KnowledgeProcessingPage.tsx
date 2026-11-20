@@ -109,7 +109,7 @@ export function KnowledgeProcessingPage() {
       />
 
       {/* Top Pipeline Stepper Visual Preview */}
-      <div className="rounded-2xl border border-border/80 bg-surface/60 backdrop-blur-md p-4 sm:p-5 shadow-sm">
+      <div className="rounded-2xl dark:rounded-xl border border-border/80 bg-surface/60 backdrop-blur-md p-4 sm:p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3.5 pb-3 border-b border-border/60">
           <div className="flex items-center gap-2">
             <Workflow className="w-4 h-4 text-primary" />
@@ -127,7 +127,7 @@ export function KnowledgeProcessingPage() {
           <div
             onClick={() => handleSelectStage('chunks')}
             className={cn(
-              'group cursor-pointer rounded-xl border p-3.5 transition-all',
+              'group cursor-pointer rounded-xl dark:rounded-lg border p-3.5 transition-all',
               activeStage === 'chunks'
                 ? 'border-indigo-500/50 bg-indigo-500/10 shadow-sm'
                 : 'border-border/60 bg-background/40 hover:border-border hover:bg-background/80'
@@ -149,7 +149,7 @@ export function KnowledgeProcessingPage() {
           <div
             onClick={() => handleSelectStage('embeddings')}
             className={cn(
-              'group cursor-pointer rounded-xl border p-3.5 transition-all',
+              'group cursor-pointer rounded-xl dark:rounded-lg border p-3.5 transition-all',
               activeStage === 'embeddings'
                 ? 'border-amber-500/50 bg-amber-500/10 shadow-sm'
                 : 'border-border/60 bg-background/40 hover:border-border hover:bg-background/80'
@@ -171,7 +171,7 @@ export function KnowledgeProcessingPage() {
           <div
             onClick={() => handleSelectStage('vectors')}
             className={cn(
-              'group cursor-pointer rounded-xl border p-3.5 transition-all',
+              'group cursor-pointer rounded-xl dark:rounded-lg border p-3.5 transition-all',
               activeStage === 'vectors'
                 ? 'border-emerald-500/50 bg-emerald-500/10 shadow-sm'
                 : 'border-border/60 bg-background/40 hover:border-border hover:bg-background/80'
@@ -193,7 +193,7 @@ export function KnowledgeProcessingPage() {
           <div
             onClick={() => handleSelectStage('overview')}
             className={cn(
-              'group cursor-pointer rounded-xl border p-3.5 transition-all',
+              'group cursor-pointer rounded-xl dark:rounded-lg border p-3.5 transition-all',
               activeStage === 'overview'
                 ? 'border-primary/50 bg-primary/10 shadow-sm'
                 : 'border-border/60 bg-background/40 hover:border-border hover:bg-background/80'
@@ -375,7 +375,7 @@ export function KnowledgeProcessingPage() {
                 </div>
 
                 {/* Architecture Info Notice */}
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3 text-xs text-foreground">
+                <div className="rounded-xl dark:rounded-lg border border-primary/20 bg-primary/5 p-4 flex items-start gap-3 text-xs text-foreground">
                   <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <strong className="font-semibold text-primary">Unified Processing Architecture (KP-01)</strong>

@@ -147,7 +147,7 @@ function KpiCard({
       className="group"
     >
       <Card
-        className={`relative h-full overflow-hidden border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl transition-all duration-300 ${accentStyles.border} ${accentStyles.glow} rounded-2xl`}
+        className={`relative h-full overflow-hidden border border-border/60 bg-card/60 dark:bg-surface/60 backdrop-blur-xl transition-all duration-300 ${accentStyles.border} ${accentStyles.glow}`}
       >
         {/* Subtle top accent highlight */}
         <div className={`h-1 w-full ${accentStyles.bar}`} />
@@ -158,7 +158,7 @@ function KpiCard({
               {title}
             </span>
             <div
-              className={`p-2 rounded-xl border transition-transform duration-300 group-hover:scale-110 ${accentStyles.iconBg}`}
+              className={`p-2 rounded-lg border transition-transform duration-300 group-hover:scale-110 ${accentStyles.iconBg}`}
             >
               {icon}
             </div>

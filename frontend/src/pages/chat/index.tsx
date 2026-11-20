@@ -876,10 +876,10 @@ export function AIChatPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
               {[
-                { category: 'Security & Access', icon: ShieldCheck, question: 'What is the password policy?' },
-                { category: 'Incident Response', icon: Sparkles, question: 'How do I report a security incident?' },
-                { category: 'HR & Operations', icon: FileText, question: 'Explain the leave policy.' },
-                { category: 'Infrastructure', icon: Layers, question: 'What IT resources are available?' }
+                { category: 'Compliance & Audit', icon: ShieldCheck, question: 'Summarize data retention and encryption controls across active policies.' },
+                { category: 'Policy Synthesis', icon: Sparkles, question: 'Compare security baseline standards across ingested technical docs.' },
+                { category: 'Architecture & Auth', icon: FileText, question: 'Retrieve internal API authentication and token lifecycle standards.' },
+                { category: 'Infrastructure & SLA', icon: Layers, question: 'Cross-reference production disaster recovery RTO and RPO objectives.' }
               ].map(({ category, icon: Icon, question: q }) => (
                 <button
                   key={q}
@@ -955,10 +955,7 @@ export function AIChatPage() {
           ref={composerContainerRef}
           layout={!shouldReduceMotion}
           transition={{ duration: shouldReduceMotion ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className={cn(
-            "pointer-events-auto relative w-full transition-all duration-200",
-            isCompact ? "max-w-md sm:max-w-lg" : "max-w-3xl"
-          )}
+          className="pointer-events-auto relative w-full max-w-3xl transition-all duration-200"
         >
           <AnimatePresence>
             {isStreaming && (
@@ -1288,8 +1285,8 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
               <div className={cn(
                 "relative text-sm leading-relaxed transition-all",
                 isUser
-                  ? "px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl rounded-tr-sm bg-emerald-50/80 border border-emerald-200/80 text-foreground shadow-[0_1px_2px_rgba(16,185,129,0.06)] dark:bg-surface-elevated dark:border-border/80 dark:text-foreground dark:shadow-xs"
-                  : "px-1 py-1 sm:px-1.5 sm:py-1.5 bg-transparent border-0 shadow-none text-foreground"
+                  ? "px-4.5 py-3 sm:px-5 sm:py-3.5 rounded-2xl rounded-tr-sm bg-surface-elevated/75 border border-border/80 text-foreground shadow-xs"
+                  : "w-full px-4 py-3 sm:px-4.5 sm:py-3.5 rounded-xl bg-surface/50 dark:bg-surface/35 border border-border/60 text-foreground shadow-xs"
               )}>
                 {isRetrieving ? (
                   <div className="inline-flex items-center gap-2.5 py-1.5 px-3 rounded-lg border border-border/60 bg-surface/80 dark:bg-surface-elevated/80 text-muted-foreground text-xs font-medium backdrop-blur-xs" role="status" aria-live="polite">
@@ -1327,7 +1324,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                               {...props}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={isUser ? "underline underline-offset-2 font-medium text-emerald-800 dark:text-primary hover:opacity-80 transition-opacity" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
+                              className={isUser ? "underline underline-offset-2 font-medium text-primary hover:opacity-80 transition-opacity" : "text-primary underline underline-offset-2 hover:text-primary-hover font-medium transition-colors"}
                             >
                               {children}
                             </a>
@@ -1344,7 +1341,7 @@ export const ChatMessageBubble = memo(function ChatMessageBubble({
                               className={cn(
                                 "rounded font-mono text-[12px] font-medium px-1.5 py-0.5",
                                 isUser
-                                  ? "bg-emerald-500/10 text-emerald-900 dark:bg-muted/80 dark:text-foreground border border-emerald-500/20 dark:border-border/50"
+                                  ? "bg-muted/80 text-foreground border border-border/50"
                                   : "bg-muted/80 text-primary dark:text-teal-300 border border-border/50"
                               )}
                               {...props}
