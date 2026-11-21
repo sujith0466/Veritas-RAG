@@ -41,7 +41,7 @@ describe('Canonical Workspace Settings & Optimistic Concurrency (ADMIN-02)', () 
       user: {
         id: 'u-1',
         email: 'admin@example.com',
-        role: 'ADMIN' as any,
+        role: 'OWNER' as any,
         workspace_id: 'ws-123',
         tenant_id: 'ws-123',
         workspace_name: 'Veritas Corp',

@@ -187,6 +187,136 @@ export const toastVariants: Variants = {
   exit: { opacity: 0, y: -8, scale: 0.97, transition: transitions.fast },
 }
 
+// ─── Dynamic Island Variants ──────────────────────────────────────────────────
+
+export const dynamicIslandVariants: Variants = {
+  initial: {
+    opacity: 0,
+    scale: 0.88,
+    y: -20,
+    width: 156,
+    height: 38,
+    borderRadius: 24,
+  },
+  pill: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    width: 156,
+    height: 38,
+    borderRadius: 24,
+    transition: {
+      type: 'spring',
+      stiffness: 340,
+      damping: 26,
+      mass: 0.9,
+    },
+  },
+  expanded: (custom?: { hasMessage?: boolean }) => ({
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    width: 'auto',
+    height: 'auto',
+    minWidth: custom?.hasMessage ? 280 : 180,
+    maxWidth: 440,
+    minHeight: custom?.hasMessage ? 56 : 38,
+    borderRadius: 20,
+    transition: {
+      type: 'spring',
+      stiffness: 260,
+      damping: 25,
+      mass: 0.85,
+    },
+  }),
+  suppressed: {
+    opacity: 0,
+    scale: 0.92,
+    y: -10,
+    pointerEvents: 'none',
+    transition: { duration: 0.18, ease: 'easeOut' },
+  },
+  collapsing: {
+    opacity: 0,
+    scale: 0.88,
+    y: -16,
+    width: 156,
+    height: 38,
+    borderRadius: 24,
+    pointerEvents: 'none',
+    transition: {
+      width: { type: 'spring', stiffness: 300, damping: 28, mass: 0.8 },
+      height: { type: 'spring', stiffness: 300, damping: 28, mass: 0.8 },
+      borderRadius: { type: 'spring', stiffness: 300, damping: 28, mass: 0.8 },
+      opacity: { duration: 0.28, delay: 0.08, ease: [0.4, 0, 0.2, 1] },
+      scale: { duration: 0.32, ease: [0.4, 0, 0.2, 1] },
+      y: { duration: 0.32, ease: [0.4, 0, 0.2, 1] },
+    },
+  },
+}
+
+export const dynamicIslandPillVariants: Variants = {
+  initial: {
+    opacity: 0,
+    scale: 0.9,
+  },
+  pill: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.2, ease: 'easeOut' },
+  },
+  expanded: {
+    opacity: 0,
+    scale: 0.88,
+    transition: { duration: 0.14, ease: 'easeIn' },
+  },
+  suppressed: {
+    opacity: 0,
+    scale: 0.88,
+    transition: { duration: 0.14 },
+  },
+  collapsing: {
+    opacity: 0,
+    scale: 0.88,
+    transition: { duration: 0.14 },
+  },
+}
+
+export const dynamicIslandContentVariants: Variants = {
+  initial: {
+    opacity: 0,
+    scale: 0.96,
+    y: 4,
+  },
+  pill: {
+    opacity: 0,
+    scale: 0.94,
+    y: 4,
+    transition: { duration: 0.12 },
+  },
+  expanded: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: {
+      duration: 0.26,
+      delay: 0.14,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+  suppressed: {
+    opacity: 0,
+    scale: 0.96,
+    y: -4,
+    transition: { duration: 0.15 },
+  },
+  collapsing: {
+    opacity: 0,
+    scale: 0.94,
+    transition: { duration: 0.12 },
+  },
+}
+
 // ─── Card Variants ────────────────────────────────────────────────────────────
 
 export const cardVariants: Variants = {

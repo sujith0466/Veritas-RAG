@@ -3,9 +3,8 @@ import { apiClient as api } from '@/api/client'
 import { useNotificationStore } from '@/stores/notificationStore'
 
 const notifyError = (title: string, message: string) => {
-  const { addNotification, removeNotification } = useNotificationStore.getState()
-  const id = addNotification({ title, message, type: 'error', duration: 5000 })
-  setTimeout(() => removeNotification(id), 5000)
+  const { addNotification } = useNotificationStore.getState()
+  addNotification({ title, message, type: 'error', duration: 5000 })
 }
 
 export interface ChatMessageMetadata {

@@ -17,17 +17,9 @@ export function useToast() {
       type?: 'success' | 'error' | 'warning' | 'info'
       duration?: number
     }) => {
-      const id = addNotification({ title, message, type, duration })
-
-      if (duration > 0) {
-        setTimeout(() => {
-          removeNotification(id)
-        }, duration)
-      }
-
-      return id
+      return addNotification({ title, message, type, duration })
     },
-    [addNotification, removeNotification],
+    [addNotification],
   )
 
   const dismiss = useCallback(
